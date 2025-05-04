@@ -56,17 +56,7 @@ export default function AddStore() {
   const isAuthenticated = !!user;
   const isSeller = user?.role === 'seller';
 
-  useEffect(() => {
-    if (!authLoading && (!isAuthenticated || !isSeller)) {
-      navigate('/login');
-    }
-  }, [authLoading, isAuthenticated, isSeller, navigate]);
-
-  if (!isAuthenticated || !isSeller) {
-    return null;
-  }
-
-  // Fetch categories
+  // Fetch categories - movido para antes da condição de retorno
   const { data: categories = [] } = useQuery({
     queryKey: ['/api/categories'],
     queryFn: async () => {
@@ -80,8 +70,21 @@ export default function AddStore() {
         console.error('Error fetching categories:', error);
         return [];
       }
-    }
+    },
+    enabled: !!isAuthenticated && !!isSeller
   });
+
+  useEffect(() => {
+    if (!authLoading && (!isAuthenticated || !isSeller)) {
+      navigate('/login');
+    }
+  }, [authLoading, isAuthenticated, isSeller, navigate]);
+
+  if (!isAuthenticated || !isSeller) {
+    return null;
+  }
+
+  // Os hooks foram movidos para antes da condição de retorno
 
   // Create form with default values
   const form = useForm<StoreFormValues>({
