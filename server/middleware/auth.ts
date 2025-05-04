@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { storage } from '../storage';
+import session from 'express-session';
 
 // Extend Express Request interface to include user object
 declare global {
@@ -7,8 +8,9 @@ declare global {
     interface Request {
       user?: {
         id: number;
-        username: string;
         email: string;
+        firstName: string;
+        lastName: string;
         role: 'customer' | 'seller';
       };
     }
@@ -27,7 +29,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     
     if (!user) {
       // Clear the invalid session
-      req.session.destroy((err) => {
+      req.session.destroy((err: Error | null) => {
         if (err) console.error('Error destroying session:', err);
       });
       return res.status(401).json({ message: 'Unauthorized: User not found' });
