@@ -6,8 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 interface User {
   id: number;
   email: string;
-  username: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   dateOfBirth?: string;
   gender?: 'male' | 'female' | 'not_specified';
   role: 'customer' | 'seller';
@@ -27,8 +27,7 @@ interface AuthContextType {
     lastName: string,
     dateOfBirth: string,
     gender: 'male' | 'female' | 'not_specified',
-    role: 'customer' | 'seller',
-    username: string
+    role: 'customer' | 'seller'
   ) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -86,7 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       dateOfBirth: string;
       gender: 'male' | 'female' | 'not_specified';
       role: 'customer' | 'seller';
-      username: string;
     }) => {
       return apiRequest('POST', '/api/auth/register', userData);
     },
@@ -142,8 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lastName: string,
     dateOfBirth: string,
     gender: 'male' | 'female' | 'not_specified',
-    role: 'customer' | 'seller',
-    username: string
+    role: 'customer' | 'seller'
   ) => {
     await registerMutation.mutateAsync({ 
       email, 
@@ -152,8 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       lastName,
       dateOfBirth,
       gender,
-      role,
-      username
+      role
     });
   };
 
