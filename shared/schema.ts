@@ -28,7 +28,7 @@ export const stores = pgTable("stores", {
   userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   description: text("description"),
-  categories: text("categories").array(),
+  category: text("category"),
   tags: text("tags").array(),
   rating: doublePrecision("rating").default(0),
   reviewCount: integer("review_count").default(0),

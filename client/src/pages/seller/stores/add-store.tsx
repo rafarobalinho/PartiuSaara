@@ -30,7 +30,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 const storeSchema = z.object({
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres' }),
   description: z.string().min(10, { message: 'A descrição deve ter pelo menos 10 caracteres' }),
-  categories: z.array(z.string()).min(1, { message: 'Selecione pelo menos uma categoria' }).max(3, { message: 'Selecione no máximo 3 categorias' }),
+  category: z.string().min(1, { message: 'Selecione uma categoria' }),
   tags: z.string().optional(),
   imageFiles: z.instanceof(FileList).optional(),
   imageUrls: z.string().optional(),
@@ -91,7 +91,7 @@ export default function AddStore() {
     defaultValues: {
       name: '',
       description: '',
-      categories: [],
+      category: '',
       tags: '',
       imageUrls: '',
       address: {
