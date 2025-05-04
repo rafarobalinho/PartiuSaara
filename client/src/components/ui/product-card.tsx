@@ -147,7 +147,7 @@ export default function ProductCard({
 
   return (
     <Link href={`/products/${product.id}`}>
-      <a className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow relative group block">
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow relative group block cursor-pointer">
         {discount > 0 && (
           <div className="bg-primary text-white text-xs font-bold absolute top-2 left-0 py-1 px-2 rounded-r-lg z-10">
             -{discount}%
@@ -230,7 +230,7 @@ export default function ProductCard({
             </div>
           )}
         </div>
-      </a>
+      </div>
     </Link>
   );
 }
