@@ -99,45 +99,161 @@ export default function Header() {
         
         {/* Menu mobile */}
         {isOpen && (
-          <div className="lg:hidden absolute top-full left-0 w-full bg-white z-50 shadow-md">
-            <div className="p-4 space-y-3">
-              {isAuthenticated ? (
-                <>
-                  <div className="flex items-center space-x-2 p-2 border-b border-gray-200">
-                    <span className="font-medium">Olá, {user?.firstName}</span>
-                  </div>
-                  {user?.role === 'seller' && (
-                    <div className="py-2 space-y-2">
-                      <h3 className="font-medium text-sm">Área do Lojista</h3>
-                      <Link href="/seller/dashboard" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Dashboard</Link>
-                      <Link href="/seller/products" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Meus Produtos</Link>
-                      <Link href="/seller/products/add" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Adicionar Produto</Link>
-                      <Link href="/seller/promotions" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Minhas Promoções</Link>
-                      <Link href="/seller/promotions/add" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Criar Promoção</Link>
-                      <Link href="/seller/analytics" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Analytics</Link>
-                    </div>
-                  )}
-                  <Link href="/account" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Minha Conta</Link>
-                  <Link href="/account/wishlist" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Lista de Desejos</Link>
-                  <Link href="/account/reservations" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Minhas Reservas</Link>
-                  <button 
-                    onClick={logout}
-                    className="block w-full text-left p-2 hover:bg-gray-100 rounded text-red-500"
-                  >
-                    Sair
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link href="/login" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Entrar</Link>
-                  <Link href="/register" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Cadastrar</Link>
-                </>
-              )}
-              <div className="border-t border-gray-200 pt-2 mt-2">
-                <Link href="/categories" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Categorias</Link>
-                <Link href="/stores" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Lojas</Link>
-                <Link href="/promotions" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Promoções</Link>
+          <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+            <div className="absolute right-0 top-0 h-full w-4/5 max-w-sm bg-white overflow-y-auto">
+              <div className="flex justify-between items-center p-4 border-b border-gray-200">
+                <div className="text-xl font-bold text-primary">Menu</div>
+                <button 
+                  onClick={closeMenu} 
+                  className="p-1 rounded-full hover:bg-gray-100"
+                >
+                  <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
+              
+              {isAuthenticated ? (
+                <div className="p-4">
+                  <div className="flex items-center space-x-2 p-2 mb-4 bg-gray-50 rounded-lg">
+                    <div className="w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center">
+                      <span className="font-bold">{user?.firstName?.[0].toUpperCase()}</span>
+                    </div>
+                    <div>
+                      <div className="font-medium">Olá, {user?.firstName}</div>
+                      <div className="text-xs text-gray-500">{user?.email}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <Link href="/account" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                        <i className="fas fa-user-circle w-8 text-primary"></i>
+                        <span>Minha Conta</span>
+                      </Link>
+                      <Link href="/account/wishlist" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                        <i className="fas fa-heart w-8 text-primary"></i>
+                        <span>Lista de Desejos</span>
+                      </Link>
+                      <Link href="/account/reservations" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                        <i className="fas fa-bookmark w-8 text-primary"></i>
+                        <span>Minhas Reservas</span>
+                      </Link>
+                    </div>
+                    
+                    {user?.role === 'seller' && (
+                      <div>
+                        <h3 className="font-medium text-sm px-2 py-1 bg-gray-100 rounded mb-1">Área do Lojista</h3>
+                        <Link href="/seller/dashboard" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                          <i className="fas fa-tachometer-alt w-8 text-primary"></i>
+                          <span>Dashboard</span>
+                        </Link>
+                        <Link href="/seller/stores" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                          <i className="fas fa-store w-8 text-primary"></i>
+                          <span>Minhas Lojas</span>
+                        </Link>
+                        <Link href="/seller/stores/add-store" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                          <i className="fas fa-plus-circle w-8 text-primary"></i>
+                          <span>Adicionar Loja</span>
+                        </Link>
+                        <Link href="/seller/products" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                          <i className="fas fa-box w-8 text-primary"></i>
+                          <span>Meus Produtos</span>
+                        </Link>
+                        <Link href="/seller/products/add" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                          <i className="fas fa-plus-square w-8 text-primary"></i>
+                          <span>Adicionar Produto</span>
+                        </Link>
+                        <Link href="/seller/promotions" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                          <i className="fas fa-bolt w-8 text-primary"></i>
+                          <span>Minhas Promoções</span>
+                        </Link>
+                        <Link href="/seller/promotions/add" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                          <i className="fas fa-percent w-8 text-primary"></i>
+                          <span>Criar Promoção</span>
+                        </Link>
+                        <Link href="/seller/analytics" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                          <i className="fas fa-chart-line w-8 text-primary"></i>
+                          <span>Analytics</span>
+                        </Link>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <h3 className="font-medium text-sm px-2 py-1 bg-gray-100 rounded mb-1">Navegação</h3>
+                      <Link href="/" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                        <i className="fas fa-home w-8 text-primary"></i>
+                        <span>Início</span>
+                      </Link>
+                      <Link href="/categories" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                        <i className="fas fa-th-large w-8 text-primary"></i>
+                        <span>Categorias</span>
+                      </Link>
+                      <Link href="/stores" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                        <i className="fas fa-store-alt w-8 text-primary"></i>
+                        <span>Lojas</span>
+                      </Link>
+                      <Link href="/products" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                        <i className="fas fa-shopping-bag w-8 text-primary"></i>
+                        <span>Produtos</span>
+                      </Link>
+                      <Link href="/promotions" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                        <i className="fas fa-tags w-8 text-primary"></i>
+                        <span>Promoções</span>
+                      </Link>
+                    </div>
+                    
+                    <button 
+                      onClick={() => {
+                        logout();
+                        closeMenu();
+                      }}
+                      className="flex items-center w-full p-2 hover:bg-red-50 rounded text-red-500"
+                    >
+                      <i className="fas fa-sign-out-alt w-8"></i>
+                      <span>Sair</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 space-y-6">
+                  <div>
+                    <h3 className="font-medium text-sm px-2 py-1 bg-gray-100 rounded mb-1">Conta</h3>
+                    <Link href="/login" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                      <i className="fas fa-sign-in-alt w-8 text-primary"></i>
+                      <span>Entrar</span>
+                    </Link>
+                    <Link href="/register" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                      <i className="fas fa-user-plus w-8 text-primary"></i>
+                      <span>Cadastrar</span>
+                    </Link>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-medium text-sm px-2 py-1 bg-gray-100 rounded mb-1">Navegação</h3>
+                    <Link href="/" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                      <i className="fas fa-home w-8 text-primary"></i>
+                      <span>Início</span>
+                    </Link>
+                    <Link href="/categories" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                      <i className="fas fa-th-large w-8 text-primary"></i>
+                      <span>Categorias</span>
+                    </Link>
+                    <Link href="/stores" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                      <i className="fas fa-store-alt w-8 text-primary"></i>
+                      <span>Lojas</span>
+                    </Link>
+                    <Link href="/products" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                      <i className="fas fa-shopping-bag w-8 text-primary"></i>
+                      <span>Produtos</span>
+                    </Link>
+                    <Link href="/promotions" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                      <i className="fas fa-tags w-8 text-primary"></i>
+                      <span>Promoções</span>
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
