@@ -74,6 +74,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/stores/:id', authMiddleware, StoreController.updateStore);
 
   // Promotion routes
+  app.get('/api/promotions', async (req: Request, res: Response) => {
+    try {
+      const promotions = await storage.getPromotions();
+      
+      // Para cada promoção, obter os detalhes do produto
+      const promotionsWithProducts = await Promise.all(
+        promotions.map(async (promotion) => {
+          const product = await storage.getProduct(promotion.productId);
+          return { ...promotion, product };
+        })
+      );
+      
+      res.json(promotionsWithProducts);
+    } catch (error) {
+      console.error('Error fetching promotions:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
   app.get('/api/promotions/flash', PromotionController.getFlashPromotions);
   app.get('/api/promotions/:id', PromotionController.getPromotion);
   app.post('/api/promotions', authMiddleware, PromotionController.createPromotion);
