@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { useLocation, calculateDistance, formatDistance } from '@/hooks/use-location';
 import StoreCard from '@/components/ui/store-card';
+import { Button } from '@/components/ui/button';
 
 interface Store {
   id: number;
@@ -73,10 +74,8 @@ export default function NearbyStores() {
           <i className="fas fa-map-marker-alt text-primary mr-2"></i>
           Lojas próximas a você
         </h2>
-        <Link href="/stores">
-          <a className="text-primary text-sm font-medium">
-            Ver mapa <i className="fas fa-map mr-1"></i>
-          </a>
+        <Link href="/stores" className="text-primary text-sm font-medium">
+          Ver mapa <i className="fas fa-map mr-1"></i>
         </Link>
       </div>
       
