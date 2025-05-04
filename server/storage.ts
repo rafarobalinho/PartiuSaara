@@ -17,7 +17,6 @@ import bcrypt from 'bcryptjs';
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   
@@ -352,11 +351,6 @@ export class MemStorage implements IStorage {
   // User operations
   async getUser(id: number): Promise<User | undefined> {
     return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    // Esta função está sendo mantida para compatibilidade, mas usamos email para autenticação
-    return this.getUserByEmail(username);
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
