@@ -188,6 +188,165 @@ export class MemStorage implements IStorage {
     ];
     
     bannerData.forEach(banner => this.createBanner(banner));
+
+    // Add some default stores
+    const storeData: InsertStore[] = [
+      {
+        name: 'Moda Express',
+        description: 'Sua loja de roupas e acessórios com os melhores preços do Saara',
+        category: 'Moda',
+        location: JSON.stringify({ lat: -22.9035, lng: -43.1808 }),
+        address: JSON.stringify({ 
+          street: 'Rua Senhor dos Passos', 
+          number: '123', 
+          neighborhood: 'Centro', 
+          city: 'Rio de Janeiro', 
+          state: 'RJ', 
+          zipCode: '20021-120' 
+        }),
+        images: ['https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80'],
+        subscriptionPlan: 'premium'
+      },
+      {
+        name: 'Tech House',
+        description: 'Os melhores gadgets e produtos tecnológicos do mercado',
+        category: 'Eletrônicos',
+        location: JSON.stringify({ lat: -22.9042, lng: -43.1795 }),
+        address: JSON.stringify({ 
+          street: 'Rua da Alfândega', 
+          number: '258', 
+          neighborhood: 'Centro', 
+          city: 'Rio de Janeiro', 
+          state: 'RJ', 
+          zipCode: '20070-000' 
+        }),
+        images: ['https://images.unsplash.com/photo-1440421841394-6a389f756be9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80'],
+        subscriptionPlan: 'pro'
+      },
+      {
+        name: 'CasaBella',
+        description: 'Tudo para sua casa com estilo e qualidade',
+        category: 'Casa',
+        location: JSON.stringify({ lat: -22.9038, lng: -43.1810 }),
+        address: JSON.stringify({ 
+          street: 'Rua Buenos Aires', 
+          number: '178', 
+          neighborhood: 'Centro', 
+          city: 'Rio de Janeiro', 
+          state: 'RJ', 
+          zipCode: '20070-020' 
+        }),
+        images: ['https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80'],
+        subscriptionPlan: 'freemium'
+      }
+    ];
+
+    const stores = storeData.map(store => this.createStore(store));
+
+    // Add some default products
+    const productData: InsertProduct[] = [
+      {
+        name: 'Smartphone X500',
+        description: 'Smartphone de última geração com câmera de 108MP e tela AMOLED',
+        price: 2499.90,
+        discountedPrice: 2199.90,
+        category: 'Eletrônicos',
+        stock: 50,
+        storeId: 2,
+        images: [
+          'https://images.unsplash.com/photo-1574944985070-8f3ebc6b79d2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1598327105666-5b89351aff97?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
+        ]
+      },
+      {
+        name: 'Vestido Floral Verão',
+        description: 'Vestido leve com estampa floral, perfeito para o verão',
+        price: 159.90,
+        discountedPrice: 119.90,
+        category: 'Moda',
+        stock: 30,
+        storeId: 1,
+        images: [
+          'https://images.unsplash.com/photo-1623609163859-ca93c959b5b8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1583400767692-c484b9e6ef36?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
+        ]
+      },
+      {
+        name: 'Conjunto de Panelas Antiaderentes',
+        description: 'Kit com 5 panelas antiaderentes de alta qualidade',
+        price: 349.90,
+        discountedPrice: 299.90,
+        category: 'Casa',
+        stock: 15,
+        storeId: 3,
+        images: [
+          'https://images.unsplash.com/photo-1584649096748-11d6f5802574?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1590794056499-4435a7273a64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
+        ]
+      },
+      {
+        name: 'Fones de Ouvido Bluetooth',
+        description: 'Fones sem fio com cancelamento de ruído e bateria de longa duração',
+        price: 299.90,
+        discountedPrice: 249.90,
+        category: 'Eletrônicos',
+        stock: 40,
+        storeId: 2,
+        images: [
+          'https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
+        ]
+      },
+      {
+        name: 'Camisa Social Slim',
+        description: 'Camisa social masculina de algodão com corte slim',
+        price: 129.90,
+        discountedPrice: 99.90,
+        category: 'Moda',
+        stock: 25,
+        storeId: 1,
+        images: [
+          'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
+        ]
+      }
+    ];
+
+    const products = productData.map(product => this.createProduct(product));
+
+    // Add flash promotions
+    const now = new Date();
+    const oneHourLater = new Date(now);
+    oneHourLater.setHours(oneHourLater.getHours() + 1);
+    
+    const twoHoursLater = new Date(now);
+    twoHoursLater.setHours(twoHoursLater.getHours() + 2);
+
+    const promotionData: InsertPromotion[] = [
+      {
+        type: 'flash',
+        productId: 1, // Smartphone
+        discountPercentage: 15,
+        startTime: now,
+        endTime: oneHourLater
+      },
+      {
+        type: 'flash',
+        productId: 2, // Vestido
+        discountPercentage: 20,
+        startTime: now,
+        endTime: twoHoursLater
+      },
+      {
+        type: 'flash',
+        productId: 4, // Fones
+        discountPercentage: 10,
+        startTime: now,
+        endTime: oneHourLater
+      }
+    ];
+
+    promotionData.forEach(promotion => this.createPromotion(promotion));
   }
 
   // User operations
