@@ -1428,9 +1428,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFeaturedProducts(limit: number = 8): Promise<Product[]> {
+    // Como a coluna featured não existe na tabela, vamos retornar produtos com desconto por enquanto
     return await db.select()
       .from(products)
-      .where(eq(products.featured, true))
+      .where(sql`products.discounted_price IS NOT NULL`)
+      .orderBy(desc(products.created_at))
       .limit(limit);
   }
 
