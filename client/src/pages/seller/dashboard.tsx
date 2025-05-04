@@ -133,6 +133,22 @@ export default function SellerDashboard() {
         )}
       </div>
 
+      <div className="flex justify-between items-center my-4">
+        <h2 className="text-xl font-bold">Resumo</h2>
+        <div className="flex space-x-2">
+          <Button asChild size="sm" className="bg-primary text-white hover:bg-primary/90">
+            <Link href="/seller/products/add">
+              <a>Adicionar Produto</a>
+            </Link>
+          </Button>
+          <Button asChild size="sm" className="bg-primary text-white hover:bg-primary/90">
+            <Link href="/seller/promotions/add">
+              <a>Criar Promoção</a>
+            </Link>
+          </Button>
+        </div>
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="p-6">
@@ -166,7 +182,7 @@ export default function SellerDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm">Cupons Ativos</p>
+                <p className="text-gray-500 text-sm">Promoções Ativas</p>
                 <h3 className="text-2xl font-bold">{isStatsLoading ? '-' : stats?.totalCoupons}</h3>
               </div>
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
