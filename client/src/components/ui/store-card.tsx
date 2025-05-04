@@ -1,0 +1,132 @@
+import { useState } from 'react';
+import { Link } from 'wouter';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
+
+interface Store {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  tags: string[];
+  rating: number;
+  reviewCount: number;
+  images: string[];
+  isOpen: boolean;
+}
+
+interface StoreCardProps {
+  store: Store;
+  distance: string | null;
+}
+
+export default function StoreCard({ store, distance }: StoreCardProps) {
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(
+        isFavorite ? 'DELETE' : 'POST', 
+        `/api/favorite-stores/${store.id}`,
+        {}
+      );
+    },
+    onSuccess: () => {
+      setIsFavorite(!isFavorite);
+      queryClient.invalidateQueries({ queryKey: ['/api/favorite-stores'] });
+      toast({
+        title: isFavorite ? 'Loja removida dos favoritos' : 'Loja adicionada aos favoritos',
+        description: isFavorite ? 
+          `${store.name} foi removida das suas lojas favoritas.` : 
+          `${store.name} foi adicionada às suas lojas favoritas.`,
+        variant: "default",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro',
+        description: 'Ocorreu um erro ao atualizar os favoritos.',
+        variant: "destructive",
+      });
+      console.error('Error toggling favorite store:', error);
+    }
+  });
+
+  const handleFavoriteToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!isAuthenticated) {
+      toast({
+        title: 'Login necessário',
+        description: 'Faça login para adicionar lojas aos favoritos.',
+        variant: "default",
+      });
+      return;
+    }
+    
+    toggleFavoriteMutation.mutate();
+  };
+
+  return (
+    <Link href={`/stores/${store.id}`}>
+      <a className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow block">
+        <div className="aspect-[16/9] relative overflow-hidden">
+          <img 
+            src={store.images[0]} 
+            alt={`Vista da loja ${store.name}`}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute top-0 left-0 right-0 p-3 flex justify-between">
+            <Badge className="bg-primary text-white text-xs py-1 px-2 rounded-lg">
+              {store.category}
+            </Badge>
+            <button 
+              className={`${isFavorite ? 'text-primary' : 'text-gray-400 hover:text-primary'} bg-white rounded-full p-1.5 shadow-sm`}
+              onClick={handleFavoriteToggle}
+            >
+              <i className={isFavorite ? 'fas fa-heart' : 'far fa-heart'}></i>
+            </button>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white p-3">
+            <h3 className="font-bold">{store.name}</h3>
+            <div className="flex items-center text-sm">
+              <i className="fas fa-star text-yellow-400 mr-1"></i> 
+              <span>{store.rating.toFixed(1)}</span>
+              <span className="mx-1">•</span>
+              <span>{store.reviewCount} avaliações</span>
+            </div>
+          </div>
+        </div>
+        <div className="p-3">
+          <div className="flex justify-between items-center mb-2">
+            {distance && (
+              <span className="text-sm text-gray-500">
+                <i className="fas fa-map-marker-alt mr-1"></i> {distance} de distância
+              </span>
+            )}
+            <span className={`text-xs ${store.isOpen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} py-0.5 px-2 rounded-full`}>
+              {store.isOpen ? 'Aberta agora' : 'Fechada'}
+            </span>
+          </div>
+          <p className="text-sm line-clamp-2 text-gray-600 mb-3">
+            {store.description}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {store.tags.slice(0, 3).map((tag, index) => (
+              <span key={index} className="text-xs bg-gray-100 text-gray-700 py-1 px-2 rounded-full">
+                {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      </a>
+    </Link>
+  );
+}
