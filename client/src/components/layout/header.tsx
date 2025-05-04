@@ -24,8 +24,8 @@ export default function Header() {
                 <line x1="3" y1="18" x2="21" y2="18"></line>
               </svg>
             </button>
-            <Link href="/">
-              <a className="text-primary font-bold text-2xl">Partiu Saara</a>
+            <Link href="/" className="text-primary font-bold text-2xl">
+              Partiu Saara
             </Link>
           </div>
           
@@ -55,27 +55,23 @@ export default function Header() {
                 </Button>
               </div>
             ) : (
-              <Link href="/login">
-                <a className="hidden lg:block text-sm hover:text-primary">Entre ou cadastre-se</a>
+              <Link href="/login" className="hidden lg:block text-sm hover:text-primary">
+                Entre ou cadastre-se
               </Link>
             )}
             
-            <Link href="/account/wishlist">
-              <a className="relative">
-                <i className="fas fa-heart text-xl"></i>
-                <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                  0
-                </span>
-              </a>
+            <Link href="/account/wishlist" className="relative">
+              <i className="fas fa-heart text-xl"></i>
+              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                0
+              </span>
             </Link>
             
-            <Link href="/account/reservations">
-              <a className="relative">
-                <i className="fas fa-bookmark text-xl"></i>
-                <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                  0
-                </span>
-              </a>
+            <Link href="/account/reservations" className="relative">
+              <i className="fas fa-bookmark text-xl"></i>
+              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                0
+              </span>
             </Link>
           </div>
         </div>
@@ -108,35 +104,17 @@ export default function Header() {
                   {user?.role === 'seller' && (
                     <div className="py-2 space-y-2">
                       <h3 className="font-medium text-sm">Área do Lojista</h3>
-                      <Link href="/seller/dashboard">
-                        <a className="block p-2 hover:bg-gray-100 rounded">Dashboard</a>
-                      </Link>
-                      <Link href="/seller/products">
-                        <a className="block p-2 hover:bg-gray-100 rounded">Meus Produtos</a>
-                      </Link>
-                      <Link href="/seller/products/add">
-                        <a className="block p-2 hover:bg-gray-100 rounded">Adicionar Produto</a>
-                      </Link>
-                      <Link href="/seller/promotions">
-                        <a className="block p-2 hover:bg-gray-100 rounded">Minhas Promoções</a>
-                      </Link>
-                      <Link href="/seller/promotions/add">
-                        <a className="block p-2 hover:bg-gray-100 rounded">Criar Promoção</a>
-                      </Link>
-                      <Link href="/seller/analytics">
-                        <a className="block p-2 hover:bg-gray-100 rounded">Analytics</a>
-                      </Link>
+                      <Link href="/seller/dashboard" className="block p-2 hover:bg-gray-100 rounded">Dashboard</Link>
+                      <Link href="/seller/products" className="block p-2 hover:bg-gray-100 rounded">Meus Produtos</Link>
+                      <Link href="/seller/products/add" className="block p-2 hover:bg-gray-100 rounded">Adicionar Produto</Link>
+                      <Link href="/seller/promotions" className="block p-2 hover:bg-gray-100 rounded">Minhas Promoções</Link>
+                      <Link href="/seller/promotions/add" className="block p-2 hover:bg-gray-100 rounded">Criar Promoção</Link>
+                      <Link href="/seller/analytics" className="block p-2 hover:bg-gray-100 rounded">Analytics</Link>
                     </div>
                   )}
-                  <Link href="/account">
-                    <a className="block p-2 hover:bg-gray-100 rounded">Minha Conta</a>
-                  </Link>
-                  <Link href="/account/wishlist">
-                    <a className="block p-2 hover:bg-gray-100 rounded">Lista de Desejos</a>
-                  </Link>
-                  <Link href="/account/reservations">
-                    <a className="block p-2 hover:bg-gray-100 rounded">Minhas Reservas</a>
-                  </Link>
+                  <Link href="/account" className="block p-2 hover:bg-gray-100 rounded">Minha Conta</Link>
+                  <Link href="/account/wishlist" className="block p-2 hover:bg-gray-100 rounded">Lista de Desejos</Link>
+                  <Link href="/account/reservations" className="block p-2 hover:bg-gray-100 rounded">Minhas Reservas</Link>
                   <button 
                     onClick={logout}
                     className="block w-full text-left p-2 hover:bg-gray-100 rounded text-red-500"
@@ -146,24 +124,14 @@ export default function Header() {
                 </>
               ) : (
                 <>
-                  <Link href="/login">
-                    <a className="block p-2 hover:bg-gray-100 rounded">Entrar</a>
-                  </Link>
-                  <Link href="/register">
-                    <a className="block p-2 hover:bg-gray-100 rounded">Cadastrar</a>
-                  </Link>
+                  <Link href="/login" className="block p-2 hover:bg-gray-100 rounded">Entrar</Link>
+                  <Link href="/register" className="block p-2 hover:bg-gray-100 rounded">Cadastrar</Link>
                 </>
               )}
               <div className="border-t border-gray-200 pt-2 mt-2">
-                <Link href="/categories">
-                  <a className="block p-2 hover:bg-gray-100 rounded">Categorias</a>
-                </Link>
-                <Link href="/stores">
-                  <a className="block p-2 hover:bg-gray-100 rounded">Lojas</a>
-                </Link>
-                <Link href="/promotions">
-                  <a className="block p-2 hover:bg-gray-100 rounded">Promoções</a>
-                </Link>
+                <Link href="/categories" className="block p-2 hover:bg-gray-100 rounded">Categorias</Link>
+                <Link href="/stores" className="block p-2 hover:bg-gray-100 rounded">Lojas</Link>
+                <Link href="/promotions" className="block p-2 hover:bg-gray-100 rounded">Promoções</Link>
               </div>
             </div>
           </div>
