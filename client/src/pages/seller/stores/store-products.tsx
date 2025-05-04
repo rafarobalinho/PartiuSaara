@@ -124,10 +124,25 @@ export default function StoreProducts() {
 
     return filteredProducts.map((product: any) => (
       <Card key={product.id} className="overflow-hidden">
-        <div className="h-40 bg-cover bg-center" style={{
-          backgroundImage: `url(${product.images?.[0] || 'https://images.unsplash.com/photo-1606663889134-b1dedb5ed8b7'})`,
-        }}>
-          <div className="h-full w-full bg-gradient-to-b from-black/10 to-black/50 flex items-end p-4">
+        <div className="relative h-40 bg-gray-200 overflow-hidden">
+          {product.images && product.images.length > 0 ? (
+            <img 
+              src={product.images[0]} 
+              alt={product.name}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // Fallback para quando a imagem falha ao carregar
+                e.currentTarget.src = 'https://images.unsplash.com/photo-1606663889134-b1dedb5ed8b7';
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gray-100">
+              <span className="text-gray-400 text-4xl">
+                <i className="fas fa-image"></i>
+              </span>
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/50 flex items-end p-4">
             {product.discountedPrice && (
               <Badge className="bg-red-500">
                 {Math.round((1 - product.discountedPrice / product.price) * 100)}% OFF
@@ -202,10 +217,25 @@ export default function StoreProducts() {
 
       {store && (
         <div className="flex items-center mb-6">
-          <div 
-            className="w-12 h-12 rounded-full bg-cover bg-center mr-3" 
-            style={{backgroundImage: `url(${store.images?.[0] || 'https://images.unsplash.com/photo-1579202673506-ca3ce28943ef'})`}}
-          ></div>
+          <div className="w-12 h-12 rounded-full bg-gray-200 mr-3 overflow-hidden">
+            {store.images && store.images.length > 0 ? (
+              <img 
+                src={store.images[0]} 
+                alt={store.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback para quando a imagem falha ao carregar
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1579202673506-ca3ce28943ef';
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <span className="text-gray-400 text-lg">
+                  <i className="fas fa-store"></i>
+                </span>
+              </div>
+            )}
+          </div>
           <div>
             <h2 className="font-bold">{store.name}</h2>
             <p className="text-gray-600 text-sm">{store.description}</p>
@@ -213,10 +243,18 @@ export default function StoreProducts() {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex-1">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+        <Button 
+          onClick={() => navigate(`/seller/products/add?storeId=${id}`)}
+          className="bg-primary text-white hover:bg-primary/90 ml-auto sm:ml-0 sm:order-2"
+        >
+          <i className="fas fa-plus mr-2"></i>
+          Novo Produto
+        </Button>
+        
+        <div className="w-full sm:order-1">
           <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-grid">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="all">
                 <i className="fas fa-boxes mr-2"></i>
                 Todos ({products.length})
@@ -235,15 +273,6 @@ export default function StoreProducts() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
-        </div>
-        <div className="ml-4">
-          <Button 
-            onClick={() => navigate('/seller/products/add')}
-            className="bg-primary text-white hover:bg-primary/90"
-          >
-            <i className="fas fa-plus mr-2"></i>
-            Novo Produto
-          </Button>
         </div>
       </div>
 

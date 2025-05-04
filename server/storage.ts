@@ -1265,4 +1265,478 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+import connectPg from "connect-pg-simple";
+import session from "express-session";
+import { eq, and, like, or, gte, lte, desc, sql } from "drizzle-orm";
+import { db, pool } from "./db";
+
+const PostgresSessionStore = connectPg(session);
+
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.SessionStore;
+
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true 
+    });
+  }
+
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUser(userData: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+  
+  // Store operations
+  async getStore(id: number): Promise<Store | undefined> {
+    const [store] = await db.select().from(stores).where(eq(stores.id, id));
+    return store;
+  }
+
+  async getStores(options: { category?: string, search?: string, limit?: number } = {}): Promise<Store[]> {
+    let query = db.select().from(stores);
+    
+    if (options.category) {
+      query = query.where(like(stores.category, `%${options.category}%`));
+    }
+    
+    if (options.search) {
+      query = query.where(
+        or(
+          like(stores.name, `%${options.search}%`),
+          like(stores.description, `%${options.search}%`)
+        )
+      );
+    }
+    
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    return await query;
+  }
+
+  async getNearbyStores(lat: number, lng: number, radius: number = 5): Promise<Store[]> {
+    // In a real implementation, this would use geospatial queries
+    // For simplicity, we're just returning all stores
+    return await db.select().from(stores);
+  }
+
+  async createStore(storeData: InsertStore): Promise<Store> {
+    const [store] = await db.insert(stores).values(storeData).returning();
+    return store;
+  }
+
+  async updateStore(id: number, storeData: Partial<Store>): Promise<Store | undefined> {
+    const [updatedStore] = await db
+      .update(stores)
+      .set(storeData)
+      .where(eq(stores.id, id))
+      .returning();
+    return updatedStore;
+  }
+  
+  // Product operations
+  async getProduct(id: number): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product;
+  }
+
+  async getProducts(options: { 
+    category?: string, 
+    search?: string, 
+    minPrice?: number,
+    maxPrice?: number,
+    sortBy?: string,
+    promotion?: boolean,
+    limit?: number
+  } = {}): Promise<Product[]> {
+    let query = db.select().from(products);
+    
+    if (options.category) {
+      query = query.where(eq(products.category, options.category));
+    }
+    
+    if (options.search) {
+      query = query.where(
+        or(
+          like(products.name, `%${options.search}%`),
+          like(products.description, `%${options.search}%`)
+        )
+      );
+    }
+    
+    if (options.minPrice !== undefined) {
+      query = query.where(gte(products.price, options.minPrice));
+    }
+    
+    if (options.maxPrice !== undefined) {
+      query = query.where(lte(products.price, options.maxPrice));
+    }
+    
+    if (options.sortBy) {
+      if (options.sortBy === 'price_asc') {
+        query = query.orderBy(products.price);
+      } else if (options.sortBy === 'price_desc') {
+        query = query.orderBy(desc(products.price));
+      } else if (options.sortBy === 'newest') {
+        query = query.orderBy(desc(products.createdAt));
+      }
+    }
+    
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    return await query;
+  }
+
+  async getProductsByStore(storeId: number): Promise<Product[]> {
+    return await db.select().from(products).where(eq(products.storeId, storeId));
+  }
+
+  async getRelatedProducts(productId: number, limit: number = 4): Promise<Product[]> {
+    const product = await this.getProduct(productId);
+    if (!product) return [];
+    
+    // Get products from the same category, excluding this one
+    return await db.select()
+      .from(products)
+      .where(
+        and(
+          eq(products.category, product.category),
+          sql`${products.id} != ${productId}`
+        )
+      )
+      .limit(limit);
+  }
+
+  async getFeaturedProducts(limit: number = 8): Promise<Product[]> {
+    return await db.select()
+      .from(products)
+      .where(eq(products.featured, true))
+      .limit(limit);
+  }
+
+  async createProduct(productData: InsertProduct): Promise<Product> {
+    const [product] = await db.insert(products).values(productData).returning();
+    return product;
+  }
+
+  async updateProduct(id: number, productData: Partial<Product>): Promise<Product | undefined> {
+    const [updatedProduct] = await db
+      .update(products)
+      .set(productData)
+      .where(eq(products.id, id))
+      .returning();
+    return updatedProduct;
+  }
+  
+  // Promotion operations
+  async getPromotion(id: number): Promise<Promotion | undefined> {
+    const [promotion] = await db.select().from(promotions).where(eq(promotions.id, id));
+    return promotion;
+  }
+
+  async getPromotions(type?: string, limit?: number): Promise<Promotion[]> {
+    let query = db.select().from(promotions);
+    
+    if (type) {
+      query = query.where(eq(promotions.type, type));
+    }
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    return await query;
+  }
+
+  async getPromotionsByStore(storeId: number): Promise<Promotion[]> {
+    // This requires joining product and promotions
+    // For simplicity, we'll just get all promotions and filter in app
+    const allPromotions = await this.getPromotions();
+    const storeProducts = await this.getProductsByStore(storeId);
+    const storeProductIds = storeProducts.map(p => p.id);
+    
+    return allPromotions.filter(promo => 
+      storeProductIds.includes(promo.productId)
+    );
+  }
+
+  async createPromotion(promotionData: InsertPromotion): Promise<Promotion> {
+    const [promotion] = await db.insert(promotions).values(promotionData).returning();
+    return promotion;
+  }
+
+  async updatePromotion(id: number, promotionData: Partial<Promotion>): Promise<Promotion | undefined> {
+    const [updatedPromotion] = await db
+      .update(promotions)
+      .set(promotionData)
+      .where(eq(promotions.id, id))
+      .returning();
+    return updatedPromotion;
+  }
+  
+  // Coupon operations
+  async getCoupon(id: number): Promise<Coupon | undefined> {
+    const [coupon] = await db.select().from(coupons).where(eq(coupons.id, id));
+    return coupon;
+  }
+
+  async getCoupons(search?: string): Promise<Coupon[]> {
+    let query = db.select().from(coupons);
+    
+    if (search) {
+      query = query.where(
+        or(
+          like(coupons.code, `%${search}%`),
+          like(coupons.description, `%${search}%`)
+        )
+      );
+    }
+    
+    return await query;
+  }
+
+  async getCouponsByStore(storeId: number): Promise<Coupon[]> {
+    return await db.select().from(coupons).where(eq(coupons.storeId, storeId));
+  }
+
+  async createCoupon(couponData: InsertCoupon): Promise<Coupon> {
+    const [coupon] = await db.insert(coupons).values(couponData).returning();
+    return coupon;
+  }
+
+  async updateCoupon(id: number, couponData: Partial<Coupon>): Promise<Coupon | undefined> {
+    const [updatedCoupon] = await db
+      .update(coupons)
+      .set(couponData)
+      .where(eq(coupons.id, id))
+      .returning();
+    return updatedCoupon;
+  }
+  
+  // Wishlist operations
+  async getWishlistItems(userId: number): Promise<Wishlist[]> {
+    return await db.select().from(wishlists).where(eq(wishlists.userId, userId));
+  }
+
+  async addToWishlist(userId: number, productId: number): Promise<Wishlist> {
+    // Check if already exists
+    const [existing] = await db.select()
+      .from(wishlists)
+      .where(
+        and(
+          eq(wishlists.userId, userId),
+          eq(wishlists.productId, productId)
+        )
+      );
+      
+    if (existing) return existing;
+    
+    // Create new wishlist item
+    const [wishlistItem] = await db.insert(wishlists)
+      .values({ userId, productId })
+      .returning();
+    return wishlistItem;
+  }
+
+  async removeFromWishlist(userId: number, productId: number): Promise<boolean> {
+    const result = await db.delete(wishlists)
+      .where(
+        and(
+          eq(wishlists.userId, userId),
+          eq(wishlists.productId, productId)
+        )
+      );
+    return true; // PostgreSQL doesn't return count of deleted rows easily with drizzle
+  }
+  
+  // Favorite store operations
+  async getFavoriteStores(userId: number): Promise<FavoriteStore[]> {
+    return await db.select().from(favoriteStores).where(eq(favoriteStores.userId, userId));
+  }
+
+  async addFavoriteStore(userId: number, storeId: number): Promise<FavoriteStore> {
+    // Check if already exists
+    const [existing] = await db.select()
+      .from(favoriteStores)
+      .where(
+        and(
+          eq(favoriteStores.userId, userId),
+          eq(favoriteStores.storeId, storeId)
+        )
+      );
+      
+    if (existing) return existing;
+    
+    // Create new favorite store
+    const [favoriteStore] = await db.insert(favoriteStores)
+      .values({ userId, storeId })
+      .returning();
+    return favoriteStore;
+  }
+
+  async removeFavoriteStore(userId: number, storeId: number): Promise<boolean> {
+    const result = await db.delete(favoriteStores)
+      .where(
+        and(
+          eq(favoriteStores.userId, userId),
+          eq(favoriteStores.storeId, storeId)
+        )
+      );
+    return true; // PostgreSQL doesn't return count of deleted rows easily with drizzle
+  }
+  
+  // Reservation operations
+  async getReservation(id: number): Promise<Reservation | undefined> {
+    const [reservation] = await db.select().from(reservations).where(eq(reservations.id, id));
+    return reservation;
+  }
+
+  async getReservations(userId: number, limit?: number): Promise<Reservation[]> {
+    let query = db.select().from(reservations).where(eq(reservations.userId, userId));
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    return await query;
+  }
+
+  async createReservation(userId: number, productId: number, quantity: number = 1): Promise<Reservation> {
+    // Set expiration date to 24 hours from now
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+    
+    const [reservation] = await db.insert(reservations)
+      .values({
+        userId,
+        productId,
+        quantity,
+        status: 'pending',
+        expiresAt
+      })
+      .returning();
+    return reservation;
+  }
+
+  async updateReservationStatus(id: number, status: 'pending' | 'completed' | 'expired' | 'cancelled'): Promise<Reservation | undefined> {
+    const [updatedReservation] = await db
+      .update(reservations)
+      .set({ status })
+      .where(eq(reservations.id, id))
+      .returning();
+    return updatedReservation;
+  }
+  
+  // Category operations
+  async getCategory(id: number): Promise<Category | undefined> {
+    const [category] = await db.select().from(categories).where(eq(categories.id, id));
+    return category;
+  }
+
+  async getCategoryBySlug(slug: string): Promise<Category | undefined> {
+    const [category] = await db.select().from(categories).where(eq(categories.slug, slug));
+    return category;
+  }
+
+  async getCategories(): Promise<Category[]> {
+    return await db.select().from(categories);
+  }
+
+  async createCategory(categoryData: InsertCategory): Promise<Category> {
+    const [category] = await db.insert(categories).values(categoryData).returning();
+    return category;
+  }
+  
+  // Banner operations
+  async getBanner(id: number): Promise<Banner | undefined> {
+    const [banner] = await db.select().from(banners).where(eq(banners.id, id));
+    return banner;
+  }
+
+  async getBanners(isActive: boolean = true): Promise<Banner[]> {
+    return await db.select().from(banners).where(eq(banners.isActive, isActive));
+  }
+
+  async createBanner(bannerData: InsertBanner): Promise<Banner> {
+    const [banner] = await db.insert(banners).values(bannerData).returning();
+    return banner;
+  }
+
+  async updateBanner(id: number, bannerData: Partial<Banner>): Promise<Banner | undefined> {
+    const [updatedBanner] = await db
+      .update(banners)
+      .set(bannerData)
+      .where(eq(banners.id, id))
+      .returning();
+    return updatedBanner;
+  }
+  
+  // Store analytics operations
+  async recordStoreImpression(storeId: number): Promise<StoreImpression> {
+    const [impression] = await db.insert(storeImpressions)
+      .values({
+        storeId,
+        timestamp: new Date()
+      })
+      .returning();
+    return impression;
+  }
+
+  async getStoreImpressions(storeId: number, startDate?: Date, endDate?: Date): Promise<StoreImpression[]> {
+    let query = db.select().from(storeImpressions).where(eq(storeImpressions.storeId, storeId));
+    
+    if (startDate) {
+      query = query.where(gte(storeImpressions.timestamp, startDate));
+    }
+    
+    if (endDate) {
+      query = query.where(lte(storeImpressions.timestamp, endDate));
+    }
+    
+    return await query;
+  }
+
+  // User statistics
+  async getUserStats(userId: number): Promise<{
+    wishlistCount: number;
+    reservationsCount: number;
+    favoriteStoresCount: number;
+  }> {
+    // Count wishlist items
+    const wishlistItems = await db.select().from(wishlists).where(eq(wishlists.userId, userId));
+    
+    // Count reservations
+    const userReservations = await db.select().from(reservations).where(eq(reservations.userId, userId));
+    
+    // Count favorite stores
+    const userFavoriteStores = await db.select().from(favoriteStores).where(eq(favoriteStores.userId, userId));
+    
+    return {
+      wishlistCount: wishlistItems.length,
+      reservationsCount: userReservations.length,
+      favoriteStoresCount: userFavoriteStores.length
+    };
+  }
+}
+
+export const storage = new DatabaseStorage();
