@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,11 @@ export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [location] = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
+  
+  // Função para fechar o menu mobile após a navegação
+  const closeMenu = useCallback(() => {
+    setIsOpen(false);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm">
@@ -104,17 +109,17 @@ export default function Header() {
                   {user?.role === 'seller' && (
                     <div className="py-2 space-y-2">
                       <h3 className="font-medium text-sm">Área do Lojista</h3>
-                      <Link href="/seller/dashboard" className="block p-2 hover:bg-gray-100 rounded">Dashboard</Link>
-                      <Link href="/seller/products" className="block p-2 hover:bg-gray-100 rounded">Meus Produtos</Link>
-                      <Link href="/seller/products/add" className="block p-2 hover:bg-gray-100 rounded">Adicionar Produto</Link>
-                      <Link href="/seller/promotions" className="block p-2 hover:bg-gray-100 rounded">Minhas Promoções</Link>
-                      <Link href="/seller/promotions/add" className="block p-2 hover:bg-gray-100 rounded">Criar Promoção</Link>
-                      <Link href="/seller/analytics" className="block p-2 hover:bg-gray-100 rounded">Analytics</Link>
+                      <Link href="/seller/dashboard" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Dashboard</Link>
+                      <Link href="/seller/products" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Meus Produtos</Link>
+                      <Link href="/seller/products/add" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Adicionar Produto</Link>
+                      <Link href="/seller/promotions" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Minhas Promoções</Link>
+                      <Link href="/seller/promotions/add" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Criar Promoção</Link>
+                      <Link href="/seller/analytics" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Analytics</Link>
                     </div>
                   )}
-                  <Link href="/account" className="block p-2 hover:bg-gray-100 rounded">Minha Conta</Link>
-                  <Link href="/account/wishlist" className="block p-2 hover:bg-gray-100 rounded">Lista de Desejos</Link>
-                  <Link href="/account/reservations" className="block p-2 hover:bg-gray-100 rounded">Minhas Reservas</Link>
+                  <Link href="/account" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Minha Conta</Link>
+                  <Link href="/account/wishlist" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Lista de Desejos</Link>
+                  <Link href="/account/reservations" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Minhas Reservas</Link>
                   <button 
                     onClick={logout}
                     className="block w-full text-left p-2 hover:bg-gray-100 rounded text-red-500"
@@ -124,14 +129,14 @@ export default function Header() {
                 </>
               ) : (
                 <>
-                  <Link href="/login" className="block p-2 hover:bg-gray-100 rounded">Entrar</Link>
-                  <Link href="/register" className="block p-2 hover:bg-gray-100 rounded">Cadastrar</Link>
+                  <Link href="/login" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Entrar</Link>
+                  <Link href="/register" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Cadastrar</Link>
                 </>
               )}
               <div className="border-t border-gray-200 pt-2 mt-2">
-                <Link href="/categories" className="block p-2 hover:bg-gray-100 rounded">Categorias</Link>
-                <Link href="/stores" className="block p-2 hover:bg-gray-100 rounded">Lojas</Link>
-                <Link href="/promotions" className="block p-2 hover:bg-gray-100 rounded">Promoções</Link>
+                <Link href="/categories" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Categorias</Link>
+                <Link href="/stores" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Lojas</Link>
+                <Link href="/promotions" onClick={closeMenu} className="block p-2 hover:bg-gray-100 rounded">Promoções</Link>
               </div>
             </div>
           </div>
