@@ -5,10 +5,12 @@ import { z } from "zod";
 // Users schema
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
-  name: text("name"),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  dateOfBirth: timestamp("date_of_birth"),
+  gender: text("gender").$type<"male" | "female" | "not_specified">().default("not_specified"),
   role: text("role").$type<"customer" | "seller">().notNull().default("customer"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
