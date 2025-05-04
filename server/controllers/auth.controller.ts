@@ -2,18 +2,29 @@ import { Request, Response } from 'express';
 import { storage } from '../storage';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
+import session from 'express-session';
+
+// Extendendo o tipo Request para incluir a sessão
+declare module 'express-session' {
+  interface SessionData {
+    userId: number;
+  }
+}
 
 // User registration schema
 const registerSchema = z.object({
-  username: z.string().min(3, 'Username must be at least 3 characters'),
   email: z.string().email('Invalid email format'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  firstName: z.string().min(2, 'First name must be at least 2 characters'),
+  lastName: z.string().min(2, 'Last name must be at least 2 characters'),
+  dateOfBirth: z.string(),
+  gender: z.enum(['male', 'female', 'not_specified']).default('not_specified'),
   role: z.enum(['customer', 'seller']).default('customer')
 });
 
 // User login schema
 const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
+  email: z.string().email('Invalid email format'),
   password: z.string().min(1, 'Password is required')
 });
 
@@ -30,27 +41,35 @@ export async function register(req: Request, res: Response) {
     
     const userData = validationResult.data;
     
-    // Check if username already exists
-    const existingUser = await storage.getUserByUsername(userData.username);
-    if (existingUser) {
-      return res.status(409).json({ message: 'Username already exists' });
-    }
-    
     // Check if email already exists
     const existingEmail = await storage.getUserByEmail(userData.email);
     if (existingEmail) {
       return res.status(409).json({ message: 'Email already in use' });
     }
     
-    // Create the user
-    const user = await storage.createUser(userData);
+    // Create the user with new fields
+    const user = await storage.createUser({
+      email: userData.email,
+      password: userData.password,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      dateOfBirth: userData.dateOfBirth ? new Date(userData.dateOfBirth) : undefined,
+      gender: userData.gender,
+      role: userData.role
+    });
     
     // Set user session
     req.session.userId = user.id;
     
     res.status(201).json({ 
       message: 'User registered successfully', 
-      user: { id: user.id, username: user.username, email: user.email, role: user.role } 
+      user: { 
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role
+      } 
     });
     
   } catch (error) {
@@ -70,37 +89,43 @@ export async function login(req: Request, res: Response) {
       });
     }
     
-    const { username, password } = validationResult.data;
+    const { email, password } = validationResult.data;
     
-    // Find user by username
-    const user = await storage.getUserByUsername(username);
+    // Find user by email
+    const user = await storage.getUserByEmail(email);
     if (!user) {
-      return res.status(401).json({ message: 'Invalid username or password' });
+      return res.status(401).json({ message: 'Email ou senha inválidos' });
     }
     
     // Verify password
     const passwordValid = await bcrypt.compare(password, user.password);
     if (!passwordValid) {
-      return res.status(401).json({ message: 'Invalid username or password' });
+      return res.status(401).json({ message: 'Email ou senha inválidos' });
     }
     
     // Set user session
     req.session.userId = user.id;
     
     res.json({ 
-      message: 'Login successful', 
-      user: { id: user.id, username: user.username, email: user.email, role: user.role } 
+      message: 'Login bem-sucedido', 
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role 
+      } 
     });
     
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Erro interno do servidor' });
   }
 }
 
 export async function logout(req: Request, res: Response) {
   try {
-    req.session.destroy((err) => {
+    req.session.destroy((err: Error | null) => {
       if (err) {
         console.error('Error destroying session:', err);
         return res.status(500).json({ message: 'Failed to logout' });
