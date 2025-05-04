@@ -1282,11 +1282,6 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
-  }
-
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
@@ -1692,7 +1687,7 @@ export class DatabaseStorage implements IStorage {
     const [impression] = await db.insert(storeImpressions)
       .values({
         storeId,
-        timestamp: new Date()
+        date: new Date()
       })
       .returning();
     return impression;
@@ -1702,11 +1697,11 @@ export class DatabaseStorage implements IStorage {
     let query = db.select().from(storeImpressions).where(eq(storeImpressions.storeId, storeId));
     
     if (startDate) {
-      query = query.where(gte(storeImpressions.timestamp, startDate));
+      query = query.where(gte(storeImpressions.date, startDate));
     }
     
     if (endDate) {
-      query = query.where(lte(storeImpressions.timestamp, endDate));
+      query = query.where(lte(storeImpressions.date, endDate));
     }
     
     return await query;
