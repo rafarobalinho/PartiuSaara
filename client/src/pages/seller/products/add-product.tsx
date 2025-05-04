@@ -160,7 +160,8 @@ export default function AddProduct() {
       return apiRequest('POST', '/api/products', formattedData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/seller/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products/seller'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
       toast({
         title: 'Produto adicionado',
         description: 'O produto foi adicionado com sucesso ao seu catálogo.',
