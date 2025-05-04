@@ -30,7 +30,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 const storeSchema = z.object({
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres' }),
   description: z.string().min(10, { message: 'A descrição deve ter pelo menos 10 caracteres' }),
-  category: z.string().min(1, { message: 'Selecione uma categoria' }),
+  categories: z.array(z.string()).min(1, { message: 'Selecione pelo menos uma categoria' }).max(3, { message: 'Selecione no máximo 3 categorias' }),
   tags: z.string().optional(),
   imageFiles: z.instanceof(FileList).optional(),
   imageUrls: z.string().optional(),
@@ -91,7 +91,7 @@ export default function AddStore() {
     defaultValues: {
       name: '',
       description: '',
-      category: '',
+      categories: [],
       tags: '',
       imageUrls: '',
       address: {
@@ -114,7 +114,7 @@ export default function AddStore() {
       const formattedData = {
         name: data.name,
         description: data.description,
-        category: data.category,
+        category: data.categories && data.categories.length > 0 ? data.categories[0] : '',
         tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()) : [],
         images: uploadedImages.length > 0 ? uploadedImages : 
                 (data.imageUrls ? data.imageUrls.split(',').map((img: string) => img.trim()) : []),
@@ -217,29 +217,47 @@ export default function AddStore() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="category"
+                      name="categories"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Categoria*</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione uma categoria" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {categories.map((category: any) => (
-                                <SelectItem 
-                                  key={category.id} 
-                                  value={category.slug}
+                          <FormLabel>Categorias*</FormLabel>
+                          <div className="space-y-2">
+                            {categories.map((category: any) => (
+                              <div className="flex items-center space-x-2" key={category.id}>
+                                <Checkbox 
+                                  id={`category-${category.id}`}
+                                  checked={field.value?.includes(category.slug)}
+                                  onCheckedChange={(checked) => {
+                                    const currentValues = field.value || [];
+                                    if (checked) {
+                                      // Limitar a 3 categorias
+                                      if (currentValues.length < 3) {
+                                        field.onChange([...currentValues, category.slug]);
+                                      } else {
+                                        toast({
+                                          title: "Limite atingido",
+                                          description: "Você pode selecionar apenas 3 categorias.",
+                                          variant: "destructive"
+                                        });
+                                      }
+                                    } else {
+                                      field.onChange(
+                                        currentValues.filter((value) => value !== category.slug)
+                                      );
+                                    }
+                                  }}
+                                />
+                                <label 
+                                  htmlFor={`category-${category.id}`}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                 >
                                   {category.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                                </label>
+                              </div>
+                            ))}
+                          </div>
                           <FormDescription>
-                            Selecione a categoria principal da sua loja
+                            Selecione até 3 categorias para sua loja
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
