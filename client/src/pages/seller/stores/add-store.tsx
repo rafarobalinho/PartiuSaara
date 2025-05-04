@@ -5,6 +5,7 @@ import { useLocation, Link } from 'wouter';
 import { z } from 'zod';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { CheckIcon, Upload, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Esquema para validação do formulário da loja
 const storeSchema = z.object({
@@ -47,8 +50,6 @@ export default function AddStore() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
 
   // Redirecionar se não estiver autenticado ou não for vendedor
   const isAuthenticated = !!user;
@@ -90,32 +91,40 @@ export default function AddStore() {
     defaultValues: {
       name: '',
       description: '',
-      category: '',
+      categories: [],
       tags: '',
-      images: '',
+      imageUrls: '',
       address: {
         street: '',
         city: '',
         state: '',
         zipCode: '',
       },
-      location: {
-        latitude: 0,
-        longitude: 0,
-      },
+      acceptLocationTerms: false,
     },
   });
 
+  // Define state for image uploads
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
   // Mutation para criar loja
   const createStoreMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: StoreFormValues) => {
       // Formatação dos dados antes de enviar
       const formattedData = {
-        ...data,
-        // Parse tags string to array
+        name: data.name,
+        description: data.description,
+        categories: data.categories,
         tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()) : [],
-        // Parse images string to array
-        images: data.images.split(',').map((img: string) => img.trim()),
+        images: uploadedImages.length > 0 ? uploadedImages : 
+                (data.imageUrls ? data.imageUrls.split(',').map((img: string) => img.trim()) : []),
+        address: data.address,
+        // Fake location data (will be replaced by Google Maps API in the future)
+        location: {
+          latitude: -22.903539,
+          longitude: -43.175003
+        },
         // Add userId
         userId: user?.id,
       };
@@ -141,30 +150,7 @@ export default function AddStore() {
     }
   });
 
-  // Função para obter localização atual
-  const getCurrentLocation = () => {
-    setLocationLoading(true);
-    setLocationError(null);
-    
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          form.setValue('location.latitude', latitude);
-          form.setValue('location.longitude', longitude);
-          setLocationLoading(false);
-        },
-        (error) => {
-          setLocationError('Não foi possível obter sua localização. Por favor, tente novamente ou insira manualmente.');
-          setLocationLoading(false);
-          console.error('Geolocation error:', error);
-        }
-      );
-    } else {
-      setLocationError('Seu navegador não suporta geolocalização. Por favor, insira a localização manualmente.');
-      setLocationLoading(false);
-    }
-  };
+
 
   // Submit handler
   function onSubmit(data: StoreFormValues) {
@@ -230,27 +216,61 @@ export default function AddStore() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="category"
+                      name="categories"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Categoria*</FormLabel>
+                          <FormLabel>Categorias* (max. 3)</FormLabel>
+                          <div className="mb-2">
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              {selectedCategories.map((cat) => {
+                                const categoryObj = categories.find((c: any) => c.slug === cat);
+                                return (
+                                  <Badge key={cat} className="px-3 py-1 bg-primary/10 text-primary">
+                                    {categoryObj?.name || cat}
+                                    <X 
+                                      className="ml-1 h-3 w-3 cursor-pointer" 
+                                      onClick={() => {
+                                        const newCats = selectedCategories.filter(c => c !== cat);
+                                        setSelectedCategories(newCats);
+                                        form.setValue('categories', newCats);
+                                      }}
+                                    />
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          
                           <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
+                            onValueChange={(value) => {
+                              if (selectedCategories.length < 3 && !selectedCategories.includes(value)) {
+                                const newCategories = [...selectedCategories, value];
+                                setSelectedCategories(newCategories);
+                                field.onChange(newCategories);
+                              }
+                            }}
+                            disabled={selectedCategories.length >= 3}
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Selecione uma categoria" />
+                                <SelectValue placeholder={selectedCategories.length >= 3 ? "Máximo de categorias atingido" : "Selecione categorias"} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
                               {categories.map((category: any) => (
-                                <SelectItem key={category.id} value={category.slug}>
+                                <SelectItem 
+                                  key={category.id} 
+                                  value={category.slug}
+                                  disabled={selectedCategories.includes(category.slug)}
+                                >
                                   {category.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+                          <FormDescription>
+                            Selecione até 3 categorias para sua loja
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -274,25 +294,79 @@ export default function AddStore() {
                     />
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="images"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Imagens*</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          URLs de imagens separadas por vírgula
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-1 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="imageFiles"
+                      render={({ field: { value, onChange, ...fieldProps } }) => (
+                        <FormItem>
+                          <FormLabel>Imagens da Loja*</FormLabel>
+                          <FormControl>
+                            <div className="flex flex-col space-y-3">
+                              <Input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => {
+                                  onChange(e.target.files);
+                                  // Simular upload para demo (URLs locais temporárias)
+                                  if (e.target.files && e.target.files.length > 0) {
+                                    const tempUrls = Array.from(e.target.files).map(file => 
+                                      URL.createObjectURL(file)
+                                    );
+                                    setUploadedImages(prev => [...prev, ...tempUrls]);
+                                  }
+                                }}
+                                {...fieldProps}
+                              />
+                              
+                              {uploadedImages.length > 0 && (
+                                <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mt-3">
+                                  {uploadedImages.map((url, index) => (
+                                    <div key={index} className="relative group aspect-square border rounded-md overflow-hidden">
+                                      <img src={url} alt={`Upload ${index + 1}`} className="w-full h-full object-cover" />
+                                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                        <X 
+                                          className="h-6 w-6 text-white cursor-pointer" 
+                                          onClick={() => setUploadedImages(
+                                            uploadedImages.filter((_, i) => i !== index)
+                                          )}
+                                        />
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </FormControl>
+                          <FormDescription>
+                            Faça upload de imagens ou use o campo abaixo para URLs de imagens
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="imageUrls"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>URLs de Imagens (alternativo)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            URLs de imagens separadas por vírgula
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 mt-4">
                     <h3 className="font-medium text-sm mb-3">Endereço e Localização</h3>
@@ -357,63 +431,29 @@ export default function AddStore() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="location.latitude"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Latitude*</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                step="any"
-                                placeholder="Ex: -22.903539" 
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="location.longitude"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Longitude*</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                step="any"
-                                placeholder="Ex: -43.175003" 
-                                {...field}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="mt-4">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={getCurrentLocation}
-                        disabled={locationLoading}
-                        className="w-full"
-                      >
-                        {locationLoading ? 'Obtendo localização...' : 'Usar Minha Localização Atual'}
-                        <i className="fas fa-map-marker-alt ml-2"></i>
-                      </Button>
-                      {locationError && (
-                        <p className="text-sm text-red-500 mt-2">{locationError}</p>
+                    <FormField
+                      control={form.control}
+                      name="acceptLocationTerms"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 my-4">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>
+                              Permissão de Localização
+                            </FormLabel>
+                            <FormDescription>
+                              Permitir que o aplicativo acesse minha localização para mostrar promoções exclusivas quando eu estiver próximo ao SAARA.
+                              As informações de localização são utilizadas apenas para melhorar sua experiência com promoções personalizadas.
+                            </FormDescription>
+                          </div>
+                        </FormItem>
                       )}
-                    </div>
+                    />
                   </div>
 
                   <div className="flex justify-end space-x-2 pt-4">
