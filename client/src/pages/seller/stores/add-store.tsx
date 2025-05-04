@@ -50,12 +50,15 @@ export default function AddStore() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
+  
+  // Definir estado para imagens carregadas
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
 
   // Redirecionar se não estiver autenticado ou não for vendedor
   const isAuthenticated = !!user;
   const isSeller = user?.role === 'seller';
 
-  // Fetch categories - movido para antes da condição de retorno
+  // Fetch categories
   const { data: categories = [] } = useQuery({
     queryKey: ['/api/categories'],
     queryFn: async () => {
@@ -73,19 +76,7 @@ export default function AddStore() {
     enabled: !!isAuthenticated && !!isSeller
   });
 
-  useEffect(() => {
-    if (!authLoading && (!isAuthenticated || !isSeller)) {
-      navigate('/login');
-    }
-  }, [authLoading, isAuthenticated, isSeller, navigate]);
-
-  if (!isAuthenticated || !isSeller) {
-    return null;
-  }
-
-  // Os hooks foram movidos para antes da condição de retorno
-
-  // Create form with default values
+  // Initialize form
   const form = useForm<StoreFormValues>({
     resolver: zodResolver(storeSchema),
     defaultValues: {
@@ -103,9 +94,6 @@ export default function AddStore() {
       acceptLocationTerms: false,
     },
   });
-
-  // Define state for image uploads
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
 
   // Mutation para criar loja
   const createStoreMutation = useMutation({
@@ -150,12 +138,20 @@ export default function AddStore() {
       console.error('Error creating store:', error);
     }
   });
-
-
-
+  
   // Submit handler
   function onSubmit(data: StoreFormValues) {
     createStoreMutation.mutate(data);
+  }
+
+  useEffect(() => {
+    if (!authLoading && (!isAuthenticated || !isSeller)) {
+      navigate('/login');
+    }
+  }, [authLoading, isAuthenticated, isSeller, navigate]);
+
+  if (!isAuthenticated || !isSeller) {
+    return null;
   }
 
   return (
