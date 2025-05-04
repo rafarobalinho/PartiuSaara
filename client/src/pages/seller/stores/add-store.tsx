@@ -120,11 +120,13 @@ export default function AddStore() {
         images: uploadedImages.length > 0 ? uploadedImages : 
                 (data.imageUrls ? data.imageUrls.split(',').map((img: string) => img.trim()) : []),
         address: data.address,
-        // Fake location data (will be replaced by Google Maps API in the future)
+        // Posição padrão para o SAARA
         location: {
           latitude: -22.903539,
           longitude: -43.175003
         },
+        // Consentimento para usar localização (para promoções baseadas em localização)
+        acceptLocationTerms: !!data.acceptLocationTerms,
         // Add userId
         userId: user?.id,
       };

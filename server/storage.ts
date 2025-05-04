@@ -442,6 +442,7 @@ export class MemStorage implements IStorage {
       id,
       rating: 0,
       reviewCount: 0,
+      acceptLocationTerms: storeData.acceptLocationTerms || false,
       subscriptionPlan: 'freemium',
       createdAt: now,
       updatedAt: now
