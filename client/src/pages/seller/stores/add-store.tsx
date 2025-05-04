@@ -27,19 +27,17 @@ import { useAuth } from '@/context/auth-context';
 const storeSchema = z.object({
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres' }),
   description: z.string().min(10, { message: 'A descrição deve ter pelo menos 10 caracteres' }),
-  category: z.string().min(1, { message: 'Selecione uma categoria' }),
+  categories: z.array(z.string()).min(1, { message: 'Selecione pelo menos uma categoria' }).max(3, { message: 'Selecione no máximo 3 categorias' }),
   tags: z.string().optional(),
-  images: z.string().min(1, { message: 'Adicione pelo menos uma imagem' }),
+  imageFiles: z.instanceof(FileList).optional(),
+  imageUrls: z.string().optional(),
   address: z.object({
     street: z.string().min(1, { message: 'Preencha o endereço' }),
     city: z.string().min(1, { message: 'Preencha a cidade' }),
     state: z.string().min(1, { message: 'Preencha o estado' }),
     zipCode: z.string().min(1, { message: 'Preencha o CEP' }),
   }),
-  location: z.object({
-    latitude: z.number(),
-    longitude: z.number(),
-  }),
+  acceptLocationTerms: z.boolean().optional(),
 });
 
 // Tipo para os valores do formulário
