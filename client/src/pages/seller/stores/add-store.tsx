@@ -112,8 +112,7 @@ export default function AddStore() {
           latitude: -22.903539,
           longitude: -43.175003
         },
-        // Consentimento para usar localização (para promoções baseadas em localização)
-        acceptLocationTerms: !!data.acceptLocationTerms,
+        // Removemos o acceptLocationTerms pois não existe essa coluna no banco de dados
         // Add userId
         userId: user?.id,
       };
