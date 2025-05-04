@@ -142,6 +142,57 @@ export default function Header() {
           </div>
         )}
       </div>
+      
+      {/* Menu desktop */}
+      <div className="hidden lg:block border-t border-gray-200">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center">
+            <div className="flex space-x-8 py-3">
+              <Link href="/" className={`text-sm font-medium ${location === '/' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
+                <span className="flex items-center">
+                  <i className="fas fa-home mr-2"></i>
+                  Início
+                </span>
+              </Link>
+              <Link href="/categories" className={`text-sm font-medium ${location === '/categories' || location.startsWith('/categories/') ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
+                <span className="flex items-center">
+                  <i className="fas fa-th-large mr-2"></i>
+                  Categorias
+                </span>
+              </Link>
+              <Link href="/stores" className={`text-sm font-medium ${location === '/stores' || location.startsWith('/stores/') ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
+                <span className="flex items-center">
+                  <i className="fas fa-store mr-2"></i>
+                  Lojas
+                </span>
+              </Link>
+              <Link href="/products" className={`text-sm font-medium ${location === '/products' || location.startsWith('/products/') ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
+                <span className="flex items-center">
+                  <i className="fas fa-shopping-bag mr-2"></i>
+                  Produtos
+                </span>
+              </Link>
+              <Link href="/promotions" className={`text-sm font-medium ${location === '/promotions' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
+                <span className="flex items-center">
+                  <i className="fas fa-bolt mr-2"></i>
+                  Promoções
+                </span>
+              </Link>
+            </div>
+            
+            {isAuthenticated && user?.role === 'seller' && (
+              <div className="flex items-center space-x-4 py-3">
+                <Link href="/seller/dashboard" className={`text-sm font-medium ${location.startsWith('/seller') ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
+                  <span className="flex items-center">
+                    <i className="fas fa-store-alt mr-2"></i>
+                    Área do Lojista
+                  </span>
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </header>
   );
 }
