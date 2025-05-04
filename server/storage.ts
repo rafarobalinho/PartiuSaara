@@ -196,7 +196,8 @@ export class MemStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username.toLowerCase() === username.toLowerCase());
+    // Esta função está sendo mantida para compatibilidade, mas usamos email para autenticação
+    return this.getUserByEmail(username);
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
