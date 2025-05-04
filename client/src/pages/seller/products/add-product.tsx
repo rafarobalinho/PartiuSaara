@@ -70,15 +70,16 @@ export default function AddProduct() {
     return null;
   }
 
-  // Fetch seller's stores
+  // Fetch stores
   const { data: stores = [] } = useQuery({
-    queryKey: ['/api/stores?owner=true'],
+    queryKey: ['/api/stores'],
     queryFn: async () => {
       try {
-        // Mock data for demonstration
-        return [
-          { id: 1, name: 'Minha Loja Principal', category: 'Eletrônicos' }
-        ];
+        const res = await fetch('/api/stores');
+        if (!res.ok) {
+          throw new Error('Falha ao carregar lojas');
+        }
+        return await res.json();
       } catch (error) {
         console.error('Error fetching stores:', error);
         return [];
@@ -91,14 +92,11 @@ export default function AddProduct() {
     queryKey: ['/api/categories'],
     queryFn: async () => {
       try {
-        // Mock data for demonstration
-        return [
-          { id: 1, name: 'Moda', slug: 'moda' },
-          { id: 2, name: 'Eletrônicos', slug: 'eletronicos' },
-          { id: 3, name: 'Acessórios', slug: 'acessorios' },
-          { id: 4, name: 'Casa', slug: 'casa' },
-          { id: 5, name: 'Calçados', slug: 'calcados' }
-        ];
+        const res = await fetch('/api/categories');
+        if (!res.ok) {
+          throw new Error('Falha ao carregar categorias');
+        }
+        return await res.json();
       } catch (error) {
         console.error('Error fetching categories:', error);
         return [];
@@ -117,9 +115,17 @@ export default function AddProduct() {
       category: '',
       stock: '',
       images: '',
-      storeId: stores[0]?.id.toString() || '',
+      storeId: '',
     },
   });
+  
+  // Atualiza o valor de storeId quando stores é carregado
+  useEffect(() => {
+    if (stores.length > 0 && !form.getValues('storeId')) {
+      form.setValue('storeId', stores[0]?.id.toString() || '');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stores]);
 
   // Create product mutation
   const createProductMutation = useMutation({
@@ -155,9 +161,9 @@ export default function AddProduct() {
       <div className="mb-6">
         <div className="flex items-center mb-2">
           <Link href="/seller/products">
-            <a className="text-gray-500 hover:text-primary mr-2">
+            <span className="text-gray-500 hover:text-primary mr-2 cursor-pointer">
               <i className="fas fa-arrow-left"></i>
-            </a>
+            </span>
           </Link>
           <h1 className="text-2xl font-bold">Adicionar Novo Produto</h1>
         </div>
