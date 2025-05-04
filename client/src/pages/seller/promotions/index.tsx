@@ -160,7 +160,7 @@ export default function SellerPromotions() {
         
         <Button asChild className="mt-4 md:mt-0 bg-primary text-white hover:bg-primary/90">
           <Link href="/seller/promotions/add">
-            <a><i className="fas fa-plus mr-2"></i> Criar Promoção</a>
+            <span className="flex items-center"><i className="fas fa-plus mr-2"></i> Criar Promoção</span>
           </Link>
         </Button>
       </div>
@@ -307,7 +307,7 @@ export default function SellerPromotions() {
           </p>
           <Button asChild className="bg-primary text-white hover:bg-primary/90">
             <Link href="/seller/promotions/add">
-              <a>Criar Primeira Promoção</a>
+              <span className="flex items-center">Criar Primeira Promoção</span>
             </Link>
           </Button>
         </div>

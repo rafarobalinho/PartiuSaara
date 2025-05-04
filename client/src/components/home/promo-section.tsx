@@ -49,9 +49,9 @@ export default function PromoSection() {
           Promoções Relâmpago
         </h2>
         <Link href="/products?type=flash">
-          <a className="text-primary text-sm font-medium">
+          <span className="text-primary text-sm font-medium cursor-pointer">
             Ver todas <i className="fas fa-chevron-right text-xs ml-1"></i>
-          </a>
+          </span>
         </Link>
       </div>
       
