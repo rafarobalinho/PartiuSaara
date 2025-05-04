@@ -41,9 +41,11 @@ const productSchema = z.object({
     if (!val) return undefined;
     return Number(val);
   }),
-  images: z.string().min(1, {
-    message: 'Adicione pelo menos uma imagem (URLs separadas por vírgula)',
-  }).transform(val => val.split(',').map(url => url.trim())),
+  imageFiles: z.instanceof(FileList).optional(),
+  images: z.string().optional().transform(val => {
+    if (!val) return [];
+    return val.split(',').map(url => url.trim());
+  }),
   storeId: z.string().min(1, {
     message: 'Selecione uma loja',
   }).transform(val => Number(val)),
@@ -56,6 +58,22 @@ export default function AddProduct() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  
+  // Função para lidar com o upload de imagens
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files) return;
+    
+    const files = Array.from(event.target.files);
+    setSelectedFiles(prevFiles => [...prevFiles, ...files]);
+    
+    // Simular URLs para pré-visualização das imagens
+    files.forEach(file => {
+      const fileUrl = URL.createObjectURL(file);
+      setUploadedImages(prev => [...prev, fileUrl]);
+    });
+  };
 
   // If not authenticated or not a seller, redirect
   useEffect(() => {
@@ -130,7 +148,16 @@ export default function AddProduct() {
   // Create product mutation
   const createProductMutation = useMutation({
     mutationFn: async (data: ProductFormValues) => {
-      return apiRequest('POST', '/api/products', data);
+      // Preparar os dados para envio
+      const formattedData = {
+        ...data,
+        // Se houver imagens carregadas, use-as; caso contrário, use as URLs fornecidas
+        images: uploadedImages.length > 0 
+          ? uploadedImages 
+          : (data.images || [])
+      };
+      
+      return apiRequest('POST', '/api/products', formattedData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/seller/products'] });
@@ -305,12 +332,75 @@ export default function AddProduct() {
                           />
                         </FormControl>
                         <FormDescription>
-                          URLs de imagens separadas por vírgula
+                          URLs de imagens separadas por vírgula ou faça upload abaixo
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  
+                  <div className="space-y-3">
+                    <div className="flex flex-col">
+                      <label className="block text-sm font-medium mb-1">
+                        Upload de Imagens
+                      </label>
+                      <div className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-md">
+                        <div className="space-y-1 text-center">
+                          <div className="flex text-sm text-gray-600">
+                            <label
+                              htmlFor="file-upload"
+                              className="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary/90 focus-within:outline-none"
+                            >
+                              <span>Faça upload de uma ou mais imagens</span>
+                              <input
+                                id="file-upload"
+                                name="file-upload"
+                                type="file"
+                                className="sr-only"
+                                accept="image/*"
+                                multiple
+                                onChange={handleImageUpload}
+                              />
+                            </label>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            PNG, JPG ou GIF até 5MB
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Visualização de imagens */}
+                    {uploadedImages.length > 0 && (
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium mb-2">
+                          Imagens carregadas ({uploadedImages.length})
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {uploadedImages.map((image, index) => (
+                            <div key={index} className="relative">
+                              <img
+                                src={image}
+                                alt={`Prévia ${index + 1}`}
+                                className="h-24 w-24 object-cover rounded-md"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setUploadedImages(prev => prev.filter((_, i) => i !== index));
+                                  setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+                                }}
+                                className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 transform translate-x-1/2 -translate-y-1/2"
+                              >
+                                <span className="sr-only">Remover</span>
+                                &times;
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   <FormField
                     control={form.control}
