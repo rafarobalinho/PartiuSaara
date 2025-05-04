@@ -274,9 +274,11 @@ export default function Stores() {
                             </span>
                           </td>
                           <td className="px-4 py-2 whitespace-nowrap text-right text-sm">
-                            <Button asChild variant="link" className="text-primary">
-                              <a href={`/stores/${store.id}`}>Ver loja</a>
-                            </Button>
+                            <Link href={`/stores/${store.id}`}>
+                              <Button variant="link" className="text-primary">
+                                Ver loja
+                              </Button>
+                            </Link>
                           </td>
                         </tr>
                       ))}

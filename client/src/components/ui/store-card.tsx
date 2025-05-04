@@ -76,13 +76,19 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
 
   return (
     <Link href={`/stores/${store.id}`}>
-      <a className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow block">
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow block">
         <div className="aspect-[16/9] relative overflow-hidden">
-          <img 
-            src={store.images[0]} 
-            alt={`Vista da loja ${store.name}`}
-            className="w-full h-full object-cover"
-          />
+          {store.images && store.images.length > 0 ? (
+            <img 
+              src={store.images[0]} 
+              alt={`Vista da loja ${store.name}`}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+              <i className="fas fa-store text-gray-400 text-4xl"></i>
+            </div>
+          )}
           <div className="absolute top-0 left-0 right-0 p-3 flex justify-between">
             <Badge className="bg-primary text-white text-xs py-1 px-2 rounded-lg">
               {store.category}
@@ -98,9 +104,9 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
             <h3 className="font-bold">{store.name}</h3>
             <div className="flex items-center text-sm">
               <i className="fas fa-star text-yellow-400 mr-1"></i> 
-              <span>{store.rating.toFixed(1)}</span>
+              <span>{store.rating ? store.rating.toFixed(1) : '0.0'}</span>
               <span className="mx-1">•</span>
-              <span>{store.reviewCount} avaliações</span>
+              <span>{store.reviewCount || 0} avaliações</span>
             </div>
           </div>
         </div>
@@ -119,14 +125,20 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
             {store.description}
           </p>
           <div className="flex flex-wrap gap-2">
-            {store.tags.slice(0, 3).map((tag, index) => (
-              <span key={index} className="text-xs bg-gray-100 text-gray-700 py-1 px-2 rounded-full">
-                {tag}
+            {store.tags && store.tags.length > 0 ? (
+              store.tags.slice(0, 3).map((tag, index) => (
+                <span key={index} className="text-xs bg-gray-100 text-gray-700 py-1 px-2 rounded-full">
+                  {tag}
+                </span>
+              ))
+            ) : (
+              <span className="text-xs bg-gray-100 text-gray-700 py-1 px-2 rounded-full">
+                Loja
               </span>
-            ))}
+            )}
           </div>
         </div>
-      </a>
+      </div>
     </Link>
   );
 }
