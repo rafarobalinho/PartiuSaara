@@ -38,52 +38,52 @@ export default function SellerProducts() {
     return null;
   }
 
-  // Fetch products from seller's store
-  const { data: products = [], isLoading } = useQuery({
-    queryKey: ['/api/seller/products'],
+  // Pegar as lojas do vendedor 
+  const { data: stores = [], isLoading: storesLoading } = useQuery({
+    queryKey: ['/api/stores'],
     queryFn: async () => {
       try {
-        // In a real app, this would be an actual API endpoint
-        // For now, let's just mock some products
-        return [
-          {
-            id: 1,
-            name: 'Smartphone XYZ',
-            description: 'Celular avançado com câmera profissional',
-            price: 1299.90,
-            discountedPrice: 999.90,
-            category: 'Eletrônicos',
-            stock: 15,
-            images: ['https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=200'],
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 2,
-            name: 'Tênis Runner Pro',
-            description: 'Tênis confortável para corrida',
-            price: 299.90,
-            category: 'Calçados',
-            stock: 28,
-            images: ['https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?q=80&w=200'],
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 3,
-            name: 'Bolsa Elite Fashion',
-            description: 'Bolsa feminina de alta qualidade',
-            price: 189.90,
-            category: 'Acessórios',
-            stock: 8,
-            images: ['https://images.unsplash.com/photo-1598532163257-ae3c6b2524b6?q=80&w=200'],
-            createdAt: new Date().toISOString()
-          }
-        ];
+        const response = await fetch('/api/stores');
+        if (!response.ok) {
+          throw new Error('Falha ao buscar lojas');
+        }
+        return await response.json();
       } catch (error) {
-        console.error('Error fetching products:', error);
+        console.error('Error fetching stores:', error);
         return [];
       }
     }
   });
+
+  // Fetch products from seller's stores
+  const { data: products = [], isLoading: productsLoading } = useQuery({
+    queryKey: ['/api/products/seller'],
+    queryFn: async () => {
+      try {
+        // Se não tiver lojas, retorna array vazio
+        if (stores.length === 0) {
+          return [];
+        }
+        
+        // Pegar produtos de todas as lojas do vendedor
+        let allProducts: Product[] = [];
+        for (const store of stores) {
+          const response = await fetch(`/api/stores/${store.id}/products`);
+          if (response.ok) {
+            const storeProducts = await response.json();
+            allProducts = [...allProducts, ...storeProducts];
+          }
+        }
+        return allProducts;
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        return [];
+      }
+    },
+    enabled: stores.length > 0
+  });
+  
+  const isLoading = storesLoading || productsLoading;
 
   const filteredProducts = products.filter((product: Product) => 
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
