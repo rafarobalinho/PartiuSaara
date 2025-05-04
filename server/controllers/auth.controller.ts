@@ -2,14 +2,6 @@ import { Request, Response } from 'express';
 import { storage } from '../storage';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import session from 'express-session';
-
-// Extendendo o tipo Request para incluir a sessão
-declare module 'express-session' {
-  interface SessionData {
-    userId: number;
-  }
-}
 
 // User registration schema
 const registerSchema = z.object({

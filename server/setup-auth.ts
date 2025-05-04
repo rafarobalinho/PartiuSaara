@@ -2,6 +2,13 @@ import { Express } from 'express';
 import session from 'express-session';
 import memorystore from 'memorystore';
 
+// Declarando o tipo da sessão
+declare module 'express-session' {
+  interface SessionData {
+    userId: number;
+  }
+}
+
 export function setupAuthMiddleware(app: Express) {
   // Criar o MemoryStore com o session
   const MemoryStore = memorystore(session);
