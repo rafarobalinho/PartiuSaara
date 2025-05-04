@@ -1,0 +1,175 @@
+✅ Resumo Completo e Atualizado do Escopo do App
+🎯 Objetivo Principal:
+O aplicativo "Partiu Saara" visa conectar diretamente os consumidores finais aos lojistas dos grandes mercados populares (como o SAARA no Rio de Janeiro). Não será um marketplace tradicional. Pelo contrário, seu projeto pretende ser uma reinvenção dos guias de promoções convencionais, oferecendo uma experiência disruptiva, focada em divulgação, reserva e retirada presencial, e principalmente com promoção e cupons como mecanismos centrais, sem cobrar porcentagens dos lojistas.
+
+🚨 Não atuaremos como Marketplace tradicional:
+•	Não haverá checkout integrado (pagamentos direto pelo app não ocorrerão, exceto para pagamento de planos para lojistas).
+•	Foco total em Promoções e Reserva com retirada presencial.
+O objetivo é libertar os lojistas das altas taxas cobradas pelos marketplaces tradicionais e criar algo completamente inovador e vantajoso.
+
+📌 Principais funcionalidades confirmadas:
+📱 Para Consumidores:
+•	Cadastro/Login de usuários (nome, CPF, endereço, email, telefone).
+•	Página inicial com destaques (promoções, categorias principais, mapas interativos).
+•	Tela de categorias (Moda feminina, masculina, infantil, acessórios, eletrônicos, etc.) para facilitar a exploração.
+•	Página detalhada de produtos e lojas (imagens, descrições, especificações).
+•	Busca e filtragem avançada (por preço, loja, categoria, produtos em promoção).
+•	Lista de Desejos: salvar produtos para compra futura.
+•	Reservas: reserva de produtos com preço promocional e retirada presencial (até 72 horas).
+•	Geolocalização e mapa interativo (Google Maps).
+•	Promoções Relâmpago (ofertas especiais, limitadas por tempo ou proximidade geográfica).
+🏪 Para os Lojistas:
+•	Cadastro e gerenciamento da loja.
+•	Cadastro detalhado de produtos (nome, categoria, preço, estoque, fotos).
+•	Gestão facilitada das promoções (criação ágil das Promoções Relâmpago).
+•	Gestão de estoque simplificada (alerta sobre baixo estoque).
+•	Dashboard Completo de Analytics:
+o	Quantidade de visitas ao perfil da loja.
+o	Produtos reservados pelos usuários.
+o	Quantidade de vezes que produtos foram adicionados à lista de desejos.
+o	Quantidade de usuários que marcaram a loja como favorita.
+o	Indicadores demográficos anonimizados (faixa etária, gênero, localização aproximada).
+•	Sem necessidade de integrações com plataformas externas de venda.
+
+📄 Páginas auxiliares claramente previstas e confirmadas:
+•	Página Cadastro de Produtos (restrita ao lojista)
+Cadastro fácil, com upload de imagens, controle de estoque e promoções diretamente nessa página.
+•	Página Criação de Promoções Relâmpago (restrita ao lojista)
+Fácil configuração de promoções rápidas, visualmente atraentes para os consumidores, com notificações automáticas.
+•	Tela de Categorias (para usuários)
+Interface clara, rápida e intuitiva permitindo que usuários explorem rapidamente cada categoria específica.
+•	Página "Produtos em Promoção"
+Centralização visual de todos os produtos em promoção, permitindo filtrar facilmente por loja e categoria, ajudando o consumidor na jornada de escolha e reserva.
+
+💡 Modelo de Monetização (parcialmente confirmado)
+•	Sua monetização não será baseada em comissão por venda.
+•	A receita será obtida através de Planos de Cupons de Desconto adquiridos pelos lojistas, para terem destaque especial nas promoções.
+•	Voltaremos a falar detalhadamente desse modelo de monetização na próxima etapa da conversa.
+
+Confirmação	Status ✅
+Não atuaremos como marketplace convencional	✅
+Não haverá integração com marketplaces externos	✅
+Modelo de negócio focado em reservas e promoções	✅
+Promoções relâmpago, lista de desejos e retirada presencial (72h)	✅
+Dashboard completo com analytics de comportamento do consumidor	✅
+Páginas auxiliares de cadastro de produtos e promoções rápidas	✅
+Categorias claras para explorar produtos	✅
+Sem checkout integrado (sem vendas diretas no app)	✅
+Monetização baseada em cupons (sem taxas)	✅ 
+
+Monetização: Modelo baseado em Assinatura
+A ideia de monetizar através de assinaturas é compatível com o perfil do seu público (lojistas de mercados populares que querem atrair clientes, mas sem pagar porcentagens por vendas).
+Proposta estruturada para o modelo de monetização:
+
+🎯 Objetivo do Modelo de Monetização
+Permitir que lojistas comprem planos mensais (ou sazonais) para publicar cupons de desconto, com direito a destaque especial dentro do app, notificações aos clientes e relatórios de performance.
+Funcionalidades previstas nos planos
+•	Publicar cupons com data de validade
+•	Limitar por quantidade de uso (ex: 100 utilizações)
+•	Opção de cupom relâmpago (ex: válido por 2 horas para quem estiver nas redondezas)
+•	Destaque do cupom na vitrine de promoções
+•	Envio de push automático para usuários que favoritaram a loja
+•	Acesso a relatórios sobre desempenho dos cupons (visualizações, cliques, reservas)
+Outras formas de escalar a monetização futuramente:
+1.	Venda de “impulsionamentos” (pagar para aparecer por 24h na home ou topo da categoria)
+2.	Cobrança por clique (pay-per-click em cupons ou perfis de loja)
+3.	Venda de pacotes de mídia dentro do app (banners, vídeos, notificações patrocinadas)
+Plano Freemium – Funcionalidades Básicas
+Usuários freemium poderão:
+•	✅ Cadastrar sua loja (com informações básicas e até 1 imagem)
+•	✅ Cadastrar até 5 produtos
+•	✅ Criar 1 promoção simples por mês
+•	✅ Acessar um mini-dashboard (apenas com visualizações da loja)
+•	✅ Responder mensagens no chat com consumidores
+•	✅ Ser listado nas buscas e categorias, sem destaque
+•	🚫 Não poderão acessar relatórios de comportamento avançado (lista de desejos, reservas, favoritos)
+•	🚫 Não poderão publicar cupons promocionais nem promoções relâmpago
+•	🚫 Sem notificações push para clientes
+•	🚫 Sem destaque na página inicial ou em categorias
+Objetivo: permitir uma amostra funcional e incentivar o upgrade após resultados iniciais.
+
+⏳ 2. Período de Teste com Funções Completas (Trial)
+•	Quando um novo lojista se cadastra, ele entra automaticamente em um período de teste gratuito de 7 ou 14 dias, com acesso total a todas as funcionalidades do plano mais completo.
+•	Após o prazo:
+o	Ele será automaticamente rebaixado ao plano freemium.
+o	Uma notificação será enviada oferecendo o upgrade para planos pagos com desconto especial.
+
+💼 3. Planos Pagos: Mensal e Anual com Desconto
+Plano	Mensal	Anual (com 20% off)	Benefícios principais
+Start	R$ 149,90	R$ 1.439,00	10 produtos, 5 cupons, notificações push para seguidores da loja
+Pro	R$ 249,90	R$ 2.399,00	50 produtos, cupons ilimitados, promoções relâmpago, analytics parcial
+Premium	R$ 349,90	R$ 3.359,00	Produtos ilimitados, analytics completo, destaque em toda a plataforma
+•	Todos os planos pagos incluem:
+o	Painel de marketing
+o	Dashboard com indicadores de comportamento
+o	Relatórios por e-mail
+o	Acesso prioritário ao suporte
+
+•	Validar se o plano está ativo antes de permitir ações (cadastrar produto, cupom, etc.)
+•	Se o plano estiver expirado ou for freemium, bloqueia recursos e exibe call to action de upgrade
+•	Webhooks do Stripe atualizam status_assinatura automaticamente
+
+📲 6. Tela no Weweb – Sugestões visuais
+•	Página "Planos e Benefícios": Cards com comparativo, botão "Assinar agora", destaque de economia anual
+•	Dashboard do Lojista: Alerta se a conta estiver com plano expirando ou trial terminando
+•	Modal de upgrade: Quando tentativa de ação bloqueada (ex: tentar criar promoção sem plano ativo)
+Conclusão
+Você terá um sistema robusto, flexível e escalável para monetizar o app de forma ética e eficaz:
+•	🆓 Freemium para atrair e engajar lojistas com mínima barreira de entrada
+•	⏳ Trial completo para mostrar o real valor da plataforma
+•	💰 Planos pagos com benefícios reais e preços acessíveis
+•	🔄 Cobrança recorrente gerenciada com Stripe (ou outro gateway)
+•	🛠️ Controle total no backend via Xano com regras claras
+Objetivo:
+Controlar e distribuir as impressões entre os lojistas pagantes, respeitando o plano contratado, e garantindo que todos tenham visibilidade proporcional ao seu nível de assinatura.
+
+✅ Etapas para resolver isso:
+1. 🧩 Criar uma estrutura de "prioridade de exibição"
+Cada plano terá um peso de exibição que define sua probabilidade de aparecer nas áreas de destaque.
+Plano	Prioridade (Peso)	Impressões semanais sugeridas
+Premium	3	Alta (exibição diária garantida)
+Pro	2	Média (exibição intercalada)
+Start	1	Baixa (exibição rotativa limitada)
+Freemium	0	Não exibido em áreas de destaque
+Esses valores podem ser ajustados conforme performance, estratégia e feedback dos lojistas.
+
+2. 🔄 Distribuição automatizada com lógica de rotação ponderada
+Você pode usar o Xano para criar um endpoint que:
+•	Busca os lojistas pagantes ativos
+•	Verifica o plano e o peso associado
+•	Gera uma rotação automática das lojas/produtos nas áreas de destaque com base nesses pesos
+📌 Como funciona na prática?
+•	A cada carregamento da home (ou seção), o app sorteia quais lojas ou produtos destacar, proporcionalmente ao peso do plano.
+•	Exemplo: para preencher 10 espaços na vitrine de promoções:
+o	Lojas Premium têm 3x mais chance de aparecer que Start.
+o	Uma função aleatória com pesos (ex: Math.random() < probabilidade) decide os slots.
+•	O número de impressões por loja é logado (registrado em banco) para controle.
+3. 📊 Monitoramento de Impressões por Loja
+Essa tabela permite:
+•	Auditar quantas vezes cada lojista apareceu
+•	Exibir no dashboard do lojista (ex: "Sua loja foi exibida 128 vezes este mês")
+•	Criar limites se quiser (ex: no plano Start, máximo de 50 impressões por mês)
+
+4. 🧠 Opção adicional: Algoritmo de exposição justa com balanceamento
+Para evitar que apenas os mesmos lojistas Premium apareçam o tempo todo, você pode implementar:
+•	FIFO rotativo por plano: lojistas aparecem em turnos, respeitando prioridade, mas com justiça interna entre eles.
+•	Reforço com engajamento: quanto mais cliques/ações, maior chance de aparecer novamente (ideal para planos maiores).
+•	Expiração de destaque: lojista Premium não aparece 2 vezes seguidas no mesmo slot, a não ser que tenha engajamento muito acima da média.
+
+✅ Vantagens desse modelo
+•	Transparência e controle para você e para os lojistas
+•	Possibilidade de mostrar relatórios de desempenho ("Você apareceu X vezes essa semana")
+•	Diferenciação real entre planos
+•	Automatização do sistema de destaques, sem necessidade de curadoria manual
+💰 Monetização:
+•	Freemium: lojistas com acesso limitado (loja + até 5 produtos)
+•	Período de teste: 7 a 14 dias com acesso completo
+•	Planos pagos: Start, Pro e Premium (de R$ 149,90 a R$ 349,90)
+•	Cobrança mensal e anual com desconto
+•	Controle automático de planos com Stripe 
+
+📊 Lógica de Destaques (Impressões):
+•	Distribuição ponderada por plano (ex: Premium tem 3x mais chance)
+•	Rotação inteligente entre lojistas ativos
+•	Registro de cada impressão no banco
+•	Dashboard com número de impressões exibido ao lojista
