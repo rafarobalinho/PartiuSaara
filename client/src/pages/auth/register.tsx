@@ -20,6 +20,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const registerSchema = z.object({
   email: z.string().email('Email inválido'),
+  username: z.string().min(3, 'O nome de usuário deve ter pelo menos 3 caracteres'),
   password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
   confirmPassword: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
   firstName: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres'),
@@ -60,6 +61,7 @@ export default function Register() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: '',
+      username: '',
       password: '',
       confirmPassword: '',
       firstName: '',
@@ -139,6 +141,20 @@ export default function Register() {
                     <FormLabel>Email</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="seu@email.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome de usuário</FormLabel>
+                    <FormControl>
+                      <Input placeholder="seunomedeususario" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
