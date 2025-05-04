@@ -82,7 +82,8 @@ export default function Register() {
         data.lastName,
         data.dateOfBirth,
         data.gender,
-        data.role
+        data.role,
+        data.username
       );
       navigate('/');
     } catch (error) {
