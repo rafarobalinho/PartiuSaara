@@ -73,7 +73,6 @@ export default function Register() {
   const onSubmit = async (data: RegisterFormValues) => {
     try {
       setIsSubmitting(true);
-      // Chamando função de registro com os novos campos
       await register(
         data.email, 
         data.password, 
@@ -274,8 +273,8 @@ export default function Register() {
         <CardFooter className="flex flex-col space-y-2">
           <div className="text-sm text-center">
             Já possui uma conta?{' '}
-            <Link href="/login">
-              <a className="text-primary hover:underline">Faça login</a>
+            <Link to="/login" className="text-primary hover:underline">
+              Faça login
             </Link>
           </div>
         </CardFooter>
