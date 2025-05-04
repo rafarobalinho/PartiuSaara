@@ -17,6 +17,7 @@ import Categories from "@/pages/categories/index";
 import Category from "@/pages/categories/category";
 import Products from "@/pages/products/index";
 import ProductDetail from "@/pages/products/product-detail";
+import Promotions from "@/pages/promotions/index";
 import Stores from "@/pages/stores/index";
 import StoreDetail from "@/pages/stores/store-detail";
 import Account from "@/pages/account/index";
@@ -43,6 +44,7 @@ function Router() {
           <Route path="/categories/:category" component={Category} />
           <Route path="/products" component={Products} />
           <Route path="/products/:id" component={ProductDetail} />
+          <Route path="/promotions" component={Promotions} />
           <Route path="/stores" component={Stores} />
           <Route path="/stores/:id" component={StoreDetail} />
           <Route path="/account" component={Account} />
