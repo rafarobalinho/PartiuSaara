@@ -1431,8 +1431,8 @@ export class DatabaseStorage implements IStorage {
     // Como a coluna featured não existe na tabela, vamos retornar produtos com desconto por enquanto
     return await db.select()
       .from(products)
-      .where(sql`products.discounted_price IS NOT NULL`)
-      .orderBy(desc(products.created_at))
+      .where(sql`discounted_price IS NOT NULL`)
+      .orderBy(sql`created_at DESC`)
       .limit(limit);
   }
 
