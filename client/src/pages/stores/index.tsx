@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import { useLocation, calculateDistance, formatDistance } from '@/hooks/use-location';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';

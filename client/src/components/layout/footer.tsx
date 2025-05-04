@@ -29,22 +29,22 @@ export default function Footer() {
           <div>
             <h3 className="text-lg font-semibold mb-4">Para consumidores</h3>
             <ul className="text-sm text-gray-600 space-y-2">
-              <li><Link href="/"><a className="hover:text-primary">Como funciona</a></Link></li>
-              <li><Link href="/products"><a className="hover:text-primary">Reservar produtos</a></Link></li>
-              <li><Link href="/"><a className="hover:text-primary">Cupons de desconto</a></Link></li>
-              <li><Link href="/products"><a className="hover:text-primary">Promoções Relâmpago</a></Link></li>
-              <li><Link href="/stores"><a className="hover:text-primary">Lojas parceiras</a></Link></li>
+              <li><Link href="/"><span className="hover:text-primary cursor-pointer">Como funciona</span></Link></li>
+              <li><Link href="/products"><span className="hover:text-primary cursor-pointer">Reservar produtos</span></Link></li>
+              <li><Link href="/"><span className="hover:text-primary cursor-pointer">Cupons de desconto</span></Link></li>
+              <li><Link href="/products"><span className="hover:text-primary cursor-pointer">Promoções Relâmpago</span></Link></li>
+              <li><Link href="/stores"><span className="hover:text-primary cursor-pointer">Lojas parceiras</span></Link></li>
             </ul>
           </div>
           
           <div>
             <h3 className="text-lg font-semibold mb-4">Para lojistas</h3>
             <ul className="text-sm text-gray-600 space-y-2">
-              <li><Link href="/seller/dashboard"><a className="hover:text-primary">Como participar</a></Link></li>
-              <li><Link href="/seller/dashboard"><a className="hover:text-primary">Benefícios</a></Link></li>
-              <li><Link href="/seller/subscription"><a className="hover:text-primary">Planos e assinaturas</a></Link></li>
-              <li><Link href="/seller/promotions/add"><a className="hover:text-primary">Criar promoções</a></Link></li>
-              <li><Link href="/seller/analytics"><a className="hover:text-primary">Dashboard de vendas</a></Link></li>
+              <li><Link href="/seller/dashboard"><span className="hover:text-primary cursor-pointer">Como participar</span></Link></li>
+              <li><Link href="/seller/dashboard"><span className="hover:text-primary cursor-pointer">Benefícios</span></Link></li>
+              <li><Link href="/seller/subscription"><span className="hover:text-primary cursor-pointer">Planos e assinaturas</span></Link></li>
+              <li><Link href="/seller/promotions/add"><span className="hover:text-primary cursor-pointer">Criar promoções</span></Link></li>
+              <li><Link href="/seller/analytics"><span className="hover:text-primary cursor-pointer">Dashboard de vendas</span></Link></li>
             </ul>
           </div>
           
