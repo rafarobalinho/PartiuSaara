@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate, Link } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { z } from 'zod';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/context/auth-context';
 
 // Esquema para validação do formulário da loja
 const storeSchema = z.object({
@@ -47,7 +47,7 @@ type StoreFormValues = z.infer<typeof storeSchema>;
 
 export default function AddStore() {
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -56,8 +56,13 @@ export default function AddStore() {
   const isAuthenticated = !!user;
   const isSeller = user?.role === 'seller';
 
-  if (!authLoading && (!isAuthenticated || !isSeller)) {
-    navigate('/auth');
+  useEffect(() => {
+    if (!authLoading && (!isAuthenticated || !isSeller)) {
+      navigate('/login');
+    }
+  }, [authLoading, isAuthenticated, isSeller, navigate]);
+
+  if (!isAuthenticated || !isSeller) {
     return null;
   }
 
