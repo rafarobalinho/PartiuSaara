@@ -106,7 +106,6 @@ export default function AddStore() {
 
   // Define state for image uploads
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   // Mutation para criar loja
   const createStoreMutation = useMutation({
@@ -115,7 +114,7 @@ export default function AddStore() {
       const formattedData = {
         name: data.name,
         description: data.description,
-        categories: data.categories,
+        category: data.category,
         tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()) : [],
         images: uploadedImages.length > 0 ? uploadedImages : 
                 (data.imageUrls ? data.imageUrls.split(',').map((img: string) => img.trim()) : []),
@@ -218,44 +217,14 @@ export default function AddStore() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="categories"
+                      name="category"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Categorias* (max. 3)</FormLabel>
-                          <div className="mb-2">
-                            <div className="flex flex-wrap gap-2 mb-2">
-                              {selectedCategories.map((cat) => {
-                                const categoryObj = categories.find((c: any) => c.slug === cat);
-                                return (
-                                  <Badge key={cat} className="px-3 py-1 bg-primary/10 text-primary">
-                                    {categoryObj?.name || cat}
-                                    <X 
-                                      className="ml-1 h-3 w-3 cursor-pointer" 
-                                      onClick={() => {
-                                        const newCats = selectedCategories.filter(c => c !== cat);
-                                        setSelectedCategories(newCats);
-                                        form.setValue('categories', newCats);
-                                      }}
-                                    />
-                                  </Badge>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          
-                          <Select 
-                            onValueChange={(value) => {
-                              if (selectedCategories.length < 3 && !selectedCategories.includes(value)) {
-                                const newCategories = [...selectedCategories, value];
-                                setSelectedCategories(newCategories);
-                                field.onChange(newCategories);
-                              }
-                            }}
-                            disabled={selectedCategories.length >= 3}
-                          >
+                          <FormLabel>Categoria*</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder={selectedCategories.length >= 3 ? "Máximo de categorias atingido" : "Selecione categorias"} />
+                                <SelectValue placeholder="Selecione uma categoria" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -263,7 +232,6 @@ export default function AddStore() {
                                 <SelectItem 
                                   key={category.id} 
                                   value={category.slug}
-                                  disabled={selectedCategories.includes(category.slug)}
                                 >
                                   {category.name}
                                 </SelectItem>
@@ -271,7 +239,7 @@ export default function AddStore() {
                             </SelectContent>
                           </Select>
                           <FormDescription>
-                            Selecione até 3 categorias para sua loja
+                            Selecione a categoria principal da sua loja
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
