@@ -30,6 +30,8 @@ import SellerPromotions from "@/pages/seller/promotions/index";
 import AddPromotion from "@/pages/seller/promotions/add-promotion";
 import SellerAnalytics from "@/pages/seller/analytics";
 import SellerSubscription from "@/pages/seller/subscription";
+import SellerStores from "@/pages/seller/stores/index";
+import AddStore from "@/pages/seller/stores/add-store";
 
 function Router() {
   return (
@@ -55,6 +57,8 @@ function Router() {
           <Route path="/seller/products/add" component={AddProduct} />
           <Route path="/seller/promotions" component={SellerPromotions} />
           <Route path="/seller/promotions/add" component={AddPromotion} />
+          <Route path="/seller/stores" component={SellerStores} />
+          <Route path="/seller/stores/add-store" component={AddStore} />
           <Route path="/seller/analytics" component={SellerAnalytics} />
           <Route path="/seller/subscription" component={SellerSubscription} />
           <Route component={NotFound} />
