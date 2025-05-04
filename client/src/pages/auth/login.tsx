@@ -38,7 +38,7 @@ export default function Login() {
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: '',
+      email: '',
       password: '',
     },
   });
@@ -46,7 +46,7 @@ export default function Login() {
   const onSubmit = async (data: LoginFormValues) => {
     try {
       setIsSubmitting(true);
-      await login(data.username, data.password);
+      await login(data.email, data.password);
       navigate('/');
     } catch (error) {
       console.error('Login error:', error);
@@ -61,7 +61,7 @@ export default function Login() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
           <CardDescription>
-            Entre com seu nome de usuário e senha para acessar sua conta
+            Entre com seu email e senha para acessar sua conta
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -69,12 +69,12 @@ export default function Login() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="username"
+                name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome de usuário</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="seu.usuario" {...field} />
+                      <Input type="email" placeholder="seu@email.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -106,8 +106,8 @@ export default function Login() {
         <CardFooter className="flex flex-col space-y-2">
           <div className="text-sm text-center">
             Ainda não possui uma conta?{' '}
-            <Link href="/register">
-              <a className="text-primary hover:underline">Cadastre-se</a>
+            <Link to="/register" className="text-primary hover:underline">
+              Cadastre-se
             </Link>
           </div>
         </CardFooter>
