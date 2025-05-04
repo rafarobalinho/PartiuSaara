@@ -19,10 +19,22 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const registerSchema = z.object({
-  username: z.string().min(3, 'O nome de usuário deve ter pelo menos 3 caracteres'),
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
   confirmPassword: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
+  firstName: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres'),
+  lastName: z.string().min(2, 'O sobrenome deve ter pelo menos 2 caracteres'),
+  dateOfBirth: z.string().refine(value => {
+    // Data opcional, mas se fornecida, deve ser válida
+    if (!value) return true;
+    const date = new Date(value);
+    return !isNaN(date.getTime());
+  }, {
+    message: 'Data de nascimento inválida',
+  }),
+  gender: z.enum(['male', 'female', 'not_specified'], {
+    required_error: 'Selecione um gênero',
+  }),
   role: z.enum(['customer', 'seller'], {
     required_error: 'Selecione o tipo de conta',
   }),
@@ -47,10 +59,13 @@ export default function Register() {
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: '',
       email: '',
       password: '',
       confirmPassword: '',
+      firstName: '',
+      lastName: '',
+      dateOfBirth: '',
+      gender: 'not_specified',
       role: 'customer',
     },
   });
@@ -58,7 +73,16 @@ export default function Register() {
   const onSubmit = async (data: RegisterFormValues) => {
     try {
       setIsSubmitting(true);
-      await register(data.username, data.email, data.password, data.role);
+      // Chamando função de registro com os novos campos
+      await register(
+        data.email, 
+        data.password, 
+        data.firstName,
+        data.lastName,
+        data.dateOfBirth,
+        data.gender,
+        data.role
+      );
       navigate('/');
     } catch (error) {
       console.error('Registration error:', error);
@@ -79,19 +103,35 @@ export default function Register() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome de usuário</FormLabel>
-                    <FormControl>
-                      <Input placeholder="seu.usuario" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome</FormLabel>
+                      <FormControl>
+                        <Input placeholder="João" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sobrenome</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Silva" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
               <FormField
                 control={form.control}
                 name="email"
@@ -105,6 +145,60 @@ export default function Register() {
                   </FormItem>
                 )}
               />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="dateOfBirth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data de nascimento</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gênero</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex flex-col space-y-1"
+                        >
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="male" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Masculino</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="female" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Feminino</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="not_specified" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Prefiro não informar</FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
               <FormField
                 control={form.control}
                 name="password"
@@ -118,6 +212,7 @@ export default function Register() {
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={form.control}
                 name="confirmPassword"
@@ -131,6 +226,7 @@ export default function Register() {
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={form.control}
                 name="role"

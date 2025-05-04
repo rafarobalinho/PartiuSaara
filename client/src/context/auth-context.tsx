@@ -5,9 +5,11 @@ import { useToast } from '@/hooks/use-toast';
 
 interface User {
   id: number;
-  username: string;
   email: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth?: string;
+  gender?: 'male' | 'female' | 'not_specified';
   role: 'customer' | 'seller';
 }
 
