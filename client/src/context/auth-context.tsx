@@ -19,8 +19,16 @@ interface AuthContextType {
   isSeller: boolean;
   isLoading: boolean;
   error: Error | null;
-  login: (username: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string, role: 'customer' | 'seller') => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (
+    email: string, 
+    password: string, 
+    firstName: string,
+    lastName: string,
+    dateOfBirth: string,
+    gender: 'male' | 'female' | 'not_specified',
+    role: 'customer' | 'seller'
+  ) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -47,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryError]);
 
   const loginMutation = useMutation({
-    mutationFn: async (credentials: { username: string; password: string }) => {
+    mutationFn: async (credentials: { email: string; password: string }) => {
       return apiRequest('POST', '/api/auth/login', credentials);
     },
     onSuccess: async () => {
@@ -70,9 +78,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (userData: { 
-      username: string; 
       email: string; 
       password: string; 
+      firstName: string;
+      lastName: string;
+      dateOfBirth: string;
+      gender: 'male' | 'female' | 'not_specified';
       role: 'customer' | 'seller'
     }) => {
       return apiRequest('POST', '/api/auth/register', userData);
@@ -118,12 +129,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const login = async (username: string, password: string) => {
-    await loginMutation.mutateAsync({ username, password });
+  const login = async (email: string, password: string) => {
+    await loginMutation.mutateAsync({ email, password });
   };
 
-  const register = async (username: string, email: string, password: string, role: 'customer' | 'seller') => {
-    await registerMutation.mutateAsync({ username, email, password, role });
+  const register = async (
+    email: string, 
+    password: string, 
+    firstName: string,
+    lastName: string,
+    dateOfBirth: string,
+    gender: 'male' | 'female' | 'not_specified',
+    role: 'customer' | 'seller'
+  ) => {
+    await registerMutation.mutateAsync({ 
+      email, 
+      password, 
+      firstName,
+      lastName,
+      dateOfBirth,
+      gender,
+      role 
+    });
   };
 
   const logout = async () => {
