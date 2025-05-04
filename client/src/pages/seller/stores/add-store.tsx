@@ -234,6 +234,7 @@ export default function AddStore() {
                                       if (currentValues.length < 3) {
                                         field.onChange([...currentValues, category.slug]);
                                       } else {
+                                        // Alerta usando referência ao toast já declarado no início do componente
                                         toast({
                                           title: "Limite atingido",
                                           description: "Você pode selecionar apenas 3 categorias.",
