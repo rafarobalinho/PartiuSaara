@@ -7,8 +7,10 @@ import bcrypt from 'bcryptjs';
 const registerSchema = z.object({
   email: z.string().email('Invalid email format'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  username: z.string().min(2, 'Username must be at least 2 characters'),
-  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
+  firstName: z.string().min(2, 'First name must be at least 2 characters'),
+  lastName: z.string().min(2, 'Last name must be at least 2 characters'),
+  dateOfBirth: z.string().optional(),
+  gender: z.enum(['male', 'female', 'not_specified']).optional(),
   role: z.enum(['customer', 'seller']).default('customer')
 });
 
@@ -43,10 +45,12 @@ export async function register(req: Request, res: Response) {
     
     // Create the user with new fields
     const user = await storage.createUser({
-      username: userData.username,
       email: userData.email,
       password: hashedPassword,
-      name: userData.name,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      dateOfBirth: userData.dateOfBirth,
+      gender: userData.gender,
       role: userData.role
     });
     
@@ -58,8 +62,10 @@ export async function register(req: Request, res: Response) {
       user: { 
         id: user.id,
         email: user.email,
-        username: user.username,
-        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        dateOfBirth: user.dateOfBirth,
+        gender: user.gender,
         role: user.role
       } 
     });
@@ -103,8 +109,10 @@ export async function login(req: Request, res: Response) {
       user: { 
         id: user.id, 
         email: user.email, 
-        username: user.username,
-        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        dateOfBirth: user.dateOfBirth,
+        gender: user.gender,
         role: user.role 
       } 
     });
