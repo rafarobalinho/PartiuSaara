@@ -154,7 +154,7 @@ export default function EditProduct() {
   // Mutation para atualizar produto
   const updateProductMutation = useMutation({
     mutationFn: async (data: ProductFormValues) => {
-      return apiRequest(`/api/products/${id}`, 'PUT', data);
+      return apiRequest('PUT', `/api/products/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/products/${id}`] });
