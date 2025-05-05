@@ -64,6 +64,7 @@ export const products = pgTable("products", {
   discountedPrice: doublePrecision("discounted_price"),
   stock: integer("stock").default(0),
   images: text("images").array(),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
