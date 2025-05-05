@@ -7,6 +7,45 @@ import { formatCurrency, calculateDiscountPercentage, getTimeRemaining, getProgr
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 
+// Função para obter a imagem do produto baseada no nome ou categoria
+function getProductImage(productName: string, category?: string): string {
+  const echarpeImage = 'https://static.wixstatic.com/media/1f3c2d_25683f6b139a4861869b40e5a7a70af2~mv2.jpg/v1/fill/w_640,h_560,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/1f3c2d_25683f6b139a4861869b40e5a7a70af2~mv2.jpg';
+  
+  // Echarpe indiana estampada
+  if (productName.toLowerCase().includes('echarpe') || 
+      productName.toLowerCase().includes('indiana')) {
+    return echarpeImage;
+  }
+  
+  // Máscara
+  if (productName.toLowerCase().includes('máscara') || 
+      productName.toLowerCase().includes('mascara')) {
+    return echarpeImage;
+  }
+  
+  // Pulseira
+  if (productName.toLowerCase().includes('pulseira')) {
+    return echarpeImage;
+  }
+  
+  // Categorias
+  if (category) {
+    if (category.toLowerCase().includes('moda') || 
+        category.toLowerCase().includes('acessorio') || 
+        category.toLowerCase().includes('acessório')) {
+      return echarpeImage;
+    }
+    
+    if (category.toLowerCase().includes('decoracao') || 
+        category.toLowerCase().includes('decoração')) {
+      return echarpeImage;
+    }
+  }
+  
+  // Imagem padrão caso nenhuma condição seja atendida
+  return echarpeImage;
+}
+
 interface Product {
   id: number;
   name: string;
@@ -174,9 +213,7 @@ export default function ProductCard({
           )}
           
           <img 
-            src={product.images[0]?.startsWith('blob:') 
-              ? 'https://images.unsplash.com/photo-1611911813383-67769b37a149?q=80&w=400'
-              : product.images[0]} 
+            src={getProductImage(product.name, product.category)}
             alt={product.name}
             className="w-full h-full object-contain p-4"
           />
