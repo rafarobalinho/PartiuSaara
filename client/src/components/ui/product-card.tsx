@@ -17,6 +17,8 @@ function getValidImage(imageUrl: string | undefined, fallbackUrl: string): strin
   return imageUrl;
 }
 
+
+
 interface ProductImage {
   id: number;
   image_url: string;
@@ -245,7 +247,11 @@ export default function ProductCard({
           )}
           
           <img 
-            src={getImageUrl(product.images)}
+            src={product.images && product.images.length > 0 ? 
+              typeof product.images[0] === 'string' 
+                ? product.images[0] 
+                : ('image_url' in product.images[0] ? product.images[0].image_url : '/placeholder-image.jpg')
+              : '/placeholder-image.jpg'}
             alt={product.name}
             className="w-full h-full object-cover object-center p-0"
           />
