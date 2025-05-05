@@ -32,12 +32,24 @@ export function ImageUpload({
   // Validar URLs de imagem
   const getValidImage = (url: string | undefined): string => {
     if (!url) return '';
+    
+    // Logging para debug
+    console.log('URL da imagem original:', url);
+    
     // Se começar com http, é uma URL completa
     if (url.startsWith('http')) return url;
-    // Se começar com / é relativo ao domínio
-    if (url.startsWith('/')) return url;
+    
+    // Se começar com / é relativo ao domínio (manter como está)
+    if (url.startsWith('/')) {
+      const validUrl = url;
+      console.log('URL da imagem processada:', validUrl);
+      return validUrl;
+    }
+    
     // Senão, adicionar o prefixo /uploads/
-    return `/uploads/${url.replace(/^uploads\//, '')}`;
+    const prefixedUrl = `/uploads/${url.replace(/^uploads\//, '')}`;
+    console.log('URL da imagem processada com prefixo:', prefixedUrl);
+    return prefixedUrl;
   };
 
   // Lidar com o upload das imagens
@@ -177,8 +189,10 @@ export function ImageUpload({
                   src={getValidImage(image)} 
                   alt={`Imagem ${index + 1}`} 
                   className="object-cover w-full h-full"
+                  onLoad={() => console.log(`Imagem ${index + 1} carregada com sucesso:`, getValidImage(image))}
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://placehold.co/300x300/F2F2F2/0D0D0D?text=Imagem+indisponível';
+                    console.error(`Erro ao carregar imagem ${index + 1}:`, getValidImage(image));
+                    (e.target as HTMLImageElement).src = 'https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO';
                   }}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
