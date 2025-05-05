@@ -250,18 +250,20 @@ export default function ProductDetail() {
         <div className="md:w-1/2">
           <h1 className="text-2xl font-bold mb-2">{product.name}</h1>
           
-          <Link href={`/stores/${product.store.id}`}>
-            <a className="text-primary hover:underline inline-flex items-center mb-4">
-              <i className="fas fa-store mr-1"></i>
-              <span>{product.store.name}</span>
-              <div className="flex items-center ml-3 text-sm text-gray-700">
-                <i className="fas fa-star text-yellow-400 mr-1"></i>
-                <span>{product.store.rating.toFixed(1)}</span>
-                <span className="mx-1">•</span>
-                <span>{product.store.reviewCount} avaliações</span>
-              </div>
-            </a>
-          </Link>
+          {product.store && (
+            <Link href={`/stores/${product.store.id}`}>
+              <a className="text-primary hover:underline inline-flex items-center mb-4">
+                <i className="fas fa-store mr-1"></i>
+                <span>{product.store.name}</span>
+                <div className="flex items-center ml-3 text-sm text-gray-700">
+                  <i className="fas fa-star text-yellow-400 mr-1"></i>
+                  <span>{product.store.rating.toFixed(1)}</span>
+                  <span className="mx-1">•</span>
+                  <span>{product.store.reviewCount} avaliações</span>
+                </div>
+              </a>
+            </Link>
+          )}
 
           <div className="mb-4">
             {isFlashPromotion && endTime && (
