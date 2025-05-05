@@ -77,20 +77,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const categoryId = categoryResult.rows[0].id;
       
-      // Buscar produtos da categoria
-      const productsQuery = `
-        SELECT * FROM products 
-        WHERE (category_id = $1 OR $1 = ANY(secondary_categories))
-        AND is_active = true
-        ORDER BY created_at DESC
-      `;
+      // Agora buscar produtos usando o NOME da categoria
+      const categoryName = categoryResult.rows[0].name;
       
-      const { rows } = await pool.query(productsQuery, [categoryId]);
+      const productsQuery = 'SELECT * FROM products WHERE category = $1 AND is_active = true';
+      const productsResult = await pool.query(productsQuery, [categoryName]);
       
       // SEMPRE retornar um JSON válido
       return res.json({ 
-        products: rows,
-        count: rows.length,
+        products: productsResult.rows,
+        count: productsResult.rows.length,
         categorySlug: slug
       });
     } catch (error) {
