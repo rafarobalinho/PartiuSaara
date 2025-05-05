@@ -29,12 +29,6 @@ export default function Login() {
   const [, navigate] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    navigate('/');
-    return null;
-  }
-
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -42,6 +36,13 @@ export default function Login() {
       password: '',
     },
   });
+
+  // Redirect if already authenticated
+  // Movemos este código para depois da declaração de todos os hooks
+  if (isAuthenticated) {
+    navigate('/');
+    return null;
+  }
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
