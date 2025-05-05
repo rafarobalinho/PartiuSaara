@@ -1,58 +1,94 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+  return twMerge(clsx(inputs))
 }
 
+// Função que verifica se uma imagem deve ser usada
+export function getValidImage(imageUrl: string | undefined, fallbackUrl: string): string {
+  // Se não tiver URL, usa a imagem padrão
+  if (!imageUrl) return fallbackUrl;
+  
+  // Retorna a URL original passada pelo banco de dados
+  return imageUrl;
+}
+
+// Função para formatar valores monetários
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
-    currency: 'BRL'
+    currency: 'BRL',
   }).format(value);
 }
 
-export function calculateDiscountPercentage(originalPrice: number, currentPrice: number): number {
-  return Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
-}
-
-export function getTimeDifference(endTime: Date): { hours: number; minutes: number; seconds: number } {
-  const now = new Date();
-  const diff = endTime.getTime() - now.getTime();
-  
-  if (diff <= 0) {
-    return { hours: 0, minutes: 0, seconds: 0 };
+// Função para calcular porcentagem de desconto
+export function calculateDiscountPercentage(originalPrice: number, discountedPrice: number): number {
+  if (!originalPrice || !discountedPrice || originalPrice <= 0 || discountedPrice >= originalPrice) {
+    return 0;
   }
   
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-  
-  return { hours, minutes, seconds };
+  const discount = ((originalPrice - discountedPrice) / originalPrice) * 100;
+  return Math.round(discount);
 }
 
-export function getTimeRemaining(endTime: Date): string {
-  const { hours, minutes } = getTimeDifference(endTime);
+// Função para obter o tempo restante de uma promoção
+export function getTimeRemaining(endTime: string): { days: number; hours: number; minutes: number; seconds: number } {
+  const end = new Date(endTime).getTime();
+  const now = new Date().getTime();
+  const distance = end - now;
   
-  if (hours === 0 && minutes === 0) {
-    return "Acabando agora!";
+  if (distance <= 0) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0 };
   }
   
-  return `Acaba em ${hours}h${minutes}m`;
+  const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+  
+  return { days, hours, minutes, seconds };
 }
 
-export function getProgressPercentage(startTime: Date, endTime: Date): number {
+// Função para obter a diferença entre duas datas em formato legível
+export function getTimeDifference(date: string | Date): string {
   const now = new Date();
-  const total = endTime.getTime() - startTime.getTime();
-  const elapsed = now.getTime() - startTime.getTime();
+  const targetDate = new Date(date);
+  const diffMs = now.getTime() - targetDate.getTime();
   
-  if (elapsed <= 0) return 0;
-  if (elapsed >= total) return 100;
+  // Converte a diferença para várias unidades de tempo
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffMonths = Math.floor(diffDays / 30);
   
-  return (elapsed / total) * 100;
+  // Retorna a diferença formatada
+  if (diffMonths > 0) {
+    return diffMonths === 1 ? '1 mês atrás' : `${diffMonths} meses atrás`;
+  } else if (diffDays > 0) {
+    return diffDays === 1 ? '1 dia atrás' : `${diffDays} dias atrás`;
+  } else if (diffHours > 0) {
+    return diffHours === 1 ? '1 hora atrás' : `${diffHours} horas atrás`;
+  } else if (diffMins > 0) {
+    return diffMins === 1 ? '1 minuto atrás' : `${diffMins} minutos atrás`;
+  } else {
+    return 'agora mesmo';
+  }
 }
 
-export function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + '...';
+// Função para calcular a porcentagem de progresso
+export function getProgressPercentage(startTime: string, endTime: string): number {
+  const start = new Date(startTime).getTime();
+  const end = new Date(endTime).getTime();
+  const now = new Date().getTime();
+  
+  if (now <= start) return 0;
+  if (now >= end) return 100;
+  
+  const totalDuration = end - start;
+  const elapsedTime = now - start;
+  const percentage = (elapsedTime / totalDuration) * 100;
+  
+  return Math.round(percentage);
 }
