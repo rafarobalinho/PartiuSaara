@@ -196,15 +196,11 @@ export default function EditProduct() {
 
     try {
       // Faz a chamada para o endpoint de upload com os query params requeridos
-      const response = await fetch(`/api/upload/images?type=product&entityId=${id}`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha no upload das imagens');
-      }
+      const response = await apiRequest(
+        'POST',
+        `/api/upload/images?type=product&entityId=${id}`, 
+        formData
+      );
 
       const result = await response.json();
       
