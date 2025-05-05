@@ -85,7 +85,12 @@ export function ImageUpload({
 
       if (result.success && result.images) {
         const newImageUrls = result.images.map((img: { imageUrl: string }) => img.imageUrl);
-        const updatedImages = [...selectedImages, ...newImageUrls];
+        
+        // Se não for múltiplo, substitui a imagem atual em vez de adicionar
+        const updatedImages = multiple 
+          ? [...selectedImages, ...newImageUrls]
+          : newImageUrls; // Para logo, substitui completamente
+        
         setSelectedImages(updatedImages);
         onChange(updatedImages);
         
@@ -145,7 +150,7 @@ export function ImageUpload({
   return (
     <div className={`space-y-4 ${className}`}>
       <div className="space-y-2">
-        <Label htmlFor={name}>Imagens</Label>
+        <Label htmlFor={name}>{multiple ? 'Imagens' : 'Imagem'}</Label>
         
         {/* Botão para selecionar arquivos */}
         <div className="flex items-center space-x-2">
@@ -170,18 +175,18 @@ export function ImageUpload({
             ) : (
               <Upload className="mr-2 h-4 w-4" />
             )}
-            {isUploading ? 'Enviando...' : 'Selecionar imagens'}
+            {isUploading ? 'Enviando...' : multiple ? 'Selecionar imagens' : 'Selecionar imagem'}
           </Button>
         </div>
         
         <p className="text-xs text-muted-foreground">
-          Formatos aceitos: JPG, PNG, WebP. Máximo {maxImages} imagens.
+          Formatos aceitos: JPG, PNG, WebP. {multiple ? `Máximo ${maxImages} imagens.` : ''}
         </p>
       </div>
 
       {/* Preview das imagens */}
       {selectedImages.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className={multiple ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" : "w-full max-w-sm mx-auto"}>
           {selectedImages.map((image, index) => (
             <div key={index} className="relative group rounded-md overflow-hidden border border-border">
               <div className="aspect-square w-full relative">
@@ -210,8 +215,8 @@ export function ImageUpload({
             </div>
           ))}
           
-          {/* Slots restantes */}
-          {Array.from({ length: Math.min(4, maxImages - selectedImages.length) }).map((_, index) => (
+          {/* Slots restantes (apenas para múltiplos) */}
+          {multiple && Array.from({ length: Math.min(4, maxImages - selectedImages.length) }).map((_, index) => (
             <div 
               key={`empty-${index}`} 
               className="relative rounded-md overflow-hidden border border-dashed border-border aspect-square flex items-center justify-center cursor-pointer"
@@ -220,6 +225,17 @@ export function ImageUpload({
               <ImageIcon className="h-8 w-8 text-muted-foreground" />
             </div>
           ))}
+        </div>
+      )}
+      
+      {/* Placeholder para imagem única quando não há imagem */}
+      {!multiple && selectedImages.length === 0 && (
+        <div 
+          className="w-full max-w-sm mx-auto relative rounded-md overflow-hidden border border-dashed border-border aspect-square flex flex-col items-center justify-center cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <ImageIcon className="h-16 w-16 text-muted-foreground mb-2" />
+          <p className="text-sm text-muted-foreground">Clique para adicionar o logo da loja</p>
         </div>
       )}
     </div>
