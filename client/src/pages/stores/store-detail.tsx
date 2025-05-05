@@ -217,9 +217,7 @@ export default function StoreDetail() {
         {/* Store Banner */}
         <div className="h-64 relative">
           <img 
-            src={store.images[0]?.startsWith('blob:') 
-              ? 'https://images.unsplash.com/photo-1581539250439-c96689b516dd?q=80&w=1000'
-              : store.images[0]} 
+            src="https://images.unsplash.com/photo-1518188770546-efd25d4ca263?q=80&w=2069&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
             alt={store.name} 
             className="w-full h-full object-cover"
           />
