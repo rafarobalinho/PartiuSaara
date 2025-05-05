@@ -1386,6 +1386,13 @@ export class DatabaseStorage implements IStorage {
     promotion?: boolean,
     limit?: number
   } = {}): Promise<Product[]> {
+    console.log('Database storage received price filters:', { 
+      minPrice: options.minPrice, 
+      maxPrice: options.maxPrice,
+      minPriceType: typeof options.minPrice,
+      maxPriceType: typeof options.maxPrice
+    });
+    
     let query = db.select().from(products);
     
     if (options.category) {
@@ -1401,12 +1408,50 @@ export class DatabaseStorage implements IStorage {
       );
     }
     
-    if (options.minPrice !== undefined) {
-      query = query.where(gte(products.price, options.minPrice));
+    // Melhorado o filtro de preço mínimo
+    if (options.minPrice !== undefined && options.minPrice !== null) {
+      const minPrice = Number(options.minPrice);
+      console.log('Applying min price filter in DB query:', minPrice);
+      
+      // Verificar se tem preço com desconto primeiro, caso contrário usa o preço normal
+      query = query.where(
+        or(
+          and(
+            sql`${products.discountedPrice} IS NOT NULL`,
+            gte(products.discountedPrice, minPrice)
+          ),
+          and(
+            or(
+              sql`${products.discountedPrice} IS NULL`,
+              eq(products.discountedPrice, 0)
+            ),
+            gte(products.price, minPrice)
+          )
+        )
+      );
     }
     
-    if (options.maxPrice !== undefined) {
-      query = query.where(lte(products.price, options.maxPrice));
+    // Melhorado o filtro de preço máximo
+    if (options.maxPrice !== undefined && options.maxPrice !== null) {
+      const maxPrice = Number(options.maxPrice);
+      console.log('Applying max price filter in DB query:', maxPrice);
+      
+      // Verificar se tem preço com desconto primeiro, caso contrário usa o preço normal
+      query = query.where(
+        or(
+          and(
+            sql`${products.discountedPrice} IS NOT NULL`,
+            lte(products.discountedPrice, maxPrice)
+          ),
+          and(
+            or(
+              sql`${products.discountedPrice} IS NULL`,
+              eq(products.discountedPrice, 0)
+            ),
+            lte(products.price, maxPrice)
+          )
+        )
+      );
     }
     
     if (options.sortBy) {

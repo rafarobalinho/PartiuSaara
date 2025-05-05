@@ -1,0 +1,68 @@
+Por favor, encontre e corrija o problema com o filtro de preço na aplicação. O controlador está recebendo e convertendo os filtros corretamente, mas eles não estão sendo aplicados na consulta SQL.
+
+Localize o arquivo storage.ts (provavelmente em /server/storage.ts ou /server/db/storage.ts)
+Procure a função getProducts que é responsável por buscar produtos com filtros. O código atual provavelmente se parece com isto:
+
+typescriptexport async function getProducts(filters: {
+  category?: string;
+  search?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: string;
+  promotion?: boolean;
+  limit?: number;
+  type?: string;
+}) {
+  try {
+    // Construção da consulta SQL
+    let query = '...';
+    const params = [];
+    
+    // Filtros existentes
+    if (filters.category) {
+      // Código para filtrar por categoria
+    }
+    
+    // Ordenação e outros filtros
+    
+    // Retorno dos resultados
+    const result = await db.query(query, params);
+    return result.rows;
+  } catch (error) {
+    // Tratamento de erro
+  }
+}
+
+Adicione os filtros de preço na consulta SQL. Esta é a parte crucial que está faltando:
+
+typescript// Adicione este bloco de código após o filtro de categoria
+if (filters.minPrice !== undefined && filters.minPrice !== null) {
+  query += ` AND p.price >= $${params.length + 1}`;
+  params.push(Number(filters.minPrice));
+}
+
+if (filters.maxPrice !== undefined && filters.maxPrice !== null) {
+  query += ` AND p.price <= $${params.length + 1}`;
+  params.push(Number(filters.maxPrice));
+}
+
+Adicione logs para debug para verificar se os filtros estão sendo aplicados:
+
+typescriptconsole.log('Aplicando filtros de preço:', filters.minPrice, filters.maxPrice);
+console.log('Query final:', query);
+console.log('Parâmetros:', params);
+
+Garanta que o campo de preço no banco de dados tenha o nome correto. Se não for "price", ajuste o nome do campo na consulta. Por exemplo, se for "current_price":
+
+typescriptif (filters.minPrice !== undefined && filters.minPrice !== null) {
+  query += ` AND p.current_price >= $${params.length + 1}`;
+  params.push(Number(filters.minPrice));
+}
+
+Verifique o formato de armazenamento do preço no banco de dados. Se os preços estiverem armazenados em centavos (por exemplo, R$149,00 está armazenado como 14900), ajuste a comparação:
+
+typescriptif (filters.minPrice !== undefined && filters.minPrice !== null) {
+  query += ` AND p.price >= $${params.length + 1}`;
+  params.push(Number(filters.minPrice) * 100); // Converter para centavos
+}
+Estas alterações garantirão que os filtros de preço sejam corretamente aplicados na consulta SQL e, consequentemente, funcionem na interface do usuário.
