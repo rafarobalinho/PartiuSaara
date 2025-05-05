@@ -52,9 +52,17 @@ export default function ProductCard({
 }: ProductCardProps) {
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const { incrementWishlistCount, decrementWishlistCount, incrementReservationsCount, syncCounters } = useUi();
+  const { 
+    incrementWishlistCount, 
+    decrementWishlistCount, 
+    incrementReservationsCount, 
+    syncCounters,
+    isProductFavorite,
+    addFavoriteProduct,
+    removeFavoriteProduct,
+    syncFavorites
+  } = useUi();
   const queryClient = useQueryClient();
-  const [isWishlisted, setIsWishlisted] = useState(false);
 
   const calculateCurrentDiscount = () => {
     if (discountPercentage) return discountPercentage;
@@ -71,30 +79,33 @@ export default function ProductCard({
 
   const toggleWishlistMutation = useMutation({
     mutationFn: async () => {
+      const isFavorited = isProductFavorite(product.id);
       return apiRequest(
-        isWishlisted ? 'DELETE' : 'POST',
+        isFavorited ? 'DELETE' : 'POST',
         `/api/wishlist/${product.id}`,
         {}
       );
     },
     onSuccess: () => {
-      const wasWishlisted = isWishlisted;
-      setIsWishlisted(!wasWishlisted);
-      queryClient.invalidateQueries({ queryKey: ['/api/wishlist'] });
+      const wasFavorited = isProductFavorite(product.id);
       
-      // Atualizar contadores
-      if (wasWishlisted) {
+      if (wasFavorited) {
+        // Remover da lista de favoritos
+        removeFavoriteProduct(product.id);
         decrementWishlistCount();
       } else {
+        // Adicionar à lista de favoritos
+        addFavoriteProduct(product.id);
         incrementWishlistCount();
       }
       
-      // Sincronizar contadores com o servidor
+      // Sincronizar com o servidor
       syncCounters();
+      syncFavorites();
       
       toast({
-        title: wasWishlisted ? 'Removido dos favoritos' : 'Adicionado aos favoritos',
-        description: wasWishlisted ? 
+        title: wasFavorited ? 'Removido dos favoritos' : 'Adicionado aos favoritos',
+        description: wasFavorited ? 
           `${product.name} foi removido da sua lista de desejos.` : 
           `${product.name} foi adicionado à sua lista de desejos.`,
         variant: "default",
@@ -186,10 +197,10 @@ export default function ProductCard({
         
         <div className="absolute top-2 right-2 z-10">
           <button 
-            className={`${isWishlisted ? 'text-primary' : 'text-gray-400 hover:text-primary'} bg-white rounded-full p-1.5 shadow-sm h-8 w-8 flex items-center justify-center`}
+            className={`${isProductFavorite(product.id) ? 'text-primary' : 'text-gray-400 hover:text-primary'} bg-white rounded-full p-1.5 shadow-sm h-8 w-8 flex items-center justify-center`}
             onClick={handleWishlistToggle}
           >
-            <i className={`${isWishlisted ? 'fas fa-heart' : 'far fa-heart'} text-sm text-center`}></i>
+            <i className={`${isProductFavorite(product.id) ? 'fas fa-heart' : 'far fa-heart'} text-sm text-center`}></i>
           </button>
         </div>
         
