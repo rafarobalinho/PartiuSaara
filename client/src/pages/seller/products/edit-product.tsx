@@ -452,7 +452,7 @@ export default function EditProduct() {
                           <img
                             src={image}
                             alt={`Produto imagem ${index + 1}`}
-                            className="w-full h-full object-contain"
+                            className="w-full h-full object-fit"
                           />
                           <button
                             type="button"
