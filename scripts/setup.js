@@ -2,43 +2,44 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Obtém o diretório atual para o módulo ES
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 /**
  * Script para criar diretórios necessários para o sistema de upload de imagens
  * Este script verifica e cria os diretórios de uploads caso não existam
  */
 
-const directories = [
-  'public/uploads',
-  'public/uploads/thumbnails'
-];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.join(__dirname, '..');
 
-// Função para criar diretório se não existir
+/**
+ * Cria um diretório se ele não existir
+ * @param {string} dir - Caminho do diretório
+ */
 function createDirectoryIfNotExists(dir) {
-  const fullPath = path.join(process.cwd(), dir);
-  
-  if (!fs.existsSync(fullPath)) {
-    console.log(`Criando diretório: ${dir}`);
-    fs.mkdirSync(fullPath, { recursive: true });
-    console.log(`Diretório criado com sucesso: ${dir}`);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`Diretório criado: ${dir}`);
   } else {
     console.log(`Diretório já existe: ${dir}`);
   }
 }
 
-// Cria todos os diretórios necessários
+/**
+ * Configura os diretórios necessários para o sistema
+ */
 function setup() {
-  console.log('Iniciando setup de diretórios para sistema de upload de imagens...');
+  console.log('Iniciando configuração de diretórios...');
   
-  directories.forEach(dir => {
-    createDirectoryIfNotExists(dir);
-  });
+  // Diretório de uploads
+  const uploadsDir = path.join(rootDir, 'public', 'uploads');
+  createDirectoryIfNotExists(uploadsDir);
   
-  console.log('Setup concluído com sucesso!');
+  // Diretório de thumbnails
+  const thumbnailsDir = path.join(uploadsDir, 'thumbnails');
+  createDirectoryIfNotExists(thumbnailsDir);
+  
+  console.log('Configuração de diretórios concluída!');
 }
 
-// Executa o setup
+// Executar a configuração
 setup();

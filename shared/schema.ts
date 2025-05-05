@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -212,6 +212,48 @@ export const insertStoreImpressionSchema = createInsertSchema(storeImpressions).
   id: true
 });
 
+// Product Images schema
+export const productImages = pgTable("product_images", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull().references(() => products.id),
+  imageUrl: text("image_url").notNull(),
+  thumbnailUrl: text("thumbnail_url").notNull(),
+  isPrimary: boolean("is_primary").default(false),
+  displayOrder: integer("display_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+}, (table) => {
+  return {
+    productIdIdx: index("product_id_idx").on(table.productId),
+    isPrimaryIdx: index("product_images_is_primary_idx").on(table.isPrimary)
+  };
+});
+
+export const insertProductImageSchema = createInsertSchema(productImages).omit({
+  id: true,
+  createdAt: true
+});
+
+// Store Images schema
+export const storeImages = pgTable("store_images", {
+  id: serial("id").primaryKey(),
+  storeId: integer("store_id").notNull().references(() => stores.id),
+  imageUrl: text("image_url").notNull(),
+  thumbnailUrl: text("thumbnail_url").notNull(),
+  isPrimary: boolean("is_primary").default(false),
+  displayOrder: integer("display_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+}, (table) => {
+  return {
+    storeIdIdx: index("store_id_idx").on(table.storeId),
+    isPrimaryIdx: index("store_images_is_primary_idx").on(table.isPrimary)
+  };
+});
+
+export const insertStoreImageSchema = createInsertSchema(storeImages).omit({
+  id: true,
+  createdAt: true
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -221,6 +263,12 @@ export type InsertStore = z.infer<typeof insertStoreSchema>;
 
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
+
+export type ProductImage = typeof productImages.$inferSelect;
+export type InsertProductImage = z.infer<typeof insertProductImageSchema>;
+
+export type StoreImage = typeof storeImages.$inferSelect;
+export type InsertStoreImage = z.infer<typeof insertStoreImageSchema>;
 
 export type Promotion = typeof promotions.$inferSelect;
 export type InsertPromotion = z.infer<typeof insertPromotionSchema>;
