@@ -73,6 +73,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rotas de produtos que requerem autenticação e verificação de propriedade
   app.post('/api/products', authMiddleware, ProductController.createProduct);
   app.put('/api/products/:id', authMiddleware, verifyProductOwnership, ProductController.updateProduct);
+  
+  // Rota para ativar/desativar um produto
+  app.put('/api/products/:id/toggle-status', authMiddleware, verifyProductOwnership, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+      
+      // Obter o produto atual
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: 'Produto não encontrado' });
+      }
+      
+      // Inverter o status atual
+      const isActive = !product.isActive;
+      
+      // Atualizar o produto com o novo status
+      await db.update(products)
+        .set({ isActive })
+        .where(eq(products.id, productId));
+      
+      // Buscar o produto atualizado
+      const updatedProduct = await storage.getProduct(productId);
+      
+      return res.json(updatedProduct);
+    } catch (error) {
+      console.error('Erro ao alternar status do produto:', error);
+      return res.status(500).json({ message: 'Erro ao alternar status do produto' });
+    }
+  });
 
   // Store routes
   // Rotas públicas de lojas
