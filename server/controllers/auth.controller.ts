@@ -57,17 +57,25 @@ export async function register(req: Request, res: Response) {
     // Set user session
     req.session.userId = user.id;
     
-    res.status(201).json({ 
-      message: 'User registered successfully', 
-      user: { 
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        dateOfBirth: user.dateOfBirth,
-        gender: user.gender,
-        role: user.role
-      } 
+    // Salvar a sessão explicitamente para garantir persistência
+    req.session.save(err => {
+      if (err) {
+        console.error('Erro ao salvar sessão após registro:', err);
+        return res.status(500).json({ message: 'Erro ao completar o registro' });
+      }
+      
+      res.status(201).json({ 
+        message: 'User registered successfully', 
+        user: { 
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          dateOfBirth: user.dateOfBirth,
+          gender: user.gender,
+          role: user.role
+        } 
+      });
     });
     
   } catch (error) {
@@ -101,20 +109,29 @@ export async function login(req: Request, res: Response) {
       return res.status(401).json({ message: 'Email ou senha inválidos' });
     }
     
-    // Set user session
+    // Set user session e garantir que seja salva no banco de dados
     req.session.userId = user.id;
     
-    res.json({ 
-      message: 'Login bem-sucedido', 
-      user: { 
-        id: user.id, 
-        email: user.email, 
-        firstName: user.firstName,
-        lastName: user.lastName,
-        dateOfBirth: user.dateOfBirth,
-        gender: user.gender,
-        role: user.role 
-      } 
+    // Salvar a sessão explicitamente para garantir persistência
+    req.session.save(err => {
+      if (err) {
+        console.error('Erro ao salvar sessão:', err);
+        return res.status(500).json({ message: 'Erro ao realizar login' });
+      }
+      
+      // Retornar com usuário logado após a sessão ser salva
+      res.json({ 
+        message: 'Login bem-sucedido', 
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          firstName: user.firstName,
+          lastName: user.lastName,
+          dateOfBirth: user.dateOfBirth,
+          gender: user.gender,
+          role: user.role 
+        } 
+      });
     });
     
   } catch (error) {
@@ -131,7 +148,7 @@ export async function logout(req: Request, res: Response) {
         return res.status(500).json({ message: 'Failed to logout' });
       }
       
-      res.clearCookie('connect.sid');
+      res.clearCookie('partiu.sid');
       res.json({ message: 'Logout successful' });
     });
     
