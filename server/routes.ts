@@ -377,6 +377,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/uploads', express.static('public/uploads'));
   app.use('/uploads/thumbnails', express.static('public/uploads/thumbnails'));
 
+  // Rotas de mapa e geocodificação
+  app.get('/api/stores/map', MapController.getStoresForMap);
+  app.post('/api/admin/geocode', authMiddleware, MapController.geocodeAddressController);
+  app.put('/api/admin/stores/:storeId/location', authMiddleware, MapController.updateStoreGeolocation);
+
   const httpServer = createServer(app);
   return httpServer;
 }
