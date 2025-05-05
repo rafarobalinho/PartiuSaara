@@ -143,11 +143,22 @@ export default function Stores() {
             type="button" 
             variant={mapVisible ? "default" : "outline"}
             onClick={() => setMapVisible(!mapVisible)}
-            className="w-full md:w-auto"
+            className="w-full md:w-auto mr-2"
           >
             <i className={`fas fa-${mapVisible ? 'list' : 'map-marker-alt'} mr-2`}></i>
             {mapVisible ? 'Ver lista' : 'Ver mapa'}
           </Button>
+          
+          <Link href="/stores/map">
+            <Button 
+              type="button" 
+              variant="secondary"
+              className="w-full md:w-auto"
+            >
+              <i className="fas fa-map mr-2"></i>
+              Mapa completo
+            </Button>
+          </Link>
         </form>
       </div>
 

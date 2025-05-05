@@ -37,6 +37,7 @@ import SellerStores from "@/pages/seller/stores/index";
 import AddStore from "@/pages/seller/stores/add-store";
 import StoreDetail from "@/pages/seller/stores/store-detail";
 import StoreProducts from "@/pages/seller/stores/store-products";
+import LocationSettingsPage from "@/pages/seller/settings/location";
 
 function Router() {
   return (
@@ -53,6 +54,7 @@ function Router() {
           <Route path="/products/:id" component={ProductDetail} />
           <Route path="/promotions" component={Promotions} />
           <Route path="/stores" component={Stores} />
+          <Route path="/stores/map" component={StoresMapPage} />
           <Route path="/stores/:id" component={ClientStoreDetail} />
           <Route path="/account" component={Account} />
           <Route path="/account/wishlist" component={Wishlist} />
@@ -69,6 +71,7 @@ function Router() {
           <Route path="/seller/stores/:id/products" component={StoreProducts} />
           <Route path="/seller/analytics" component={SellerAnalytics} />
           <Route path="/seller/subscription" component={SellerSubscription} />
+          <Route path="/seller/settings/location" component={LocationSettingsPage} />
           <Route component={NotFound} />
         </Switch>
       </div>
