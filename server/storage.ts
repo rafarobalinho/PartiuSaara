@@ -23,6 +23,7 @@ export interface IStorage {
   // Store operations
   getStore(id: number): Promise<Store | undefined>;
   getStores(options?: { category?: string, search?: string, limit?: number }): Promise<Store[]>;
+  getStoresByUserId(userId: number): Promise<Store[]>;
   getNearbyStores(lat: number, lng: number, radius?: number): Promise<Store[]>;
   createStore(store: InsertStore): Promise<Store>;
   updateStore(id: number, store: Partial<Store>): Promise<Store | undefined>;
