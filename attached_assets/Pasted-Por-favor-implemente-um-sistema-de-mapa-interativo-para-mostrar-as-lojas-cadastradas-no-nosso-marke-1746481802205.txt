@@ -1,0 +1,93 @@
+Por favor, implemente um sistema de mapa interativo para mostrar as lojas cadastradas no nosso marketplace. Precisamos de duas funcionalidades principais:
+1. Funcionalidade Administrativa para Geocodificação
+Crie uma API para administradores que permita:
+
+Converter endereços de lojas em coordenadas (latitude/longitude)
+Obter o Place ID do Google para integração com Google My Business
+Salvar essas informações no banco de dados
+
+2. Mapa Interativo para Usuários
+Implemente um componente de mapa que:
+
+Mostre todas as lojas cadastradas como marcadores no mapa
+Ajuste automaticamente o zoom para exibir todas as lojas
+Exiba informações ao clicar em uma loja
+
+Implementação Detalhada:
+1. Backend (server/routes):
+
+Crie uma rota administrativa para geocodificação:
+
+Endpoint: POST /api/admin/geocode
+Parâmetros: nome da loja, endereço, CEP
+Resposta: latitude, longitude, Place ID
+
+
+Crie uma rota para salvar/atualizar lojas com coordenadas:
+
+Endpoint: POST /api/admin/stores
+Parâmetros: nome, endereço, CEP, latitude, longitude, Place ID
+Funcionalidade: salvar/atualizar essas informações na tabela de lojas
+
+
+Crie uma rota para buscar todas as lojas para o mapa:
+
+Endpoint: GET /api/stores/map
+Resposta: lista de lojas com suas coordenadas
+
+
+
+2. Frontend (client/src/components):
+
+Crie um componente StoresMap.tsx usando @react-google-maps/api:
+
+Use o hook useJsApiLoader para carregar a API do Google Maps
+Implemente marcadores para cada loja
+Implemente janelas de informação ao clicar nos marcadores
+Ajuste o zoom automaticamente para mostrar todas as lojas
+
+
+Crie uma página administrativa para geocodificação:
+
+Formulário para buscar coordenadas a partir do endereço
+Visualização do resultado no mapa
+Opção para salvar as coordenadas na tabela de lojas
+
+
+
+3. Banco de Dados:
+
+Adicione os seguintes campos à tabela "stores":
+
+latitude (FLOAT)
+longitude (FLOAT)
+place_id (VARCHAR)
+
+
+
+4. Utilitários:
+
+Crie funções de utilidade para:
+
+Geocodificação (converter endereço em coordenadas)
+Obtenção de detalhes do local usando o Place ID
+
+
+
+Observações Importantes:
+
+Comece com as duas lojas já cadastradas no sistema
+Use uma chave de API do Google Maps (crie um arquivo .env para armazená-la)
+Habilite as APIs necessárias no Console do Google Cloud:
+
+Geocoding API
+Places API
+Maps JavaScript API
+
+
+Certifique-se de validar todos os dados de entrada
+Implemente tratamento de erros adequado
+
+Dependências para instalar:
+npm install @react-google-maps/api
+Por favor, implemente esta funcionalidade mantendo o estilo visual existente do nosso marketplace e certifique-se de que o código seja seguro e bem documentado.
