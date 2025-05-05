@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="36px" height="36px" viewBox="0 0 36 36" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <title>Marcador de Loja</title>
+    <g id="Mapa" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Marcador">
+            <circle id="Background" fill="#FFFFFF" cx="18" cy="18" r="18"></circle>
+            <circle id="Border" stroke="#F97316" stroke-width="2" cx="18" cy="18" r="16"></circle>
+            <circle id="Center" fill="#F97316" cx="18" cy="18" r="8"></circle>
+        </g>
+    </g>
+</svg>
