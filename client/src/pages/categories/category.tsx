@@ -33,9 +33,30 @@ interface Category {
 
 export default function CategoryPage() {
   const { category: categorySlug } = useParams();
+  // Configurando o estado para os filtros
   const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [debouncedPriceRange, setDebouncedPriceRange] = useState([0, 1000]);
   const [sortBy, setSortBy] = useState('popularity');
   const [filterPromotion, setFilterPromotion] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
+
+  // Efeito para aplicar debounce ao filtro de preço
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedPriceRange(priceRange);
+    }, 500); // Debounce de 500ms
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [priceRange]);
+
+  // Feedback para mostrar que estamos aplicando filtros
+  useEffect(() => {
+    if (debouncedPriceRange !== priceRange) {
+      setIsFiltering(true);
+    }
+  }, [debouncedPriceRange, priceRange]);
 
   // Fetch category info
   const { data: category, isLoading: isCategoryLoading } = useQuery({
@@ -54,15 +75,23 @@ export default function CategoryPage() {
     }
   });
 
-  // Fetch category products
+  // Fetch category products com os filtros aplicados
   const { data: products, isLoading: isProductsLoading } = useQuery({
-    queryKey: [`/api/products?category=${categorySlug}&minPrice=${priceRange[0]}&maxPrice=${priceRange[1]}&sortBy=${sortBy}&promotion=${filterPromotion}`],
+    queryKey: [`/api/products`, {
+      category: categorySlug,
+      minPrice: debouncedPriceRange[0],
+      maxPrice: debouncedPriceRange[1],
+      sortBy,
+      promotion: filterPromotion
+    }],
     queryFn: async () => {
       try {
+        setIsFiltering(false);
+        
         const params = new URLSearchParams({
           category: categorySlug || '',
-          minPrice: priceRange[0].toString(),
-          maxPrice: priceRange[1].toString(),
+          minPrice: debouncedPriceRange[0].toString(),
+          maxPrice: debouncedPriceRange[1].toString(),
           sortBy: sortBy,
           promotion: filterPromotion.toString()
         });
@@ -73,23 +102,33 @@ export default function CategoryPage() {
         return await response.json();
       } catch (error) {
         console.error('Error fetching products:', error);
+        setIsFiltering(false);
         return [];
       }
     }
   });
 
-  const handlePriceRangeChange = (value: number[]) => {
+  // Handler para o controle deslizante de preço
+  const handlePriceRangeChange = useCallback((value: number[]) => {
     setPriceRange(value);
-  };
+  }, []);
 
-  const isLoading = isCategoryLoading || isProductsLoading;
+  // Reset de todos os filtros
+  const handleResetFilters = useCallback(() => {
+    setPriceRange([0, 1000]);
+    setDebouncedPriceRange([0, 1000]);
+    setSortBy('popularity');
+    setFilterPromotion(false);
+  }, []);
+
+  const isLoading = isCategoryLoading || isProductsLoading || isFiltering;
 
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <div className="flex items-center mb-4 text-sm">
         <Link href="/categories">
-          <a className="text-gray-500 hover:text-primary">Categorias</a>
+          <span className="text-gray-500 hover:text-primary cursor-pointer">Categorias</span>
         </Link>
         <span className="mx-2 text-gray-400">/</span>
         <span className="font-medium text-gray-900">{category?.name || categorySlug}</span>
@@ -168,12 +207,7 @@ export default function CategoryPage() {
 
             <Button 
               className="w-full bg-primary text-white hover:bg-primary/90"
-              onClick={() => {
-                // Reset filters
-                setPriceRange([0, 1000]);
-                setSortBy('popularity');
-                setFilterPromotion(false);
-              }}
+              onClick={handleResetFilters}
             >
               Limpar Filtros
             </Button>
@@ -230,11 +264,11 @@ export default function CategoryPage() {
               <div className="text-4xl mb-4"><i className="fas fa-search text-gray-300"></i></div>
               <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhum produto encontrado</h3>
               <p className="text-gray-500 mb-4">Tente ajustar os filtros ou buscar por outra categoria</p>
-              <Button asChild className="bg-primary text-white hover:bg-primary/90">
-                <Link href="/categories">
-                  <a>Ver todas as categorias</a>
-                </Link>
-              </Button>
+              <Link href="/categories">
+                <Button className="bg-primary text-white hover:bg-primary/90">
+                  Ver todas as categorias
+                </Button>
+              </Link>
             </div>
           )}
         </div>
