@@ -1,0 +1,327 @@
+PROBLEMA DE LISTAGEM: Produtos não aparecem na página geral /products (ambiente cliente)
+Identificamos um novo problema: a página geral de produtos no ambiente de clientes (/products) não está exibindo nenhum produto, embora os produtos apareçam corretamente em suas respectivas páginas de categoria.
+POSSÍVEIS CAUSAS:
+
+Endpoint da API para listagem geral de produtos não está funcionando corretamente
+Componente de listagem não está chamando a API correta ou processando a resposta adequadamente
+Filtros padrão podem estar restringindo a exibição de produtos
+
+SOLUÇÃO NECESSÁRIA:
+
+Verifique e corrija o endpoint de API para listagem geral de produtos:
+
+javascript// No arquivo de rotas do backend para o ambiente de cliente
+app.get('/api/products', async (req, res) => {
+  try {
+    // Log para diagnóstico
+    console.log('Buscando todos os produtos para listagem pública');
+    console.log('Query params:', req.query);
+    
+    // Construir a consulta base
+    let query = 'SELECT * FROM products WHERE is_active = true';
+    let params = [];
+    let paramIndex = 1;
+    
+    // Aplicar filtros, se fornecidos
+    const { category, search, minPrice, maxPrice } = req.query;
+    
+    if (category) {
+      query += ` AND LOWER(category) = LOWER($${paramIndex})`;
+      params.push(category);
+      paramIndex++;
+    }
+    
+    if (search) {
+      query += ` AND (LOWER(name) LIKE LOWER($${paramIndex}) OR LOWER(description) LIKE LOWER($${paramIndex}))`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+    
+    if (minPrice) {
+      query += ` AND price >= $${paramIndex}`;
+      params.push(parseFloat(minPrice));
+      paramIndex++;
+    }
+    
+    if (maxPrice) {
+      query += ` AND price <= $${paramIndex}`;
+      params.push(parseFloat(maxPrice));
+      paramIndex++;
+    }
+    
+    // Ordenação padrão
+    query += ' ORDER BY created_at DESC';
+    
+    // Log da consulta para diagnóstico
+    console.log('Query SQL:', query);
+    console.log('Parâmetros:', params);
+    
+    // Executar a consulta
+    const { rows } = await pool.query(query, params);
+    console.log(`Encontrados ${rows.length} produtos ativos`);
+    
+    // Buscar imagens para cada produto
+    const productsWithImages = await Promise.all(
+      rows.map(async (product) => {
+        try {
+          const imagesQuery = `
+            SELECT * FROM product_images 
+            WHERE product_id = $1
+            ORDER BY is_primary DESC, display_order ASC
+            LIMIT 1
+          `;
+          const imagesResult = await pool.query(imagesQuery, [product.id]);
+          
+          if (imagesResult.rows.length > 0) {
+            return {
+              ...product,
+              primary_image: imagesResult.rows[0]
+            };
+          }
+          return product;
+        } catch (err) {
+          console.error(`Erro ao buscar imagem do produto ${product.id}:`, err);
+          return product;
+        }
+      })
+    );
+    
+    // Retornar resposta
+    return res.json({
+      success: true,
+      products: productsWithImages,
+      count: productsWithImages.length,
+      filters: { category, search, minPrice, maxPrice }
+    });
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    return res.status(500).json({
+      success: false,
+      products: [],
+      error: 'Erro ao buscar produtos',
+      message: error.message
+    });
+  }
+});
+
+Corrija o componente de listagem de produtos para clientes:
+
+jsx// No arquivo do componente da página de produtos (ex: /client/src/pages/products/index.jsx)
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom'; // Ajuste conforme seu sistema de rotas
+import { api } from '../../services/api';
+
+const ProductsPage = () => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filters, setFilters] = useState({
+    category: '',
+    search: '',
+    minPrice: '',
+    maxPrice: ''
+  });
+  
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Efeito para extrair filtros da URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    
+    setFilters({
+      category: params.get('category') || '',
+      search: params.get('search') || '',
+      minPrice: params.get('minPrice') || '',
+      maxPrice: params.get('maxPrice') || ''
+    });
+  }, [location.search]);
+  
+  // Efeito para buscar produtos com base nos filtros
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Construir query params para a requisição
+        const queryParams = new URLSearchParams();
+        
+        if (filters.category) queryParams.append('category', filters.category);
+        if (filters.search) queryParams.append('search', filters.search);
+        if (filters.minPrice) queryParams.append('minPrice', filters.minPrice);
+        if (filters.maxPrice) queryParams.append('maxPrice', filters.maxPrice);
+        
+        // Log para diagnóstico
+        console.log('Buscando produtos com filtros:', Object.fromEntries(queryParams));
+        
+        // Fazer requisição à API
+        const response = await api.get(`/api/products?${queryParams}`);
+        
+        // Log para diagnóstico
+        console.log('Resposta da API:', response.data);
+        
+        // Verificar resposta
+        if (response.data && response.data.products) {
+          setProducts(response.data.products);
+        } else {
+          console.warn('Formato de resposta inesperado:', response.data);
+          setProducts([]);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar produtos:', error);
+        setError('Erro ao carregar produtos. Tente novamente mais tarde.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProducts();
+  }, [filters]);
+  
+  // Função para aplicar filtros
+  const applyFilters = (newFilters) => {
+    const queryParams = new URLSearchParams();
+    
+    if (newFilters.category) queryParams.append('category', newFilters.category);
+    if (newFilters.search) queryParams.append('search', newFilters.search);
+    if (newFilters.minPrice) queryParams.append('minPrice', newFilters.minPrice);
+    if (newFilters.maxPrice) queryParams.append('maxPrice', newFilters.maxPrice);
+    
+    navigate(`/products?${queryParams}`);
+  };
+  
+  // Função para limpar filtros
+  const clearFilters = () => {
+    navigate('/products');
+  };
+  
+  // Função para lidar com busca
+  const handleSearch = (searchTerm) => {
+    applyFilters({ ...filters, search: searchTerm });
+  };
+  
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-6">Produtos</h1>
+      
+      {/* Seção de filtros */}
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+        {/* Seus filtros aqui */}
+        <div className="flex justify-end">
+          <button
+            onClick={clearFilters}
+            className="px-4 py-2 bg-orange-500 text-white rounded"
+          >
+            Limpar Filtros
+          </button>
+        </div>
+      </div>
+      
+      {/* Mostrar estado de carregamento */}
+      {loading ? (
+        <div className="flex justify-center p-10">
+          <div className="w-12 h-12 border-t-4 border-orange-500 rounded-full animate-spin"></div>
+        </div>
+      ) : error ? (
+        <div className="text-center p-8 bg-white rounded-lg shadow-sm">
+          <div className="text-orange-500 text-5xl mb-3">⚠️</div>
+          <h3 className="text-lg font-medium mb-2">Erro ao carregar produtos</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            className="px-4 py-2 bg-orange-500 text-white rounded"
+            onClick={() => window.location.reload()}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      ) : products.length === 0 ? (
+        <div className="text-center p-8 bg-white rounded-lg shadow-sm">
+          <div className="text-gray-400 text-5xl mb-3">🔍</div>
+          <h3 className="text-lg font-medium mb-2">Nenhum produto encontrado</h3>
+          <p className="text-gray-600 mb-4">
+            Não encontramos produtos com os filtros selecionados.
+          </p>
+          <button
+            className="px-4 py-2 bg-orange-500 text-white rounded"
+            onClick={clearFilters}
+          >
+            Limpar filtros e tentar novamente
+          </button>
+        </div>
+      ) : (
+        /* Grid de produtos */
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {products.map(product => (
+            <div 
+              key={product.id}
+              className="bg-white rounded-lg shadow-sm overflow-hidden"
+              onClick={() => navigate(`/products/${product.id}`)}
+            >
+              {/* Imagem do produto */}
+              <div className="relative pt-[100%] bg-gray-100">
+                {product.primary_image ? (
+                  <img 
+                    src={product.primary_image.image_url} 
+                    alt={product.name}
+                    className="absolute top-0 left-0 w-full h-full object-cover" 
+                  />
+                ) : (
+                  <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+                    <span className="text-gray-400">Sem imagem</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Informações do produto */}
+              <div className="p-3">
+                <h2 className="font-medium text-gray-900 truncate">
+                  {product.name}
+                </h2>
+                
+                <p className="text-xs text-gray-500 mb-2">
+                  {product.category}
+                </p>
+                
+                <div className="mt-1 flex justify-between items-end">
+                  <span className="text-orange-500 font-bold">
+                    R$ {product.price.toFixed(2).replace('.', ',')}
+                  </span>
+                  
+                  <button className="text-xs px-2 py-1 bg-orange-500 text-white rounded">
+                    Comprar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ProductsPage;
+
+Adicione logs detalhados para diagnóstico no frontend e backend:
+
+No frontend:
+javascriptconsole.log('Requisição enviada para:', `/api/products?${queryParams}`);
+No backend:
+javascriptconsole.log('Recebida requisição para:', req.path);
+console.log('Query string completa:', req.url.split('?')[1] || 'nenhuma');
+
+Faça uma requisição de teste direto no navegador:
+
+Abra seu navegador e acesse diretamente:
+[sua_url_base]/api/products
+Este endereço deve retornar um JSON com todos os produtos. Se retornar um erro ou uma lista vazia, o problema está no backend. Se retornar produtos, o problema está no frontend.
+
+Verifique se existem middlewares que podem estar bloqueando a rota:
+
+Se o app usa autenticação, verifique se a rota /api/products está acessível para usuários não autenticados:
+javascript// Garantir que esta rota está acessível para todos
+app.get('/api/products', /* NÃO coloque o middleware de autenticação aqui */ async (req, res) => {
+  // seu código aqui
+});
+Certifique-se de implementar estas alterações para que a página geral de produtos funcione corretamente para os clientes, exibindo todos os produtos disponíveis.

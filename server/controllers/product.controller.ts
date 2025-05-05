@@ -90,10 +90,43 @@ export async function getProducts(req: Request, res: Response) {
     
     const { rows } = await pool.query(query, params);
     
-    // SEMPRE retornar um JSON válido
+    // Buscar informações adicionais para cada produto (imagens e loja)
+    const productsWithDetails = await Promise.all(
+      rows.map(async (product) => {
+        try {
+          // Buscar imagens do produto
+          const imagesQuery = 'SELECT * FROM product_images WHERE product_id = $1 ORDER BY is_primary DESC, display_order ASC';
+          const imagesResult = await pool.query(imagesQuery, [product.id]);
+          
+          // Buscar informações da loja
+          const storeQuery = 'SELECT id, name FROM stores WHERE id = $1';
+          const storeResult = await pool.query(storeQuery, [product.store_id]);
+          
+          if (storeResult.rows.length > 0) {
+            // Retornar produto com imagens e detalhes da loja
+            return {
+              ...product,
+              images: imagesResult.rows.map(img => img.image_url),
+              store: storeResult.rows[0]
+            };
+          }
+          
+          // Caso a loja não seja encontrada
+          return {
+            ...product,
+            images: imagesResult.rows.map(img => img.image_url)
+          };
+        } catch (err) {
+          console.error(`Erro ao buscar detalhes do produto ${product.id}:`, err);
+          return product;
+        }
+      })
+    );
+    
+    // SEMPRE retornar um JSON válido com produtos completos
     return res.json({ 
-      products: rows,
-      count: rows.length,
+      products: productsWithDetails,
+      count: productsWithDetails.length,
       filters: { category, categoryId, categorySlug }
     });
   } catch (error) {
