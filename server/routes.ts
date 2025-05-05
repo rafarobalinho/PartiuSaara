@@ -9,7 +9,7 @@ import * as StoreController from "./controllers/store.controller";
 import * as PromotionController from "./controllers/promotion.controller";
 import * as ReservationController from "./controllers/reservation.controller";
 import * as SubscriptionController from "./controllers/subscription.controller";
-import UploadController from "./controllers/upload.controller.js";
+import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
@@ -217,8 +217,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(impressions);
   });
 
-  // Rota de upload de imagens
-  app.use('/api/upload', UploadController);
+  // Rotas de upload de imagens
+  app.post('/api/upload/images', authMiddleware, uploadImages);
+  app.delete('/api/upload/images', authMiddleware, deleteImage);
 
   // Servir arquivos estáticos da pasta pública
   app.use('/uploads', express.static('public/uploads'));
