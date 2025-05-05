@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback } from 'react';
 import ProductCard from '@/components/ui/product-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
+import PriceFilter from '@/components/ui/PriceFilter';
+import RangeSlider from '@/components/ui/RangeSlider';
 
 interface Product {
   id: number;
@@ -171,6 +172,15 @@ export default function CategoryPage() {
                 <span>{formatCurrency(priceRange[0])}</span>
                 <span>{formatCurrency(priceRange[1])}</span>
               </div>
+              <Button 
+                onClick={() => {
+                  // Aplicar o filtro imediatamente (sem debounce)
+                  setDebouncedPriceRange(priceRange);
+                }}
+                className="w-full mt-2 bg-primary text-white py-2 px-4 rounded hover:bg-primary/90 transition-colors"
+              >
+                Aplicar Filtro
+              </Button>
             </div>
 
             <div className="mb-6">
