@@ -73,24 +73,33 @@ const processImages = async (req, res, next) => {
       console.log(`Processando imagem: ${file.path} -> ${thumbnailPath}`);
       
       try {
+        // Define o caminho para o arquivo JPG otimizado
+        const optimizedPath = file.path.replace(path.extname(file.path), '.jpg');
+        
         // Processa o arquivo original para adicionar fundo branco (importante para PNGs transparentes)
         await sharp(file.path)
+          .resize({
+            width: 1920, // Largura máxima conforme especificação
+            height: 1080, // Altura máxima conforme especificação
+            fit: 'inside', // Mantém a proporção
+            withoutEnlargement: true // Não amplia imagens pequenas
+          })
           .flatten({ background: { r: 255, g: 255, b: 255 } }) // Adiciona fundo branco para imagens transparentes
-          .jpeg({ quality: 95 }) // Salva como JPEG com alta qualidade
-          .toFile(file.path.replace(path.extname(file.path), '.jpg'));
+          .jpeg({ quality: 85 }) // Salva como JPEG com qualidade 85% conforme especificação
+          .toFile(optimizedPath);
         
         // Caso o arquivo original não seja JPG, remover o arquivo original
         if (path.extname(file.path) !== '.jpg') {
           fs.unlinkSync(file.path);
         }
         
-        // Usa o sharp para redimensionar e otimizar a imagem thumbnails
-        await sharp(file.path.replace(path.extname(file.path), '.jpg'))
+        // Usa o sharp para criar thumbnail de 300x300 conforme especificação
+        await sharp(optimizedPath)
           .resize({
-            width: 800, // Largura máxima
-            height: 800, // Altura máxima
-            fit: 'inside', // Mantém a proporção
-            withoutEnlargement: true // Não amplia imagens pequenas
+            width: 300, // Largura do thumbnail
+            height: 300, // Altura do thumbnail
+            fit: 'cover', // Cobre toda a área, cortando se necessário
+            position: 'centre' // Centraliza a imagem
           })
           .flatten({ background: { r: 255, g: 255, b: 255 } }) // Adiciona fundo branco para imagens transparentes
           .jpeg({ quality: 80 }) // Qualidade do JPEG (80% é um bom equilíbrio)
