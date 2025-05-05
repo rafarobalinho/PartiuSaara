@@ -1,0 +1,400 @@
+CORREÇÃO URGENTE: Problemas na edição e visualização de produtos
+Estou enfrentando dois problemas críticos no aplicativo que precisam ser corrigidos:
+PROBLEMA 1: Na página de edição do produto (/seller/products/4/edit)
+
+Erro: Cannot read properties of undefined (reading 'toString')
+O produto não aparece para edição
+
+PROBLEMA 2: Na página de detalhes do produto (/products/id)
+
+Preço aparece como "NaN"
+Imagem não carrega ou mostra "sem imagens"
+Detalhes do produto não aparecem
+
+Ambos os problemas indicam que os dados do produto não estão sendo carregados corretamente ou que o frontend não está tratando corretamente valores nulos/undefined.
+PARTE 1: CORREÇÃO DA PÁGINA DE EDIÇÃO DE PRODUTO
+
+Encontre o arquivo /home/runner/workspace/client/src/pages/seller/products/edit-product.tsx
+Substitua o hook useEffect que carrega o produto por este código mais robusto:
+
+javascriptuseEffect(() => {
+  const fetchProductDetails = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const productId = params.id || router.query.id;
+      console.log('Tentando carregar produto para edição, ID:', productId);
+      
+      if (!productId) {
+        console.error('ID do produto não fornecido na URL');
+        setError('ID do produto não encontrado');
+        setLoading(false);
+        return;
+      }
+      
+      const response = await api.get(`/api/products/${productId}`);
+      console.log('Dados do produto recebidos:', response.data);
+      
+      // Verifique se os dados do produto existem
+      if (!response.data || !response.data.id) {
+        console.error('Produto não encontrado ou dados inválidos');
+        setError('Produto não encontrado');
+        setLoading(false);
+        return;
+      }
+      
+      // Crie um objeto produto com valores padrão seguros para evitar undefined
+      const safeProduct = {
+        id: response.data.id,
+        name: response.data.name || '',
+        description: response.data.description || '',
+        category: response.data.category || '',
+        price: response.data.price || 0,
+        discounted_price: response.data.discounted_price || null,
+        stock: response.data.stock || 0,
+        images: Array.isArray(response.data.images) ? response.data.images : [],
+        store_id: response.data.store_id || null,
+        // Adicione outras propriedades conforme necessário
+      };
+      
+      console.log('Produto normalizado:', safeProduct);
+      
+      // Atualize o estado principal
+      setProduct(safeProduct);
+      
+      // Atualize os estados individuais dos campos do formulário
+      setName(safeProduct.name);
+      setDescription(safeProduct.description);
+      setCategory(safeProduct.category);
+      setPrice(safeProduct.price);
+      setDiscountedPrice(safeProduct.discounted_price);
+      setStock(safeProduct.stock);
+      
+      // Segurança para as imagens do produto
+      if (Array.isArray(safeProduct.images)) {
+        setProductImages(safeProduct.images);
+      } else {
+        setProductImages([]);
+      }
+      
+      // Segurança para store_id
+      if (safeProduct.store_id) {
+        setSelectedStore(safeProduct.store_id);
+      }
+      
+      // Se não houver imagens no objeto do produto, tente buscá-las separadamente
+      if (!safeProduct.images || safeProduct.images.length === 0) {
+        try {
+          const imagesResponse = await api.get(`/api/products/${productId}/images`);
+          console.log('Imagens do produto:', imagesResponse.data);
+          
+          if (imagesResponse.data && Array.isArray(imagesResponse.data)) {
+            setProductImages(imagesResponse.data);
+          }
+        } catch (imageError) {
+          console.error('Erro ao buscar imagens do produto:', imageError);
+          // Não definir erro aqui, apenas log, para não bloquear a edição
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar produto para edição:', error);
+      setError('Erro ao carregar dados do produto. Tente novamente mais tarde.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  fetchProductDetails();
+}, [params.id, router.query.id]);
+
+Modifique também a renderização para tratar estados de carregamento e erro:
+
+jsx// No componente de renderização
+return (
+  <div className="container mx-auto p-4">
+    {loading ? (
+      <div className="flex justify-center p-8">
+        <div className="w-12 h-12 border-t-4 border-orange-500 rounded-full animate-spin"></div>
+        <p className="ml-4">Carregando produto...</p>
+      </div>
+    ) : error ? (
+      <div className="text-center p-8 bg-white rounded-lg shadow-sm">
+        <div className="text-orange-500 text-5xl mb-3">⚠️</div>
+        <h3 className="text-lg font-medium mb-2">Não foi possível carregar o produto</h3>
+        <p className="text-gray-600 mb-4">{error}</p>
+        <button
+          className="px-4 py-2 bg-orange-500 text-white rounded"
+          onClick={() => router.push('/seller/products')}
+        >
+          Voltar para lista de produtos
+        </button>
+      </div>
+    ) : (
+      // Seu formulário de edição aqui
+      <form onSubmit={handleSubmit}>
+        {/* Seu código atual do formulário */}
+      </form>
+    )}
+  </div>
+);
+PARTE 2: CORREÇÃO DA PÁGINA DE DETALHES DO PRODUTO
+
+Encontre o arquivo que contém a página de detalhes do produto (provavelmente /home/runner/workspace/client/src/pages/products/product-detail.tsx ou semelhante)
+Substitua o hook useEffect que carrega os detalhes do produto por esta versão robusta:
+
+javascriptuseEffect(() => {
+  const fetchProductDetails = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const productId = params.id || router.query.id;
+      console.log('Buscando detalhes do produto ID:', productId);
+      
+      if (!productId) {
+        console.error('ID do produto não fornecido na URL');
+        setError('Produto não encontrado');
+        setLoading(false);
+        return;
+      }
+      
+      const response = await api.get(`/api/products/${productId}`);
+      console.log('Resposta da API de produto:', response.data);
+      
+      if (!response.data || !response.data.id) {
+        setError('Produto não encontrado');
+        setLoading(false);
+        return;
+      }
+      
+      // Garantir valores padrão seguros para todos os campos
+      const safeProduct = {
+        id: response.data.id,
+        name: response.data.name || 'Produto sem nome',
+        description: response.data.description || 'Sem descrição disponível',
+        price: typeof response.data.price === 'number' ? response.data.price : 0,
+        discounted_price: typeof response.data.discounted_price === 'number' ? response.data.discounted_price : null,
+        stock: typeof response.data.stock === 'number' ? response.data.stock : 0,
+        category: response.data.category || 'Sem categoria',
+        store_id: response.data.store_id,
+        images: []
+      };
+      
+      // Processar imagens
+      if (response.data.images && Array.isArray(response.data.images)) {
+        safeProduct.images = response.data.images;
+      } else if (response.data.primary_image) {
+        safeProduct.images = [response.data.primary_image];
+      }
+      
+      // Se ainda não tiver imagens, buscar da API separadamente
+      if (safeProduct.images.length === 0) {
+        try {
+          const imagesResponse = await api.get(`/api/products/${productId}/images`);
+          console.log('Imagens do produto:', imagesResponse.data);
+          
+          if (imagesResponse.data && Array.isArray(imagesResponse.data)) {
+            safeProduct.images = imagesResponse.data;
+          }
+        } catch (imageError) {
+          console.error('Erro ao buscar imagens do produto:', imageError);
+          // Continuamos mesmo sem imagens
+        }
+      }
+      
+      // Buscar informações da loja
+      try {
+        if (safeProduct.store_id) {
+          const storeResponse = await api.get(`/api/stores/${safeProduct.store_id}`);
+          console.log('Informações da loja:', storeResponse.data);
+          
+          if (storeResponse.data) {
+            safeProduct.store = storeResponse.data;
+          }
+        }
+      } catch (storeError) {
+        console.error('Erro ao buscar informações da loja:', storeError);
+        // Continuamos mesmo sem informações da loja
+      }
+      
+      console.log('Produto normalizado:', safeProduct);
+      setProduct(safeProduct);
+    } catch (error) {
+      console.error('Erro ao carregar detalhes do produto:', error);
+      setError('Erro ao carregar detalhes do produto');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  fetchProductDetails();
+}, [params.id, router.query.id]);
+
+Corrija a renderização da página de detalhes do produto:
+
+jsx// Na renderização da página de detalhes
+return (
+  <div className="container mx-auto p-4">
+    {loading ? (
+      <div className="flex justify-center p-10">
+        <div className="w-12 h-12 border-t-4 border-orange-500 rounded-full animate-spin"></div>
+      </div>
+    ) : error ? (
+      <div className="text-center p-8">
+        <div className="text-orange-500 text-5xl mb-3">⚠️</div>
+        <h3 className="text-lg font-medium mb-2">Não foi possível encontrar o produto</h3>
+        <p className="text-gray-600 mb-4">{error}</p>
+        <button
+          className="px-4 py-2 bg-orange-500 text-white rounded"
+          onClick={() => router.push('/products')}
+        >
+          Voltar para produtos
+        </button>
+      </div>
+    ) : !product ? (
+      <div className="text-center p-8">
+        <div className="text-gray-400 text-5xl mb-3">🔍</div>
+        <h3 className="text-lg font-medium mb-2">Produto não encontrado</h3>
+        <p className="text-gray-600 mb-4">O produto que você está procurando não está disponível.</p>
+        <button
+          className="px-4 py-2 bg-orange-500 text-white rounded"
+          onClick={() => router.push('/products')}
+        >
+          Explorar outros produtos
+        </button>
+      </div>
+    ) : (
+      // Render do produto com verificações de segurança
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        {/* Imagem do produto com fallback */}
+        <div className="relative pt-[56.25%] bg-gray-100">
+          {product.images && product.images.length > 0 ? (
+            <img 
+              src={product.images[0].image_url || product.images[0]} 
+              alt={product.name} 
+              className="absolute top-0 left-0 w-full h-full object-contain p-4" 
+            />
+          ) : (
+            <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+              <span className="text-gray-400">Sem imagem disponível</span>
+            </div>
+          )}
+        </div>
+        
+        {/* Informações do produto */}
+        <div className="p-4">
+          <h1 className="text-xl font-bold mb-2">{product.name}</h1>
+          
+          <div className="mb-4">
+            <span className="text-gray-500">Categoria: </span>
+            <span className="text-gray-700">{product.category}</span>
+          </div>
+          
+          {/* Preço com verificação para evitar NaN */}
+          <div className="text-xl font-bold text-orange-500 mb-4">
+            {product.discounted_price ? (
+              <>
+                <span className="line-through text-gray-400 text-lg mr-2">
+                  R$ {typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}
+                </span>
+                <span>
+                  R$ {typeof product.discounted_price === 'number' ? product.discounted_price.toFixed(2) : '0.00'}
+                </span>
+              </>
+            ) : (
+              <span>
+                R$ {typeof product.price === 'number' ? product.price.toFixed(2) : '0.00'}
+              </span>
+            )}
+          </div>
+          
+          {/* Estoque */}
+          <div className="mb-4">
+            {product.stock > 0 ? (
+              <span className="inline-block px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                Em estoque: {product.stock} unidades
+              </span>
+            ) : (
+              <span className="inline-block px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">
+                Fora de estoque
+              </span>
+            )}
+          </div>
+          
+          {/* Descrição */}
+          <div className="mb-6">
+            <h2 className="text-lg font-medium mb-2">Descrição</h2>
+            <p className="text-gray-700">{product.description || 'Sem descrição disponível'}</p>
+          </div>
+          
+          {/* Botão de reserva */}
+          <button className="w-full py-3 bg-orange-500 text-white rounded-md font-medium">
+            Reservar Produto
+          </button>
+        </div>
+      </div>
+    )}
+  </div>
+);
+PARTE 3: ENDPOINT DA API DE PRODUTOS
+Verifique se o endpoint da API está retornando corretamente os dados do produto:
+javascript// Endpoint para buscar um produto específico por ID
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`Buscando produto com ID: ${id}`);
+    
+    // Buscar o produto
+    const productQuery = 'SELECT * FROM products WHERE id = $1';
+    const productResult = await pool.query(productQuery, [id]);
+    
+    if (productResult.rows.length === 0) {
+      console.log(`Produto com ID ${id} não encontrado`);
+      return res.status(404).json({ 
+        success: false,
+        error: 'Produto não encontrado' 
+      });
+    }
+    
+    const product = productResult.rows[0];
+    console.log(`Produto encontrado: ${product.name}`);
+    
+    // Buscar imagens do produto
+    const imagesQuery = `
+      SELECT * FROM product_images 
+      WHERE product_id = $1
+      ORDER BY is_primary DESC, display_order ASC
+    `;
+    
+    const imagesResult = await pool.query(imagesQuery, [id]);
+    
+    // Adicionar imagens ao objeto do produto
+    product.images = imagesResult.rows;
+    
+    // Buscar informações da loja
+    const storeQuery = 'SELECT id, name, category FROM stores WHERE id = $1';
+    const storeResult = await pool.query(storeQuery, [product.store_id]);
+    
+    if (storeResult.rows.length > 0) {
+      product.store = storeResult.rows[0];
+    }
+    
+    return res.json({
+      success: true,
+      ...product
+    });
+  } catch (error) {
+    console.error('Erro ao buscar produto:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erro ao buscar produto',
+      message: error.message
+    });
+  }
+});
+Estas correções abordam de forma abrangente ambos os problemas:
+
+Garantem que os objetos de produto sempre tenham valores padrão seguros para evitar erros de propriedades de undefined
+Tratam estados de carregamento, erro e dados vazios adequadamente
+Adicionam verificações adicionais para campos específicos como imagens e preços para garantir a renderização correta

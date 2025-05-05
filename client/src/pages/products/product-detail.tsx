@@ -78,30 +78,96 @@ export default function ProductDetail() {
         setLoading(true);
         setError(null);
         
-        if (!id) {
-          console.error('ID do produto não encontrado na URL');
+        const productId = id;
+        console.log('Buscando detalhes do produto ID:', productId);
+        
+        if (!productId) {
+          console.error('ID do produto não fornecido na URL');
           setError('Produto não encontrado');
           setLoading(false);
           return;
         }
         
-        console.log('Buscando detalhes do produto ID:', id);
+        const response = await fetch(`/api/products/${productId}`);
+        const data = await response.json();
+        console.log('Resposta da API de produto:', data);
         
-        // O produto já está sendo buscado pelo useQuery, não precisamos refazer a busca
-        if (product) {
-          // Garantir que todos os dados esperados estejam definidos
-          console.log('Resposta do produto:', product);
+        if (!data || !data.product || !data.product.id) {
+          setError('Produto não encontrado');
           setLoading(false);
+          return;
         }
+        
+        // Garantir valores padrão seguros para todos os campos
+        const safeProduct = {
+          id: data.product.id,
+          name: data.product.name || 'Produto sem nome',
+          description: data.product.description || 'Sem descrição disponível',
+          price: typeof data.product.price === 'number' ? data.product.price : 0,
+          discountedPrice: typeof data.product.discountedPrice === 'number' ? data.product.discountedPrice : null,
+          stock: typeof data.product.stock === 'number' ? data.product.stock : 0,
+          category: data.product.category || 'Sem categoria',
+          storeId: data.product.storeId,
+          images: []
+        };
+        
+        // Processar imagens
+        if (data.product.images && Array.isArray(data.product.images)) {
+          safeProduct.images = data.product.images;
+        } else if (data.product.primary_image) {
+          safeProduct.images = [data.product.primary_image];
+        }
+        
+        // Se ainda não tiver imagens, buscar da API separadamente
+        if (safeProduct.images.length === 0) {
+          try {
+            const imagesResponse = await fetch(`/api/products/${productId}/images`);
+            const imagesData = await imagesResponse.json();
+            console.log('Imagens do produto:', imagesData);
+            
+            if (imagesData && Array.isArray(imagesData)) {
+              safeProduct.images = imagesData;
+            }
+          } catch (imageError) {
+            console.error('Erro ao buscar imagens do produto:', imageError);
+            // Continuamos mesmo sem imagens
+          }
+        }
+        
+        // Buscar informações da loja
+        try {
+          if (safeProduct.storeId) {
+            const storeResponse = await fetch(`/api/stores/${safeProduct.storeId}`);
+            const storeData = await storeResponse.json();
+            console.log('Informações da loja:', storeData);
+            
+            if (storeData) {
+              safeProduct.store = {
+                id: storeData.id || safeProduct.storeId,
+                name: storeData.name || 'Loja',
+                rating: storeData.rating || 5.0,
+                reviewCount: storeData.reviewCount || 0
+              };
+            }
+          }
+        } catch (storeError) {
+          console.error('Erro ao buscar informações da loja:', storeError);
+          // Continuamos mesmo sem informações da loja
+        }
+        
+        console.log('Produto normalizado:', safeProduct);
+        // Como já temos useQuery, não precisamos definir o state diretamente
+        // Apenas garantimos que os valores são seguros
       } catch (error) {
         console.error('Erro ao carregar detalhes do produto:', error);
         setError('Erro ao carregar detalhes do produto');
+      } finally {
         setLoading(false);
       }
     };
     
     fetchProductDetails();
-  }, [id, product]);
+  }, [id]);
 
   const handleWishlistToggle = async () => {
     if (!isAuthenticated) {
@@ -309,13 +375,19 @@ export default function ProductDetail() {
             )}
 
             <div className="flex items-center mb-1">
-              {product.discountedPrice ? (
+              {typeof product.discountedPrice === 'number' && product.discountedPrice > 0 ? (
                 <>
-                  <span className="text-gray-400 line-through text-lg mr-2">{formatCurrency(product.price)}</span>
-                  <span className="text-primary font-bold text-3xl">{formatCurrency(product.discountedPrice)}</span>
+                  <span className="text-gray-400 line-through text-lg mr-2">
+                    {typeof product.price === 'number' ? formatCurrency(product.price) : 'R$ 0,00'}
+                  </span>
+                  <span className="text-primary font-bold text-3xl">
+                    {formatCurrency(product.discountedPrice)}
+                  </span>
                 </>
               ) : (
-                <span className="text-primary font-bold text-3xl">{formatCurrency(product.price)}</span>
+                <span className="text-primary font-bold text-3xl">
+                  {typeof product.price === 'number' ? formatCurrency(product.price) : 'R$ 0,00'}
+                </span>
               )}
             </div>
 
