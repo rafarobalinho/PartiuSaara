@@ -8,11 +8,12 @@ import * as ProductController from "./controllers/product.controller";
 import * as StoreController from "./controllers/store.controller";
 import * as PromotionController from "./controllers/promotion.controller";
 import * as ReservationController from "./controllers/reservation.controller";
+import * as WishlistController from "./controllers/wishlist.controller";
 import * as SubscriptionController from "./controllers/subscription.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db } from "./db";
 import { and, eq } from "drizzle-orm";
-import { storeImages } from "@shared/schema";
+import { storeImages, productImages } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
@@ -110,43 +111,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Wishlist routes
-  app.get('/api/wishlist', authMiddleware, async (req: Request, res: Response) => {
-    const user = req.user;
-    if (!user) return res.status(401).json({ message: 'Unauthorized' });
-    
-    const wishlistItems = await storage.getWishlistItems(user.id);
-    res.json(wishlistItems);
-  });
-  
-  app.post('/api/wishlist/:productId', authMiddleware, async (req: Request, res: Response) => {
-    const user = req.user;
-    if (!user) return res.status(401).json({ message: 'Unauthorized' });
-    
-    const { productId } = req.params;
-    
-    const product = await storage.getProduct(Number(productId));
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-    
-    const wishlistItem = await storage.addToWishlist(user.id, Number(productId));
-    res.json(wishlistItem);
-  });
-  
-  app.delete('/api/wishlist/:productId', authMiddleware, async (req: Request, res: Response) => {
-    const user = req.user;
-    if (!user) return res.status(401).json({ message: 'Unauthorized' });
-    
-    const { productId } = req.params;
-    
-    const success = await storage.removeFromWishlist(user.id, Number(productId));
-    
-    if (!success) {
-      return res.status(404).json({ message: 'Wishlist item not found' });
-    }
-    
-    res.json({ success });
-  });
+  app.get('/api/wishlist', authMiddleware, WishlistController.getWishlistItems);
+  app.post('/api/wishlist/:productId', authMiddleware, WishlistController.addToWishlist);
+  app.delete('/api/wishlist/:productId', authMiddleware, WishlistController.removeFromWishlist);
 
   // Favorite stores routes
   app.get('/api/favorite-stores', authMiddleware, async (req: Request, res: Response) => {
