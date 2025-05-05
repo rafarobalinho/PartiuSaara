@@ -29,27 +29,57 @@ export function ImageUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Validar URLs de imagem
+  // Validar e normalizar URLs de imagem
   const getValidImage = (url: string | undefined): string => {
     if (!url) return '';
     
     // Logging para debug
-    console.log('URL da imagem original:', url);
+    console.log('URL da imagem a ser validada:', url);
     
-    // Se começar com http, é uma URL completa
-    if (url.startsWith('http')) return url;
-    
-    // Se começar com / é relativo ao domínio (manter como está)
-    if (url.startsWith('/')) {
-      const validUrl = url;
-      console.log('URL da imagem processada:', validUrl);
-      return validUrl;
+    try {
+      // Se for uma URL Blob (temporária do navegador)
+      if (url.startsWith('blob:')) {
+        console.log('URL do tipo blob detectada, retornando como está:', url);
+        return url;
+      }
+      
+      // Se começar com http, é uma URL completa
+      if (url.startsWith('http')) {
+        console.log('URL externa válida:', url);
+        return url;
+      }
+      
+      // Se já for uma URL completa relativa ao servidor
+      if (url.startsWith('/uploads/')) {
+        console.log('URL relativa já formatada corretamente:', url);
+        return url;
+      }
+      
+      // Se começar com barra mas não for o formato esperado
+      if (url.startsWith('/') && !url.startsWith('/uploads/')) {
+        console.log('URL relativa em formato desconhecido:', url);
+        // Tentar extrair qualquer ID de arquivo no final do path
+        const segments = url.split('/');
+        const lastSegment = segments[segments.length - 1];
+        if (lastSegment && (lastSegment.includes('.jpg') || lastSegment.includes('.png'))) {
+          const correctedUrl = `/uploads/${lastSegment}`;
+          console.log('URL corrigida para:', correctedUrl);
+          return correctedUrl;
+        }
+        // Se não foi possível corrigir, retornar como está
+        return url;
+      }
+      
+      // Se for apenas um nome de arquivo, adicionar o prefixo /uploads/
+      const fileName = url.replace(/^uploads\//, ''); // Remove uploads/ duplicado se existir
+      const prefixedUrl = `/uploads/${fileName}`;
+      console.log('URL normalizada:', prefixedUrl);
+      return prefixedUrl;
+    } catch (error) {
+      console.error('Erro ao processar URL da imagem:', error, url);
+      // Em caso de erro, retorna URL original ou placeholder
+      return url || 'https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO';
     }
-    
-    // Senão, adicionar o prefixo /uploads/
-    const prefixedUrl = `/uploads/${url.replace(/^uploads\//, '')}`;
-    console.log('URL da imagem processada com prefixo:', prefixedUrl);
-    return prefixedUrl;
   };
 
   // Lidar com o upload das imagens
@@ -71,21 +101,35 @@ export function ImageUpload({
 
     try {
       // Extrair o tipo e ID da entidade do nome
-      // Exemplo: "store-logo-5" => tipo: "store", entityId: "5"
+      // Exemplos aceitos:
+      // "store-5" => tipo: "store", entityId: "5"
+      // "product-5" => tipo: "product", entityId: "5"
+      // "store-logo-5" => tipo: "store", entityId: "5"
+      // "product-images-5" => tipo: "product", entityId: "5"
+      
+      console.log('Analisando nome do campo:', name);
+      
       const entityInfo = name.split('-');
+      
+      if (entityInfo.length < 2) {
+        throw new Error(`Nome de campo inválido: "${name}". Deve seguir o formato "tipo-id" ou "tipo-subtipo-id"`);
+      }
+      
       const type = entityInfo[0]; // "store" ou "product"
       
-      let entityId = '';
-      // Se for formato product-5 ou store-5
-      if (entityInfo.length === 2 && !isNaN(Number(entityInfo[1]))) {
-        entityId = entityInfo[1];
-      } 
-      // Se for formato store-logo-5 ou product-images-5
-      else if (entityInfo.length > 2 && !isNaN(Number(entityInfo[entityInfo.length - 1]))) {
-        entityId = entityInfo[entityInfo.length - 1];
-      } else {
-        throw new Error('Nome de campo inválido. Deve seguir o formato "type-id" ou "type-subtype-id"');
+      if (type !== 'store' && type !== 'product') {
+        throw new Error(`Tipo inválido: "${type}". Deve ser "store" ou "product"`);
       }
+      
+      // Extrair o ID da entidade (último componente do nome)
+      const lastComponent = entityInfo[entityInfo.length - 1];
+      const entityId = lastComponent;
+      
+      if (!entityId || isNaN(Number(entityId))) {
+        throw new Error(`ID inválido: "${entityId}". Deve ser um número válido`);
+      }
+      
+      console.log('Tipo extraído:', type, 'ID da entidade:', entityId);
 
       const formData = new FormData();
       Array.from(files).forEach(file => {
@@ -150,29 +194,51 @@ export function ImageUpload({
     try {
       const imageToRemove = selectedImages[index];
       
-      // Extrair o tipo e ID da entidade do nome do componente
+      // Extrair o tipo e ID da entidade do nome
+      console.log('Analisando nome do campo para remoção:', name);
+      
       const entityInfo = name.split('-');
+      
+      if (entityInfo.length < 2) {
+        throw new Error(`Nome de campo inválido: "${name}". Deve seguir o formato "tipo-id" ou "tipo-subtipo-id"`);
+      }
+      
       const type = entityInfo[0]; // "store" ou "product"
       
-      // Tenta encontrar o ID da imagem de duas maneiras:
-      // 1. Se a URL for algo como "/uploads/123456.jpg", extrai o ID do nome do arquivo
-      const filenameMatch = imageToRemove.match(/\/uploads\/(\d+)/);
-      // 2. Tenta extrair o ID do ID interno da nossa aplicação
-      const storedIdMatch = imageToRemove.match(/id=(\d+)/);
+      if (type !== 'store' && type !== 'product') {
+        throw new Error(`Tipo inválido: "${type}". Deve ser "store" ou "product"`);
+      }
       
-      const imageId = filenameMatch?.[1] || storedIdMatch?.[1];
+      // Extrai o ID da imagem a partir da URL
+      // Padrão das URLs de imagem: /uploads/123456789.jpg ou /uploads/thumbnails/123456789.jpg
+      const imageUrlMatch = imageToRemove.match(/\/uploads\/(?:thumbnails\/)?([^\/]+?)(?:\.[^.]+)?$/);
       
-      // Se a imagem já está salva no servidor e temos o ID, enviar requisição para excluí-la
-      if (imageToRemove.startsWith('/uploads/') && imageId) {
-        console.log(`Removendo imagem: tipo=${type}, id=${imageId}`);
+      if (!imageUrlMatch) {
+        console.log('Formato de URL não reconhecido, tentando alternativas:', imageToRemove);
+        // Tenta extrações alternativas (fallbacks)
+        const filenameMatch = imageToRemove.match(/\/([^\/]+)\.jpg$/);
+        const idMatch = imageToRemove.match(/id=(\d+)/);
+        const imageId = filenameMatch?.[1] || idMatch?.[1];
+        
+        if (!imageId) {
+          console.log('Não foi possível extrair o ID da imagem, apenas removendo da interface:', imageToRemove);
+        } else {
+          // Temos um ID, tenta excluir
+          console.log(`Removendo imagem (método alternativo): tipo=${type}, id=${imageId}`);
+          await apiRequest('DELETE', `/api/upload/images/${imageId}?type=${type}`, {});
+        }
+      } else {
+        // Formato reconhecido, extrai o ID diretamente
+        const filename = imageUrlMatch[1];
+        const imageId = filename.split('.')[0]; // Remove extensão se houver
+        
+        console.log(`Removendo imagem: tipo=${type}, id=${imageId}, URL=${imageToRemove}`);
         const response = await apiRequest('DELETE', `/api/upload/images/${imageId}?type=${type}`, {});
         
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || 'Erro ao excluir imagem');
         }
-      } else {
-        console.log('Removendo imagem local (não persistida):', imageToRemove);
       }
       
       const updatedImages = selectedImages.filter((_, i) => i !== index);
