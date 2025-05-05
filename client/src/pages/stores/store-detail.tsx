@@ -10,6 +10,15 @@ import { apiRequest } from '@/lib/queryClient';
 import ProductCard from '@/components/ui/product-card';
 import { useLocation, calculateDistance, formatDistance } from '@/hooks/use-location';
 
+// Função que verifica se uma imagem deve ser usada
+function getValidImage(imageUrl: string | undefined, fallbackUrl: string): string {
+  // Se não tiver URL, usa a imagem padrão
+  if (!imageUrl) return fallbackUrl;
+  
+  // Retorna a URL original passada pelo banco de dados
+  return imageUrl;
+}
+
 interface Store {
   id: number;
   name: string;
@@ -217,7 +226,7 @@ export default function StoreDetail() {
         {/* Store Banner */}
         <div className="h-64 relative">
           <img 
-            src="https://images.unsplash.com/photo-1518188770546-efd25d4ca263?q=80&w=2069&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+            src={getValidImage(store.images[0], 'https://images.unsplash.com/photo-1518188770546-efd25d4ca263?q=80&w=2069&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')}
             alt={store.name} 
             className="w-full h-full object-cover"
           />
@@ -426,7 +435,7 @@ export default function StoreDetail() {
                 <h3 className="text-lg font-medium mb-4">Localização</h3>
                 <div className="h-64 bg-gray-200 rounded-lg mb-4 relative">
                   {/* This would be replaced with an actual map component */}
-                  <div className="w-full h-full bg-cover bg-center" style={{backgroundImage: "url('https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80')"}}>
+                  <div className="w-full h-full bg-cover bg-center" style={{backgroundImage: `url('${getValidImage(store.images[0], 'https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80')}')`}}>
                     <div className="absolute inset-0 bg-black/10"></div>
                   </div>
                   
