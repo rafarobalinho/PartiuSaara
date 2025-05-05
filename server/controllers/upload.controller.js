@@ -123,7 +123,13 @@ export const uploadImages = async (req, res) => {
         });
       } catch (error) {
         console.error('Erro ao processar as imagens:', error);
-        return res.status(500).json({ success: false, message: 'Erro ao processar as imagens' });
+        // Resposta mais detalhada do erro para facilitar o debugging
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Erro ao processar as imagens', 
+          error: error.message,
+          details: error.stack
+        });
       }
     });
   } catch (error) {
@@ -207,6 +213,11 @@ export const deleteImage = async (req, res) => {
     });
   } catch (error) {
     console.error('Erro ao excluir imagem:', error);
-    return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao excluir imagem',
+      error: error.message,
+      details: error.stack
+    });
   }
 };
