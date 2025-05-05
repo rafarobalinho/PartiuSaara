@@ -16,6 +16,7 @@ import { db, pool } from "./db";
 import { and, eq } from "drizzle-orm";
 import { storeImages, productImages, products, stores } from "@shared/schema";
 import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
+import { geocodingMiddleware } from "./middlewares/geocoding.middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
@@ -245,9 +246,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/stores/:id/products', StoreController.getStoreProducts);
   app.get('/api/stores/:id/coupons', StoreController.getStoreCoupons);
   
+  // Rotas que requerem geocodificação
+
   // Rotas que requerem autenticação e verificação de propriedade
-  app.post('/api/stores', authMiddleware, StoreController.createStore);
-  app.put('/api/stores/:id', authMiddleware, verifyStoreOwnership, StoreController.updateStore);
+  app.post('/api/stores', authMiddleware, geocodingMiddleware, StoreController.createStore);
+  app.put('/api/stores/:id', authMiddleware, verifyStoreOwnership, geocodingMiddleware, StoreController.updateStore);
 
   // Promotion routes
   app.get('/api/promotions', async (req: Request, res: Response) => {
@@ -410,8 +413,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/uploads/thumbnails', express.static('public/uploads/thumbnails'));
 
 
+  // Rotas administrativas para geocodificação
   app.post('/api/admin/geocode', authMiddleware, MapController.geocodeAddressController);
   app.put('/api/admin/stores/:storeId/location', authMiddleware, MapController.updateStoreGeolocation);
+  app.post('/api/admin/geocode-all-stores', authMiddleware, MapController.geocodeAllStores);
 
   const httpServer = createServer(app);
   return httpServer;
