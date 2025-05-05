@@ -67,13 +67,17 @@ const StoresMap: React.FC<StoresMapProps> = ({ className, height = '500px', widt
     const fetchStores = async () => {
       try {
         setLoading(true);
+        console.log('Buscando lojas para o mapa...');
         const response = await fetch('/api/stores/map');
+        
+        console.log('Status da resposta:', response.status);
         
         if (!response.ok) {
           throw new Error('Falha ao buscar lojas para o mapa');
         }
         
         const data = await response.json();
+        console.log('Lojas recebidas:', data.length, data);
         setStores(data);
         
         // Ajustar o zoom e centro do mapa para mostrar todas as lojas
@@ -81,8 +85,9 @@ const StoresMap: React.FC<StoresMapProps> = ({ className, height = '500px', widt
           fitBoundsToStores(data);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro desconhecido');
-        console.error('Erro ao buscar lojas:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+        console.error('Erro detalhado ao buscar lojas:', err);
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }

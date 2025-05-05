@@ -14,7 +14,7 @@ import * as MapController from "./controllers/map.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db, pool } from "./db";
 import { and, eq } from "drizzle-orm";
-import { storeImages, productImages, products } from "@shared/schema";
+import { storeImages, productImages, products, stores } from "@shared/schema";
 import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -378,7 +378,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/uploads/thumbnails', express.static('public/uploads/thumbnails'));
 
   // Rotas de mapa e geocodificação
-  app.get('/api/stores/map', MapController.getStoresForMap);
+  app.get('/api/stores/map', async (req, res) => {
+    try {
+      // Buscar todas as lojas
+      const allStores = await db.select().from(stores);
+      
+      // Filtrar apenas as lojas que têm location definido
+      const storesWithLocation = allStores.filter(store => 
+        store.location && 
+        typeof store.location === 'object' && 
+        'latitude' in store.location && 
+        'longitude' in store.location
+      );
+      
+      // Log para debug
+      console.log('Lojas encontradas para o mapa:', storesWithLocation.length);
+      
+      // Enviar as lojas como resposta
+      res.json(storesWithLocation);
+    } catch (error) {
+      console.error('Erro ao buscar lojas para o mapa:', error);
+      res.status(500).json({ error: 'Falha ao buscar lojas para o mapa' });
+    }
+  });
   app.post('/api/admin/geocode', authMiddleware, MapController.geocodeAddressController);
   app.put('/api/admin/stores/:storeId/location', authMiddleware, MapController.updateStoreGeolocation);
 
