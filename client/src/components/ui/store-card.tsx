@@ -77,18 +77,19 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
   return (
     <Link href={`/stores/${store.id}`}>
       <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow block">
-        <div className="aspect-[16/9] relative overflow-hidden">
-          {store.images && store.images.length > 0 ? (
-            <img 
-              src={store.images[0]} 
-              alt={`Vista da loja ${store.name}`}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-              <i className="fas fa-store text-gray-400 text-4xl"></i>
-            </div>
-          )}
+        <div className="aspect-[16/9] relative overflow-hidden bg-white">
+          <img 
+            src={`/api/stores/${store.id}/primary-image`}
+            alt={`Vista da loja ${store.name}`}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center hidden">
+            <i className="fas fa-store text-gray-400 text-4xl"></i>
+          </div>
           <div className="absolute top-0 left-0 right-0 p-3 flex justify-between">
             <Badge className="bg-primary text-white text-xs py-1 px-2 rounded-lg">
               {store.category}

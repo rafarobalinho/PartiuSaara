@@ -172,7 +172,7 @@ export default function ProductCard({
           </button>
         </div>
         
-        <div className="aspect-square overflow-hidden relative">
+        <div className="relative overflow-hidden bg-white" style={{ height: "200px", width: "100%" }}>
           {isFlashPromotion && (
             <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-10">
               <div 
@@ -185,7 +185,8 @@ export default function ProductCard({
           <img 
             src={`/api/products/${product.id}/primary-image`}
             alt={product.name}
-            className="w-full h-full object-contain p-4"
+            className="max-h-full max-w-full object-contain block mx-auto my-0 p-4"
+            style={{ display: "block", margin: "0 auto" }}
           />
         </div>
         
