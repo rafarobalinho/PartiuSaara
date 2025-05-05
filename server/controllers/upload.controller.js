@@ -15,10 +15,7 @@ const rootDir = path.resolve(__dirname, '../..');
  */
 export const uploadImages = async (req, res) => {
   try {
-    // Verifica se o usuário está autenticado
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ success: false, message: 'Não autorizado. Faça login para continuar.' });
-    }
+    // A verificação de autenticação já é feita pelo middleware authMiddleware na rota
 
     // A configuração de upload é tratada pelo middleware imageUpload
     imageUpload.array('images', 10)(req, res, async (err) => {
@@ -79,10 +76,7 @@ export const uploadImages = async (req, res) => {
  */
 export const deleteImage = async (req, res) => {
   try {
-    // Verifica se o usuário está autenticado
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ success: false, message: 'Não autorizado. Faça login para continuar.' });
-    }
+    // A verificação de autenticação já é feita pelo middleware authMiddleware na rota
 
     // Obtém a URL da imagem do corpo da requisição
     const { imageUrl } = req.body;
