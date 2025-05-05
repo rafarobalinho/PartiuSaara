@@ -43,9 +43,12 @@ export default function Products() {
   const [currentTab, setCurrentTab] = useState(initialType);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('popularity');
+  
+  // Estado para armazenar os produtos após processamento
+  const [processedProducts, setProcessedProducts] = useState([]);
 
   // Products query
-  const { data: products = [], isLoading: isProductsLoading } = useQuery({
+  const { data: productsData = { products: [], count: 0 }, isLoading: isProductsLoading } = useQuery({
     queryKey: [`/api/products?type=${currentTab === 'coupons' ? 'all' : currentTab}&search=${searchTerm}&sortBy=${sortBy}`],
     queryFn: async () => {
       try {
@@ -55,14 +58,24 @@ export default function Products() {
           sortBy
         });
         
+        console.log('Buscando produtos com filtros:', Object.fromEntries(params));
         const response = await fetch(`/api/products?${params}`);
+        
         if (!response.ok) {
           throw new Error('Failed to fetch products');
         }
-        return await response.json();
+        
+        const data = await response.json();
+        console.log('API response products:', data.products?.length || 0, "message:", data.message || "");
+        
+        // Garantir que o retorno esteja correto mesmo se a API não retornar no formato esperado
+        return {
+          products: data.products || [],
+          count: data.count || 0
+        };
       } catch (error) {
         console.error('Error fetching products:', error);
-        return [];
+        return { products: [], count: 0 };
       }
     },
     enabled: currentTab !== 'coupons'
@@ -89,6 +102,14 @@ export default function Products() {
     },
     enabled: currentTab === 'coupons'
   });
+
+  // Efeito para processar os dados da API quando eles mudarem
+  useEffect(() => {
+    if (productsData && productsData.products) {
+      console.log('Produtos recebidos da API:', productsData.products);
+      setProcessedProducts(productsData.products);
+    }
+  }, [productsData]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,9 +186,9 @@ export default function Products() {
                 </div>
               ))}
             </div>
-          ) : products.length > 0 ? (
+          ) : productsData.products && productsData.products.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {products.map((product: Product) => (
+              {productsData.products.map((product: Product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
@@ -203,9 +224,9 @@ export default function Products() {
                 </div>
               ))}
             </div>
-          ) : products.length > 0 ? (
+          ) : productsData.products && productsData.products.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {products.map((product: Product) => (
+              {productsData.products.map((product: Product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
