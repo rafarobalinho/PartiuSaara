@@ -1,0 +1,107 @@
+Por favor, corrija o problema de carregamento do mapa de lojas seguindo estas etapas:
+
+Criar a rota da API para o mapa de lojas:
+
+Implemente a rota GET /api/stores/map no servidor
+Localize o arquivo de rotas de lojas (provavelmente em /server/routes/stores.js)
+Adicione a seguinte implementação:
+
+
+
+javascriptapp.get('/api/stores/map', async (req, res) => {
+  try {
+    // Buscar lojas com coordenadas válidas
+    const result = await db.query(`
+      SELECT 
+        s.id, 
+        s.name, 
+        s.description, 
+        s.category,
+        s.address,
+        s.location
+      FROM 
+        stores s
+      WHERE 
+        s.location IS NOT NULL
+    `);
+    
+    // Log para debug
+    console.log('Lojas encontradas para o mapa:', result.rows.length);
+    
+    // Enviar as lojas como resposta
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar lojas para o mapa:', error);
+    res.status(500).json({ error: 'Falha ao buscar lojas para o mapa' });
+  }
+});
+
+Ajuste o componente StoresMap para corresponder à estrutura real dos dados:
+
+Abra o arquivo /client/src/components/StoresMap.tsx
+Modifique a parte onde processa os marcadores de lojas para acessar corretamente latitude e longitude:
+
+
+
+javascript{stores.map(store => (
+  <Marker
+    key={store.id}
+    position={{
+      lat: store.location.latitude,
+      lng: store.location.longitude
+    }}
+    onClick={() => setSelectedStore(store)}
+    title={store.name}
+  />
+))}
+
+Corrigir o problema de sandbox do Google Maps:
+
+No mesmo arquivo StoresMap.tsx, modifique a inicialização da API:
+
+
+
+javascriptconst { isLoaded } = useJsApiLoader({
+  id: 'google-map-script',
+  googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+  // Remover opções problemáticas
+  googleMapsApiOptions: {
+    loading: undefined
+  }
+});
+
+Adicione logs detalhados para facilitar a depuração:
+
+No método fetchStores, adicione logs:
+
+
+
+javascriptconst fetchStores = async () => {
+  try {
+    setLoading(true);
+    console.log('Buscando lojas para o mapa...');
+    const response = await fetch('/api/stores/map');
+    
+    console.log('Status da resposta:', response.status);
+    
+    if (!response.ok) {
+      throw new Error('Falha ao buscar lojas para o mapa');
+    }
+    
+    const data = await response.json();
+    console.log('Lojas recebidas:', data.length, data);
+    setStores(data);
+    
+    // Ajustar o zoom e centro do mapa para mostrar todas as lojas
+    if (data.length > 0) {
+      fitBoundsToStores(data);
+    }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+    console.error('Erro detalhado ao buscar lojas:', err);
+    setError(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
+Estas alterações devem resolver o problema de carregamento do mapa e garantir que os marcadores das lojas sejam exibidos corretamente.
