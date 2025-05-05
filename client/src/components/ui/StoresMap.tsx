@@ -49,7 +49,7 @@ const StoresMap: React.FC<StoresMapProps> = ({ className, height = '500px', widt
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || ''
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
