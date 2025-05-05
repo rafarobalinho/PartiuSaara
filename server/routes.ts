@@ -57,61 +57,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(category);
   });
   
-  // Novo endpoint para buscar produtos por categoria com slug
+  // Endpoint específico para produtos por categoria
   app.get('/api/categories/:slug/products', async (req: Request, res: Response) => {
     try {
       const { slug } = req.params;
-      const { 
-        minPrice, 
-        maxPrice, 
-        sortBy, 
-        promotion, 
-        limit 
-      } = req.query;
       
-      console.log(`Fetching products for category slug: ${slug} with filters:`, { 
-        minPrice, maxPrice, sortBy, promotion, limit 
-      });
+      // Primeiro buscar o ID da categoria
+      const categoryQuery = 'SELECT id FROM categories WHERE slug = $1';
+      const categoryResult = await pool.query(categoryQuery, [slug]);
       
-      // Verificar se a categoria existe
-      const category = await storage.getCategoryBySlug(slug);
-      
-      if (!category) {
-        // Retornar array vazio se categoria não existir
+      if (categoryResult.rows.length === 0) {
+        // Categoria não encontrada - retornar array vazio, não erro
         return res.json({ 
-          products: [], 
+          products: [],
           count: 0,
-          message: 'Categoria não encontrada' 
+          message: 'Categoria não encontrada'
         });
       }
       
-      // Converter os parâmetros para os tipos corretos
-      const options = {
-        minPrice: minPrice ? Number(minPrice) : undefined,
-        maxPrice: maxPrice ? Number(maxPrice) : undefined,
-        sortBy: sortBy as string,
-        promotion: promotion === 'true',
-        limit: limit ? Number(limit) : undefined
-      };
+      const categoryId = categoryResult.rows[0].id;
       
-      const products = await storage.getProductsByCategorySlug(slug, options);
+      // Buscar produtos da categoria
+      const productsQuery = `
+        SELECT * FROM products 
+        WHERE (category_id = $1 OR $1 = ANY(secondary_categories))
+        AND is_active = true
+        ORDER BY created_at DESC
+      `;
       
-      console.log(`Found ${products.length} products for category ${slug}`);
+      const { rows } = await pool.query(productsQuery, [categoryId]);
       
-      // Sempre retornar um objeto JSON válido
-      res.json({ 
-        products: products,
-        count: products.length,
-        message: products.length === 0 ? 'Não há produtos nesta categoria' : ''
+      // SEMPRE retornar um JSON válido
+      return res.json({ 
+        products: rows,
+        count: rows.length,
+        categorySlug: slug
       });
     } catch (error) {
-      console.error('Error fetching products by category slug:', error);
+      console.error('Erro ao buscar produtos por categoria:', error);
       
-      // Retornar JSON mesmo em caso de erro
-      res.status(500).json({ 
+      // SEMPRE retornar um JSON válido, mesmo em caso de erro
+      return res.status(500).json({ 
+        products: [],
         error: 'Erro ao buscar produtos',
-        message: error instanceof Error ? error.message : 'Erro inesperado',
-        products: []
+        message: error instanceof Error ? error.message : 'Erro inesperado'
       });
     }
   });

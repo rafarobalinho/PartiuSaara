@@ -3,56 +3,70 @@ import { storage } from '../storage';
 import { z } from 'zod';
 import { insertProductSchema } from '@shared/schema';
 import { sellerMiddleware } from '../middleware/auth';
+import { pool } from '../db';
 
 // Get products with filtering options
 export async function getProducts(req: Request, res: Response) {
   try {
+    // Parâmetros de filtro
     const { 
       category, 
+      categoryId, 
+      categorySlug,
       search, 
-      minPrice,
-      maxPrice,
+      minPrice, 
+      maxPrice, 
       sortBy,
       promotion,
-      limit,
-      type
+      limit
     } = req.query;
     
-    console.log('Controller received price filters:', { 
-      minPrice, 
-      maxPrice,
-      minPriceType: typeof minPrice,
-      maxPriceType: typeof maxPrice
+    console.log('Fetching products with filters:', { 
+      category, categoryId, categorySlug, search, minPrice, maxPrice, sortBy, promotion, limit 
     });
     
-    // Convert price filters to numbers
-    const minPriceNum = minPrice ? Number(minPrice) : undefined;
-    const maxPriceNum = maxPrice ? Number(maxPrice) : undefined;
+    let query = 'SELECT * FROM products WHERE is_active = true';
+    let params = [];
     
-    console.log('Converted price filters:', { 
-      minPriceNum, 
-      maxPriceNum,
-      minPriceNumType: typeof minPriceNum,
-      maxPriceNumType: typeof maxPriceNum
+    // Adicionar filtro por categoria se fornecido
+    if (categoryId) {
+      query += ' AND (category_id = $1 OR $1 = ANY(secondary_categories))';
+      params.push(categoryId);
+    } else if (categorySlug) {
+      // Se tiver slug da categoria, primeiro encontrar o ID
+      const categoryQuery = 'SELECT id FROM categories WHERE slug = $1';
+      const categoryResult = await pool.query(categoryQuery, [categorySlug]);
+      
+      if (categoryResult.rows.length > 0) {
+        const catId = categoryResult.rows[0].id;
+        query += ' AND (category_id = $1 OR $1 = ANY(secondary_categories))';
+        params.push(catId);
+      }
+    } else if (category) {
+      // Se tiver nome da categoria
+      query += ' AND (category = $1 OR $1 = ANY(secondary_categories))';
+      params.push(category);
+    }
+    
+    query += ' ORDER BY created_at DESC';
+    
+    const { rows } = await pool.query(query, params);
+    
+    // SEMPRE retornar um JSON válido
+    return res.json({ 
+      products: rows,
+      count: rows.length,
+      filters: { category, categoryId, categorySlug }
     });
-    
-    const products = await storage.getProducts({
-      category: category as string,
-      search: search as string,
-      minPrice: minPriceNum,
-      maxPrice: maxPriceNum,
-      sortBy: sortBy as string,
-      promotion: promotion === 'true',
-      limit: limit ? Number(limit) : undefined,
-      type: type as string
-    });
-    
-    console.log(`Controller returning ${products.length} products after filtering`);
-    
-    res.json(products);
   } catch (error) {
-    console.error('Error getting products:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Erro ao buscar produtos:', error);
+    
+    // SEMPRE retornar um JSON válido, mesmo em caso de erro
+    return res.status(500).json({ 
+      products: [],
+      error: 'Erro ao buscar produtos',
+      message: error instanceof Error ? error.message : 'Erro inesperado'
+    });
   }
 }
 
@@ -61,10 +75,21 @@ export async function getFeaturedProducts(req: Request, res: Response) {
   try {
     const limit = req.query.limit ? Number(req.query.limit) : 8;
     const products = await storage.getFeaturedProducts(limit);
-    res.json(products);
+    
+    // SEMPRE retornar um JSON válido
+    return res.json({ 
+      products: products,
+      count: products.length
+    });
   } catch (error) {
-    console.error('Error getting featured products:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Erro ao buscar produtos em destaque:', error);
+    
+    // SEMPRE retornar um JSON válido, mesmo em caso de erro
+    return res.status(500).json({ 
+      products: [],
+      error: 'Erro ao buscar produtos em destaque',
+      message: error instanceof Error ? error.message : 'Erro inesperado'
+    });
   }
 }
 
@@ -75,13 +100,24 @@ export async function getProduct(req: Request, res: Response) {
     const product = await storage.getProduct(Number(id));
     
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ 
+        product: null,
+        error: 'Product not found',
+        message: 'O produto solicitado não foi encontrado'
+      });
     }
     
-    res.json(product);
+    return res.json({
+      product: product,
+      success: true
+    });
   } catch (error) {
-    console.error('Error getting product:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Erro ao buscar produto:', error);
+    return res.status(500).json({ 
+      product: null,
+      error: 'Erro ao buscar produto',
+      message: error instanceof Error ? error.message : 'Erro inesperado'
+    });
   }
 }
 
@@ -92,10 +128,22 @@ export async function getRelatedProducts(req: Request, res: Response) {
     const limit = req.query.limit ? Number(req.query.limit) : 4;
     
     const relatedProducts = await storage.getRelatedProducts(Number(id), limit);
-    res.json(relatedProducts);
+    
+    // SEMPRE retornar um JSON válido
+    return res.json({ 
+      products: relatedProducts,
+      count: relatedProducts.length,
+      productId: Number(id)
+    });
   } catch (error) {
-    console.error('Error getting related products:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Erro ao buscar produtos relacionados:', error);
+    
+    // SEMPRE retornar um JSON válido, mesmo em caso de erro
+    return res.status(500).json({ 
+      products: [],
+      error: 'Erro ao buscar produtos relacionados',
+      message: error instanceof Error ? error.message : 'Erro inesperado'
+    });
   }
 }
 
@@ -114,7 +162,9 @@ export async function createProduct(req: Request, res: Response) {
       const validationResult = productSchema.safeParse(req.body);
       if (!validationResult.success) {
         return res.status(400).json({ 
-          message: 'Validation error', 
+          success: false,
+          product: null,
+          error: 'Validation error', 
           errors: validationResult.error.errors 
         });
       }
@@ -124,15 +174,29 @@ export async function createProduct(req: Request, res: Response) {
       // Verify the store belongs to the user
       const store = await storage.getStore(productData.storeId);
       if (!store || store.userId !== user.id) {
-        return res.status(403).json({ message: 'Not authorized to add products to this store' });
+        return res.status(403).json({ 
+          success: false, 
+          product: null,
+          error: 'Authorization error',
+          message: 'Você não tem permissão para adicionar produtos a esta loja'
+        });
       }
       
       const product = await storage.createProduct(productData);
-      res.status(201).json(product);
+      return res.status(201).json({
+        success: true,
+        product: product,
+        message: 'Produto criado com sucesso'
+      });
     });
   } catch (error) {
-    console.error('Error creating product:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Erro ao criar produto:', error);
+    return res.status(500).json({ 
+      success: false,
+      product: null,
+      error: 'Erro ao criar produto',
+      message: error instanceof Error ? error.message : 'Erro inesperado'
+    });
   }
 }
 
@@ -147,21 +211,40 @@ export async function updateProduct(req: Request, res: Response) {
       // Get the product
       const product = await storage.getProduct(Number(id));
       if (!product) {
-        return res.status(404).json({ message: 'Product not found' });
+        return res.status(404).json({ 
+          success: false,
+          product: null,
+          error: 'Product not found',
+          message: 'O produto solicitado não foi encontrado'
+        });
       }
       
       // Verify the store belongs to the user
       const store = await storage.getStore(product.storeId);
       if (!store || store.userId !== user.id) {
-        return res.status(403).json({ message: 'Not authorized to modify this product' });
+        return res.status(403).json({ 
+          success: false,
+          product: null,
+          error: 'Authorization error',
+          message: 'Você não tem permissão para modificar este produto'
+        });
       }
       
       // Update the product
       const updatedProduct = await storage.updateProduct(Number(id), req.body);
-      res.json(updatedProduct);
+      return res.json({
+        success: true,
+        product: updatedProduct,
+        message: 'Produto atualizado com sucesso'
+      });
     });
   } catch (error) {
-    console.error('Error updating product:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Erro ao atualizar produto:', error);
+    return res.status(500).json({ 
+      success: false,
+      product: null,
+      error: 'Erro ao atualizar produto',
+      message: error instanceof Error ? error.message : 'Erro inesperado'
+    });
   }
 }
