@@ -154,13 +154,25 @@ export function ImageUpload({
       const entityInfo = name.split('-');
       const type = entityInfo[0]; // "store" ou "product"
       
-      // Extrair o ID da imagem da URL
-      // Aqui precisamos extrair de uma estrutura como /uploads/123456789.jpg
-      const imageId = imageToRemove.match(/\/uploads\/(\d+)/)?.[1];
+      // Tenta encontrar o ID da imagem de duas maneiras:
+      // 1. Se a URL for algo como "/uploads/123456.jpg", extrai o ID do nome do arquivo
+      const filenameMatch = imageToRemove.match(/\/uploads\/(\d+)/);
+      // 2. Tenta extrair o ID do ID interno da nossa aplicação
+      const storedIdMatch = imageToRemove.match(/id=(\d+)/);
+      
+      const imageId = filenameMatch?.[1] || storedIdMatch?.[1];
       
       // Se a imagem já está salva no servidor e temos o ID, enviar requisição para excluí-la
       if (imageToRemove.startsWith('/uploads/') && imageId) {
-        await apiRequest('DELETE', `/api/upload/images/${imageId}?type=${type}`, {});
+        console.log(`Removendo imagem: tipo=${type}, id=${imageId}`);
+        const response = await apiRequest('DELETE', `/api/upload/images/${imageId}?type=${type}`, {});
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Erro ao excluir imagem');
+        }
+      } else {
+        console.log('Removendo imagem local (não persistida):', imageToRemove);
       }
       
       const updatedImages = selectedImages.filter((_, i) => i !== index);
