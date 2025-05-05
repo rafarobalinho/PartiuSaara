@@ -39,6 +39,13 @@ export interface IStorage {
     promotion?: boolean,
     limit?: number
   }): Promise<Product[]>;
+  getProductsByCategorySlug(slug: string, options?: {
+    minPrice?: number,
+    maxPrice?: number,
+    sortBy?: string,
+    promotion?: boolean,
+    limit?: number
+  }): Promise<Product[]>;
   getProductsByStore(storeId: number): Promise<Product[]>;
   getRelatedProducts(productId: number, limit?: number): Promise<Product[]>;
   getFeaturedProducts(limit?: number): Promise<Product[]>;
@@ -1487,6 +1494,107 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query;
+  }
+
+  async getProductsByCategorySlug(slug: string, options: {
+    minPrice?: number,
+    maxPrice?: number,
+    sortBy?: string,
+    promotion?: boolean,
+    limit?: number
+  } = {}): Promise<Product[]> {
+    console.log('Getting products by category slug:', slug);
+    
+    // Primeiro, obter o ID da categoria pelo slug
+    const [category] = await db.select().from(categories).where(eq(categories.slug, slug));
+    
+    if (!category) {
+      console.log('Category not found with slug:', slug);
+      return [];
+    }
+    
+    console.log('Found category:', category.name, 'with ID:', category.id);
+    
+    // Consulta para buscar produtos que tenham esta categoria como principal
+    // ou em categorias secundárias (se existir)
+    let query = db.select()
+      .from(products)
+      .where(
+        and(
+          eq(products.isActive, true),
+          eq(products.category, category.name)
+        )
+      );
+    
+    // Aplicar filtros adicionais
+    if (options.minPrice !== undefined && options.minPrice !== null) {
+      const minPrice = Number(options.minPrice);
+      console.log('Applying min price filter in category products:', minPrice);
+      
+      query = query.where(
+        or(
+          and(
+            sql`${products.discountedPrice} IS NOT NULL`,
+            gte(products.discountedPrice, minPrice)
+          ),
+          and(
+            or(
+              sql`${products.discountedPrice} IS NULL`,
+              eq(products.discountedPrice, 0)
+            ),
+            gte(products.price, minPrice)
+          )
+        )
+      );
+    }
+    
+    if (options.maxPrice !== undefined && options.maxPrice !== null) {
+      const maxPrice = Number(options.maxPrice);
+      console.log('Applying max price filter in category products:', maxPrice);
+      
+      query = query.where(
+        or(
+          and(
+            sql`${products.discountedPrice} IS NOT NULL`,
+            lte(products.discountedPrice, maxPrice)
+          ),
+          and(
+            or(
+              sql`${products.discountedPrice} IS NULL`,
+              eq(products.discountedPrice, 0)
+            ),
+            lte(products.price, maxPrice)
+          )
+        )
+      );
+    }
+    
+    // Aplicar ordenação
+    if (options.sortBy) {
+      if (options.sortBy === 'price_asc') {
+        query = query.orderBy(products.price);
+      } else if (options.sortBy === 'price_desc') {
+        query = query.orderBy(desc(products.price));
+      } else if (options.sortBy === 'newest') {
+        query = query.orderBy(desc(products.createdAt));
+      } else {
+        // Default to popularity (we could use views or ratings here in the future)
+        query = query.orderBy(desc(products.id));
+      }
+    } else {
+      // Default ordering
+      query = query.orderBy(desc(products.createdAt));
+    }
+    
+    // Aplicar limite
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    const categoryProducts = await query;
+    console.log(`Found ${categoryProducts.length} products for category ${category.name}`);
+    
+    return categoryProducts;
   }
 
   async getProductsByStore(storeId: number): Promise<Product[]> {
