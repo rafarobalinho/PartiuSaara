@@ -37,11 +37,13 @@ function setup() {
     const publicDir = path.join(rootDir, 'public');
     const uploadsDir = path.join(publicDir, 'uploads');
     const thumbnailsDir = path.join(uploadsDir, 'thumbnails');
+    const tempDir = path.join(uploadsDir, 'temp');
     
     // Criar diretórios se não existirem
     createDirectoryIfNotExists(publicDir);
     createDirectoryIfNotExists(uploadsDir);
     createDirectoryIfNotExists(thumbnailsDir);
+    createDirectoryIfNotExists(tempDir); // Diretório temporário para processamento de imagens
     
     console.log('Configuração completa!');
     console.log('Os diretórios de upload estão prontos para uso.');
