@@ -27,28 +27,66 @@ export async function getProducts(req: Request, res: Response) {
     
     let query = 'SELECT * FROM products WHERE is_active = true';
     let params = [];
+    let paramIndex = 1;
     
     // Adicionar filtro por categoria se fornecido
-    if (categoryId) {
-      query += ' AND (category_id = $1 OR $1 = ANY(secondary_categories))';
-      params.push(categoryId);
+    if (category) {
+      query += ` AND LOWER(category) = LOWER($${paramIndex})`;
+      params.push(category);
+      paramIndex++;
     } else if (categorySlug) {
-      // Se tiver slug da categoria, primeiro encontrar o ID
-      const categoryQuery = 'SELECT id FROM categories WHERE slug = $1';
+      // Se tiver slug da categoria, buscar nome da categoria
+      const categoryQuery = 'SELECT name FROM categories WHERE slug = $1';
       const categoryResult = await pool.query(categoryQuery, [categorySlug]);
       
       if (categoryResult.rows.length > 0) {
-        const catId = categoryResult.rows[0].id;
-        query += ' AND (category_id = $1 OR $1 = ANY(secondary_categories))';
-        params.push(catId);
+        const categoryName = categoryResult.rows[0].name;
+        query += ` AND LOWER(category) = LOWER($${paramIndex})`;
+        params.push(categoryName);
+        paramIndex++;
       }
-    } else if (category) {
-      // Se tiver nome da categoria
-      query += ' AND (category = $1 OR $1 = ANY(secondary_categories))';
-      params.push(category);
     }
     
-    query += ' ORDER BY created_at DESC';
+    // Filtros de preço
+    if (minPrice) {
+      query += ` AND price >= $${paramIndex}`;
+      params.push(minPrice);
+      paramIndex++;
+    }
+    
+    if (maxPrice) {
+      query += ` AND price <= $${paramIndex}`;
+      params.push(maxPrice);
+      paramIndex++;
+    }
+    
+    // Filtro de busca
+    if (search) {
+      query += ` AND (LOWER(name) LIKE LOWER($${paramIndex}) OR LOWER(description) LIKE LOWER($${paramIndex}))`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+    
+    // Ordenação
+    if (sortBy === 'price_asc') {
+      query += ' ORDER BY price ASC';
+    } else if (sortBy === 'price_desc') {
+      query += ' ORDER BY price DESC';
+    } else if (sortBy === 'newest') {
+      query += ' ORDER BY created_at DESC';
+    } else if (sortBy === 'name_asc') {
+      query += ' ORDER BY name ASC';
+    } else if (sortBy === 'name_desc') {
+      query += ' ORDER BY name DESC';
+    } else {
+      // Default ordering
+      query += ' ORDER BY created_at DESC';
+    }
+    
+    // Adicionar limite se fornecido
+    if (limit) {
+      query += ` LIMIT ${Number(limit)}`;
+    }
     
     const { rows } = await pool.query(query, params);
     
