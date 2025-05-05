@@ -7,23 +7,46 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2 } from 'lucide-react';
+
+// Interfaces para tipagem
+interface Store {
+  id: number;
+  name: string;
+  userId: number;
+}
+
+interface ProductImage {
+  id: number;
+  productId: number;
+  imageUrl: string;
+  thumbnailUrl: string;
+  isPrimary: boolean;
+  displayOrder: number;
+}
 
 interface Product {
   id: number;
   name: string;
-  description: string;
+  description: string | null;
   price: number;
-  discountedPrice?: number;
+  discountedPrice: number | null;
   category: string;
-  images: string[];
-  stock?: number;
+  storeId: number;
+  stock: number | null;
   createdAt: string;
+  images: string[];
+  thumbnailUrl?: string; // Para armazenar a imagem primária
 }
 
 export default function SellerProducts() {
-  const { isAuthenticated, isSeller } = useAuth();
+  const { user, isAuthenticated, isSeller } = useAuth();
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [isLoadingImages, setIsLoadingImages] = useState(false);
+  const [productsWithImages, setProductsWithImages] = useState<Product[]>([]);
 
   // If not authenticated or not a seller, redirect
   useEffect(() => {
@@ -34,61 +57,124 @@ export default function SellerProducts() {
     }
   }, [isAuthenticated, isSeller, navigate]);
 
-  if (!isAuthenticated || !isSeller) {
-    return null;
-  }
-
-  // Fetch products from seller's store
-  const { data: products = [], isLoading } = useQuery({
-    queryKey: ['/api/seller/products'],
+  // Buscar as lojas do vendedor logado
+  const { 
+    data: stores = [], 
+    isLoading: isLoadingStores 
+  } = useQuery({
+    queryKey: ['/api/stores'],
     queryFn: async () => {
       try {
-        // In a real app, this would be an actual API endpoint
-        // For now, let's just mock some products
-        return [
-          {
-            id: 1,
-            name: 'Smartphone XYZ',
-            description: 'Celular avançado com câmera profissional',
-            price: 1299.90,
-            discountedPrice: 999.90,
-            category: 'Eletrônicos',
-            stock: 15,
-            images: ['https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=200'],
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 2,
-            name: 'Tênis Runner Pro',
-            description: 'Tênis confortável para corrida',
-            price: 299.90,
-            category: 'Calçados',
-            stock: 28,
-            images: ['https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?q=80&w=200'],
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 3,
-            name: 'Bolsa Elite Fashion',
-            description: 'Bolsa feminina de alta qualidade',
-            price: 189.90,
-            category: 'Acessórios',
-            stock: 8,
-            images: ['https://images.unsplash.com/photo-1598532163257-ae3c6b2524b6?q=80&w=200'],
-            createdAt: new Date().toISOString()
-          }
-        ];
+        const res = await fetch('/api/stores');
+        if (!res.ok) {
+          throw new Error('Falha ao carregar lojas');
+        }
+        const allStores = await res.json();
+        // Filtrar lojas pelo usuário atual
+        return allStores.filter((store: Store) => store.userId === user?.id);
+      } catch (error) {
+        console.error('Error fetching stores:', error);
+        return [];
+      }
+    },
+    enabled: !!isAuthenticated && !!isSeller && !!user
+  });
+
+  // Definir a loja selecionada quando as lojas forem carregadas
+  useEffect(() => {
+    if (stores.length > 0 && !selectedStoreId) {
+      setSelectedStoreId(stores[0].id.toString());
+    }
+  }, [stores, selectedStoreId]);
+
+  // Buscar produtos da loja selecionada
+  const { 
+    data: products = [], 
+    isLoading: isLoadingProducts,
+    error: productsError
+  } = useQuery({
+    queryKey: ['/api/stores', selectedStoreId, 'products'],
+    queryFn: async () => {
+      try {
+        if (!selectedStoreId) return [];
+        
+        const res = await fetch(`/api/stores/${selectedStoreId}/products`);
+        if (!res.ok) {
+          throw new Error('Falha ao carregar produtos');
+        }
+        
+        return await res.json();
       } catch (error) {
         console.error('Error fetching products:', error);
         return [];
       }
-    }
+    },
+    enabled: !!selectedStoreId
   });
 
-  const filteredProducts = products.filter((product: Product) => 
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
+  // Obter imagens de cada produto
+  useEffect(() => {
+    const fetchProductImages = async () => {
+      if (!products.length) return;
+      
+      setIsLoadingImages(true);
+      
+      try {
+        // Mapear produtos e buscar a imagem primária de cada um
+        const productsWithImagePromises = products.map(async (product: Product) => {
+          try {
+            // Tentativa de buscar a imagem primária
+            const response = await fetch(`/api/products/${product.id}/primary-image`);
+            
+            // Se a rota de imagem primária retornar com sucesso
+            if (response.ok) {
+              const imageUrl = response.url; // A URL para onde o redirecionamento foi feito
+              return {
+                ...product,
+                images: [imageUrl],
+                thumbnailUrl: imageUrl
+              };
+            } 
+            
+            // Caso não tenha imagem primária, retorna produto sem imagem
+            return {
+              ...product,
+              images: [],
+              thumbnailUrl: ''
+            };
+          } catch (error) {
+            console.error(`Erro ao buscar imagem para o produto ${product.id}:`, error);
+            return {
+              ...product,
+              images: [],
+              thumbnailUrl: ''
+            };
+          }
+        });
+        
+        const productsWithImageResults = await Promise.all(productsWithImagePromises);
+        setProductsWithImages(productsWithImageResults);
+      } catch (error) {
+        console.error('Erro ao processar imagens dos produtos:', error);
+      } finally {
+        setIsLoadingImages(false);
+      }
+    };
+    
+    fetchProductImages();
+  }, [products]);
+
+  const isLoading = isLoadingStores || isLoadingProducts || isLoadingImages;
+
+  if (!isAuthenticated || !isSeller) {
+    return null;
+  }
+
+  // Filtrar produtos com base no termo de busca
+  const filteredProducts = productsWithImages.filter((product: Product) => 
+    product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    product.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSearch = (e: React.FormEvent) => {
@@ -105,13 +191,38 @@ export default function SellerProducts() {
         
         <Button asChild className="mt-4 md:mt-0 bg-primary text-white hover:bg-primary/90">
           <Link href="/seller/products/add">
-            <a><i className="fas fa-plus mr-2"></i> Adicionar Produto</a>
+            <i className="fas fa-plus mr-2"></i> Adicionar Produto
           </Link>
         </Button>
       </div>
 
       <Card className="mb-6">
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-4">
+          {/* Seletor de loja */}
+          {stores.length > 1 && (
+            <div>
+              <label htmlFor="store-select" className="block text-sm font-medium text-gray-700 mb-1">
+                Selecionar Loja
+              </label>
+              <Select
+                value={selectedStoreId || ''}
+                onValueChange={(value) => setSelectedStoreId(value)}
+              >
+                <SelectTrigger id="store-select" className="w-full max-w-xs">
+                  <SelectValue placeholder="Selecione uma loja" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stores.map((store) => (
+                    <SelectItem key={store.id} value={store.id.toString()}>
+                      {store.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Busca de produtos */}
           <form onSubmit={handleSearch} className="relative">
             <Input
               type="text"
@@ -247,7 +358,7 @@ export default function SellerProducts() {
           </p>
           <Button asChild className="bg-primary text-white hover:bg-primary/90">
             <Link href="/seller/products/add">
-              <a>Adicionar Primeiro Produto</a>
+              Adicionar Primeiro Produto
             </Link>
           </Button>
         </div>
