@@ -1,11 +1,22 @@
 import express, { type Request, Response, NextFunction } from "express";
+import path from "path";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuthMiddleware } from "./setup-auth";
 
+// Configuração para obter __dirname em módulos ES
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Servir arquivos estáticos da pasta de uploads
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+app.use('/uploads/thumbnails', express.static(path.join(__dirname, '../public/uploads/thumbnails')));
 
 // Configurar o middleware de autenticação
 setupAuthMiddleware(app);
