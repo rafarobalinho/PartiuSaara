@@ -1,0 +1,105 @@
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from './auth-context';
+
+interface UserStats {
+  wishlistCount: number;
+  reservationsCount: number;
+  favoriteStoresCount: number;
+}
+
+interface UiContextType {
+  // Contadores
+  wishlistCount: number;
+  reservationsCount: number;
+  
+  // Métodos para atualizar contadores
+  incrementWishlistCount: () => void;
+  decrementWishlistCount: () => void;
+  incrementReservationsCount: () => void;
+  decrementReservationsCount: () => void;
+  
+  // Método para sincronizar com o servidor
+  syncCounters: () => void;
+}
+
+const UiContext = createContext<UiContextType | undefined>(undefined);
+
+export function UiProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated, user } = useAuth();
+  const queryClient = useQueryClient();
+  
+  // Estado local para os contadores
+  const [wishlistCount, setWishlistCount] = useState<number>(0);
+  const [reservationsCount, setReservationsCount] = useState<number>(0);
+  
+  // Consulta para obter as estatísticas atualizadas do usuário
+  const { data: statsData } = useQuery({
+    queryKey: ['/api/users/me'],
+    enabled: isAuthenticated,
+    select: (data) => data?.stats as UserStats,
+  });
+
+  // Sincroniza os contadores com os dados do servidor quando disponíveis
+  useEffect(() => {
+    if (statsData) {
+      setWishlistCount(statsData.wishlistCount);
+      setReservationsCount(statsData.reservationsCount);
+    }
+  }, [statsData]);
+  
+  // Sincroniza os contadores quando o status de autenticação muda
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Zera os contadores quando o usuário não está autenticado
+      setWishlistCount(0);
+      setReservationsCount(0);
+    }
+  }, [isAuthenticated]);
+
+  // Método para sincronizar os contadores com o servidor
+  const syncCounters = async () => {
+    if (isAuthenticated) {
+      await queryClient.invalidateQueries({ queryKey: ['/api/users/me'] });
+    }
+  };
+
+  // Métodos para atualizar os contadores
+  const incrementWishlistCount = () => {
+    setWishlistCount((prev) => prev + 1);
+  };
+
+  const decrementWishlistCount = () => {
+    setWishlistCount((prev) => Math.max(0, prev - 1));
+  };
+
+  const incrementReservationsCount = () => {
+    setReservationsCount((prev) => prev + 1);
+  };
+
+  const decrementReservationsCount = () => {
+    setReservationsCount((prev) => Math.max(0, prev - 1));
+  };
+
+  // Objeto de valor para o contexto
+  const value = {
+    wishlistCount,
+    reservationsCount,
+    incrementWishlistCount,
+    decrementWishlistCount,
+    incrementReservationsCount,
+    decrementReservationsCount,
+    syncCounters,
+  };
+
+  return <UiContext.Provider value={value}>{children}</UiContext.Provider>;
+}
+
+// Hook para usar o contexto da UI
+export function useUi() {
+  const context = useContext(UiContext);
+  if (context === undefined) {
+    throw new Error('useUi must be used within a UiProvider');
+  }
+  return context;
+}

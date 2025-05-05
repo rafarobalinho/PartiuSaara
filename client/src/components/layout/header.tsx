@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/context/auth-context';
+import { useUi } from '@/context/ui-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -8,6 +9,7 @@ export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [location] = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
+  const { wishlistCount, reservationsCount } = useUi();
   
   // Função para fechar o menu mobile após a navegação
   const closeMenu = useCallback(() => {
@@ -67,16 +69,20 @@ export default function Header() {
             
             <Link href="/account/wishlist" className="relative">
               <i className="fas fa-heart text-xl"></i>
-              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                0
-              </span>
+              {wishlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                  {wishlistCount > 99 ? '99+' : wishlistCount}
+                </span>
+              )}
             </Link>
             
             <Link href="/account/reservations" className="relative">
               <i className="fas fa-bookmark text-xl"></i>
-              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                0
-              </span>
+              {reservationsCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                  {reservationsCount > 99 ? '99+' : reservationsCount}
+                </span>
+              )}
             </Link>
           </div>
         </div>
