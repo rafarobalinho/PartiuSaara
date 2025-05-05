@@ -185,7 +185,7 @@ export default function ProductCard({
           <img 
             src={`/api/products/${product.id}/primary-image`}
             alt={product.name}
-            className="max-h-full max-w-full object-fit block mx-auto my-0 p-4"
+            className="max-h-full max-w-full object-cover block mx-auto my-0 p-4"
             style={{ display: "block", margin: "0 auto" }}
           />
         </div>

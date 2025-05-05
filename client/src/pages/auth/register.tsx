@@ -50,12 +50,6 @@ export default function Register() {
   const [, navigate] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    navigate('/');
-    return null;
-  }
-
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -69,6 +63,13 @@ export default function Register() {
       role: 'customer',
     },
   });
+
+  // Redirect if already authenticated
+  // Movemos este código para depois da declaração de todos os hooks
+  if (isAuthenticated) {
+    navigate('/');
+    return null;
+  }
 
   const onSubmit = async (data: RegisterFormValues) => {
     try {
