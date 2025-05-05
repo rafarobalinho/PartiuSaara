@@ -1,0 +1,134 @@
+Por favor, reconstrua a API de reservas para fornecer dados estruturados de forma consistente com o padrão usado no frontend.
+O problema atual é que a página de reservas espera uma estrutura aninhada reservation.product.images[0] que não existe diretamente nos dados retornados pela API. Precisamos modificar o backend para fornecer os dados no formato que o frontend espera.
+Por favor, faça as seguintes alterações:
+
+Localize o endpoint de reservas (provavelmente em server/routes/reservations.js ou server/controllers/reservations.js):
+
+Encontre a função/rota que retorna as reservas do usuário (ex: GET /api/account/reservations)
+
+
+Modifique a consulta SQL para incluir os dados necessários:
+javascript// Substitua a consulta SQL existente por:
+const query = `
+  SELECT 
+    r.*,
+    p.id AS p_id,
+    p.name AS p_name,
+    p.description AS p_description,
+    p.category AS p_category,
+    p.price AS p_price,
+    p.discounted_price AS p_discounted_price,
+    p.stock AS p_stock,
+    pi.id AS pi_id,
+    pi.image_url AS pi_image_url,
+    pi.thumbnail_url AS pi_thumbnail_url,
+    pi.is_primary AS pi_is_primary
+  FROM 
+    reservations r
+  LEFT JOIN 
+    products p ON r.product_id = p.id
+  LEFT JOIN 
+    product_images pi ON p.id = pi.product_id
+  WHERE 
+    r.user_id = $1
+  ORDER BY 
+    r.created_at DESC, pi.is_primary DESC
+`;
+
+Transforme os resultados para a estrutura esperada pelo frontend:
+javascript// Substitua o trecho que retorna os resultados da consulta:
+
+// Inicialize um Map para agrupar imagens por reserva
+const reservationsMap = new Map();
+
+// Processe cada linha retornada do banco
+result.rows.forEach(row => {
+  const reservationId = row.id;
+  
+  // Se esta reserva ainda não foi processada, inicialize-a
+  if (!reservationsMap.has(reservationId)) {
+    // Crie o objeto base da reserva
+    const reservation = {
+      id: row.id,
+      user_id: row.user_id,
+      product_id: row.product_id,
+      quantity: row.quantity,
+      status: row.status,
+      expires_at: row.expires_at,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      // Objeto aninhado product
+      product: {
+        id: row.p_id,
+        name: row.p_name,
+        description: row.p_description,
+        category: row.p_category,
+        price: row.p_price,
+        discounted_price: row.p_discounted_price,
+        stock: row.p_stock,
+        images: []
+      }
+    };
+    
+    reservationsMap.set(reservationId, reservation);
+  }
+  
+  // Adicione a imagem ao array de imagens do produto (se existir)
+  if (row.pi_id) {
+    const reservation = reservationsMap.get(reservationId);
+    
+    // Verifique se esta imagem já foi adicionada
+    const imageExists = reservation.product.images.some(img => img.id === row.pi_id);
+    
+    if (!imageExists) {
+      reservation.product.images.push({
+        id: row.pi_id,
+        image_url: row.pi_image_url,
+        thumbnail_url: row.pi_thumbnail_url,
+        is_primary: row.pi_is_primary
+      });
+      
+      // Ordene as imagens para que a imagem principal apareça primeiro
+      reservation.product.images.sort((a, b) => {
+        if (a.is_primary && !b.is_primary) return -1;
+        if (!a.is_primary && b.is_primary) return 1;
+        return 0;
+      });
+    }
+  }
+});
+
+// Converta o Map em um array para a resposta
+const reservations = Array.from(reservationsMap.values());
+
+// Envie a resposta
+res.json(reservations);
+
+Adicione validação e tratamento de erros:
+javascript// Antes de enviar a resposta, verifique se há produtos válidos
+const validReservations = reservations.filter(res => 
+  res.product && res.product.id && 
+  (res.product.images.length > 0 || res.status === 'cancelled')
+);
+
+// Adicione placeholders para produtos que possam estar faltando imagens
+validReservations.forEach(res => {
+  if (res.product.images.length === 0) {
+    res.product.images.push({
+      id: 0,
+      image_url: '/placeholder-image.jpg',
+      thumbnail_url: '/placeholder-image.jpg',
+      is_primary: true
+    });
+  }
+});
+
+res.json(validReservations);
+
+Verifique o arquivo placeholder:
+
+Certifique-se de que existe um arquivo /public/placeholder-image.jpg para casos onde não há imagem disponível
+
+
+
+Esta modificação manterá a estrutura de dados que o frontend espera, garantindo que todas as páginas e componentes continuem funcionando consistentemente.
