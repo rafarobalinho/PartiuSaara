@@ -115,7 +115,7 @@ export default function CategoryPage() {
 
   // Fetch category products com os filtros aplicados usando o novo endpoint
   const { 
-    data: products = [], 
+    data, 
     isLoading: isProductsLoading, 
     error: productsError,
     isError,
@@ -157,7 +157,7 @@ export default function CategoryPage() {
         }
         
         const data = await response.json();
-        console.log('API response products:', data.length);
+        console.log('API response products:', data.products?.length || 0, 'message:', data.message || '');
         
         // Notificar que o processo de filtragem terminou
         setTimeout(() => setIsFiltering(false), 100);
@@ -213,8 +213,12 @@ export default function CategoryPage() {
     setFilterPromotion(false);
   }, []);
 
+  // Processamos os dados recebidos da API
+  const products = data?.products || [];
+  const errorMessage = data?.error || (data?.message && data.count === 0 ? data.message : null);
+  
   // Controlamos o estado de carregamento melhorando a lógica para evitar falsos estados de carregamento
-  const isLoading = isCategoryLoading || isProductsLoading || (isFiltering && !products);
+  const isLoading = isCategoryLoading || isProductsLoading || (isFiltering && !data);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -381,7 +385,7 @@ export default function CategoryPage() {
           
           {!isLoading && isError && (
             <div className="text-center py-16 bg-white rounded-lg">
-              <div className="text-4xl mb-4 text-red-500"><i className="fas fa-exclamation-circle"></i></div>
+              <div className="text-4xl mb-4 text-red-500">⚠️</div>
               <h3 className="text-lg font-medium text-gray-900 mb-1">Erro ao carregar produtos</h3>
               <p className="text-gray-500 mb-4">
                 {productsError instanceof Error 
@@ -436,9 +440,34 @@ export default function CategoryPage() {
             </div>
           )}
           
-          {!isLoading && !isError && (!products || products.length === 0) && (
+          {!isLoading && !isError && data && errorMessage && (
             <div className="text-center py-16 bg-white rounded-lg">
-              <div className="text-4xl mb-4"><i className="fas fa-search text-gray-300"></i></div>
+              <div className="text-6xl mb-4 text-gray-300">🔍</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">{errorMessage}</h3>
+              <p className="text-gray-500 mb-4">
+                {debouncedPriceRange[0] > 0 || debouncedPriceRange[1] < 1000
+                  ? "Tente ajustar o filtro de preço ou remover alguns filtros."
+                  : "Não há produtos disponíveis nesta categoria no momento."}
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button
+                  onClick={handleResetFilters}
+                  className="bg-primary/90 text-white hover:bg-primary"
+                >
+                  Limpar Filtros
+                </Button>
+                <Link href="/categories">
+                  <Button className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50">
+                    Ver todas as categorias
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
+          
+          {!isLoading && !isError && (!products || products.length === 0) && !errorMessage && (
+            <div className="text-center py-16 bg-white rounded-lg">
+              <div className="text-6xl mb-4 text-gray-300">🔍</div>
               <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhum produto encontrado</h3>
               <p className="text-gray-500 mb-4">
                 {debouncedPriceRange[0] > 0 || debouncedPriceRange[1] < 1000

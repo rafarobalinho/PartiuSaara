@@ -73,6 +73,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         minPrice, maxPrice, sortBy, promotion, limit 
       });
       
+      // Verificar se a categoria existe
+      const category = await storage.getCategoryBySlug(slug);
+      
+      if (!category) {
+        // Retornar array vazio se categoria não existir
+        return res.json({ 
+          products: [], 
+          count: 0,
+          message: 'Categoria não encontrada' 
+        });
+      }
+      
       // Converter os parâmetros para os tipos corretos
       const options = {
         minPrice: minPrice ? Number(minPrice) : undefined,
@@ -85,10 +97,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const products = await storage.getProductsByCategorySlug(slug, options);
       
       console.log(`Found ${products.length} products for category ${slug}`);
-      res.json(products);
+      
+      // Sempre retornar um objeto JSON válido
+      res.json({ 
+        products: products,
+        count: products.length,
+        message: products.length === 0 ? 'Não há produtos nesta categoria' : ''
+      });
     } catch (error) {
       console.error('Error fetching products by category slug:', error);
-      res.status(500).json({ message: 'Error fetching products' });
+      
+      // Retornar JSON mesmo em caso de erro
+      res.status(500).json({ 
+        error: 'Erro ao buscar produtos',
+        message: error instanceof Error ? error.message : 'Erro inesperado',
+        products: []
+      });
     }
   });
 
