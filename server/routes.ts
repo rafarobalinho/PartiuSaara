@@ -221,6 +221,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/upload/images', authMiddleware, uploadImages);
   app.delete('/api/upload/images/:id', authMiddleware, deleteImage);
 
+  // Rota para obter a imagem principal de uma loja
+  app.get('/api/stores/:id/primary-image', async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      const [image] = await db.select()
+        .from(storeImages)
+        .where(and(
+          eq(storeImages.storeId, storeId),
+          eq(storeImages.isPrimary, true)
+        ))
+        .limit(1);
+      
+      if (image) {
+        // Redirecionar para a URL da imagem
+        return res.redirect(image.imageUrl);
+      }
+      
+      // Fallback para uma imagem padrão se nenhuma imagem foi encontrada
+      return res.redirect('/uploads/default-store.jpg');
+    } catch (error) {
+      console.error('Erro ao buscar imagem principal da loja:', error);
+      return res.status(500).json({ message: 'Erro ao buscar imagem' });
+    }
+  });
+
   // Servir arquivos estáticos da pasta pública
   app.use('/uploads', express.static('public/uploads'));
   app.use('/uploads/thumbnails', express.static('public/uploads/thumbnails'));
