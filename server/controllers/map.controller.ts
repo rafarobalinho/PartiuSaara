@@ -1,157 +1,159 @@
+/**
+ * Controlador para manipulação de funcionalidades relacionadas ao mapa
+ * e geocodificação de lojas
+ */
+
 import { Request, Response } from 'express';
-import { geocodeAddress } from '../utils/geocoding';
-import { pool, db } from '../db';
+import { db } from '../db';
+import { geocodeAddress, formatFullAddress, batchGeocodeStores } from '../utils/geocoding';
 import { stores } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
 /**
- * Controlador para geocodificar um endereço
+ * Obter todas as lojas com informações de localização para exibição no mapa
  */
-export async function geocodeAddressController(req: Request, res: Response) {
+export async function getStoresForMap(req: Request, res: Response) {
   try {
-    const { address } = req.body;
-    
-    if (!address || !address.street || !address.city || !address.state || !address.zipCode) {
-      return res.status(400).json({ 
-        error: 'Endereço incompleto. Por favor, forneça rua, cidade, estado e CEP.' 
-      });
-    }
-    
-    const result = await geocodeAddress(address);
-    res.json(result);
-  } catch (error) {
-    console.error('Erro ao geocodificar endereço:', error);
-    res.status(500).json({ 
-      error: 'Falha ao geocodificar endereço',
-      message: error instanceof Error ? error.message : 'Erro desconhecido'
+    // Buscar todas as lojas ativas que tenham coordenadas geográficas
+    const results = await db.query.stores.findMany({
+      where: (stores, { and, isNotNull }) => 
+        and(
+          eq(stores.isOpen, true),
+          isNotNull(stores.location)
+        )
     });
+    
+    // Contar lojas com coordenadas válidas para debug
+    const totalStores = results.length;
+    const storesWithLocation = results.filter(store => 
+      store.location && 
+      store.location.latitude && 
+      store.location.longitude
+    ).length;
+    
+    console.log(`Lojas encontradas total: ${totalStores}`);
+    console.log(`Lojas com localização válida: ${storesWithLocation}`);
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Erro ao buscar lojas para o mapa:', error);
+    res.status(500).json({ error: 'Erro ao buscar lojas para o mapa' });
   }
 }
 
 /**
- * Controlador para atualizar a geolocalização de uma loja
+ * Geocodificar uma loja específica pelo ID
  */
-export async function updateStoreGeolocation(req: Request, res: Response) {
+export async function geocodeStore(req: Request, res: Response) {
   try {
-    const { storeId } = req.params;
-    const { location, place_id } = req.body;
+    const { id } = req.params;
     
-    if (!location || !location.latitude || !location.longitude) {
-      return res.status(400).json({ error: 'Dados de localização incompletos' });
+    if (!id) {
+      return res.status(400).json({ error: 'ID da loja não fornecido' });
     }
     
-    // Verificar se a loja existe
+    // Buscar a loja pelo ID
     const store = await db.query.stores.findFirst({
-      where: eq(stores.id, parseInt(storeId))
+      where: eq(stores.id, parseInt(id))
     });
     
     if (!store) {
       return res.status(404).json({ error: 'Loja não encontrada' });
     }
     
-    // Verificar propriedade (se o usuário é dono da loja)
-    const user = req.user;
-    if (store.userId !== user?.id) {
-      return res.status(403).json({ error: 'Não autorizado a editar esta loja' });
+    // Verificar se a loja já possui coordenadas
+    if (store.location && store.location.latitude && store.location.longitude) {
+      return res.json({ 
+        message: 'Loja já possui coordenadas',
+        location: store.location
+      });
     }
     
-    // Atualizar a localização
-    const updatedStore = await db.update(stores)
-      .set({ 
-        location, 
-        place_id 
-      })
-      .where(eq(stores.id, parseInt(storeId)))
-      .returning();
+    // Verificar se a loja possui endereço completo
+    if (!store.address) {
+      return res.status(400).json({ error: 'Loja não possui endereço completo' });
+    }
     
-    res.json(updatedStore[0]);
-  } catch (error) {
-    console.error('Erro ao atualizar geolocalização:', error);
-    res.status(500).json({ 
-      error: 'Falha ao atualizar geolocalização',
-      message: error instanceof Error ? error.message : 'Erro desconhecido'
+    // Formatar o endereço completo
+    const fullAddress = formatFullAddress(store);
+    
+    // Geocodificar o endereço
+    const geoResult = await geocodeAddress(fullAddress);
+    
+    if (!geoResult) {
+      return res.status(500).json({ error: 'Falha ao geocodificar o endereço' });
+    }
+    
+    // Atualizar a loja com as coordenadas
+    await db.update(stores)
+      .set({ 
+        location: {
+          latitude: geoResult.latitude,
+          longitude: geoResult.longitude
+        },
+        place_id: geoResult.place_id,
+        updatedAt: new Date()
+      })
+      .where(eq(stores.id, parseInt(id)));
+    
+    res.json({
+      message: 'Geocodificação concluída com sucesso',
+      store_id: id,
+      location: geoResult
     });
+  } catch (error) {
+    console.error('Erro ao geocodificar loja:', error);
+    res.status(500).json({ error: 'Erro ao geocodificar loja' });
   }
 }
 
 /**
- * Controlador para geocodificar todas as lojas
+ * Geocodificar todas as lojas que não possuem coordenadas (operação em lote)
+ * Esta operação deve ser protegida e acessível apenas por administradores
  */
-export async function geocodeAllStores(req: Request, res: Response) {
+export async function batchGeocodeAllStores(req: Request, res: Response) {
   try {
-    console.log('Iniciando geocodificação em lote de todas as lojas');
+    // Buscar todas as lojas que não possuem coordenadas
+    const storesWithoutCoordinates = await db.query.stores.findMany({
+      where: (stores, { or, isNull }) => 
+        or(
+          isNull(stores.location),
+          // @ts-ignore - Verificação mais profunda de location nulo ou vazio 
+          (stores) => stores.location.latitude === null || stores.location.longitude === null
+        )
+    });
     
-    // Buscar todas as lojas que têm endereço mas não têm coordenadas
-    const result = await pool.query(`
-      SELECT id, address 
-      FROM stores 
-      WHERE address IS NOT NULL 
-        AND (location IS NULL OR place_id IS NULL)
-    `);
-    
-    const stores = result.rows;
-    console.log(`Encontradas ${stores.length} lojas para geocodificar`);
-    
-    const results = {
-      total: stores.length,
-      success: 0,
-      failed: 0,
-      details: [] as any[]
-    };
-    
-    // Geocodificar cada loja
-    for (const store of stores) {
-      try {
-        console.log(`Processando loja ID ${store.id}`);
-        
-        if (!store.address.street || !store.address.city || 
-            !store.address.state || !store.address.zipCode) {
-          console.log(`Loja ID ${store.id} tem endereço incompleto, pulando`);
-          results.failed++;
-          results.details.push({
-            id: store.id,
-            status: 'failed',
-            reason: 'Endereço incompleto'
-          });
-          continue;
-        }
-        
-        // Geocodificar
-        const geocodeResult = await geocodeAddress(store.address);
-        
-        // Atualizar a loja no banco de dados
-        await pool.query(`
-          UPDATE stores 
-          SET location = $1, place_id = $2 
-          WHERE id = $3
-        `, [
-          geocodeResult.location,
-          geocodeResult.place_id,
-          store.id
-        ]);
-        
-        console.log(`Loja ID ${store.id} geocodificada com sucesso`);
-        results.success++;
-        results.details.push({
-          id: store.id,
-          status: 'success',
-          data: geocodeResult
-        });
-      } catch (error) {
-        console.error(`Falha ao geocodificar loja ID ${store.id}:`, error instanceof Error ? error.message : String(error));
-        results.failed++;
-        results.details.push({
-          id: store.id,
-          status: 'failed',
-          reason: error instanceof Error ? error.message : 'Erro desconhecido'
-        });
-      }
+    if (storesWithoutCoordinates.length === 0) {
+      return res.json({ message: 'Nenhuma loja sem coordenadas encontrada' });
     }
     
-    console.log('Geocodificação em lote concluída:', results);
-    res.json(results);
+    // Função de callback para atualizar cada loja após geocodificação
+    const updateStoreCallback = async (store: any, geoResult: { latitude: number, longitude: number, place_id: string } | null) => {
+      if (!store.id || !geoResult) return;
+      
+      await db.update(stores)
+        .set({ 
+          location: {
+            latitude: geoResult.latitude,
+            longitude: geoResult.longitude
+          },
+          place_id: geoResult.place_id,
+          updated_at: new Date()
+        })
+        .where(eq(stores.id, store.id));
+    };
+    
+    // Executar geocodificação em lote
+    const result = await batchGeocodeStores(storesWithoutCoordinates, updateStoreCallback);
+    
+    res.json({
+      message: 'Geocodificação em lote concluída',
+      total_processed: storesWithoutCoordinates.length,
+      success: result.success,
+      failed: result.failed
+    });
   } catch (error) {
-    console.error('Erro ao geocodificar lojas:', error instanceof Error ? error.message : String(error));
-    res.status(500).json({ error: 'Falha ao geocodificar lojas' });
+    console.error('Erro na geocodificação em lote:', error);
+    res.status(500).json({ error: 'Erro ao processar geocodificação em lote' });
   }
 }

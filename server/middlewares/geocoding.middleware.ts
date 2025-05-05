@@ -1,46 +1,64 @@
+/**
+ * Middleware de geocodificação para processar automaticamente os endereços quando
+ * uma loja é criada ou atualizada
+ */
+
 import { Request, Response, NextFunction } from 'express';
-import { geocodeAddress } from '../utils/geocoding';
+import { geocodeAddress, formatFullAddress } from '../utils/geocoding';
+import { Store } from '@shared/schema';
 
 /**
- * Middleware para geocodificar o endereço de uma loja antes de salvá-la
+ * Middleware que processa automaticamente o endereço da loja para obter as coordenadas geográficas
+ * Deve ser utilizado em rotas de criação e atualização de lojas
  */
 export async function geocodingMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
-    // Verificar se temos um endereço completo no body para geocodificar
-    const { address } = req.body;
-    
-    // Se não tivermos um endereço ou ele já tiver uma localização definida, pule a geocodificação
-    if (!address || (req.body.location && req.body.location.latitude && req.body.location.longitude)) {
+    // Verificar se há dados de loja no corpo da requisição
+    if (!req.body || !req.body.address) {
       return next();
     }
     
-    // Verificar se o endereço está completo
-    if (!address.street || !address.city || !address.state || !address.zipCode) {
-      console.log('Endereço incompleto, pulando geocodificação:', address);
+    // Verificar se as coordenadas já foram fornecidas manualmente
+    if (req.body.location?.latitude && req.body.location?.longitude) {
+      console.log('Coordenadas já foram fornecidas manualmente, pulando geocodificação automática');
       return next();
     }
     
-    console.log('Geocodificando endereço:', address);
+    // Criar objeto temporário de loja para processar o endereço
+    const tempStore: Partial<Store> = {
+      address: req.body.address
+    };
     
-    // Geocodificar o endereço
-    const geocodeResult = await geocodeAddress(address);
+    // Formatação do endereço completo
+    const fullAddress = formatFullAddress(tempStore);
     
-    // Adicionar as coordenadas e o place_id ao body do request
-    req.body.location = geocodeResult.location;
-    req.body.place_id = geocodeResult.place_id;
+    if (!fullAddress) {
+      console.log('Endereço incompleto para geocodificação');
+      return next();
+    }
     
-    console.log('Geocodificação bem-sucedida:', {
-      location: geocodeResult.location,
-      place_id: geocodeResult.place_id
-    });
+    // Realizar a geocodificação
+    console.log('Geocodificando endereço:', fullAddress);
+    const geoResult = await geocodeAddress(fullAddress);
     
-    // Continuar com o próximo middleware
+    if (!geoResult) {
+      console.log('Falha na geocodificação, prosseguindo sem coordenadas');
+      return next();
+    }
+    
+    // Adicionar as coordenadas e place_id ao corpo da requisição
+    req.body.location = {
+      latitude: geoResult.latitude,
+      longitude: geoResult.longitude
+    };
+    
+    req.body.place_id = geoResult.place_id;
+    
+    console.log('Geocodificação concluída com sucesso:', geoResult);
     next();
   } catch (error) {
-    console.error('Erro durante a geocodificação:', error);
-    
-    // Se a geocodificação falhar, não interrompa o fluxo,
-    // apenas log e continue (a loja pode ser criada sem geocodificação)
+    console.error('Erro no middleware de geocodificação:', error);
+    // Não interromper o fluxo em caso de erro na geocodificação
     next();
   }
 }

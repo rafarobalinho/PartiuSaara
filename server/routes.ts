@@ -196,35 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/stores/nearby', StoreController.getNearbyStores);
   
   // Rota específica para o mapa - deve vir antes das rotas parametrizadas
-  app.get('/api/stores/map', async (req, res) => {
-    try {
-      console.log('Recebida requisição para /api/stores/map');
-      
-      // Buscar todas as lojas
-      const storesResult = await pool.query(`
-        SELECT * FROM stores
-      `);
-      
-      // Log de debug
-      const stores = storesResult.rows;
-      console.log('Lojas encontradas total:', stores.length);
-      
-      const storesWithLocation = stores.filter(store => 
-        store.location && 
-        typeof store.location === 'object' && 
-        'latitude' in store.location && 
-        'longitude' in store.location
-      );
-      
-      console.log('Lojas com localização válida:', storesWithLocation.length);
-      
-      // Enviar resposta com as lojas
-      res.json(storesWithLocation);
-    } catch (error) {
-      console.error('Erro ao buscar lojas para o mapa:', error);
-      res.status(500).json({ error: 'Falha ao buscar lojas para o mapa' });
-    }
-  });
+  app.get('/api/stores/map', MapController.getStoresForMap);
   
   // Rota para listar apenas as lojas do usuário logado
   // IMPORTANTE: Esta rota específica deve vir antes das rotas parametrizadas (:id)
@@ -414,9 +386,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Rotas administrativas para geocodificação
-  app.post('/api/admin/geocode', authMiddleware, MapController.geocodeAddressController);
-  app.put('/api/admin/stores/:storeId/location', authMiddleware, MapController.updateStoreGeolocation);
-  app.post('/api/admin/geocode-all-stores', authMiddleware, MapController.geocodeAllStores);
+  app.post('/api/admin/geocode/:id', authMiddleware, MapController.geocodeStore);
+  app.post('/api/admin/geocode-all-stores', authMiddleware, MapController.batchGeocodeAllStores);
 
   const httpServer = createServer(app);
   return httpServer;

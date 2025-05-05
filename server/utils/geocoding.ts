@@ -1,126 +1,123 @@
 /**
- * Utilitário para geocodificação de endereços usando a API do Google Maps
+ * Utilitário de geocodificação para converter endereços em coordenadas geográficas
+ * Utiliza a API do Google Maps para fazer a geocodificação
  */
 
 import axios from 'axios';
-import { is } from 'drizzle-orm';
+import { Store } from '@shared/schema';
 
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-
-interface AddressData {
-  street: string;
-  city: string;
-  state: string;
-  zipCode: string;
-}
-
-interface GeocodeResult {
-  location: {
-    latitude: number;
-    longitude: number;
+// Tipos para os resultados da geocodificação
+interface GeocodingResult {
+  geometry: {
+    location: {
+      lat: number;
+      lng: number;
+    }
   };
   place_id: string;
   formatted_address: string;
 }
 
-interface PlaceDetails {
-  name: string;
-  rating?: number;
-  formatted_phone_number?: string;
-  opening_hours?: any;
-  website?: string;
-  formatted_address: string;
-  photos?: any[];
+interface GeocodingResponse {
+  results: GeocodingResult[];
+  status: string;
 }
 
 /**
- * Geocodifica um endereço usando a API do Google Maps
- * @param {Object} addressData - Dados do endereço
- * @returns {Promise<Object>} - Coordenadas e Place ID
+ * Geocodifica um endereço utilizando a API do Google Maps
+ * @param address Endereço completo para geocodificar
+ * @returns Objeto com latitude, longitude e place_id
  */
-export async function geocodeAddress(addressData: AddressData): Promise<GeocodeResult> {
+export async function geocodeAddress(address: string): Promise<{ latitude: number, longitude: number, place_id: string } | null> {
   try {
-    if (!GOOGLE_MAPS_API_KEY) {
-      throw new Error('API key do Google Maps não configurada');
-    }
-
-    // Montar o endereço formatado
-    const formattedAddress = 
-      `${addressData.street}, ${addressData.city}, ${addressData.state}, ${addressData.zipCode}`;
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     
-    console.log(`Geocodificando endereço: ${formattedAddress}`);
-    
-    // Fazer a requisição para a API de Geocodificação do Google
-    const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
-      params: {
-        address: formattedAddress,
-        key: GOOGLE_MAPS_API_KEY
-      }
-    });
-    
-    // Verificar se a API retornou resultados
-    if (response.data.status !== 'OK' || !response.data.results || response.data.results.length === 0) {
-      console.error('Erro na geocodificação:', response.data);
-      throw new Error(`Erro na geocodificação: ${response.data.status}`);
+    if (!apiKey) {
+      console.error('API key do Google Maps não encontrada no ambiente');
+      return null;
     }
     
-    // Extrair os dados do primeiro resultado
+    // Codificar o endereço para URL
+    const encodedAddress = encodeURIComponent(address);
+    
+    // Fazer a requisição para a API de Geocodificação do Google Maps
+    const response = await axios.get<GeocodingResponse>(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`
+    );
+    
+    // Verificar se a resposta foi bem-sucedida
+    if (response.data.status !== 'OK' || response.data.results.length === 0) {
+      console.error(`Erro na geocodificação: ${response.data.status}`, address);
+      return null;
+    }
+    
     const result = response.data.results[0];
-    const location = result.geometry.location;
     
     return {
-      location: {
-        latitude: location.lat,
-        longitude: location.lng
-      },
-      place_id: result.place_id,
-      formatted_address: result.formatted_address
+      latitude: result.geometry.location.lat,
+      longitude: result.geometry.location.lng,
+      place_id: result.place_id
     };
   } catch (error) {
-    console.error('Erro na geocodificação:', error);
-    throw error;
+    console.error('Erro ao geocodificar endereço:', error);
+    return null;
   }
 }
 
 /**
- * Obtém detalhes de um lugar usando o Place ID
- * @param {string} placeId - Google Place ID
- * @returns {Promise<Object>} - Detalhes do lugar
+ * Formatar endereço completo a partir do objeto de loja
+ * @param store Objeto da loja com informações de endereço
+ * @returns String com endereço completo formatado
  */
-export async function getPlaceDetails(placeId: string): Promise<PlaceDetails> {
-  try {
-    if (!GOOGLE_MAPS_API_KEY) {
-      throw new Error('API key do Google Maps não configurada');
+export function formatFullAddress(store: Partial<Store>): string {
+  if (!store.address) return '';
+  
+  const { street, city, state, zipCode } = store.address;
+  return `${street}, ${city}, ${state}, ${zipCode}, Brasil`;
+}
+
+/**
+ * Geocodifica múltiplas lojas em lote
+ * @param stores Array de lojas para geocodificar
+ * @param processCb Callback opcional para processar cada loja após geocodificação
+ * @returns Array com resultados da geocodificação
+ */
+export async function batchGeocodeStores(
+  stores: Partial<Store>[],
+  processCb?: (store: Partial<Store>, result: { latitude: number, longitude: number, place_id: string } | null) => Promise<void>
+): Promise<{ success: number, failed: number }> {
+  let success = 0;
+  let failed = 0;
+  
+  // Processar lojas sequencialmente para evitar limitações de rate da API
+  for (const store of stores) {
+    if (!store.address) {
+      failed++;
+      continue;
     }
     
-    // Fazer a requisição para a API Places do Google
-    const response = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
-      params: {
-        place_id: placeId,
-        fields: 'name,rating,formatted_phone_number,opening_hours,website,formatted_address,photos',
-        key: GOOGLE_MAPS_API_KEY
+    // Ignorar lojas que já possuem coordenadas
+    if (store.location?.latitude && store.location?.longitude) {
+      success++;
+      continue;
+    }
+    
+    const fullAddress = formatFullAddress(store);
+    const result = await geocodeAddress(fullAddress);
+    
+    if (result) {
+      success++;
+      // Executar callback se fornecido
+      if (processCb) {
+        await processCb(store, result);
       }
-    });
-    
-    // Verificar se a API retornou resultados
-    if (response.data.status !== 'OK' || !response.data.result) {
-      throw new Error(`Erro ao obter detalhes do lugar: ${response.data.status}`);
+    } else {
+      failed++;
     }
     
-    // Extrair dados do resultado
-    const result = response.data.result;
-    
-    return {
-      name: result.name,
-      rating: result.rating,
-      formatted_phone_number: result.formatted_phone_number,
-      opening_hours: result.opening_hours,
-      website: result.website,
-      formatted_address: result.formatted_address,
-      photos: result.photos
-    };
-  } catch (error) {
-    console.error('Erro ao obter detalhes do lugar:', error);
-    throw error;
+    // Pequeno delay para evitar atingir limites de rate da API
+    await new Promise(resolve => setTimeout(resolve, 200));
   }
+  
+  return { success, failed };
 }
