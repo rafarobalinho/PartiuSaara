@@ -70,18 +70,30 @@ export default function CategoryPage() {
 
   // Função para aplicar filtro de preço personalizado
   const applyCustomPriceRange = useCallback(() => {
-    const min = customMinPrice ? parseInt(customMinPrice, 10) : 0;
-    const max = customMaxPrice ? parseInt(customMaxPrice, 10) : 1000;
+    // Convertemos os valores e aplicamos limites razoáveis
+    const min = customMinPrice ? Math.max(0, parseInt(customMinPrice, 10)) : 0;
+    const max = customMaxPrice ? Math.min(10000, parseInt(customMaxPrice, 10)) : 1000;
     
-    if (min > max) {
-      // Se min > max, invertemos os valores
-      setDebouncedPriceRange([max, min]);
+    console.log('Aplicando faixa de preço personalizada:', { min, max });
+    
+    if (min >= max) {
+      // Se min >= max, usamos um intervalo padrão ajustado
+      const adjustedMax = min + 100;
+      setDebouncedPriceRange([min, adjustedMax]);
+      setCustomMaxPrice(adjustedMax.toString());
+      console.log('Faixa de preço ajustada:', { min, adjustedMax });
     } else {
       setDebouncedPriceRange([min, max]);
     }
     
     setIsCustomRangeActive(true);
     setActivePriceRangeId('');
+    
+    // Garantir que os valores nos campos são consistentes
+    setCustomMinPrice(min.toString());
+    if (!customMaxPrice) {
+      setCustomMaxPrice(max.toString());
+    }
   }, [customMinPrice, customMaxPrice]);
 
   // Fetch category info
@@ -102,7 +114,13 @@ export default function CategoryPage() {
   });
 
   // Fetch category products com os filtros aplicados
-  const { data: products, isLoading: isProductsLoading } = useQuery({
+  const { 
+    data: products = [], 
+    isLoading: isProductsLoading, 
+    error: productsError,
+    isError,
+    isFetching
+  } = useQuery({
     queryKey: [`/api/products`, {
       category: categorySlug,
       minPrice: debouncedPriceRange[0],
@@ -110,49 +128,84 @@ export default function CategoryPage() {
       sortBy,
       promotion: filterPromotion
     }],
-    queryFn: async () => {
+    queryFn: async ({ queryKey }) => {
       try {
-        setIsFiltering(false);
+        // Extrair parâmetros da query key
+        const [_, params] = queryKey;
+        const queryParams = params as any;
         
-        const params = new URLSearchParams({
-          category: categorySlug || '',
-          minPrice: debouncedPriceRange[0].toString(),
-          maxPrice: debouncedPriceRange[1].toString(),
-          sortBy: sortBy,
-          promotion: filterPromotion.toString()
+        const urlParams = new URLSearchParams({
+          category: queryParams.category || '',
+          minPrice: queryParams.minPrice.toString(),
+          maxPrice: queryParams.maxPrice.toString(),
+          sortBy: queryParams.sortBy,
+          promotion: queryParams.promotion.toString()
         });
         
         console.log('Sending price range to API:', { 
-          minPrice: debouncedPriceRange[0], 
-          maxPrice: debouncedPriceRange[1]
+          minPrice: queryParams.minPrice, 
+          maxPrice: queryParams.maxPrice,
+          category: queryParams.category,
+          sortBy: queryParams.sortBy
         });
         
-        const url = `/api/products?${params.toString()}`;
+        const url = `/api/products?${urlParams.toString()}`;
         console.log('API request URL:', url);
         
         const response = await fetch(url);
         if (!response.ok) {
-          throw new Error('Failed to fetch products');
+          const errorText = await response.text();
+          throw new Error(`Failed to fetch products: ${response.status} ${errorText}`);
         }
         
         const data = await response.json();
         console.log('API response products:', data.length);
+        
+        // Notificar que o processo de filtragem terminou
+        setTimeout(() => setIsFiltering(false), 100);
+        
         return data;
       } catch (error) {
         console.error('Error fetching products:', error);
-        setIsFiltering(false);
-        return [];
+        // Mesmo em caso de erro, desative o estado de filtragem
+        setTimeout(() => setIsFiltering(false), 100);
+        throw error;
       }
-    }
+    },
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5, // 5 minutos
+    retry: 1
   });
 
-  // Efeito para indicar quando está filtrando
+  // Efeito para indicar quando os filtros mudam
   useEffect(() => {
+    // Apenas defina o estado de filtragem se algum dos parâmetros de consulta mudar
+    console.log('Filtros mudaram:', { debouncedPriceRange, sortBy, filterPromotion });
     setIsFiltering(true);
+    
+    // Limpar o estado de filtragem após um tempo, se a consulta não terminar por algum motivo
+    const timer = setTimeout(() => {
+      setIsFiltering(false);
+    }, 5000); // Timeout de segurança
+    
+    return () => clearTimeout(timer);
   }, [debouncedPriceRange, sortBy, filterPromotion]);
+
+  // Efeito para resetar os filtros quando a categoria muda
+  useEffect(() => {
+    console.log('Categoria mudou, resetando filtros:', categorySlug);
+    setActivePriceRangeId('all');
+    setDebouncedPriceRange([0, 1000]);
+    setCustomMinPrice('');
+    setCustomMaxPrice('');
+    setIsCustomRangeActive(false);
+    setSortBy('popularity');
+    setFilterPromotion(false);
+  }, [categorySlug]);
 
   // Reset de todos os filtros
   const handleResetFilters = useCallback(() => {
+    console.log('Resetando todos os filtros manualmente');
     setActivePriceRangeId('all');
     setDebouncedPriceRange([0, 1000]);
     setCustomMinPrice('');
@@ -162,7 +215,8 @@ export default function CategoryPage() {
     setFilterPromotion(false);
   }, []);
 
-  const isLoading = isCategoryLoading || isProductsLoading || isFiltering;
+  // Controlamos o estado de carregamento melhorando a lógica para evitar falsos estados de carregamento
+  const isLoading = isCategoryLoading || isProductsLoading || (isFiltering && !products);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -311,7 +365,7 @@ export default function CategoryPage() {
 
         {/* Products Grid */}
         <div className="lg:w-3/4">
-          {isLoading ? (
+          {isLoading && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {Array(6).fill(0).map((_, index) => (
                 <div key={index} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
@@ -325,7 +379,27 @@ export default function CategoryPage() {
                 </div>
               ))}
             </div>
-          ) : products && products.length > 0 ? (
+          )}
+          
+          {!isLoading && isError && (
+            <div className="text-center py-16 bg-white rounded-lg">
+              <div className="text-4xl mb-4 text-red-500"><i className="fas fa-exclamation-circle"></i></div>
+              <h3 className="text-lg font-medium text-gray-900 mb-1">Erro ao carregar produtos</h3>
+              <p className="text-gray-500 mb-4">
+                {productsError instanceof Error 
+                  ? productsError.message 
+                  : "Ocorreu um erro ao tentar carregar os produtos. Tente novamente."}
+              </p>
+              <Button 
+                onClick={handleResetFilters}
+                className="bg-primary text-white hover:bg-primary/90 mx-auto"
+              >
+                Limpar Filtros e Tentar Novamente
+              </Button>
+            </div>
+          )}
+          
+          {!isLoading && !isError && products && products.length > 0 && (
             <div>
               <div className="flex justify-between items-center mb-4">
                 <Badge variant="outline" className="px-3 py-1">
@@ -353,17 +427,39 @@ export default function CategoryPage() {
                   />
                 ))}
               </div>
+              
+              {/* Indicador de filtragem em andamento */}
+              {isFetching && !isLoading && (
+                <div className="mt-4 py-2 bg-gray-50 text-center rounded-md text-sm text-gray-500 flex items-center justify-center">
+                  <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                  Atualizando resultados...
+                </div>
+              )}
             </div>
-          ) : (
+          )}
+          
+          {!isLoading && !isError && (!products || products.length === 0) && (
             <div className="text-center py-16 bg-white rounded-lg">
               <div className="text-4xl mb-4"><i className="fas fa-search text-gray-300"></i></div>
               <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhum produto encontrado</h3>
-              <p className="text-gray-500 mb-4">Tente ajustar os filtros ou buscar por outra categoria</p>
-              <Link href="/categories">
-                <Button className="bg-primary text-white hover:bg-primary/90">
-                  Ver todas as categorias
+              <p className="text-gray-500 mb-4">
+                {debouncedPriceRange[0] > 0 || debouncedPriceRange[1] < 1000
+                  ? "Tente ajustar o filtro de preço ou remover alguns filtros."
+                  : "Não há produtos disponíveis nesta categoria no momento."}
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button
+                  onClick={handleResetFilters}
+                  className="bg-primary/90 text-white hover:bg-primary"
+                >
+                  Limpar Filtros
                 </Button>
-              </Link>
+                <Link href="/categories">
+                  <Button className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50">
+                    Ver todas as categorias
+                  </Button>
+                </Link>
+              </div>
             </div>
           )}
         </div>
