@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { authMiddleware } from "./middleware/auth";
@@ -8,6 +9,7 @@ import * as StoreController from "./controllers/store.controller";
 import * as PromotionController from "./controllers/promotion.controller";
 import * as ReservationController from "./controllers/reservation.controller";
 import * as SubscriptionController from "./controllers/subscription.controller";
+import UploadController from "./controllers/upload.controller.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
@@ -214,6 +216,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     res.json(impressions);
   });
+
+  // Rota de upload de imagens
+  app.use('/api/upload', UploadController);
+
+  // Servir arquivos estáticos da pasta pública
+  app.use('/uploads', express.static('public/uploads'));
+  app.use('/uploads/thumbnails', express.static('public/uploads/thumbnails'));
 
   const httpServer = createServer(app);
   return httpServer;
