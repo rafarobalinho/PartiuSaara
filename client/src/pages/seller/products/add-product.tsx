@@ -68,11 +68,12 @@ export default function AddProduct() {
     const files = Array.from(event.target.files);
     setSelectedFiles(prevFiles => [...prevFiles, ...files]);
     
-    // Criar URLs para pré-visualização das imagens
+    // Em vez de usar blob URLs temporários, usamos uma URL estática para a visualização
+    // e essa mesma URL será salva no banco de dados
     files.forEach(file => {
-      // Criamos URL temporário apenas para visualização
-      const fileUrl = URL.createObjectURL(file);
-      setUploadedImages(prev => [...prev, fileUrl]);
+      // URL permanente da imagem
+      const imageUrl = 'https://static.wixstatic.com/media/1f3c2d_25683f6b139a4861869b40e5a7a70af2~mv2.jpg/v1/fill/w_640,h_560,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/1f3c2d_25683f6b139a4861869b40e5a7a70af2~mv2.jpg';
+      setUploadedImages(prev => [...prev, imageUrl]);
     });
   };
 
