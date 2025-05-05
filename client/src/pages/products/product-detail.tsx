@@ -239,7 +239,7 @@ export default function ProductDetail() {
                 <img 
                   src={getValidImage(image, 'https://static.wixstatic.com/media/1f3c2d_25683f6b139a4861869b40e5a7a70af2~mv2.jpg/v1/fill/w_640,h_560,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/1f3c2d_25683f6b139a4861869b40e5a7a70af2~mv2.jpg')} 
                   alt={`${product.name} - imagem ${index + 1}`} 
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-fit"
                 />
               </button>
             ))}
