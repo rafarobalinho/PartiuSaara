@@ -10,6 +10,9 @@ import * as PromotionController from "./controllers/promotion.controller";
 import * as ReservationController from "./controllers/reservation.controller";
 import * as SubscriptionController from "./controllers/subscription.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
+import { db } from "./db";
+import { and, eq } from "drizzle-orm";
+import { storeImages } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
