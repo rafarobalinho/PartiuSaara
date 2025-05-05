@@ -248,6 +248,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: 'Erro ao buscar imagem' });
     }
   });
+  
+  // Rota para obter a imagem principal de um produto
+  app.get('/api/products/:id/primary-image', async (req: Request, res: Response) => {
+    try {
+      const productId = parseInt(req.params.id);
+      const [image] = await db.select()
+        .from(productImages)
+        .where(and(
+          eq(productImages.productId, productId),
+          eq(productImages.isPrimary, true)
+        ))
+        .limit(1);
+      
+      if (image) {
+        // Redirecionar para a URL da imagem
+        return res.redirect(image.imageUrl);
+      }
+      
+      // Fallback para uma imagem padrão se nenhuma imagem foi encontrada
+      return res.redirect('/uploads/default-product.jpg');
+    } catch (error) {
+      console.error('Erro ao buscar imagem principal do produto:', error);
+      return res.status(500).json({ message: 'Erro ao buscar imagem' });
+    }
+  });
 
   // Servir arquivos estáticos da pasta pública
   app.use('/uploads', express.static('public/uploads'));
