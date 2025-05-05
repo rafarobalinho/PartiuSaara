@@ -56,6 +56,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     res.json(category);
   });
+  
+  // Novo endpoint para buscar produtos por categoria com slug
+  app.get('/api/categories/:slug/products', async (req: Request, res: Response) => {
+    try {
+      const { slug } = req.params;
+      const { 
+        minPrice, 
+        maxPrice, 
+        sortBy, 
+        promotion, 
+        limit 
+      } = req.query;
+      
+      console.log(`Fetching products for category slug: ${slug} with filters:`, { 
+        minPrice, maxPrice, sortBy, promotion, limit 
+      });
+      
+      // Converter os parâmetros para os tipos corretos
+      const options = {
+        minPrice: minPrice ? Number(minPrice) : undefined,
+        maxPrice: maxPrice ? Number(maxPrice) : undefined,
+        sortBy: sortBy as string,
+        promotion: promotion === 'true',
+        limit: limit ? Number(limit) : undefined
+      };
+      
+      const products = await storage.getProductsByCategorySlug(slug, options);
+      
+      console.log(`Found ${products.length} products for category ${slug}`);
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products by category slug:', error);
+      res.status(500).json({ message: 'Error fetching products' });
+    }
+  });
 
   // Banner routes
   app.get('/api/banners', async (req: Request, res: Response) => {
