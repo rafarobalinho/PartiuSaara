@@ -200,11 +200,11 @@ export default function ProductDetail() {
         <div className="text-4xl mb-4"><i className="fas fa-exclamation-circle text-gray-300"></i></div>
         <h2 className="text-xl font-bold mb-2">Produto não encontrado</h2>
         <p className="text-gray-600 mb-6">O produto que você está procurando não existe ou foi removido.</p>
-        <Button asChild className="bg-primary text-white hover:bg-primary/90">
-          <Link href="/products">
-            <a>Ver todos os produtos</a>
-          </Link>
-        </Button>
+        <Link href="/products">
+          <Button className="bg-primary text-white hover:bg-primary/90">
+            Ver todos os produtos
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -220,12 +220,12 @@ export default function ProductDetail() {
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <div className="flex items-center mb-6 text-sm">
-        <Link href="/products">
-          <a className="text-gray-500 hover:text-primary">Produtos</a>
+        <Link href="/products" className="text-gray-500 hover:text-primary">
+          Produtos
         </Link>
         <span className="mx-2 text-gray-400">/</span>
-        <Link href={`/categories/${product.category}`}>
-          <a className="text-gray-500 hover:text-primary">{product.category}</a>
+        <Link href={`/categories/${product.category}`} className="text-gray-500 hover:text-primary">
+          {product.category}
         </Link>
         <span className="mx-2 text-gray-400">/</span>
         <span className="font-medium text-gray-900 truncate max-w-[200px]">{product.name}</span>
@@ -276,17 +276,15 @@ export default function ProductDetail() {
           <h1 className="text-2xl font-bold mb-2">{product.name}</h1>
           
           {product.store && (
-            <Link href={`/stores/${product.store.id}`}>
-              <a className="text-primary hover:underline inline-flex items-center mb-4">
-                <i className="fas fa-store mr-1"></i>
-                <span>{product.store.name}</span>
-                <div className="flex items-center ml-3 text-sm text-gray-700">
-                  <i className="fas fa-star text-yellow-400 mr-1"></i>
-                  <span>{product.store.rating.toFixed(1)}</span>
-                  <span className="mx-1">•</span>
-                  <span>{product.store.reviewCount} avaliações</span>
-                </div>
-              </a>
+            <Link href={`/stores/${product.store.id}`} className="text-primary hover:underline inline-flex items-center mb-4">
+              <i className="fas fa-store mr-1"></i>
+              <span>{product.store.name}</span>
+              <div className="flex items-center ml-3 text-sm text-gray-700">
+                <i className="fas fa-star text-yellow-400 mr-1"></i>
+                <span>{product.store.rating.toFixed(1)}</span>
+                <span className="mx-1">•</span>
+                <span>{product.store.reviewCount} avaliações</span>
+              </div>
             </Link>
           )}
 
@@ -406,11 +404,11 @@ export default function ProductDetail() {
                   </div>
                 </div>
                 
-                <Button asChild className="bg-primary text-white hover:bg-primary/90">
-                  <Link href={`/stores/${product.store.id}`}>
-                    <a>Ver Loja</a>
-                  </Link>
-                </Button>
+                <Link href={`/stores/${product.store.id}`}>
+                  <Button className="bg-primary text-white hover:bg-primary/90">
+                    Ver Loja
+                  </Button>
+                </Link>
               </>
             ) : (
               <div className="text-gray-500 italic">
@@ -426,10 +424,8 @@ export default function ProductDetail() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">Produtos Relacionados</h2>
-            <Link href={`/categories/${product.category}`}>
-              <a className="text-primary text-sm font-medium">
-                Ver mais <i className="fas fa-chevron-right text-xs ml-1"></i>
-              </a>
+            <Link href={`/categories/${product.category}`} className="text-primary text-sm font-medium">
+              Ver mais <i className="fas fa-chevron-right text-xs ml-1"></i>
             </Link>
           </div>
 
