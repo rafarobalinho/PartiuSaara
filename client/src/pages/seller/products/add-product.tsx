@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { ImageUpload } from '@/components/ui/image-upload';
 import {
   Form,
   FormControl,
@@ -58,24 +59,7 @@ export default function AddProduct() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  
-  // Função para lidar com o upload de imagens
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files) return;
-    
-    const files = Array.from(event.target.files);
-    setSelectedFiles(prevFiles => [...prevFiles, ...files]);
-    
-    // Em vez de usar blob URLs temporários, usamos uma URL estática para a visualização
-    // e essa mesma URL será salva no banco de dados
-    files.forEach(file => {
-      // URL permanente da imagem
-      const imageUrl = 'https://static.wixstatic.com/media/1f3c2d_25683f6b139a4861869b40e5a7a70af2~mv2.jpg/v1/fill/w_640,h_560,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/1f3c2d_25683f6b139a4861869b40e5a7a70af2~mv2.jpg';
-      setUploadedImages(prev => [...prev, imageUrl]);
-    });
-  };
+  const [productImages, setProductImages] = useState<string[]>([]);
 
   // If not authenticated or not a seller, redirect
   useEffect(() => {
@@ -154,8 +138,8 @@ export default function AddProduct() {
       const formattedData = {
         ...data,
         // Se houver imagens carregadas, use-as; caso contrário, use as URLs fornecidas
-        images: uploadedImages.length > 0 
-          ? uploadedImages 
+        images: productImages.length > 0 
+          ? productImages 
           : (data.images || [])
       };
       
@@ -321,88 +305,18 @@ export default function AddProduct() {
                     />
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="images"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Imagens*</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          URLs de imagens separadas por vírgula ou faça upload abaixo
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                  {/* Componente de upload de imagens */}
+                  <ImageUpload
+                    name="product-images"
+                    multiple={true}
+                    maxImages={5}
+                    value={productImages}
+                    onChange={(urls) => {
+                      setProductImages(urls);
+                      // Atualiza o campo de imagens do formulário também
+                      form.setValue('images', urls.join(','));
+                    }}
                   />
-                  
-                  <div className="space-y-3">
-                    <div className="flex flex-col">
-                      <label className="block text-sm font-medium mb-1">
-                        Upload de Imagens
-                      </label>
-                      <div className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-md">
-                        <div className="space-y-1 text-center">
-                          <div className="flex text-sm text-gray-600">
-                            <label
-                              htmlFor="file-upload"
-                              className="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary/90 focus-within:outline-none"
-                            >
-                              <span>Faça upload de uma ou mais imagens</span>
-                              <input
-                                id="file-upload"
-                                name="file-upload"
-                                type="file"
-                                className="sr-only"
-                                accept="image/*"
-                                multiple
-                                onChange={handleImageUpload}
-                              />
-                            </label>
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            PNG, JPG ou GIF até 5MB
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Visualização de imagens */}
-                    {uploadedImages.length > 0 && (
-                      <div className="mt-4">
-                        <label className="block text-sm font-medium mb-2">
-                          Imagens carregadas ({uploadedImages.length})
-                        </label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {uploadedImages.map((image, index) => (
-                            <div key={index} className="relative">
-                              <img
-                                src={image}
-                                alt={`Prévia ${index + 1}`}
-                                className="h-24 w-24 object-cover rounded-md"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setUploadedImages(prev => prev.filter((_, i) => i !== index));
-                                  setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-                                }}
-                                className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 transform translate-x-1/2 -translate-y-1/2"
-                              >
-                                <span className="sr-only">Remover</span>
-                                &times;
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
                   <FormField
                     control={form.control}
