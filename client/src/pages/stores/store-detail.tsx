@@ -211,12 +211,12 @@ export default function StoreDetail() {
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <div className="flex items-center mb-6 text-sm">
-        <Link href="/stores">
-          <a className="text-gray-500 hover:text-primary">Lojas</a>
+        <Link href="/stores" className="text-gray-500 hover:text-primary">
+          Lojas
         </Link>
         <span className="mx-2 text-gray-400">/</span>
-        <Link href={`/categories/${store.category}`}>
-          <a className="text-gray-500 hover:text-primary">{store.category}</a>
+        <Link href={`/categories/${store.category}`} className="text-gray-500 hover:text-primary">
+          {store.category}
         </Link>
         <span className="mx-2 text-gray-400">/</span>
         <span className="font-medium text-gray-900">{store.name}</span>
@@ -224,12 +224,19 @@ export default function StoreDetail() {
 
       <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
         {/* Store Banner */}
-        <div className="h-64 relative">
+        <div className="h-64 relative bg-white overflow-hidden">
           <img 
             src={`/api/stores/${store.id}/primary-image`}
             alt={store.name} 
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+            }}
           />
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center hidden">
+            <i className="fas fa-store text-gray-400 text-6xl"></i>
+          </div>
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
           <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
