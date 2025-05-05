@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, Controller } from 'react-hook-form';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
+import { ImageUpload } from '@/components/ui/image-upload';
 
 import {
   Form,
@@ -182,58 +183,8 @@ export default function EditProduct() {
     updateProductMutation.mutate(data);
   };
 
-  // Handler para upload de imagens
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0) return;
-
-    const files = Array.from(event.target.files);
-    const formData = new FormData();
-    
-    // Adiciona os arquivos ao FormData
-    files.forEach((file) => {
-      formData.append('images', file);
-    });
-
-    try {
-      // Faz a chamada para o endpoint de upload com os query params requeridos
-      const response = await apiRequest(
-        'POST',
-        `/api/upload/images?type=product&entityId=${id}`, 
-        formData
-      );
-
-      const result = await response.json();
-      
-      if (result.success && result.images) {
-        // Extrai as URLs das imagens retornadas pelo servidor
-        const newImageUrls = result.images.map((img: any) => img.imageUrl);
-        
-        // Atualiza o estado com as novas imagens
-        setProductImages((prev) => [...prev, ...newImageUrls]);
-        setImagesChanged(true);
-        
-        toast({
-          title: 'Upload concluído',
-          description: `${result.images.length} imagem(ns) enviada(s) com sucesso.`,
-        });
-      } else {
-        throw new Error('Formato de resposta inválido');
-      }
-    } catch (error: any) {
-      console.error('Error uploading images:', error);
-      toast({
-        title: 'Erro no upload',
-        description: error.message || 'Ocorreu um erro ao enviar as imagens.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  // Handler para remoção de imagens
-  const handleRemoveImage = (index: number) => {
-    setProductImages((prev) => prev.filter((_, i) => i !== index));
-    setImagesChanged(true);
-  };
+  // O upload de imagens agora é gerenciado pelo componente ImageUpload
+  // Removemos os manipuladores manuais já que o componente ImageUpload cuida disso
 
   if (isLoadingProduct) {
     return (
@@ -442,29 +393,7 @@ export default function EditProduct() {
                 <div>
                   <FormLabel>Imagens do Produto</FormLabel>
                   <div className="mt-2 border rounded-lg p-4">
-                    <div className="flex flex-wrap gap-4 mb-4">
-                      {productImages.map((image, index) => (
-                        <div key={index} className="relative w-24 h-24 border rounded-md overflow-hidden group">
-                          <img
-                            src={image}
-                            alt={`Produto imagem ${index + 1}`}
-                            className="w-full h-full object-fit"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveImage(index)}
-                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                      {productImages.length === 0 && (
-                        <div className="w-full text-center py-8 text-gray-500">
-                          Nenhuma imagem adicionada
-                        </div>
-                      )}
-                    </div>
+
                     <div>
                       <ImageUpload
                         name={`product-${id}`}
