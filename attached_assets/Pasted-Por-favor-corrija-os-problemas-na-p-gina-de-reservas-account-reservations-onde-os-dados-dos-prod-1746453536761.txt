@@ -1,0 +1,62 @@
+Por favor, corrija os problemas na página de reservas (/account/reservations) onde os dados dos produtos não estão sendo exibidos corretamente.
+Estou enfrentando três problemas específicos na página de reservas:
+
+Imagens não carregam - está mostrando apenas a imagem placeholder
+Nome do produto aparece como "Produto indisponível" quando deveria mostrar o nome real
+Preço aparece como "R$ 0,00" quando deveria mostrar o valor correto
+
+O problema parece estar no arquivo /client/src/pages/account/reservations.tsx e provavelmente está relacionado à forma como os dados das reservas são buscados da API.
+Por favor, faça as seguintes correções:
+
+Verifique o endpoint da API de reservas para garantir que está incluindo todos os dados necessários:
+
+Certifique-se de que a consulta SQL está fazendo JOIN com as tabelas products e product_images
+Inclua os campos: product_id, name, price, image_url, etc.
+
+
+Modifique a função que busca as reservas para incluir dados completos do produto:
+javascript// No arquivo de API que busca reservas
+const getReservations = async (userId) => {
+  // Ajuste a consulta para incluir JOIN com produtos e imagens
+  const result = await db.query(`
+    SELECT 
+      r.*,
+      p.id as product_id,
+      p.name as product_name,
+      p.price as product_price,
+      pi.image_url as product_image
+    FROM 
+      reservations r
+    JOIN 
+      products p ON r.product_id = p.id
+    LEFT JOIN 
+      product_images pi ON p.id = pi.product_id AND pi.is_primary = true
+    WHERE 
+      r.user_id = $1
+  `, [userId]);
+  
+  return result.rows;
+}
+
+Atualize o componente da página de reservas para usar corretamente os dados:
+jsx// No arquivo reservations.tsx
+// Altere a renderização do produto para:
+<img 
+  src={reservation.product_image || '/placeholder-image.jpg'} 
+  alt={reservation.product_name || 'Produto'} 
+  className="w-full h-full object-cover" 
+/>
+
+<a href={`/products/${reservation.product_id}`}>
+  <a className="font-medium hover:text-primary hover:underline">
+    {reservation.product_name || 'Produto indisponível'}
+  </a>
+</a>
+
+<span className="text-lg font-bold text-primary">
+  R$&nbsp;{reservation.product_price ? reservation.product_price.toFixed(2).replace('.', ',') : '0,00'}
+</span>
+
+Verifique o console do navegador para identificar quaisquer erros adicionais que possam estar impedindo o carregamento dos dados.
+
+Estas alterações garantirão que os dados dos produtos sejam corretamente carregados e exibidos na página de reservas.
