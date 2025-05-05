@@ -37,7 +37,13 @@ interface WishlistItem {
 
 export default function Wishlist() {
   const { isAuthenticated } = useAuth();
-  const { decrementWishlistCount, incrementReservationsCount, syncCounters } = useUi();
+  const { 
+    decrementWishlistCount, 
+    incrementReservationsCount, 
+    syncCounters,
+    syncFavorites,
+    removeFavoriteProduct
+  } = useUi();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -69,13 +75,15 @@ export default function Wishlist() {
       return apiRequest('DELETE', `/api/wishlist/${productId}`, {});
     },
     onSuccess: () => {
+      // Invalidar as consultas para atualizar os dados
       queryClient.invalidateQueries({ queryKey: ['/api/wishlist'] });
       
       // Atualizar contador de favoritos
       decrementWishlistCount();
       
-      // Sincronizar contadores com o servidor
+      // Sincronizar contadores e favoritos com o servidor
       syncCounters();
+      syncFavorites();
       
       toast({
         title: 'Item removido',
@@ -123,6 +131,10 @@ export default function Wishlist() {
   });
 
   const handleRemoveItem = (productId: number) => {
+    // Atualize o estado local imediatamente para feedback instantâneo
+    removeFavoriteProduct(productId);
+    
+    // Em seguida, faça a mutação para o servidor
     removeItemMutation.mutate(productId);
   };
 
