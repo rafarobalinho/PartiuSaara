@@ -52,35 +52,13 @@ export default function ProductDetail() {
   const [isWishlisted, setIsWishlisted] = useState(false);
 
   const { data: product, isLoading } = useQuery({
-    queryKey: [`/api/products/${id}`],
-    queryFn: async () => {
-      try {
-        const response = await fetch(`/api/products/${id}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch product');
-        }
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching product:', error);
-        return null;
-      }
-    }
+    queryKey: [`/api/products/${id}`]
+    // Removendo o queryFn personalizado para usar o padrão do queryClient
+    // que já está configurado para todas as consultas
   });
 
   const { data: relatedProducts = [], isLoading: isRelatedLoading } = useQuery({
     queryKey: [`/api/products/${id}/related`],
-    queryFn: async () => {
-      try {
-        const response = await fetch(`/api/products/${id}/related`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch related products');
-        }
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching related products:', error);
-        return [];
-      }
-    },
     enabled: !!product
   });
 
