@@ -415,20 +415,20 @@ export default function StoreDetail() {
                     />
                   </div>
 
-                  {/* Imagens */}
+                  {/* Imagem da Loja (Logo) */}
                   <FormField
                     control={form.control}
                     name="images"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Imagens da Loja</FormLabel>
+                        <FormLabel>Logo da Loja</FormLabel>
                         <FormControl>
                           <ImageUpload
-                            name="store-images"
-                            multiple={true}
+                            name="store-logo"
+                            multiple={false}
                             value={field.value}
                             onChange={field.onChange}
-                            maxImages={5}
+                            maxImages={1}
                           />
                         </FormControl>
                         <FormMessage />
