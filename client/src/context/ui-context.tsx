@@ -23,10 +23,21 @@ interface UiContextType {
   syncCounters: () => void;
 }
 
-const UiContext = createContext<UiContextType | undefined>(undefined);
+// Valores padrão para o contexto
+const defaultContextValue: UiContextType = {
+  wishlistCount: 0,
+  reservationsCount: 0,
+  incrementWishlistCount: () => {},
+  decrementWishlistCount: () => {},
+  incrementReservationsCount: () => {},
+  decrementReservationsCount: () => {},
+  syncCounters: async () => {},
+};
+
+const UiContext = createContext<UiContextType>(defaultContextValue);
 
 export function UiProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   
   // Estado local para os contadores
@@ -34,19 +45,18 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const [reservationsCount, setReservationsCount] = useState<number>(0);
   
   // Consulta para obter as estatísticas atualizadas do usuário
-  const { data: statsData } = useQuery({
+  const { data } = useQuery({
     queryKey: ['/api/users/me'],
     enabled: isAuthenticated,
-    select: (data) => data?.stats as UserStats,
   });
 
   // Sincroniza os contadores com os dados do servidor quando disponíveis
   useEffect(() => {
-    if (statsData) {
-      setWishlistCount(statsData.wishlistCount);
-      setReservationsCount(statsData.reservationsCount);
+    if (data?.stats) {
+      setWishlistCount(data.stats.wishlistCount || 0);
+      setReservationsCount(data.stats.reservationsCount || 0);
     }
-  }, [statsData]);
+  }, [data]);
   
   // Sincroniza os contadores quando o status de autenticação muda
   useEffect(() => {
@@ -82,7 +92,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
   };
 
   // Objeto de valor para o contexto
-  const value = {
+  const value: UiContextType = {
     wishlistCount,
     reservationsCount,
     incrementWishlistCount,
@@ -97,9 +107,5 @@ export function UiProvider({ children }: { children: ReactNode }) {
 
 // Hook para usar o contexto da UI
 export function useUi() {
-  const context = useContext(UiContext);
-  if (context === undefined) {
-    throw new Error('useUi must be used within a UiProvider');
-  }
-  return context;
+  return useContext(UiContext);
 }

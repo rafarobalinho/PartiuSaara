@@ -5,6 +5,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, calculateDiscountPercentage, getTimeRemaining, getProgressPercentage } from '@/lib/utils';
 import { useAuth } from '@/context/auth-context';
+import { useUi } from '@/context/ui-context';
 import { useToast } from '@/hooks/use-toast';
 
 // Função que verifica se uma imagem deve ser usada
@@ -51,6 +52,7 @@ export default function ProductCard({
 }: ProductCardProps) {
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const { incrementWishlistCount, decrementWishlistCount, incrementReservationsCount, syncCounters } = useUi();
   const queryClient = useQueryClient();
   const [isWishlisted, setIsWishlisted] = useState(false);
 
@@ -76,11 +78,23 @@ export default function ProductCard({
       );
     },
     onSuccess: () => {
-      setIsWishlisted(!isWishlisted);
+      const wasWishlisted = isWishlisted;
+      setIsWishlisted(!wasWishlisted);
       queryClient.invalidateQueries({ queryKey: ['/api/wishlist'] });
+      
+      // Atualizar contadores
+      if (wasWishlisted) {
+        decrementWishlistCount();
+      } else {
+        incrementWishlistCount();
+      }
+      
+      // Sincronizar contadores com o servidor
+      syncCounters();
+      
       toast({
-        title: isWishlisted ? 'Removido dos favoritos' : 'Adicionado aos favoritos',
-        description: isWishlisted ? 
+        title: wasWishlisted ? 'Removido dos favoritos' : 'Adicionado aos favoritos',
+        description: wasWishlisted ? 
           `${product.name} foi removido da sua lista de desejos.` : 
           `${product.name} foi adicionado à sua lista de desejos.`,
         variant: "default",
@@ -106,6 +120,13 @@ export default function ProductCard({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/reservations'] });
+      
+      // Atualizar contador
+      incrementReservationsCount();
+      
+      // Sincronizar contadores com o servidor
+      syncCounters();
+      
       toast({
         title: 'Reserva criada',
         description: `${product.name} foi reservado com sucesso. Você tem 72 horas para retirar.`,
