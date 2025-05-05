@@ -36,6 +36,7 @@ export const stores = pgTable("stores", {
   isOpen: boolean("is_open").default(true),
   address: jsonb("address").notNull(), // { street, city, state, zipCode }
   location: jsonb("location").notNull(), // { latitude, longitude }
+  place_id: text("place_id"),
   // Removida a coluna acceptLocationTerms que não existe no banco de dados
   subscriptionPlan: text("subscription_plan").$type<"freemium" | "start" | "pro" | "premium">().default("freemium"),
   subscriptionEndDate: timestamp("subscription_end_date"),

@@ -6,38 +6,41 @@ import { geocodeAddress } from '../utils/geocoding';
  */
 export async function geocodingMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
-    console.log('Executando middleware de geocodificação');
-    
-    // Verificar se temos os dados de endereço necessários
+    // Verificar se temos um endereço completo no body para geocodificar
     const { address } = req.body;
     
-    if (!address || !address.street || !address.city || !address.state || !address.zipCode) {
-      // Se não tivermos endereço completo, apenas continuamos sem geocodificar
-      console.log('Endereço incompleto, pulando geocodificação');
+    // Se não tivermos um endereço ou ele já tiver uma localização definida, pule a geocodificação
+    if (!address || (req.body.location && req.body.location.latitude && req.body.location.longitude)) {
       return next();
     }
     
-    // Verificar se já temos coordenadas e place_id (caso seja uma atualização)
-    if (req.body.location?.latitude && req.body.location?.longitude && req.body.place_id) {
-      console.log('Loja já possui coordenadas e place_id, pulando geocodificação');
+    // Verificar se o endereço está completo
+    if (!address.street || !address.city || !address.state || !address.zipCode) {
+      console.log('Endereço incompleto, pulando geocodificação:', address);
       return next();
     }
     
-    console.log('Iniciando geocodificação para:', address);
+    console.log('Geocodificando endereço:', address);
     
     // Geocodificar o endereço
     const geocodeResult = await geocodeAddress(address);
     
-    // Adicionar os dados geocodificados ao corpo da requisição
+    // Adicionar as coordenadas e o place_id ao body do request
     req.body.location = geocodeResult.location;
     req.body.place_id = geocodeResult.place_id;
     
-    console.log('Geocodificação concluída:', geocodeResult);
+    console.log('Geocodificação bem-sucedida:', {
+      location: geocodeResult.location,
+      place_id: geocodeResult.place_id
+    });
     
+    // Continuar com o próximo middleware
     next();
   } catch (error) {
-    console.error('Erro durante a geocodificação:', error instanceof Error ? error.message : String(error));
-    // Não bloqueamos a criação da loja se a geocodificação falhar
+    console.error('Erro durante a geocodificação:', error);
+    
+    // Se a geocodificação falhar, não interrompa o fluxo,
+    // apenas log e continue (a loja pode ser criada sem geocodificação)
     next();
   }
 }

@@ -1,4 +1,11 @@
+/**
+ * Utilitário para geocodificação de endereços usando a API do Google Maps
+ */
+
 import axios from 'axios';
+import { is } from 'drizzle-orm';
+
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
 interface AddressData {
   street: string;
@@ -33,39 +40,44 @@ interface PlaceDetails {
  */
 export async function geocodeAddress(addressData: AddressData): Promise<GeocodeResult> {
   try {
-    console.log('Geocodificando endereço:', addressData);
+    if (!GOOGLE_MAPS_API_KEY) {
+      throw new Error('API key do Google Maps não configurada');
+    }
+
+    // Montar o endereço formatado
+    const formattedAddress = 
+      `${addressData.street}, ${addressData.city}, ${addressData.state}, ${addressData.zipCode}`;
     
-    // Formar o endereço completo
-    const formattedAddress = `${addressData.street}, ${addressData.city}, ${addressData.state}, ${addressData.zipCode}, Brasil`;
+    console.log(`Geocodificando endereço: ${formattedAddress}`);
     
     // Fazer a requisição para a API de Geocodificação do Google
     const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
       params: {
         address: formattedAddress,
-        key: process.env.GOOGLE_MAPS_API_KEY
+        key: GOOGLE_MAPS_API_KEY
       }
     });
     
-    // Verificar se há resultados
-    if (response.data.status === 'OK' && response.data.results.length > 0) {
-      const result = response.data.results[0];
-      
-      console.log('Geocodificação bem-sucedida para:', formattedAddress);
-      
-      return {
-        location: {
-          latitude: result.geometry.location.lat,
-          longitude: result.geometry.location.lng
-        },
-        place_id: result.place_id,
-        formatted_address: result.formatted_address
-      };
-    } else {
-      console.error('Falha na geocodificação. Status:', response.data.status);
-      throw new Error(`Geocodificação falhou: ${response.data.status}`);
+    // Verificar se a API retornou resultados
+    if (response.data.status !== 'OK' || !response.data.results || response.data.results.length === 0) {
+      console.error('Erro na geocodificação:', response.data);
+      throw new Error(`Erro na geocodificação: ${response.data.status}`);
     }
+    
+    // Extrair os dados do primeiro resultado
+    const result = response.data.results[0];
+    const location = result.geometry.location;
+    
+    return {
+      location: {
+        latitude: location.lat,
+        longitude: location.lng
+      },
+      place_id: result.place_id,
+      formatted_address: result.formatted_address
+    };
   } catch (error) {
-    console.error('Erro ao geocodificar endereço:', error instanceof Error ? error.message : String(error));
+    console.error('Erro na geocodificação:', error);
     throw error;
   }
 }
@@ -77,25 +89,38 @@ export async function geocodeAddress(addressData: AddressData): Promise<GeocodeR
  */
 export async function getPlaceDetails(placeId: string): Promise<PlaceDetails> {
   try {
-    console.log('Obtendo detalhes para Place ID:', placeId);
+    if (!GOOGLE_MAPS_API_KEY) {
+      throw new Error('API key do Google Maps não configurada');
+    }
     
+    // Fazer a requisição para a API Places do Google
     const response = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
       params: {
         place_id: placeId,
         fields: 'name,rating,formatted_phone_number,opening_hours,website,formatted_address,photos',
-        key: process.env.GOOGLE_MAPS_API_KEY
+        key: GOOGLE_MAPS_API_KEY
       }
     });
     
-    if (response.data.status === 'OK') {
-      console.log('Detalhes do lugar obtidos com sucesso');
-      return response.data.result;
-    } else {
-      console.error('Falha ao obter detalhes. Status:', response.data.status);
-      throw new Error(`Falha ao obter detalhes do lugar: ${response.data.status}`);
+    // Verificar se a API retornou resultados
+    if (response.data.status !== 'OK' || !response.data.result) {
+      throw new Error(`Erro ao obter detalhes do lugar: ${response.data.status}`);
     }
+    
+    // Extrair dados do resultado
+    const result = response.data.result;
+    
+    return {
+      name: result.name,
+      rating: result.rating,
+      formatted_phone_number: result.formatted_phone_number,
+      opening_hours: result.opening_hours,
+      website: result.website,
+      formatted_address: result.formatted_address,
+      photos: result.photos
+    };
   } catch (error) {
-    console.error('Erro ao obter detalhes do lugar:', error instanceof Error ? error.message : String(error));
+    console.error('Erro ao obter detalhes do lugar:', error);
     throw error;
   }
 }
