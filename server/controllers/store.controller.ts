@@ -140,8 +140,25 @@ export async function updateStore(req: Request, res: Response) {
         return res.status(403).json({ message: 'Not authorized to modify this store' });
       }
       
+      // Processar os dados atualizados
+      const updateData = {...req.body};
+      
+      // Se houver imagens e o primeiro elemento é um blob, não salvar
+      if (updateData.images && Array.isArray(updateData.images) && updateData.images.length > 0) {
+        // Verificamos se é um URL de blob
+        if (typeof updateData.images[0] === 'string' && updateData.images[0].startsWith('blob:')) {
+          // Mantém o valor antigo
+          delete updateData.images;
+        } else if (typeof updateData.images[0] === 'string' && !updateData.images[0].startsWith('blob:')) {
+          // Se não for blob e for uma string (URL de imagem válida), definir como logo
+          updateData.logo = updateData.images[0];
+          // Removemos do array de imagens para evitar duplicação
+          updateData.images = [];
+        }
+      }
+      
       // Update the store
-      const updatedStore = await storage.updateStore(Number(id), req.body);
+      const updatedStore = await storage.updateStore(Number(id), updateData);
       res.json(updatedStore);
     });
   } catch (error) {

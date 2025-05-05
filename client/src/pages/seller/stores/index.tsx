@@ -103,7 +103,7 @@ export default function SellerStores() {
     return filteredStores.map((store: any) => (
       <Card key={store.id} className="overflow-hidden">
         <div className="h-40 bg-cover bg-center" style={{
-          backgroundImage: `url(${store.logo || store.images?.[0] || 'https://images.unsplash.com/photo-1579202673506-ca3ce28943ef'})`,
+          backgroundImage: `url(${store.logo || (store.images && store.images.length > 0 && !store.images[0].startsWith('blob:') ? store.images[0] : 'https://images.unsplash.com/photo-1579202673506-ca3ce28943ef')})`,
         }}>
           <div className="h-full w-full bg-gradient-to-b from-black/10 to-black/50 flex items-end p-4">
             <Badge className={store.isOpen ? 'bg-green-500' : 'bg-red-500'}>
