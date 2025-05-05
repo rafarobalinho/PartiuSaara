@@ -356,32 +356,42 @@ export default function ProductDetail() {
               <h3 className="text-lg font-medium mt-6 mb-3">Especificações</h3>
               <ul className="list-disc pl-5">
                 <li className="text-gray-700">Categoria: {product.category}</li>
-                <li className="text-gray-700">Vendido por: {product.store.name}</li>
+                {product.store && (
+                  <li className="text-gray-700">Vendido por: {product.store.name}</li>
+                )}
                 <li className="text-gray-700">Disponibilidade: {product.stock > 0 ? `${product.stock} unidades em estoque` : 'Fora de estoque'}</li>
               </ul>
             </div>
           </TabsContent>
           <TabsContent value="store">
-            <div className="flex items-center mb-4">
-              <div className="w-16 h-16 bg-gray-100 rounded-full mr-4 flex items-center justify-center">
-                <i className="fas fa-store text-primary text-2xl"></i>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium">{product.store.name}</h3>
-                <div className="flex items-center text-sm text-gray-700">
-                  <i className="fas fa-star text-yellow-400 mr-1"></i>
-                  <span>{product.store.rating.toFixed(1)}</span>
-                  <span className="mx-1">•</span>
-                  <span>{product.store.reviewCount} avaliações</span>
+            {product.store ? (
+              <>
+                <div className="flex items-center mb-4">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full mr-4 flex items-center justify-center">
+                    <i className="fas fa-store text-primary text-2xl"></i>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-medium">{product.store.name}</h3>
+                    <div className="flex items-center text-sm text-gray-700">
+                      <i className="fas fa-star text-yellow-400 mr-1"></i>
+                      <span>{product.store.rating.toFixed(1)}</span>
+                      <span className="mx-1">•</span>
+                      <span>{product.store.reviewCount} avaliações</span>
+                    </div>
+                  </div>
                 </div>
+                
+                <Button asChild className="bg-primary text-white hover:bg-primary/90">
+                  <Link href={`/stores/${product.store.id}`}>
+                    <a>Ver Loja</a>
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              <div className="text-gray-500 italic">
+                Informações da loja não disponíveis
               </div>
-            </div>
-            
-            <Button asChild className="bg-primary text-white hover:bg-primary/90">
-              <Link href={`/stores/${product.store.id}`}>
-                <a>Ver Loja</a>
-              </Link>
-            </Button>
+            )}
           </TabsContent>
         </Tabs>
       </div>
