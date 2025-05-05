@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Card, 
   CardContent,
@@ -20,6 +20,7 @@ export default function StoreProducts() {
   const [, navigate] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
+  const queryClient = useQueryClient();
 
   // Redirecionar se não estiver autenticado ou não for vendedor
   const isAuthenticated = !!user;
@@ -73,6 +74,28 @@ export default function StoreProducts() {
 
   const isLoading = authLoading || storeLoading || productsLoading;
 
+  // Mutation para alternar o status do produto
+  const toggleProductStatusMutation = useMutation({
+    mutationFn: async (productId: number) => {
+      const response = await fetch(`/api/products/${productId}/toggle-status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Falha ao alternar o status do produto');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidar o cache para forçar o recarregamento dos produtos
+      queryClient.invalidateQueries({ queryKey: ['/api/products', { storeId: id }] });
+    }
+  });
+  
   // Filter products based on active tab
   const filteredProducts = products.filter((product: any) => {
     if (activeTab === 'all') return true;
@@ -194,9 +217,14 @@ export default function StoreProducts() {
           <Button 
             variant={product.isActive ? "destructive" : "default"}
             size="sm"
-            onClick={() => console.log(`Toggle status for product ${product.id}`)}
+            onClick={() => toggleProductStatusMutation.mutate(product.id)}
+            disabled={toggleProductStatusMutation.isPending}
           >
-            <i className={`fas fa-${product.isActive ? 'times' : 'check'} mr-2`}></i>
+            {toggleProductStatusMutation.isPending && toggleProductStatusMutation.variables === product.id ? (
+              <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]"></span>
+            ) : (
+              <i className={`fas fa-${product.isActive ? 'times' : 'check'} mr-2`}></i>
+            )}
             {product.isActive ? 'Desativar' : 'Ativar'}
           </Button>
         </CardFooter>
