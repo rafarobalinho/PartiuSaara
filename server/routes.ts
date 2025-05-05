@@ -193,6 +193,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rotas públicas de lojas
   app.get('/api/stores', StoreController.getStores);
   app.get('/api/stores/nearby', StoreController.getNearbyStores);
+  
+  // Rota específica para o mapa - deve vir antes das rotas parametrizadas
+  app.get('/api/stores/map', async (req, res) => {
+    try {
+      console.log('Recebida requisição para /api/stores/map');
+      
+      // Buscar todas as lojas
+      const storesResult = await pool.query(`
+        SELECT * FROM stores
+      `);
+      
+      // Log de debug
+      const stores = storesResult.rows;
+      console.log('Lojas encontradas total:', stores.length);
+      
+      const storesWithLocation = stores.filter(store => 
+        store.location && 
+        typeof store.location === 'object' && 
+        'latitude' in store.location && 
+        'longitude' in store.location
+      );
+      
+      console.log('Lojas com localização válida:', storesWithLocation.length);
+      
+      // Enviar resposta com as lojas
+      res.json(storesWithLocation);
+    } catch (error) {
+      console.error('Erro ao buscar lojas para o mapa:', error);
+      res.status(500).json({ error: 'Falha ao buscar lojas para o mapa' });
+    }
+  });
+  
   // Rota para listar apenas as lojas do usuário logado
   // IMPORTANTE: Esta rota específica deve vir antes das rotas parametrizadas (:id)
   app.get('/api/stores/my-stores', authMiddleware, async (req: Request, res: Response) => {
@@ -377,32 +409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/uploads', express.static('public/uploads'));
   app.use('/uploads/thumbnails', express.static('public/uploads/thumbnails'));
 
-  // Rotas de mapa e geocodificação
-  app.get('/api/stores/map', async (req, res) => {
-    try {
-      console.log('Recebida requisição para /api/stores/map');
-      // Buscar lojas com coordenadas válidas usando consulta SQL direta
-      const result = await pool.query(`
-        SELECT 
-          id, 
-          name, 
-          description, 
-          category,
-          address,
-          location
-        FROM 
-          stores
-        WHERE 
-          location IS NOT NULL
-      `);
-      
-      console.log('Lojas encontradas:', result.rows.length);
-      res.json(result.rows);
-    } catch (error) {
-      console.error('Erro ao buscar lojas para o mapa:', error);
-      res.status(500).json({ error: 'Falha ao buscar lojas para o mapa' });
-    }
-  });
+
   app.post('/api/admin/geocode', authMiddleware, MapController.geocodeAddressController);
   app.put('/api/admin/stores/:storeId/location', authMiddleware, MapController.updateStoreGeolocation);
 

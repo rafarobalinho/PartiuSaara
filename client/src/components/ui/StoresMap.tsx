@@ -47,11 +47,13 @@ const StoresMap: React.FC<StoresMapProps> = ({ className, height = '500px', widt
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [mapZoom, setMapZoom] = useState(12);
 
+  // Usar uma única referência de isLoaded para evitar conflitos de configuração
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+  console.log('Usando Google Maps API Key:', apiKey ? 'Configurada' : 'Não configurada');
+  
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
-    // Remover todas as opções potencialmente problemáticas
-    libraries: []
+    googleMapsApiKey: apiKey
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
