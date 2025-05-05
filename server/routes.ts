@@ -192,11 +192,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rotas públicas de lojas
   app.get('/api/stores', StoreController.getStores);
   app.get('/api/stores/nearby', StoreController.getNearbyStores);
-  app.get('/api/stores/:id', StoreController.getStore);
-  app.get('/api/stores/:id/products', StoreController.getStoreProducts);
-  app.get('/api/stores/:id/coupons', StoreController.getStoreCoupons);
-  
   // Rota para listar apenas as lojas do usuário logado
+  // IMPORTANTE: Esta rota específica deve vir antes das rotas parametrizadas (:id)
   app.get('/api/stores/my-stores', authMiddleware, async (req: Request, res: Response) => {
     try {
       const user = req.user;
@@ -209,6 +206,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Internal server error' });
     }
   });
+  
+  // Rotas para lojas específicas (parametrizadas)
+  app.get('/api/stores/:id', StoreController.getStore);
+  app.get('/api/stores/:id/products', StoreController.getStoreProducts);
+  app.get('/api/stores/:id/coupons', StoreController.getStoreCoupons);
   
   // Rotas que requerem autenticação e verificação de propriedade
   app.post('/api/stores', authMiddleware, StoreController.createStore);
