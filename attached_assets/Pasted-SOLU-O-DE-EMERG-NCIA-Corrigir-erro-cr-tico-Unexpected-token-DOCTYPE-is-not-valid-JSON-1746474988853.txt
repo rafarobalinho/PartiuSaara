@@ -1,0 +1,262 @@
+SOLUÇÃO DE EMERGÊNCIA: Corrigir erro crítico "Unexpected token '<': '<!DOCTYPE...' is not valid JSON"
+Este é um erro crítico que está bloqueando completamente o uso do aplicativo. Precisamos de uma solução IMEDIATA.
+O QUE ESTÁ ACONTECENDO:
+O frontend está recebendo HTML em vez de JSON quando tenta buscar produtos, causando o erro Unexpected token '<': '<!DOCTYPE...' is not valid JSON. Isto indica que:
+
+O servidor está retornando uma página HTML de erro
+O frontend está tentando interpretar isso como JSON
+A aplicação quebra completamente
+
+INSTRUÇÕES DETALHADAS:
+PARTE 1: FRONTEND - TRATAMENTO BÁSICO DE ERRO (CORREÇÃO IMEDIATA)
+Localize o arquivo que faz a chamada para listar produtos (provavelmente HomeScreen.js, ProductsList.js ou similar) e SUBSTITUA o código de busca de produtos por este:
+javascript// COPIE ESTE CÓDIGO EXATAMENTE COMO ESTÁ - SEM MODIFICAÇÕES
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+
+// ... resto do seu componente
+
+// SUBSTITUA seu useEffect atual por este:
+useEffect(() => {
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // URL da API - AJUSTE PARA SUA ROTA CORRETA
+      const url = '/api/products'; // ou qualquer rota que você use
+      
+      // Fazer a chamada com tratamento explícito para resposta não-JSON
+      const response = await fetch(url)
+        .then(async res => {
+          // Verificar tipo de conteúdo da resposta
+          const contentType = res.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            // Não é JSON - retornar um objeto JSON padrão para evitar erro
+            return { 
+              products: [], 
+              error: "Resposta inválida do servidor" 
+            };
+          }
+          
+          // É JSON - processar normalmente
+          return res.json();
+        })
+        .catch(err => {
+          // Capturar erros de rede ou parsing
+          console.error("Erro ao processar resposta:", err);
+          return { 
+            products: [], 
+            error: "Erro ao processar dados do servidor" 
+          };
+        });
+      
+      // Verificar formato da resposta e atualizar o estado
+      if (response.products) {
+        setProducts(response.products);
+      } else if (Array.isArray(response)) {
+        setProducts(response);
+      } else {
+        setProducts([]);
+        setError(response.error || "Formato de resposta inesperado");
+      }
+    } catch (error) {
+      console.error("Erro na requisição:", error);
+      setProducts([]);
+      setError("Não foi possível carregar os produtos. Tente novamente mais tarde.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  fetchProducts();
+}, [categoryId]); // Ajuste as dependências conforme necessário
+
+// Na parte do render, adicione isso no seu JSX:
+return (
+  <div>
+    {loading ? (
+      <div className="flex justify-center p-10">
+        <div className="w-12 h-12 border-t-4 border-orange-500 rounded-full animate-spin"></div>
+      </div>
+    ) : error ? (
+      <div className="text-center p-6 bg-white rounded-lg shadow-sm">
+        <div className="text-orange-500 text-5xl mb-3">⚠️</div>
+        <h3 className="text-lg font-medium">Não encontramos produtos</h3>
+        <p className="text-sm text-gray-500 mb-4">{error}</p>
+        <button
+          className="px-4 py-2 bg-orange-500 text-white rounded-md"
+          onClick={() => window.location.reload()}
+        >
+          Limpar Filtros e Tentar Novamente
+        </button>
+      </div>
+    ) : products.length === 0 ? (
+      <div className="text-center p-6 bg-white rounded-lg shadow-sm">
+        <div className="text-gray-400 text-5xl mb-3">🔍</div>
+        <h3 className="text-lg font-medium">Não encontramos produtos para esta categoria</h3>
+        <p className="text-sm text-gray-500 mb-4">Tente outra categoria ou volte mais tarde.</p>
+        <button
+          className="px-4 py-2 bg-orange-500 text-white rounded-md"
+          onClick={() => window.location.href = '/'}
+        >
+          Voltar para a página inicial
+        </button>
+      </div>
+    ) : (
+      // Renderização normal dos produtos
+      <div className="grid grid-cols-2 gap-3">
+        {products.map(product => (
+          // Seu componente ProductCard aqui
+        ))}
+      </div>
+    )}
+  </div>
+);
+PARTE 2: BACKEND - CORREÇÃO DO ENDPOINT DE PRODUTOS
+Localize o arquivo de rotas da API no servidor que lida com produtos (provavelmente em routes/products.js, controllers/products.js ou similar) e SUBSTITUA o endpoint por este:
+javascript// COPIE ESTE CÓDIGO EXATAMENTE COMO ESTÁ - SEM MODIFICAÇÕES
+// Endpoint para listar produtos (geral ou por categoria)
+app.get('/api/products', async (req, res) => {
+  try {
+    // Parâmetros de filtro
+    const { category, categoryId, categorySlug } = req.query;
+    
+    let query = 'SELECT * FROM products WHERE is_active = true';
+    let params = [];
+    
+    // Adicionar filtro por categoria se fornecido
+    if (categoryId) {
+      query += ' AND (category_id = $1 OR $1 = ANY(secondary_categories))';
+      params.push(categoryId);
+    } else if (categorySlug) {
+      // Se tiver slug da categoria, primeiro encontrar o ID
+      const categoryQuery = 'SELECT id FROM categories WHERE slug = $1';
+      const categoryResult = await pool.query(categoryQuery, [categorySlug]);
+      
+      if (categoryResult.rows.length > 0) {
+        const catId = categoryResult.rows[0].id;
+        query += ' AND (category_id = $1 OR $1 = ANY(secondary_categories))';
+        params.push(catId);
+      }
+    } else if (category) {
+      // Se tiver nome da categoria
+      query += ' AND (category = $1 OR $1 = ANY(secondary_categories))';
+      params.push(category);
+    }
+    
+    query += ' ORDER BY created_at DESC';
+    
+    const { rows } = await pool.query(query, params);
+    
+    // SEMPRE retornar um JSON válido
+    return res.json({ 
+      products: rows,
+      count: rows.length,
+      filters: { category, categoryId, categorySlug }
+    });
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    
+    // SEMPRE retornar um JSON válido, mesmo em caso de erro
+    return res.status(500).json({ 
+      products: [],
+      error: 'Erro ao buscar produtos',
+      message: error.message
+    });
+  }
+});
+
+// Endpoint específico para produtos por categoria
+app.get('/api/categories/:slug/products', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    // Primeiro buscar o ID da categoria
+    const categoryQuery = 'SELECT id FROM categories WHERE slug = $1';
+    const categoryResult = await pool.query(categoryQuery, [slug]);
+    
+    if (categoryResult.rows.length === 0) {
+      // Categoria não encontrada - retornar array vazio, não erro
+      return res.json({ 
+        products: [],
+        count: 0,
+        message: 'Categoria não encontrada'
+      });
+    }
+    
+    const categoryId = categoryResult.rows[0].id;
+    
+    // Buscar produtos da categoria
+    const productsQuery = `
+      SELECT * FROM products 
+      WHERE (category_id = $1 OR $1 = ANY(secondary_categories))
+      AND is_active = true
+      ORDER BY created_at DESC
+    `;
+    
+    const { rows } = await pool.query(productsQuery, [categoryId]);
+    
+    // SEMPRE retornar um JSON válido
+    return res.json({ 
+      products: rows,
+      count: rows.length,
+      categorySlug: slug
+    });
+  } catch (error) {
+    console.error('Erro ao buscar produtos por categoria:', error);
+    
+    // SEMPRE retornar um JSON válido, mesmo em caso de erro
+    return res.status(500).json({ 
+      products: [],
+      error: 'Erro ao buscar produtos',
+      message: error.message
+    });
+  }
+});
+VERIFICAÇÃO CRÍTICA
+Depois de implementar as soluções acima, verifique:
+
+Se o seu banco de dados tem a estrutura necessária (tabelas products, categories)
+Se as rotas da API estão corretamente definidas no seu servidor
+Se o frontend está importando e usando corretamente o useState e useEffect
+
+Se o problema persistir, IMPLEMENTE ESTE INTERCEPTOR DE AXIOS como último recurso:
+javascript// Arquivo: src/api.js ou onde você configura o axios
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: '/api'
+});
+
+// Interceptor para tratar respostas HTML como erro
+api.interceptors.response.use(
+  response => response,
+  error => {
+    // Se a resposta contém HTML em vez de JSON
+    if (error.response && 
+        error.response.data && 
+        typeof error.response.data === 'string' && 
+        error.response.data.includes('<!DOCTYPE')) {
+      
+      console.error('Recebeu HTML em vez de JSON:', error.response.data.substring(0, 100));
+      
+      // Substitui o erro por um objeto de erro amigável
+      return Promise.reject({ 
+        response: { 
+          status: 500, 
+          data: { 
+            products: [],
+            error: 'O servidor retornou uma resposta inválida',
+            message: 'Tente novamente mais tarde'
+          } 
+        } 
+      });
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+IMPORTANTE: Aplique estas mudanças EXATAMENTE como estão. Não modifique o código. Este é um problema crítico de tratamento de erro e precisa ser resolvido imediatamente para que os usuários possam usar o aplicativo.
