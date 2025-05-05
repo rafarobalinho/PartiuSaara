@@ -1,0 +1,33 @@
+ERRO CRÍTICO DE BANCO DE DADOS: "pool is not defined" bloqueando toda a aplicação
+O erro mudou e agora está mais claro: Failed to fetch products: 500 ["products": [],"error":"Erro ao buscar produtos","message":"pool is not defined"]
+Este é um erro de CONFIGURAÇÃO DO BANCO DE DADOS. A variável pool que deveria conter a conexão com o PostgreSQL não está definida corretamente no arquivo de rotas.
+SOLUÇÃO IMEDIATA EM 2 PASSOS:
+PASSO 1: VERIFIQUE A IMPORTAÇÃO DO POOL
+No arquivo onde estão os endpoints de API (provavelmente server.js, app.js ou routes/products.js), CERTIFIQUE-SE de que o pool esteja sendo importado corretamente no TOPO do arquivo:
+javascript// ADICIONE/VERIFIQUE ESTAS LINHAS NO TOPO DO ARQUIVO
+const { Pool } = require('pg');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://username:password@localhost:5432/database_name',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// OU se você já tem um arquivo de configuração do banco de dados
+const pool = require('../config/database'); // Ajuste o caminho conforme necessário
+PASSO 2: TESTE SE O POOL ESTÁ FUNCIONANDO
+Logo após a definição do pool, ADICIONE este código para confirmar que a conexão está funcionando:
+javascript// ADICIONE ESTE TESTE DE CONEXÃO
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('❌ Erro na conexão com o banco de dados:', err);
+  } else {
+    console.log('✅ Conexão com o banco de dados estabelecida com sucesso:', res.rows[0]);
+  }
+});
+VERIFICAÇÃO FINAL
+Se após implementar os passos acima o erro persistir, VERIFIQUE:
+
+Se as variáveis de ambiente estão configuradas corretamente (principalmente DATABASE_URL)
+Se o arquivo .env está sendo carregado (usando o pacote dotenv)
+Se o banco de dados PostgreSQL está acessível (pode ser testado via psql ou outra ferramenta)
+
+IMPORTANTE: Este erro indica que o banco de dados não está configurado corretamente. Não adianta continuar modificando o frontend se o backend não consegue se conectar ao banco de dados.
