@@ -19,7 +19,7 @@ import Products from "@/pages/products/index";
 import ProductDetail from "@/pages/products/product-detail";
 import Promotions from "@/pages/promotions/index";
 import Stores from "@/pages/stores/index";
-import StoreDetail from "@/pages/stores/store-detail";
+import ClientStoreDetail from "@/pages/stores/store-detail";
 import Account from "@/pages/account/index";
 import Wishlist from "@/pages/account/wishlist";
 import Reservations from "@/pages/account/reservations";
@@ -32,6 +32,7 @@ import SellerAnalytics from "@/pages/seller/analytics";
 import SellerSubscription from "@/pages/seller/subscription";
 import SellerStores from "@/pages/seller/stores/index";
 import AddStore from "@/pages/seller/stores/add-store";
+import StoreDetail from "@/pages/seller/stores/store-detail";
 import StoreProducts from "@/pages/seller/stores/store-products";
 
 function Router() {
@@ -49,7 +50,7 @@ function Router() {
           <Route path="/products/:id" component={ProductDetail} />
           <Route path="/promotions" component={Promotions} />
           <Route path="/stores" component={Stores} />
-          <Route path="/stores/:id" component={StoreDetail} />
+          <Route path="/stores/:id" component={ClientStoreDetail} />
           <Route path="/account" component={Account} />
           <Route path="/account/wishlist" component={Wishlist} />
           <Route path="/account/reservations" component={Reservations} />
@@ -60,6 +61,7 @@ function Router() {
           <Route path="/seller/promotions/add" component={AddPromotion} />
           <Route path="/seller/stores" component={SellerStores} />
           <Route path="/seller/stores/add-store" component={AddStore} />
+          <Route path="/seller/stores/:id" component={StoreDetail} />
           <Route path="/seller/stores/:id/products" component={StoreProducts} />
           <Route path="/seller/analytics" component={SellerAnalytics} />
           <Route path="/seller/subscription" component={SellerSubscription} />
