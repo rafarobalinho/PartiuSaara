@@ -130,7 +130,8 @@ export default function StoreDetail() {
         phoneNumber: store.phoneNumber,
         businessHours: store.businessHours || '',
         category: store.category,
-        images: store.images || [],
+        images: Array.isArray(store.images) ? store.images : 
+               (store.images ? [store.images] : []),
         isOpen: store.isOpen,
         latitude: store.latitude || 0,
         longitude: store.longitude || 0,
