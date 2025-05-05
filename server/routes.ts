@@ -11,7 +11,7 @@ import * as ReservationController from "./controllers/reservation.controller";
 import * as WishlistController from "./controllers/wishlist.controller";
 import * as SubscriptionController from "./controllers/subscription.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { and, eq } from "drizzle-orm";
 import { storeImages, productImages, products } from "@shared/schema";
 import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
