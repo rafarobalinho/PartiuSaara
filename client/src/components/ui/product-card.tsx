@@ -185,7 +185,7 @@ export default function ProductCard({
           <img 
             src={product.images && product.images.length > 0 ? product.images[0] : '/placeholder-image.jpg'}
             alt={product.name}
-            className="max-h-full max-w-full object-contain block mx-auto my-0 p-4"
+            className="max-h-full max-w-full object-cover block mx-auto my-0 p-4"
             style={{ display: "block", margin: "0 auto" }}
           />
         </div>
