@@ -174,7 +174,9 @@ export default function ProductCard({
           )}
           
           <img 
-            src={product.images[0]} 
+            src={product.images[0]?.startsWith('blob:') 
+              ? 'https://images.unsplash.com/photo-1611911813383-67769b37a149?q=80&w=400'
+              : product.images[0]} 
             alt={product.name}
             className="w-full h-full object-contain p-4"
           />
