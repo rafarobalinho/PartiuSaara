@@ -466,21 +466,17 @@ export default function EditProduct() {
                       )}
                     </div>
                     <div>
-                      <input
-                        type="file"
-                        id="product-images"
-                        multiple
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleImageUpload}
+                      <ImageUpload
+                        name={`product-${id}`}
+                        multiple={true}
+                        maxImages={5}
+                        value={productImages}
+                        onChange={(urls) => {
+                          setProductImages(urls);
+                          setImagesChanged(true);
+                        }}
                       />
-                      <label
-                        htmlFor="product-images"
-                        className="inline-block bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-md cursor-pointer transition-colors"
-                      >
-                        <i className="fas fa-upload mr-2"></i>
-                        Adicionar Imagens
-                      </label>
+
                     </div>
                   </div>
                 </div>

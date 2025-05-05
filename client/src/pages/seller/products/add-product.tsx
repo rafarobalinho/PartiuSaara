@@ -310,7 +310,7 @@ export default function AddProduct() {
 
                   {/* Componente de upload de imagens */}
                   <ImageUpload
-                    name={`product-images-${selectedStore}`}
+                    name={`product-${selectedStore}`}
                     multiple={true}
                     maxImages={5}
                     value={productImages}
