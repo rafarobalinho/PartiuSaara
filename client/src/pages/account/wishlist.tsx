@@ -27,6 +27,7 @@ interface WishlistItem {
 
 export default function Wishlist() {
   const { isAuthenticated } = useAuth();
+  const { decrementWishlistCount, incrementReservationsCount, syncCounters } = useUi();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -59,6 +60,13 @@ export default function Wishlist() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/wishlist'] });
+      
+      // Atualizar contador de favoritos
+      decrementWishlistCount();
+      
+      // Sincronizar contadores com o servidor
+      syncCounters();
+      
       toast({
         title: 'Item removido',
         description: 'O produto foi removido da sua lista de desejos com sucesso.',
@@ -81,6 +89,13 @@ export default function Wishlist() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/reservations'] });
+      
+      // Atualizar contador de reservas
+      incrementReservationsCount();
+      
+      // Sincronizar contadores com o servidor
+      syncCounters();
+      
       toast({
         title: 'Reserva criada',
         description: 'O produto foi reservado com sucesso. Você tem 72 horas para retirar.',
@@ -163,42 +178,62 @@ export default function Wishlist() {
                 <div key={item.id} className="bg-white rounded-lg shadow-sm p-4 flex flex-col sm:flex-row">
                   <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 sm:mr-4">
                     <img 
-                      src={item.product.images[0]} 
-                      alt={item.product.name} 
+                      src={item.product && item.product.images && item.product.images.length > 0 
+                        ? item.product.images[0] 
+                        : '/placeholder-image.jpg'} 
+                      alt={item.product ? item.product.name : 'Produto'} 
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="flex-1">
-                    <Link href={`/products/${item.product.id}`}>
-                      <a className="font-medium hover:text-primary hover:underline">{item.product.name}</a>
-                    </Link>
-                    <Link href={`/stores/${item.product.store.id}`}>
-                      <a className="text-sm text-gray-500 hover:text-primary block mb-2">
-                        <i className="fas fa-store mr-1"></i> {item.product.store.name}
-                      </a>
-                    </Link>
-                    <div className="flex items-center mb-4">
-                      {item.product.discountedPrice ? (
-                        <>
-                          <span className="text-sm line-through text-gray-400 mr-2">{formatCurrency(item.product.price)}</span>
-                          <span className="text-lg font-bold text-primary">{formatCurrency(item.product.discountedPrice)}</span>
-                        </>
-                      ) : (
-                        <span className="text-lg font-bold text-primary">{formatCurrency(item.product.price)}</span>
-                      )}
-                    </div>
+                    {item.product && (
+                      <>
+                        <Link href={`/products/${item.product.id}`}>
+                          <a className="font-medium hover:text-primary hover:underline">
+                            {item.product.name || 'Produto sem nome'}
+                          </a>
+                        </Link>
+                        {item.product.store && (
+                          <Link href={`/stores/${item.product.store.id}`}>
+                            <a className="text-sm text-gray-500 hover:text-primary block mb-2">
+                              <i className="fas fa-store mr-1"></i> {item.product.store.name || 'Loja'}
+                            </a>
+                          </Link>
+                        )}
+                        <div className="flex items-center mb-4">
+                          {item.product.discountedPrice ? (
+                            <>
+                              <span className="text-sm line-through text-gray-400 mr-2">
+                                {formatCurrency(item.product.price)}
+                              </span>
+                              <span className="text-lg font-bold text-primary">
+                                {formatCurrency(item.product.discountedPrice)}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-lg font-bold text-primary">
+                              {formatCurrency(item.product.price)}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div className="sm:w-32 flex sm:flex-col space-x-2 sm:space-x-0 sm:space-y-2">
-                    <Button
-                      className="flex-1 sm:flex-none bg-primary text-white hover:bg-primary/90"
-                      onClick={() => handleReserve(item.product.id)}
-                    >
-                      Reservar
-                    </Button>
+                    {item.product && (
+                      <>
+                        <Button
+                          className="flex-1 sm:flex-none bg-primary text-white hover:bg-primary/90"
+                          onClick={() => handleReserve(item.product.id)}
+                        >
+                          Reservar
+                        </Button>
+                      </>
+                    )}
                     <Button
                       variant="outline"
                       className="flex-1 sm:flex-none border-primary text-primary hover:bg-primary/5"
-                      onClick={() => handleRemoveItem(item.product.id)}
+                      onClick={() => handleRemoveItem(item.productId)}
                     >
                       Remover
                     </Button>
