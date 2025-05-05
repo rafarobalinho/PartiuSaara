@@ -226,9 +226,9 @@ export default function StoreDetail() {
         {/* Store Banner */}
         <div className="h-64 relative bg-white overflow-hidden">
           <img 
-            src={store.images && store.images.length > 0 ? store.images[0] : '/placeholder-image.jpg'}
+            src={`/api/stores/${store.id}/primary-image`}
             alt={store.name} 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               e.currentTarget.nextElementSibling?.classList.remove('hidden');
@@ -442,7 +442,7 @@ export default function StoreDetail() {
                 <h3 className="text-lg font-medium mb-4">Localização</h3>
                 <div className="h-64 bg-gray-200 rounded-lg mb-4 relative">
                   {/* This would be replaced with an actual map component */}
-                  <div className="w-full h-full bg-cover bg-center" style={{backgroundImage: `url('${store.images && store.images.length > 0 ? store.images[0] : '/placeholder-image.jpg'}')`}}>
+                  <div className="w-full h-full bg-cover bg-center" style={{backgroundImage: `url('/api/stores/${store.id}/primary-image')`}}>
                     <div className="absolute inset-0 bg-black/10"></div>
                   </div>
                   
