@@ -427,6 +427,16 @@ export class MemStorage implements IStorage {
       .sort((a, b) => a.distance - b.distance)
       .map(item => item.store);
   }
+  
+  async getStoresByUserId(userId: number): Promise<Store[]> {
+    const stores = Array.from(this.stores.values())
+      .filter(store => store.userId === userId);
+    
+    // Ordenar por data de criação (mais recentes primeiro)
+    return stores.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
 
   async createStore(storeData: InsertStore): Promise<Store> {
     const id = this.storeIdCounter++;
@@ -1356,6 +1366,13 @@ export class DatabaseStorage implements IStorage {
     // In a real implementation, this would use geospatial queries
     // For simplicity, we're just returning all stores
     return await db.select().from(stores);
+  }
+  
+  async getStoresByUserId(userId: number): Promise<Store[]> {
+    return await db.select()
+      .from(stores)
+      .where(eq(stores.userId, userId))
+      .orderBy(desc(stores.createdAt));
   }
 
   async createStore(storeData: InsertStore): Promise<Store> {
