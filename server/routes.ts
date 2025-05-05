@@ -13,7 +13,7 @@ import * as SubscriptionController from "./controllers/subscription.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db } from "./db";
 import { and, eq } from "drizzle-orm";
-import { storeImages, productImages } from "@shared/schema";
+import { storeImages, productImages, products } from "@shared/schema";
 import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
 
 export async function registerRoutes(app: Express): Promise<Server> {
