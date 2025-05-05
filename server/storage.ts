@@ -37,7 +37,8 @@ export interface IStorage {
     maxPrice?: number,
     sortBy?: string,
     promotion?: boolean,
-    limit?: number
+    limit?: number,
+    type?: string
   }): Promise<Product[]>;
   getProductsByCategorySlug(slug: string, options?: {
     minPrice?: number,
@@ -504,6 +505,110 @@ export class MemStorage implements IStorage {
       } : undefined,
       promotion: promotions.length > 0 ? promotions[0] : undefined
     };
+  }
+
+  async getProductsByCategorySlug(slug: string, options: {
+    minPrice?: number,
+    maxPrice?: number,
+    sortBy?: string,
+    promotion?: boolean,
+    limit?: number
+  } = {}): Promise<Product[]> {
+    console.log('Getting products by category slug in MemStorage:', slug);
+    
+    // First, get the category by slug
+    const category = Array.from(this.categories.values()).find(cat => cat.slug === slug);
+    
+    if (!category) {
+      console.log('Category not found with slug:', slug);
+      return [];
+    }
+    
+    console.log('Found category:', category.name, 'with ID:', category.id);
+    
+    // Filter products by category and active status
+    let products = Array.from(this.products.values())
+      .filter(product => product.category === category.name && product.isActive === true);
+    
+    console.log(`Found ${products.length} products with category ${category.name}`);
+    
+    // Apply price filters
+    if (options.minPrice !== undefined && options.minPrice !== null) {
+      const minPrice = Number(options.minPrice);
+      console.log('Applying min price filter to category products:', minPrice);
+      products = products.filter(product => {
+        const price = product.discountedPrice && product.discountedPrice > 0 
+          ? product.discountedPrice 
+          : product.price;
+        return price >= minPrice;
+      });
+    }
+    
+    if (options.maxPrice !== undefined && options.maxPrice !== null) {
+      const maxPrice = Number(options.maxPrice);
+      console.log('Applying max price filter to category products:', maxPrice);
+      products = products.filter(product => {
+        const price = product.discountedPrice && product.discountedPrice > 0 
+          ? product.discountedPrice 
+          : product.price;
+        return price <= maxPrice;
+      });
+    }
+    
+    // Apply promotion filter
+    if (options.promotion) {
+      const now = new Date();
+      const activePromotions = Array.from(this.promotions.values())
+        .filter(promo => 
+          new Date(promo.startTime) <= now &&
+          new Date(promo.endTime) >= now
+        );
+      
+      const promotionProductIds = activePromotions.map(p => p.productId);
+      products = products.filter(product => 
+        promotionProductIds.includes(product.id) || product.discountedPrice !== undefined
+      );
+    }
+    
+    // Apply sort
+    if (options.sortBy) {
+      if (options.sortBy === 'price_asc') {
+        products.sort((a, b) => {
+          const priceA = a.discountedPrice && a.discountedPrice > 0 ? a.discountedPrice : a.price;
+          const priceB = b.discountedPrice && b.discountedPrice > 0 ? b.discountedPrice : b.price;
+          return priceA - priceB;
+        });
+      } else if (options.sortBy === 'price_desc') {
+        products.sort((a, b) => {
+          const priceA = a.discountedPrice && a.discountedPrice > 0 ? a.discountedPrice : a.price;
+          const priceB = b.discountedPrice && b.discountedPrice > 0 ? b.discountedPrice : b.price;
+          return priceB - priceA;
+        });
+      } else if (options.sortBy === 'newest') {
+        products.sort((a, b) => {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+      }
+    } else {
+      // Default to newest first
+      products.sort((a, b) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    }
+    
+    // Apply limit
+    if (options.limit) {
+      products = products.slice(0, options.limit);
+    }
+    
+    // Add store information to each product
+    return products.map(product => {
+      const store = this.stores.get(product.storeId);
+      return {
+        ...product,
+        store: store ? { id: store.id, name: store.name } : undefined
+      };
+    });
   }
 
   async getProducts(options: { 

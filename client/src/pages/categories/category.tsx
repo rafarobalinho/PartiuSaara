@@ -113,7 +113,7 @@ export default function CategoryPage() {
     }
   });
 
-  // Fetch category products com os filtros aplicados
+  // Fetch category products com os filtros aplicados usando o novo endpoint
   const { 
     data: products = [], 
     isLoading: isProductsLoading, 
@@ -121,8 +121,7 @@ export default function CategoryPage() {
     isError,
     isFetching
   } = useQuery({
-    queryKey: [`/api/products`, {
-      category: categorySlug,
+    queryKey: [`/api/categories/${categorySlug}/products`, {
       minPrice: debouncedPriceRange[0],
       maxPrice: debouncedPriceRange[1],
       sortBy,
@@ -135,7 +134,6 @@ export default function CategoryPage() {
         const queryParams = params as any;
         
         const urlParams = new URLSearchParams({
-          category: queryParams.category || '',
           minPrice: queryParams.minPrice.toString(),
           maxPrice: queryParams.maxPrice.toString(),
           sortBy: queryParams.sortBy,
@@ -145,11 +143,11 @@ export default function CategoryPage() {
         console.log('Sending price range to API:', { 
           minPrice: queryParams.minPrice, 
           maxPrice: queryParams.maxPrice,
-          category: queryParams.category,
+          category: categorySlug,
           sortBy: queryParams.sortBy
         });
         
-        const url = `/api/products?${urlParams.toString()}`;
+        const url = `/api/categories/${categorySlug}/products?${urlParams.toString()}`;
         console.log('API request URL:', url);
         
         const response = await fetch(url);
