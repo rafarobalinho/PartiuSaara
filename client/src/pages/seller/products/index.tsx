@@ -59,7 +59,13 @@ export default function SellerProducts() {
         if (!res.ok) {
           throw new Error('Falha ao carregar lojas');
         }
-        return await res.json();
+        const data = await res.json();
+        console.log('Lojas carregadas:', data);
+        // Garantir que temos um array de lojas com IDs válidos
+        if (Array.isArray(data)) {
+          return data.filter(store => store && typeof store.id === 'number' && !isNaN(store.id));
+        }
+        return [];
       } catch (error) {
         console.error('Error fetching stores:', error);
         return [];
@@ -70,8 +76,12 @@ export default function SellerProducts() {
 
   // Set the selected store when stores are loaded
   useEffect(() => {
-    if (stores.length > 0 && !selectedStoreId) {
-      setSelectedStoreId(stores[0].id.toString());
+    if (Array.isArray(stores) && stores.length > 0 && !selectedStoreId) {
+      // Garantir que id seja um número válido antes de converter para string
+      const storeId = stores[0].id;
+      if (storeId && !isNaN(storeId)) {
+        setSelectedStoreId(storeId.toString());
+      }
     }
   }, [stores, selectedStoreId]);
 

@@ -1,0 +1,358 @@
+PROBLEMA DE LISTAGEM: Produtos não aparecem na página /seller/products após edição
+Identifiquei um problema importante no fluxo de edição de produtos: quando um produto é editado com sucesso, ele desaparece da listagem de produtos na página /seller/products.
+PROBLEMA ESPECÍFICO:
+Após editar um produto e ser redirecionado para a página de listagem, os produtos não aparecem - a lista está vazia ou não carrega corretamente.
+SOLUÇÃO NECESSÁRIA:
+
+Verifique o endpoint da API que lista produtos do vendedor:
+
+javascript// No arquivo de rotas do backend
+app.get('/api/seller/products', async (req, res) => {
+  try {
+    // Obter ID do vendedor do usuário autenticado
+    const sellerId = req.user.id; // Ajuste conforme sua implementação de autenticação
+    
+    console.log(`Buscando produtos para o vendedor ID: ${sellerId}`);
+    
+    // Buscar todas as lojas do vendedor
+    const storesQuery = 'SELECT id FROM stores WHERE user_id = $1';
+    const storesResult = await pool.query(storesQuery, [sellerId]);
+    
+    if (storesResult.rows.length === 0) {
+      console.log('Vendedor não possui lojas');
+      return res.json({ 
+        success: true,
+        products: [] 
+      });
+    }
+    
+    // Extrair IDs das lojas
+    const storeIds = storesResult.rows.map(store => store.id);
+    console.log('IDs das lojas do vendedor:', storeIds);
+    
+    // Buscar produtos de todas as lojas do vendedor
+    const productsQuery = `
+      SELECT * FROM products 
+      WHERE store_id = ANY($1)
+      ORDER BY updated_at DESC
+    `;
+    
+    const productsResult = await pool.query(productsQuery, [storeIds]);
+    console.log(`Encontrados ${productsResult.rows.length} produtos para o vendedor`);
+    
+    // Buscar imagens principais para cada produto
+    const productsWithImages = await Promise.all(
+      productsResult.rows.map(async (product) => {
+        try {
+          const imagesQuery = `
+            SELECT * FROM product_images 
+            WHERE product_id = $1
+            ORDER BY is_primary DESC, display_order ASC
+            LIMIT 1
+          `;
+          const imagesResult = await pool.query(imagesQuery, [product.id]);
+          
+          if (imagesResult.rows.length > 0) {
+            return {
+              ...product,
+              primary_image: imagesResult.rows[0]
+            };
+          }
+          return product;
+        } catch (err) {
+          console.error(`Erro ao buscar imagem do produto ${product.id}:`, err);
+          return product;
+        }
+      })
+    );
+    
+    return res.json({
+      success: true,
+      products: productsWithImages
+    });
+  } catch (error) {
+    console.error('Erro ao buscar produtos do vendedor:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erro ao buscar produtos do vendedor',
+      message: error.message
+    });
+  }
+});
+
+Corrija o componente de listagem de produtos do vendedor:
+
+jsx// No arquivo /client/src/pages/seller/products/index.jsx (ou .tsx)
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom'; // Ajuste conforme seu sistema de rotas
+import { api } from '../../../services/api';
+
+const SellerProducts = () => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Função para buscar produtos - separada do useEffect para poder ser chamada novamente
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('Buscando produtos do vendedor...');
+      const response = await api.get('/api/seller/products');
+      
+      console.log('Resposta da API:', response.data);
+      
+      if (response.data && response.data.products) {
+        setProducts(response.data.products);
+      } else {
+        setProducts([]);
+        console.warn('Formato de resposta inesperado:', response.data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error.response?.data || error.message);
+      setError('Não foi possível carregar seus produtos. Tente novamente mais tarde.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
+  // Efeito para buscar produtos ao montar o componente ou ao voltar para a página
+  useEffect(() => {
+    fetchProducts();
+    
+    // Verificar se há mensagem de sucesso do redirecionamento após edição
+    const params = new URLSearchParams(location.search);
+    const successMessage = params.get('success');
+    if (successMessage) {
+      // Aqui você pode mostrar uma notificação de sucesso
+      console.log('Operação realizada com sucesso:', successMessage);
+      
+      // Limpar a query string
+      navigate(location.pathname, { replace: true });
+    }
+  }, [fetchProducts, location, navigate]);
+  
+  // Renderização do componente
+  return (
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-bold">Meus Produtos</h1>
+        <Link 
+          to="/seller/products/create" 
+          className="px-4 py-2 bg-orange-500 text-white rounded-md"
+        >
+          + Adicionar Produto
+        </Link>
+      </div>
+      
+      {loading ? (
+        <div className="flex justify-center p-10">
+          <div className="w-12 h-12 border-t-4 border-orange-500 rounded-full animate-spin"></div>
+        </div>
+      ) : error ? (
+        <div className="text-center p-8 bg-white rounded-lg shadow-sm">
+          <div className="text-orange-500 text-5xl mb-3">⚠️</div>
+          <h3 className="text-lg font-medium mb-2">Erro ao carregar produtos</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            className="px-4 py-2 bg-orange-500 text-white rounded"
+            onClick={fetchProducts}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      ) : products.length === 0 ? (
+        <div className="text-center p-8 bg-white rounded-lg shadow-sm">
+          <div className="text-gray-400 text-5xl mb-3">📋</div>
+          <h3 className="text-lg font-medium mb-2">Nenhum produto cadastrado</h3>
+          <p className="text-gray-600 mb-4">
+            Você ainda não possui produtos cadastrados em sua loja.
+          </p>
+          <Link 
+            to="/seller/products/create" 
+            className="px-4 py-2 bg-orange-500 text-white rounded-md"
+          >
+            Cadastrar meu primeiro produto
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {products.map(product => (
+            <div 
+              key={product.id}
+              className="bg-white rounded-lg shadow-sm overflow-hidden"
+            >
+              {/* Imagem do produto */}
+              <div className="h-48 bg-gray-100 relative">
+                {product.primary_image ? (
+                  <img 
+                    src={product.primary_image.image_url} 
+                    alt={product.name}
+                    className="w-full h-full object-cover" 
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-gray-400">Sem imagem</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Informações do produto */}
+              <div className="p-4">
+                <h2 className="text-lg font-medium mb-1">{product.name}</h2>
+                <p className="text-sm text-gray-500 mb-2">
+                  Categoria: {product.category}
+                </p>
+                
+                <div className="flex justify-between items-center mb-3">
+                  <span className="font-bold text-orange-500">
+                    R$ {product.price.toFixed(2).replace('.', ',')}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    Estoque: {product.stock}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <Link 
+                    to={`/seller/products/${product.id}/edit`}
+                    className="px-3 py-1 border border-gray-300 rounded text-gray-700"
+                  >
+                    Editar
+                  </Link>
+                  <button
+                    className={`px-3 py-1 rounded text-white ${product.is_active ? 'bg-gray-500' : 'bg-orange-500'}`}
+                    onClick={() => handleToggleStatus(product.id)}
+                  >
+                    {product.is_active ? 'Desativar' : 'Ativar'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SellerProducts;
+
+Corrija a função de edição para redirecionar corretamente após o sucesso:
+
+javascript// No componente de edição de produto
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  try {
+    setSubmitting(true);
+    
+    // Preparar dados do produto
+    const productData = {
+      name,
+      description,
+      category,
+      price: parseFloat(price),
+      discounted_price: discountedPrice ? parseFloat(discountedPrice) : null,
+      stock: parseInt(stock),
+      store_id: selectedStore
+      // outros campos conforme necessário
+    };
+    
+    console.log('Enviando dados atualizados:', productData);
+    
+    // Enviar requisição para atualizar o produto
+    const response = await api.put(`/api/products/${product.id}`, productData);
+    
+    console.log('Resposta da atualização:', response.data);
+    
+    // Mostrar mensagem de sucesso
+    toast.success('Produto atualizado com sucesso!');
+    
+    // Redirecionar para a página de listagem com parâmetro de sucesso
+    navigate('/seller/products?success=update');
+    
+  } catch (error) {
+    console.error('Erro ao atualizar produto:', error);
+    toast.error('Erro ao atualizar produto. Tente novamente.');
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+Verifique se o endpoint de atualização de produtos está funcionando corretamente:
+
+javascript// No arquivo de rotas do backend
+app.put('/api/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      name, description, category, price, 
+      discounted_price, stock, store_id, is_active 
+    } = req.body;
+    
+    console.log(`Atualizando produto ID: ${id}`);
+    console.log('Dados recebidos:', req.body);
+    
+    // Verificar se o produto existe
+    const checkQuery = 'SELECT * FROM products WHERE id = $1';
+    const checkResult = await pool.query(checkQuery, [id]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Produto não encontrado'
+      });
+    }
+    
+    // Atualizar o produto
+    const updateQuery = `
+      UPDATE products
+      SET 
+        name = COALESCE($1, name),
+        description = COALESCE($2, description),
+        category = COALESCE($3, category),
+        price = COALESCE($4, price),
+        discounted_price = $5,
+        stock = COALESCE($6, stock),
+        store_id = COALESCE($7, store_id),
+        is_active = COALESCE($8, is_active),
+        updated_at = NOW()
+      WHERE id = $9
+      RETURNING *
+    `;
+    
+    const updateParams = [
+      name, description, category, price, 
+      discounted_price, stock, store_id, is_active, id
+    ];
+    
+    const updateResult = await pool.query(updateQuery, updateParams);
+    
+    console.log('Produto atualizado:', updateResult.rows[0]);
+    
+    return res.json({
+      success: true,
+      product: updateResult.rows[0]
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar produto:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erro ao atualizar produto',
+      message: error.message
+    });
+  }
+});
+Essas modificações devem garantir que:
+
+A API retorne corretamente os produtos do vendedor
+O componente de listagem carregue os produtos corretamente
+Após editar um produto, o usuário seja redirecionado para a página de listagem
+A página de listagem recarregue os produtos após o redirecionamento
+
+O uso do useCallback para a função de busca de produtos e o refrescamento baseado no parâmetro de URL após o redirecionamento são implementações importantes para garantir que os produtos apareçam corretamente após a edição.
