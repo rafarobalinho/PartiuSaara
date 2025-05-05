@@ -208,44 +208,29 @@ export default function Reservations() {
                       <div key={reservation.id} className="bg-white rounded-lg shadow-sm p-4 border flex flex-col sm:flex-row">
                         <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 sm:mr-4">
                           <img 
-                            src={reservation.product?.images?.[0] || '/placeholder-image.jpg'} 
-                            alt={reservation.product?.name || 'Produto'} 
+                            src={reservation.product_image || '/placeholder-image.jpg'} 
+                            alt={reservation.product_name || 'Produto'} 
                             className="w-full h-full object-cover"
                           />
                         </div>
                         <div className="flex-1">
                           <div className="flex flex-wrap justify-between mb-2">
-                            <Link href={`/products/${reservation.product?.id || 0}`}>
-                              <a className="font-medium hover:text-primary hover:underline">{reservation.product?.name || 'Produto indisponível'}</a>
+                            <Link href={`/products/${reservation.product_id || 0}`}>
+                              <a className="font-medium hover:text-primary hover:underline">
+                                {reservation.product_name || 'Produto indisponível'}
+                              </a>
                             </Link>
                             <Badge className={getStatusColor(reservation.status)}>
                               {formatStatus(reservation.status)}
                             </Badge>
                           </div>
                           
-                          {reservation.product?.store && (
-                            <Link href={`/stores/${reservation.product.store.id}`}>
-                              <a className="text-sm text-gray-500 hover:text-primary block mb-2">
-                                <i className="fas fa-store mr-1"></i> {reservation.product.store.name}
-                              </a>
-                            </Link>
-                          )}
+                          {/* Link para a loja foi removido porque não temos campos planos para ele */}
                           
                           <div className="flex items-center mb-1">
-                            {reservation.product?.discountedPrice ? (
-                              <>
-                                <span className="text-sm line-through text-gray-400 mr-2">
-                                  {formatCurrency(reservation.product?.price || 0)}
-                                </span>
-                                <span className="text-lg font-bold text-primary">
-                                  {formatCurrency(reservation.product?.discountedPrice || 0)}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="text-lg font-bold text-primary">
-                                {formatCurrency(reservation.product?.price || 0)}
-                              </span>
-                            )}
+                            <span className="text-lg font-bold text-primary">
+                              {formatCurrency(reservation.product_price || 0)}
+                            </span>
                             {reservation.quantity > 1 && (
                               <span className="text-sm text-gray-500 ml-2">x{reservation.quantity}</span>
                             )}

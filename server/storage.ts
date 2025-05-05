@@ -1063,12 +1063,24 @@ export class MemStorage implements IStorage {
       reservations = reservations.slice(0, limit);
     }
     
-    // Add product information to each reservation
+    // Add detailed product information to each reservation with flattened fields
     return Promise.all(reservations.map(async reservation => {
       const product = await this.getProduct(reservation.productId);
+      
+      // Get primary image for the product
+      let productImage = '';
+      if (product && product.images && product.images.length > 0) {
+        productImage = product.images[0];
+      }
+      
       return {
         ...reservation,
-        product
+        product,
+        // Add flattened fields for easier access
+        product_id: product?.id || 0,
+        product_name: product?.name || '',
+        product_price: product?.price || 0,
+        product_image: productImage
       };
     }));
   }
