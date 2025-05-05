@@ -380,8 +380,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rotas de mapa e geocodificação
   app.get('/api/stores/map', async (req, res) => {
     try {
-      // Buscar todas as lojas
-      const allStores = await db.select().from(stores);
+      // Buscar lojas do storage já implementado
+      const allStores = await storage.getStores();
       
       // Filtrar apenas as lojas que têm location definido
       const storesWithLocation = allStores.filter(store => 
