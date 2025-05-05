@@ -107,7 +107,25 @@ export default function Products() {
   useEffect(() => {
     if (productsData && productsData.products) {
       console.log('Produtos recebidos da API:', productsData.products);
-      setProcessedProducts(productsData.products);
+      
+      // Transformar os dados para o formato esperado pelo ProductCard
+      const transformedProducts = productsData.products.map(product => ({
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        discountedPrice: product.discounted_price,
+        category: product.category,
+        images: product.images || [],
+        store: {
+          id: product.store?.id,
+          name: product.store?.name || 'Loja'
+        },
+        isActive: product.is_active
+      }));
+      
+      console.log('Produtos transformados:', transformedProducts);
+      setProcessedProducts(transformedProducts);
     }
   }, [productsData]);
 
@@ -186,9 +204,9 @@ export default function Products() {
                 </div>
               ))}
             </div>
-          ) : productsData.products && productsData.products.length > 0 ? (
+          ) : processedProducts.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {productsData.products.map((product: Product) => (
+              {processedProducts.map((product: Product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
@@ -224,9 +242,9 @@ export default function Products() {
                 </div>
               ))}
             </div>
-          ) : productsData.products && productsData.products.length > 0 ? (
+          ) : processedProducts.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {productsData.products.map((product: Product) => (
+              {processedProducts.map((product: Product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
