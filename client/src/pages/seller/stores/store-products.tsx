@@ -21,6 +21,9 @@ export default function StoreProducts() {
   const { user, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
   const queryClient = useQueryClient();
+  
+  // Estado para controle de atualizações em andamento
+  const [isUpdating, setIsUpdating] = useState<Record<number, boolean>>({});
 
   // Redirecionar se não estiver autenticado ou não for vendedor
   const isAuthenticated = !!user;
@@ -68,33 +71,46 @@ export default function StoreProducts() {
     enabled: !!isAuthenticated && !!isSeller && !!id
   });
 
-  if (!isAuthenticated || !isSeller) {
-    return null;
-  }
-
-  const isLoading = authLoading || storeLoading || productsLoading;
-
-  // Mutation para alternar o status do produto
+  // Mutation para alternar o status do produto - SEMPRE no nível superior
   const toggleProductStatusMutation = useMutation({
     mutationFn: async (productId: number) => {
-      const response = await fetch(`/api/products/${productId}/toggle-status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
+      // Marcar o produto como atualizando
+      setIsUpdating(prev => ({ ...prev, [productId]: true }));
+      
+      try {
+        const response = await fetch(`/api/products/${productId}/toggle-status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Falha ao alternar o status do produto');
         }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Falha ao alternar o status do produto');
+        
+        return await response.json();
+      } finally {
+        // Garantir que o status de atualização seja removido
+        setIsUpdating(prev => ({ ...prev, [productId]: false }));
       }
-      
-      return response.json();
     },
     onSuccess: () => {
       // Invalidar o cache para forçar o recarregamento dos produtos
       queryClient.invalidateQueries({ queryKey: ['/api/products', { storeId: id }] });
     }
   });
+  
+  // Função para lidar com o clique no botão (sem hooks dentro)
+  const handleToggleStatus = (productId: number) => {
+    toggleProductStatusMutation.mutate(productId);
+  };
+
+  if (!isAuthenticated || !isSeller) {
+    return null;
+  }
+
+  const isLoading = authLoading || storeLoading || productsLoading;
   
   // Filter products based on active tab
   const filteredProducts = products.filter((product: any) => {
@@ -217,10 +233,10 @@ export default function StoreProducts() {
           <Button 
             variant={product.isActive ? "destructive" : "default"}
             size="sm"
-            onClick={() => toggleProductStatusMutation.mutate(product.id)}
-            disabled={toggleProductStatusMutation.isPending}
+            onClick={() => handleToggleStatus(product.id)}
+            disabled={isUpdating[product.id]}
           >
-            {toggleProductStatusMutation.isPending && toggleProductStatusMutation.variables === product.id ? (
+            {isUpdating[product.id] ? (
               <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]"></span>
             ) : (
               <i className={`fas fa-${product.isActive ? 'times' : 'check'} mr-2`}></i>
