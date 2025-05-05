@@ -38,14 +38,16 @@ export const uploadImages = async (req, res) => {
           // Nome do arquivo
           const filename = path.basename(fullPath);
           
-          // Caminho para o thumbnail (versão otimizada)
-          const thumbnailPath = `/uploads/thumbnails/${filename}`;
+          // Obter o nome do arquivo sem extensão
+          const fileNameWithoutExt = path.basename(filename, path.extname(filename));
+          // Caminho para o thumbnail (versão otimizada) sempre com extensão .jpg
+          const thumbnailPath = `/uploads/thumbnails/${fileNameWithoutExt}.jpg`;
           
           return {
             originalName: file.originalname,
             imageUrl: thumbnailPath, // Retorna o caminho do thumbnail para uso na aplicação
             size: file.size,
-            mimetype: file.mimetype
+            mimetype: 'image/jpeg' // Sempre retorna como JPEG, pois convertemos todas as imagens
           };
         });
 
@@ -85,12 +87,14 @@ export const deleteImage = async (req, res) => {
       return res.status(400).json({ success: false, message: 'URL da imagem não fornecida' });
     }
 
-    // Extrai o nome do arquivo da URL
-    const filename = path.basename(imageUrl);
+    // Extrai o nome do arquivo da URL e garante extensão .jpg
+    let filename = path.basename(imageUrl);
+    const fileNameWithoutExt = path.basename(filename, path.extname(filename));
+    const jpgFilename = `${fileNameWithoutExt}.jpg`;
     
     // Constrói os caminhos para a imagem original e o thumbnail
-    const thumbnailPath = path.join(rootDir, 'public', 'uploads', 'thumbnails', filename);
-    const originalPath = path.join(rootDir, 'public', 'uploads', filename);
+    const thumbnailPath = path.join(rootDir, 'public', 'uploads', 'thumbnails', jpgFilename);
+    const originalPath = path.join(rootDir, 'public', 'uploads', jpgFilename);
 
     // Verifica se os arquivos existem e os exclui
     const deleteFileIfExists = (filePath) => {

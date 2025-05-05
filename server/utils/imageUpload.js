@@ -66,20 +66,41 @@ const processImages = async (req, res, next) => {
   try {
     // Para cada arquivo enviado, cria uma versão otimizada (thumbnail)
     const processPromises = req.files.map(async (file) => {
-      const thumbnailPath = path.join(thumbnailDir, path.basename(file.path));
+      // Modificamos a extensão para garantir que todos os arquivos sejam salvos como JPG
+      const fileNameWithoutExt = path.basename(file.path, path.extname(file.path));
+      const thumbnailPath = path.join(thumbnailDir, `${fileNameWithoutExt}.jpg`);
       
-      // Usa o sharp para redimensionar e otimizar a imagem
-      await sharp(file.path)
-        .resize({
-          width: 800, // Largura máxima
-          height: 800, // Altura máxima
-          fit: 'inside', // Mantém a proporção
-          withoutEnlargement: true // Não amplia imagens pequenas
-        })
-        .jpeg({ quality: 80 }) // Qualidade do JPEG (80% é um bom equilíbrio)
-        .toFile(thumbnailPath);
+      console.log(`Processando imagem: ${file.path} -> ${thumbnailPath}`);
       
-      return thumbnailPath;
+      try {
+        // Processa o arquivo original para adicionar fundo branco (importante para PNGs transparentes)
+        await sharp(file.path)
+          .flatten({ background: { r: 255, g: 255, b: 255 } }) // Adiciona fundo branco para imagens transparentes
+          .jpeg({ quality: 95 }) // Salva como JPEG com alta qualidade
+          .toFile(file.path.replace(path.extname(file.path), '.jpg'));
+        
+        // Caso o arquivo original não seja JPG, remover o arquivo original
+        if (path.extname(file.path) !== '.jpg') {
+          fs.unlinkSync(file.path);
+        }
+        
+        // Usa o sharp para redimensionar e otimizar a imagem thumbnails
+        await sharp(file.path.replace(path.extname(file.path), '.jpg'))
+          .resize({
+            width: 800, // Largura máxima
+            height: 800, // Altura máxima
+            fit: 'inside', // Mantém a proporção
+            withoutEnlargement: true // Não amplia imagens pequenas
+          })
+          .flatten({ background: { r: 255, g: 255, b: 255 } }) // Adiciona fundo branco para imagens transparentes
+          .jpeg({ quality: 80 }) // Qualidade do JPEG (80% é um bom equilíbrio)
+          .toFile(thumbnailPath);
+        
+        return thumbnailPath;
+      } catch (err) {
+        console.error(`Erro ao processar imagem individual: ${file.path}`, err);
+        throw err;
+      }
     });
 
     await Promise.all(processPromises);
