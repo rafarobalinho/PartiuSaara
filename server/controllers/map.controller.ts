@@ -46,13 +46,13 @@ export async function updateStoreGeolocation(req: Request, res: Response) {
     }
 
     // Verificar se a loja existe
-    const store = await storage.getStoreById(parseInt(storeId));
+    const store = await storage.getStore(parseInt(storeId));
     if (!store) {
       return res.status(404).json({ error: 'Loja não encontrada' });
     }
 
     // Verificar se o usuário é dono da loja (se não for um admin)
-    if (req.user?.role !== 'admin' && store.userId !== req.user?.id) {
+    if (req.user?.role !== 'seller' && store.userId !== req.user?.id) {
       return res.status(403).json({ error: 'Você não tem permissão para atualizar esta loja' });
     }
 
@@ -76,11 +76,11 @@ export async function updateStoreGeolocation(req: Request, res: Response) {
  */
 export async function getStoresForMap(req: Request, res: Response) {
   try {
-    const stores = await storage.getAllStores();
+    const stores = await storage.getStores();
     
     // Filtrar apenas lojas com dados de localização e mapear para o formato necessário para o mapa
     const storesWithLocation = stores
-      .filter(store => {
+      .filter((store: any) => {
         // Verificar se o store.location existe e tem latitude/longitude
         try {
           const location = store.location;
@@ -92,7 +92,7 @@ export async function getStoresForMap(req: Request, res: Response) {
           return false;
         }
       })
-      .map(store => ({
+      .map((store: any) => ({
         id: store.id,
         name: store.name,
         description: store.description,
