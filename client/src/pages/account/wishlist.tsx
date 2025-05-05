@@ -8,19 +8,29 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { formatCurrency } from '@/lib/utils';
 
+interface ProductImage {
+  id: number;
+  image_url: string;
+  thumbnail_url: string;
+  is_primary: boolean;
+}
+
 interface WishlistItem {
   id: number;
+  userId: number;
   productId: number;
+  createdAt?: string;
   product: {
     id: number;
     name: string;
     description: string;
     price: number;
     discountedPrice?: number;
-    images: string[];
+    images: ProductImage[];
     store: {
       id: number;
       name: string;
+      description?: string;
     };
   };
 }
@@ -179,7 +189,7 @@ export default function Wishlist() {
                   <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 sm:mr-4">
                     <img 
                       src={item.product && item.product.images && item.product.images.length > 0 
-                        ? item.product.images[0] 
+                        ? item.product.images[0].image_url 
                         : '/placeholder-image.jpg'} 
                       alt={item.product ? item.product.name : 'Produto'} 
                       className="w-full h-full object-cover"
