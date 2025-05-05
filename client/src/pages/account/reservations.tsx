@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
+import { useUi } from '@/context/ui-context';
 import { useLocation, Link } from 'wouter';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ interface Reservation {
 
 export default function Reservations() {
   const { isAuthenticated } = useAuth();
+  const { decrementReservationsCount, syncCounters } = useUi();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -73,6 +75,13 @@ export default function Reservations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/reservations'] });
+      
+      // Se for cancelamento ou finalização, atualizar contadores
+      if (status === 'cancelled' || status === 'completed') {
+        decrementReservationsCount();
+        syncCounters();
+      }
+      
       toast({
         title: 'Status atualizado',
         description: 'O status da reserva foi atualizado com sucesso.',
