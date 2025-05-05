@@ -55,21 +55,96 @@ export default function EditProduct() {
   const [selectedStore, setSelectedStore] = useState<string>('');
   const [imagesChanged, setImagesChanged] = useState(false);
 
-  // Carregar dados do produto
-  const {
-    data: product,
-    isLoading: isLoadingProduct,
-    error: productError
-  } = useQuery({
-    queryKey: [`/api/products/${id}`],
-    queryFn: async () => {
-      const res = await fetch(`/api/products/${id}`);
-      if (!res.ok) {
-        throw new Error('Falha ao carregar produto');
+  // Estados para controle do produto
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Carregar dados do produto via useEffect para melhor controle de erros
+  useEffect(() => {
+    const fetchProductDetails = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const productId = id;
+        console.log('Tentando carregar produto para edição, ID:', productId);
+        
+        if (!productId) {
+          console.error('ID do produto não fornecido na URL');
+          setError('ID do produto não encontrado');
+          setLoading(false);
+          return;
+        }
+        
+        const response = await fetch(`/api/products/${productId}`);
+        const data = await response.json();
+        console.log('Dados do produto recebidos:', data);
+        
+        // Verifique se os dados do produto existem
+        if (!data.product || !data.product.id) {
+          console.error('Produto não encontrado ou dados inválidos');
+          setError('Produto não encontrado');
+          setLoading(false);
+          return;
+        }
+        
+        // Crie um objeto produto com valores padrão seguros para evitar undefined
+        const safeProduct = {
+          id: data.product.id,
+          name: data.product.name || '',
+          description: data.product.description || '',
+          category: data.product.category || '',
+          price: data.product.price || 0,
+          discountedPrice: data.product.discountedPrice || null,
+          stock: data.product.stock || 0,
+          images: Array.isArray(data.product.images) ? data.product.images : [],
+          storeId: data.product.storeId || null,
+          // Adicione outras propriedades conforme necessário
+        };
+        
+        console.log('Produto normalizado:', safeProduct);
+        
+        // Atualize o estado principal
+        setProduct(safeProduct);
+        
+        // Atualize os estados individuais dos campos do formulário
+        if (Array.isArray(safeProduct.images)) {
+          setProductImages(safeProduct.images);
+        } else {
+          setProductImages([]);
+        }
+        
+        // Segurança para store_id
+        if (safeProduct.storeId) {
+          setSelectedStore(safeProduct.storeId.toString());
+        }
+        
+        // Se não houver imagens no objeto do produto, tente buscá-las separadamente
+        if (!safeProduct.images || safeProduct.images.length === 0) {
+          try {
+            const imagesResponse = await fetch(`/api/products/${productId}/images`);
+            const imagesData = await imagesResponse.json();
+            console.log('Imagens do produto:', imagesData);
+            
+            if (imagesData && Array.isArray(imagesData)) {
+              setProductImages(imagesData);
+            }
+          } catch (imageError) {
+            console.error('Erro ao buscar imagens do produto:', imageError);
+            // Não definir erro aqui, apenas log, para não bloquear a edição
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar produto para edição:', error);
+        setError('Erro ao carregar dados do produto. Tente novamente mais tarde.');
+      } finally {
+        setLoading(false);
       }
-      return await res.json();
-    }
-  });
+    };
+    
+    fetchProductDetails();
+  }, [id]);
 
   // If not authenticated or not a seller, redirect
   useEffect(() => {
@@ -186,251 +261,249 @@ export default function EditProduct() {
   // O upload de imagens agora é gerenciado pelo componente ImageUpload
   // Removemos os manipuladores manuais já que o componente ImageUpload cuida disso
 
-  if (isLoadingProduct) {
-    return (
-      <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-[400px]">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (productError) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-red-50 text-red-800 p-4 rounded-lg">
-          <h2 className="text-xl font-bold">Erro ao carregar produto</h2>
-          <p>Não foi possível carregar os dados do produto. Por favor, tente novamente mais tarde.</p>
-          <Button 
-            onClick={() => navigate('/seller/products')}
-            className="mt-4"
-          >
-            Voltar para Produtos
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
+  // No componente de renderização
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <div className="flex items-center mb-2">
-          <Link href="/seller/products">
-            <span className="text-gray-500 hover:text-primary mr-2 cursor-pointer">
-              <i className="fas fa-arrow-left"></i>
-            </span>
-          </Link>
-          <h1 className="text-2xl font-bold">Editar Produto</h1>
+    <div className="container mx-auto p-4">
+      {loading ? (
+        <div className="flex justify-center p-8">
+          <div className="w-12 h-12 border-t-4 border-orange-500 rounded-full animate-spin"></div>
+          <p className="ml-4">Carregando produto...</p>
         </div>
-        <p className="text-gray-600">Atualize os detalhes do produto para refletir as alterações no marketplace</p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Informações do Produto</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome do Produto*</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Ex: Camiseta de Algodão" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Categoria*</FormLabel>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione uma categoria" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {categories.map((category) => (
-                              <SelectItem key={category.id} value={category.name}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descrição*</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Descreva o produto em detalhes"
-                          rows={4}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Preço (R$)*</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="discountedPrice"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Preço Promocional (R$)</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                        <FormDescription>
-                          Deixe em branco se não houver desconto
-                        </FormDescription>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="stock"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Estoque</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            min="0"
-                            placeholder="Quantidade em estoque"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="storeId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Loja*</FormLabel>
-                      <Select
-                        value={field.value.toString()}
-                        onValueChange={(value) => {
-                          field.onChange(parseInt(value));
-                          setSelectedStore(value);
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione uma loja" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {stores.map((store) => (
-                            <SelectItem key={store.id} value={store.id.toString()}>
-                              {store.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div>
-                  <FormLabel>Imagens do Produto</FormLabel>
-                  <div className="mt-2 border rounded-lg p-4">
-
-                    <div>
-                      <ImageUpload
-                        name={`product-${id}`}
-                        multiple={true}
-                        maxImages={5}
-                        value={productImages}
-                        onChange={(urls) => {
-                          setProductImages(urls);
-                          setImagesChanged(true);
-                        }}
+      ) : error ? (
+        <div className="text-center p-8 bg-white rounded-lg shadow-sm">
+          <div className="text-orange-500 text-5xl mb-3">⚠️</div>
+          <h3 className="text-lg font-medium mb-2">Não foi possível carregar o produto</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            className="px-4 py-2 bg-orange-500 text-white rounded"
+            onClick={() => navigate('/seller/products')}
+          >
+            Voltar para lista de produtos
+          </button>
+        </div>
+      ) : (
+        // Renderização do formulário quando o produto estiver carregado
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-6">
+            <div className="flex items-center mb-2">
+              <Link href="/seller/products">
+                <span className="text-gray-500 hover:text-primary mr-2 cursor-pointer">
+                  <i className="fas fa-arrow-left"></i>
+                </span>
+              </Link>
+              <h1 className="text-2xl font-bold">Editar Produto</h1>
+            </div>
+            <p className="text-gray-600">Atualize os detalhes do produto para refletir as alterações no marketplace</p>
+          </div>
+    
+          <div className="grid grid-cols-1 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Informações do Produto</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome do Produto*</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Ex: Camiseta de Algodão" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-
+    
+                      <FormField
+                        control={form.control}
+                        name="category"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Categoria*</FormLabel>
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione uma categoria" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {categories.map((category) => (
+                                  <SelectItem key={category.id} value={category.name}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-2 pt-4">
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => navigate('/seller/products')}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    className="bg-primary text-white hover:bg-primary/90"
-                    disabled={updateProductMutation.isPending}
-                  >
-                    {updateProductMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      </div>
+    
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Descrição*</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              placeholder="Descreva o produto em detalhes"
+                              rows={4}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="price"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Preço (R$)*</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="0.00"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+    
+                      <FormField
+                        control={form.control}
+                        name="discountedPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Preço Promocional (R$)</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="0.00"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                            <FormDescription>
+                              Deixe em branco se não houver desconto
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+    
+                      <FormField
+                        control={form.control}
+                        name="stock"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Estoque</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                min="0"
+                                placeholder="Quantidade em estoque"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+    
+                    <FormField
+                      control={form.control}
+                      name="storeId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Loja*</FormLabel>
+                          <Select
+                            value={field.value.toString()}
+                            onValueChange={(value) => {
+                              field.onChange(parseInt(value));
+                              setSelectedStore(value);
+                            }}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione uma loja" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {stores.map((store) => (
+                                <SelectItem key={store.id} value={store.id.toString()}>
+                                  {store.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+    
+                    <div>
+                      <FormLabel>Imagens do Produto</FormLabel>
+                      <div className="mt-2 border rounded-lg p-4">
+    
+                        <div>
+                          <ImageUpload
+                            name={`product-${id}`}
+                            multiple={true}
+                            maxImages={5}
+                            value={productImages}
+                            onChange={(urls) => {
+                              setProductImages(urls);
+                              setImagesChanged(true);
+                            }}
+                          />
+    
+                        </div>
+                      </div>
+                    </div>
+    
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => navigate('/seller/products')}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        className="bg-primary text-white hover:bg-primary/90"
+                        disabled={updateProductMutation.isPending}
+                      >
+                        {updateProductMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
