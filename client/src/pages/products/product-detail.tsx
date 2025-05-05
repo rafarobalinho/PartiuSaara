@@ -11,6 +11,15 @@ import { apiRequest } from '@/lib/queryClient';
 import ProductCard from '@/components/ui/product-card';
 import CountdownTimer from '@/components/ui/countdown-timer';
 
+// Função que verifica se uma imagem deve ser usada
+function getValidImage(imageUrl: string | undefined, fallbackUrl: string): string {
+  // Se não tiver URL, usa a imagem padrão
+  if (!imageUrl) return fallbackUrl;
+  
+  // Retorna a URL original passada pelo banco de dados
+  return imageUrl;
+}
+
 interface Product {
   id: number;
   name: string;
@@ -214,7 +223,7 @@ export default function ProductDetail() {
                 </div>
               )}
               <img 
-                src={product.images[activeImage]} 
+                src={getValidImage(product.images[activeImage], 'https://static.wixstatic.com/media/1f3c2d_25683f6b139a4861869b40e5a7a70af2~mv2.jpg/v1/fill/w_640,h_560,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/1f3c2d_25683f6b139a4861869b40e5a7a70af2~mv2.jpg')} 
                 alt={product.name} 
                 className="w-full h-full object-contain p-4"
               />
@@ -228,7 +237,7 @@ export default function ProductDetail() {
                 onClick={() => setActiveImage(index)}
               >
                 <img 
-                  src={image} 
+                  src={getValidImage(image, 'https://static.wixstatic.com/media/1f3c2d_25683f6b139a4861869b40e5a7a70af2~mv2.jpg/v1/fill/w_640,h_560,al_c,q_85,usm_0.66_1.00_0.01,enc_auto/1f3c2d_25683f6b139a4861869b40e5a7a70af2~mv2.jpg')} 
                   alt={`${product.name} - imagem ${index + 1}`} 
                   className="w-full h-full object-contain"
                 />
