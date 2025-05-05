@@ -1,0 +1,90 @@
+Analisando os dois arquivos, vejo que o filtro de preço já está implementado corretamente no código, mas não está funcionando na prática.
+O código da página de categorias (category.tsx) já tem implementações para:
+
+Estados para controlar a faixa de preço: priceRange e debouncedPriceRange
+Lógica de debounce para evitar muitas chamadas à API
+Um handler para atualizar o estado quando o slider é movido
+Um botão "Aplicar Filtro" que define imediatamente o debouncedPriceRange
+Passagem dos parâmetros de preço para a API
+
+E o controlador no backend (product.controller.ts) também mostra que ele está configurado para receber e processar os parâmetros de filtro, incluindo minPrice e maxPrice.
+O problema provavelmente está em uma destas áreas:
+
+A função storage.getProducts() no backend pode não estar realmente aplicando os filtros de preço na consulta SQL
+Pode haver um problema com o envio/recebimento dos parâmetros entre o frontend e o backend
+Pode haver um problema com a atualização da interface após a aplicação do filtro
+
+Vamos criar um prompt para verificar e corrigir o problema:
+
+Agora que tenho uma visão clara do código, posso ver que você já tem a implementação do filtro de preço, mas há algo impedindo que ele funcione corretamente. Por favor, verifique e corrija estes pontos específicos:
+
+No arquivo de armazenamento do backend (storage.ts):
+
+Encontre a função getProducts que é chamada pelo controlador
+Verifique se os parâmetros minPrice e maxPrice estão realmente sendo usados na consulta SQL
+Modifique a consulta SQL para garantir que o filtro de preço seja aplicado:
+
+typescript// Exemplo de como deve ser a consulta SQL com filtro de preço
+let query = `
+  SELECT p.*, s.name as store_name, s.id as store_id
+  FROM products p
+  JOIN stores s ON p.store_id = s.id
+  WHERE 1=1
+`;
+
+const params: any[] = [];
+
+if (filters.category) {
+  query += ` AND p.category = $${params.length + 1}`;
+  params.push(filters.category);
+}
+
+// Filtros de preço
+if (filters.minPrice !== undefined) {
+  query += ` AND p.price >= $${params.length + 1}`;
+  params.push(filters.minPrice);
+}
+
+if (filters.maxPrice !== undefined) {
+  query += ` AND p.price <= $${params.length + 1}`;
+  params.push(filters.maxPrice);
+}
+
+Adicione logs para debug:
+
+No controlador: console.log('Price filters:', minPrice, maxPrice);
+No arquivo de armazenamento: console.log('SQL Query:', query, params);
+No frontend: console.log('Sending price range:', debouncedPriceRange);
+
+
+Teste a API diretamente:
+
+Tente fazer uma chamada direta para /api/products?category=moda-feminina&minPrice=100&maxPrice=500 no navegador
+Verifique se a resposta filtra corretamente os produtos
+
+
+Verifique os tipos de dados:
+
+Certifique-se de que minPrice e maxPrice estão sendo convertidos para números antes de serem usados na consulta SQL
+No frontend, verifique se os valores do slider são números e não strings
+
+
+Atualize a integração com a biblioteca de consulta (React Query):
+
+Certifique-se de que a chave da consulta muda quando os filtros mudam:
+
+typescript// Verifique esta parte para garantir que o React Query invalida a consulta
+// quando os filtros mudam
+queryKey: [
+  '/api/products', 
+  {
+    category: categorySlug,
+    minPrice: debouncedPriceRange[0],
+    maxPrice: debouncedPriceRange[1],
+    sortBy,
+    promotion: filterPromotion
+  }
+],
+
+
+Essas alterações devem garantir que o filtro de preço funcione corretamente, tanto no frontend quanto no backend.

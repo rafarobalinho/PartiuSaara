@@ -498,11 +498,20 @@ export class MemStorage implements IStorage {
     limit?: number,
     type?: string
   } = {}): Promise<Product[]> {
+    console.log('Price filters received:', { 
+      minPrice: options.minPrice, 
+      maxPrice: options.maxPrice,
+      category: options.category,
+      sortBy: options.sortBy
+    });
+    
     let products = Array.from(this.products.values());
+    console.log('Total products before filtering:', products.length);
     
     // Filter by category
     if (options.category) {
       products = products.filter(product => product.category.toLowerCase() === options.category!.toLowerCase());
+      console.log('Products after category filter:', products.length);
     }
     
     // Filter by search term
@@ -512,19 +521,28 @@ export class MemStorage implements IStorage {
         product.name.toLowerCase().includes(searchLower) || 
         product.description?.toLowerCase().includes(searchLower)
       );
+      console.log('Products after search filter:', products.length);
     }
     
     // Filter by price range
     if (options.minPrice !== undefined) {
-      products = products.filter(product => 
-        (product.discountedPrice || product.price) >= options.minPrice!
-      );
+      const minPrice = Number(options.minPrice);
+      console.log('Applying min price filter:', minPrice);
+      products = products.filter(product => {
+        const price = product.discountedPrice !== null ? product.discountedPrice || product.price : product.price;
+        return price >= minPrice;
+      });
+      console.log('Products after min price filter:', products.length);
     }
     
     if (options.maxPrice !== undefined) {
-      products = products.filter(product => 
-        (product.discountedPrice || product.price) <= options.maxPrice!
-      );
+      const maxPrice = Number(options.maxPrice);
+      console.log('Applying max price filter:', maxPrice);
+      products = products.filter(product => {
+        const price = product.discountedPrice !== null ? product.discountedPrice || product.price : product.price;
+        return price <= maxPrice;
+      });
+      console.log('Products after max price filter:', products.length);
     }
     
     // Filter by promotion type

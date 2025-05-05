@@ -18,16 +18,36 @@ export async function getProducts(req: Request, res: Response) {
       type
     } = req.query;
     
+    console.log('Controller received price filters:', { 
+      minPrice, 
+      maxPrice,
+      minPriceType: typeof minPrice,
+      maxPriceType: typeof maxPrice
+    });
+    
+    // Convert price filters to numbers
+    const minPriceNum = minPrice ? Number(minPrice) : undefined;
+    const maxPriceNum = maxPrice ? Number(maxPrice) : undefined;
+    
+    console.log('Converted price filters:', { 
+      minPriceNum, 
+      maxPriceNum,
+      minPriceNumType: typeof minPriceNum,
+      maxPriceNumType: typeof maxPriceNum
+    });
+    
     const products = await storage.getProducts({
       category: category as string,
       search: search as string,
-      minPrice: minPrice ? Number(minPrice) : undefined,
-      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      minPrice: minPriceNum,
+      maxPrice: maxPriceNum,
       sortBy: sortBy as string,
       promotion: promotion === 'true',
       limit: limit ? Number(limit) : undefined,
       type: type as string
     });
+    
+    console.log(`Controller returning ${products.length} products after filtering`);
     
     res.json(products);
   } catch (error) {
