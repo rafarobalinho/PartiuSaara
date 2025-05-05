@@ -1,0 +1,59 @@
+Vejo que o problema ainda persiste - os cards de produtos continuam grandes e não foram modificados conforme sugerido. 
+
+URGENTE: Correção necessária para os cards de produtos em visualização mobile
+Os cards de produtos NÃO estão otimizados para dispositivos móveis. Veja a imagem que acabei de enviar! É EXATAMENTE O MESMO LAYOUT que tinha antes, nenhuma modificação foi aplicada.
+PROBLEMA ESPECÍFICO:
+•	O card está ocupando toda a largura da tela
+•	A imagem e informações estão desproporcionais
+•	Só consigo ver UM produto por vez na tela do celular
+•	O layout atual desperdiça espaço e prejudica a experiência do usuário
+IMPLEMENTAÇÃO NECESSÁRIA IMEDIATAMENTE:
+1.	Modifique o arquivo client/src/pages/seller/products/index.tsx para implementar um grid de 2 colunas em mobile
+2.	Altere os componentes de card para um formato vertical e compacto
+3.	Redimensione as imagens para proporção fixa (quadrada ou 4:3)
+4.	Limite a descrição a 1-2 linhas com truncamento
+CÓDIGO A SER SUBSTITUÍDO:
+jsx
+// Encontre esse trecho (ou similar) que renderiza os cards grandes horizontais
+<div className="w-full p-4 border rounded-lg shadow-sm mb-4">
+  <div className="flex flex-col md:flex-row">
+    <div className="w-full md:w-1/3 mb-4 md:mb-0">
+      <img src={product.imageUrl} alt={product.name} className="w-full h-auto rounded" />
+    </div>
+    <div className="w-full md:w-2/3 md:pl-4">
+      <h3 className="text-lg font-medium">{product.name}</h3>
+      <!-- resto do conteúdo -->
+    </div>
+  </div>
+</div>
+SUBSTITUA POR:
+jsx
+// Layout em grid de 2 colunas para mobile
+<div className="grid grid-cols-2 gap-3">
+  {products.map(product => (
+    <div key={product.id} className="border rounded-lg overflow-hidden shadow-sm bg-white">
+      {/* Imagem do produto em proporção fixa */}
+      <div className="relative pt-[100%]">
+        <img 
+          src={product.imageUrl} 
+          alt={product.name} 
+          className="absolute top-0 left-0 w-full h-full object-cover" 
+        />
+      </div>
+      
+      {/* Informações do produto */}
+      <div className="p-2">
+        <h3 className="font-medium text-sm truncate">{product.name}</h3>
+        <p className="text-orange-500 font-bold text-sm">R$ {product.price.toFixed(2)}</p>
+        <p className="text-xs text-gray-500 truncate">{product.category}</p>
+        
+        <div className="mt-2 flex gap-1">
+          <button className="flex-1 py-1 text-xs border border-gray-300 rounded">Editar</button>
+          <button className="flex-1 py-1 text-xs bg-orange-500 rounded text-white">Ativar</button>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+Isso DEVE ser implementado imediatamente. O layout atual NÃO está funcionando bem em dispositivos móveis e está prejudicando a usabilidade do aplicativo.
+
