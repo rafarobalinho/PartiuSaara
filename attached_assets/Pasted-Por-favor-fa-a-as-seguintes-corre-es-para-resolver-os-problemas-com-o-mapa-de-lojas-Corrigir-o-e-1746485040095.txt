@@ -1,0 +1,103 @@
+Por favor, faça as seguintes correções para resolver os problemas com o mapa de lojas:
+
+Corrigir o endpoint da API:
+
+O erro mostra requisições para /api/stores/map1 (com um 1 no final), mas provavelmente a rota deveria ser /api/stores/map
+Verifique o arquivo StoresMap.tsx e corrija a URL na chamada fetch:
+
+
+
+javascript// Alterar de:
+const response = await fetch('/api/stores/map1');  // ou qualquer variação incorreta
+
+// Para:
+const response = await fetch('/api/stores/map');
+
+Implementar a rota no backend:
+
+Adicione a rota correta no backend:
+
+
+
+javascript// Em server/routes/stores.js ou equivalente
+app.get('/api/stores/map', async (req, res) => {
+  try {
+    console.log('Recebida requisição para /api/stores/map');
+    // Buscar lojas com coordenadas válidas
+    const result = await db.query(`
+      SELECT 
+        id, 
+        name, 
+        description, 
+        category,
+        address,
+        location
+      FROM 
+        stores
+      WHERE 
+        location IS NOT NULL
+    `);
+    
+    console.log('Lojas encontradas:', result.rows.length);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar lojas para o mapa:', error);
+    res.status(500).json({ error: 'Falha ao buscar lojas para o mapa' });
+  }
+});
+
+Resolver o erro de sandbox:
+
+Este erro está relacionado ao iframe usado pelo Google Maps
+Remova as opções de sandbox problemáticas modificando a inicialização da API do Google Maps:
+
+
+
+javascript// Em StoresMap.tsx
+const { isLoaded } = useJsApiLoader({
+  id: 'google-map-script',
+  googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+  // Remover todas as opções potencialmente problemáticas
+  libraries: [],
+  // NÃO inclua googleMapsApiOptions aqui
+});
+
+Adicione mais logs para debug:
+
+No componente StoresMap.tsx, adicione logs para entender melhor o que está acontecendo:
+
+
+
+javascriptuseEffect(() => {
+  console.log('Inicializando mapa com API key:', import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? 'Configurada' : 'Não configurada');
+  
+  const fetchStores = async () => {
+    try {
+      console.log('Iniciando busca de lojas para o mapa');
+      setLoading(true);
+      const response = await fetch('/api/stores/map');
+      
+      console.log('Resposta recebida:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Falha ao buscar lojas para o mapa: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Dados recebidos:', data);
+      setStores(data);
+      
+    } catch (err) {
+      console.error('Erro detalhado ao buscar lojas:', err);
+      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchStores();
+}, []);
+
+Verifique a configuração da chave API no .env:
+
+Certifique-se de que a variável de ambiente VITE_GOOGLE_MAPS_API_KEY está configurada corretamente

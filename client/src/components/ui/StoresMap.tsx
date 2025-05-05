@@ -49,7 +49,9 @@ const StoresMap: React.FC<StoresMapProps> = ({ className, height = '500px', widt
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+    // Remover todas as opções potencialmente problemáticas
+    libraries: []
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -64,25 +66,30 @@ const StoresMap: React.FC<StoresMapProps> = ({ className, height = '500px', widt
 
   // Carregar lojas do backend
   useEffect(() => {
+    console.log('Inicializando mapa com API key:', import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? 'Configurada' : 'Não configurada');
+    
     const fetchStores = async () => {
       try {
+        console.log('Iniciando busca de lojas para o mapa');
         setLoading(true);
-        console.log('Buscando lojas para o mapa...');
         const response = await fetch('/api/stores/map');
         
-        console.log('Status da resposta:', response.status);
+        console.log('Resposta recebida:', response.status);
         
         if (!response.ok) {
-          throw new Error('Falha ao buscar lojas para o mapa');
+          throw new Error(`Falha ao buscar lojas para o mapa: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log('Lojas recebidas:', data.length, data);
+        console.log('Dados recebidos:', data);
         setStores(data);
         
         // Ajustar o zoom e centro do mapa para mostrar todas as lojas
         if (data.length > 0) {
+          console.log('Ajustando visualização para mostrar', data.length, 'lojas');
           fitBoundsToStores(data);
+        } else {
+          console.log('Nenhuma loja com localização encontrada');
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
