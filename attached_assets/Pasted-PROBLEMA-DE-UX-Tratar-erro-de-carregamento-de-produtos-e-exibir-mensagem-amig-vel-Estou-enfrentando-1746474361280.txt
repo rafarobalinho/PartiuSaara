@@ -1,0 +1,184 @@
+PROBLEMA DE UX: Tratar erro de carregamento de produtos e exibir mensagem amigável
+Estou enfrentando um erro na listagem de produtos: Unexpected token '<': '<!DOCTYPE...' is not valid JSON. Este erro ocorre porque a API está retornando HTML em vez de JSON quando não há produtos na categoria.
+SOLUÇÃO NECESSÁRIA:
+
+Correção do backend:
+Modifique o endpoint de API para SEMPRE retornar um objeto JSON válido, mesmo quando não há produtos:
+javascriptapp.get('/api/categories/:slug/products', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    // Verificar se a categoria existe
+    const categoryQuery = 'SELECT * FROM categories WHERE slug = $1';
+    const categoryResult = await pool.query(categoryQuery, [slug]);
+    
+    if (categoryResult.rows.length === 0) {
+      // Retornar array vazio se categoria não existir
+      return res.json({ products: [], message: 'Categoria não encontrada' });
+    }
+    
+    // Buscar produtos da categoria
+    const productsQuery = `
+      SELECT p.* FROM products p
+      JOIN categories c ON 
+        (c.id = p.category_id OR 
+         c.id = ANY(p.secondary_categories))
+      WHERE c.slug = $1 AND p.is_active = true
+      ORDER BY p.created_at DESC
+    `;
+    
+    const { rows } = await pool.query(productsQuery, [slug]);
+    
+    // Sempre retornar um objeto JSON válido
+    res.json({ 
+      products: rows,
+      count: rows.length,
+      message: rows.length === 0 ? 'Não há produtos nesta categoria' : ''
+    });
+  } catch (error) {
+    console.error('Erro ao buscar produtos por categoria:', error);
+    // Retornar JSON mesmo em caso de erro
+    res.status(500).json({ 
+      error: 'Erro ao buscar produtos',
+      message: error.message,
+      products: []
+    });
+  }
+});
+
+Melhoria no frontend:
+Atualize o componente que lista os produtos para exibir uma mensagem amigável quando não há produtos:
+jsx// Arquivo da página de categoria ou componente de listagem de produtos
+
+// Estado para controlar produtos e erros
+const [products, setProducts] = useState([]);
+const [isLoading, setIsLoading] = useState(true);
+const [error, setError] = useState(null);
+
+useEffect(() => {
+  const fetchProducts = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Obter slug da categoria da URL
+      const categorySlug = router.query.slug || params.slug;
+      
+      // Fazer chamada à API
+      const response = await api.get(`/api/categories/${categorySlug}/products`);
+      
+      // Verificar se a resposta contém produtos
+      if (response.data && Array.isArray(response.data.products)) {
+        setProducts(response.data.products);
+      } else if (response.data && response.data.products) {
+        setProducts(response.data.products);
+      } else {
+        // Caso a resposta não contenha o formato esperado
+        setProducts([]);
+        setError('Formato de resposta inesperado');
+      }
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error);
+      setProducts([]);
+      setError('Erro ao carregar produtos. Tente novamente mais tarde.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  if (router.query.slug || params.slug) {
+    fetchProducts();
+  }
+}, [router.query.slug, params.slug]);
+
+// Renderização com tratamento para estado vazio
+return (
+  <div className="container mx-auto p-4">
+    {isLoading ? (
+      <div className="flex justify-center items-center h-40">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
+      </div>
+    ) : error ? (
+      <div className="text-center py-10">
+        <div className="text-red-500 text-6xl mb-4">
+          <i className="fas fa-exclamation-circle"></i> {/* ou usar um SVG de erro */}
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{error}</h3>
+        <button 
+          className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-md"
+          onClick={() => window.location.reload()}
+        >
+          Limpar Filtros e Tentar Novamente
+        </button>
+      </div>
+    ) : products.length === 0 ? (
+      <div className="text-center py-10">
+        <div className="text-gray-400 text-6xl mb-4">
+          <i className="fas fa-search"></i> {/* ou usar um SVG apropriado */}
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Não encontramos produtos para esta categoria.</h3>
+        <p className="text-sm text-gray-500">Tente outra categoria ou volte mais tarde.</p>
+        <button 
+          className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-md"
+          onClick={() => router.push('/')}
+        >
+          Voltar para a página inicial
+        </button>
+      </div>
+    ) : (
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        {products.map(product => (
+          <ProductCard key={product.id} product={product} />
+        ))}
+      </div>
+    )}
+  </div>
+);
+
+Tratamento de erros genérico no frontend:
+Adicione um interceptor para requisições axios para lidar com respostas HTML inesperadas:
+javascript// Arquivo de configuração do Axios (src/services/api.js ou similar)
+
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || '/api'
+});
+
+// Interceptor para tratar respostas não-JSON
+api.interceptors.response.use(
+  response => response,
+  error => {
+    // Verificar se o erro é devido a uma resposta HTML
+    if (error.response && 
+        error.response.data && 
+        typeof error.response.data === 'string' &&
+        error.response.data.includes('<!DOCTYPE html>')) {
+      
+      // Substituir o erro por um mais amigável
+      return Promise.reject({
+        response: {
+          status: error.response.status,
+          data: {
+            error: 'Erro no servidor',
+            message: 'O servidor retornou uma resposta inesperada. Tente novamente mais tarde.',
+            products: []
+          }
+        }
+      });
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+
+
+Essas mudanças garantirão que:
+
+O backend sempre retorne JSON válido, mesmo quando não há produtos
+O frontend exiba uma mensagem amigável "Não encontramos produtos para esta categoria" quando apropriado
+Erros inesperados sejam tratados de forma elegante, sem quebrar a interface
+
+Depois de implementar essas alterações, a experiência do usuário será significativamente melhorada, mesmo quando não há produtos em algumas categorias.
