@@ -150,7 +150,8 @@ export default function StoresMap() {
               lng: store.location.longitude
             }}
             onClick={() => setSelectedStore(store)}
-            icon='/marker-icon.svg'
+            // O tipo correto para o ícone do marcador
+            icon={'/marker-icon.svg'}
           />
         ))}
 
