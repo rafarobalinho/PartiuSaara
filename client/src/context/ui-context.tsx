@@ -82,6 +82,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
   // Sincroniza os contadores com os dados do servidor quando disponíveis
   useEffect(() => {
     if (userData?.stats) {
+      // Atualiza os contadores com base nas estatísticas do usuário
       setWishlistCount(userData.stats.wishlistCount || 0);
       setReservationsCount(userData.stats.reservationsCount || 0);
     }
@@ -90,8 +91,13 @@ export function UiProvider({ children }: { children: ReactNode }) {
   // Sincroniza os favoritos quando os dados são carregados
   useEffect(() => {
     if (favoriteData && Array.isArray(favoriteData)) {
+      // Extrai apenas os IDs dos produtos da lista de favoritos
       const productIds = favoriteData.map(item => item.productId);
+      // Atualiza o estado global com os favoritos do usuário
       setFavoriteProductIds(productIds);
+      
+      // Atualiza o contador para garantir consistência
+      setWishlistCount(productIds.length);
     }
   }, [favoriteData]);
   

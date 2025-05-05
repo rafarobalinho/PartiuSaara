@@ -17,6 +17,13 @@ function getValidImage(imageUrl: string | undefined, fallbackUrl: string): strin
   return imageUrl;
 }
 
+interface ProductImage {
+  id: number;
+  image_url: string;
+  thumbnail_url: string;
+  is_primary: boolean;
+}
+
 interface Product {
   id: number;
   name: string;
@@ -24,7 +31,7 @@ interface Product {
   price: number;
   discountedPrice?: number;
   category?: string;
-  images: string[];
+  images: ProductImage[] | string[];
   store: {
     id: number;
     name: string;
@@ -81,17 +88,9 @@ export default function ProductCard({
     mutationFn: async () => {
       // Pega o estado atual antes da mutação
       const currentlyFavorited = isProductFavorite(product.id);
-      return apiRequest(
-        currentlyFavorited ? 'DELETE' : 'POST',
-        `/api/wishlist/${product.id}`,
-        {}
-      );
-    },
-    onSuccess: () => {
-      // Pegamos o estado anterior à mutação para notificações
-      const wasFavorited = isProductFavorite(product.id);
       
-      if (wasFavorited) {
+      // Atualiza o estado local imediatamente para feedback instantâneo
+      if (currentlyFavorited) {
         // Remover da lista de favoritos
         removeFavoriteProduct(product.id);
         decrementWishlistCount();
@@ -101,19 +100,48 @@ export default function ProductCard({
         incrementWishlistCount();
       }
       
+      // Faz a requisição para o servidor
+      return apiRequest(
+        currentlyFavorited ? 'DELETE' : 'POST',
+        `/api/wishlist/${product.id}`,
+        {}
+      );
+    },
+    onSuccess: () => {
+      // Verifica o estado atual após a operação
+      const isFavorited = isProductFavorite(product.id);
+      
       // Sincronizar com o servidor
       syncCounters();
       syncFavorites();
       
       toast({
-        title: wasFavorited ? 'Removido dos favoritos' : 'Adicionado aos favoritos',
-        description: wasFavorited ? 
+        title: !isFavorited ? 'Removido dos favoritos' : 'Adicionado aos favoritos',
+        description: !isFavorited ? 
           `${product.name} foi removido da sua lista de desejos.` : 
           `${product.name} foi adicionado à sua lista de desejos.`,
         variant: "default",
       });
     },
     onError: (error) => {
+      // Verifica o estado atual para decidir como reverter a operação
+      const isFavorited = isProductFavorite(product.id);
+      
+      // Reverte a operação local em caso de erro no servidor
+      if (isFavorited) {
+        // Se está como favorito agora, mas houve erro ao tentar remover no servidor, então remova do estado
+        removeFavoriteProduct(product.id);
+        decrementWishlistCount();
+      } else {
+        // Se não está como favorito agora, mas houve erro ao tentar adicionar no servidor, então adicione de volta
+        addFavoriteProduct(product.id);
+        incrementWishlistCount();
+      }
+      
+      // Sincroniza com o servidor para garantir consistência
+      syncFavorites();
+      syncCounters();
+      
       toast({
         title: 'Erro',
         description: 'Ocorreu um erro ao atualizar os favoritos.',
@@ -217,7 +245,7 @@ export default function ProductCard({
           )}
           
           <img 
-            src={product.images && product.images.length > 0 ? product.images[0] : '/placeholder-image.jpg'}
+            src={getImageUrl(product.images)}
             alt={product.name}
             className="w-full h-full object-cover object-center p-0"
           />
