@@ -34,7 +34,7 @@ interface Product {
   discountedPrice?: number;
   category?: string;
   images: ProductImage[] | string[];
-  store: {
+  store?: {
     id: number;
     name: string;
   };
@@ -265,7 +265,7 @@ export default function ProductCard({
           {!showCategory && (
             <div className="text-xs text-gray-500 mb-1 flex items-center">
               <i className="fas fa-store mr-1"></i> 
-              <span className="truncate">{product.store.name}</span>
+              <span className="truncate">{product.store?.name || 'Loja'}</span>
             </div>
           )}
           
