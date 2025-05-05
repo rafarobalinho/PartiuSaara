@@ -97,11 +97,23 @@ export default function CategoryPage() {
           sortBy: sortBy,
           promotion: filterPromotion.toString()
         });
-        const response = await fetch(`/api/products?${params.toString()}`);
+        
+        console.log('Sending price range to API:', { 
+          minPrice: debouncedPriceRange[0], 
+          maxPrice: debouncedPriceRange[1]
+        });
+        
+        const url = `/api/products?${params.toString()}`;
+        console.log('API request URL:', url);
+        
+        const response = await fetch(url);
         if (!response.ok) {
           throw new Error('Failed to fetch products');
         }
-        return await response.json();
+        
+        const data = await response.json();
+        console.log('API response products:', data.length);
+        return data;
       } catch (error) {
         console.error('Error fetching products:', error);
         setIsFiltering(false);
