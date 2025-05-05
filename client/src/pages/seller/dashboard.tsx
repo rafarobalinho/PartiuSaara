@@ -64,10 +64,10 @@ export default function SellerDashboard() {
 
   // Fetch seller's store data
   const { data: store, isLoading: isStoreLoading } = useQuery({
-    queryKey: ['/api/stores?owner=true'],
+    queryKey: ['/api/stores/my-stores'],
     queryFn: async () => {
       try {
-        const stores = await fetch('/api/stores?owner=true').then(res => res.json());
+        const stores = await fetch('/api/stores/my-stores').then(res => res.json());
         return stores[0] || null; // Get the first store (assuming one store per seller)
       } catch (error) {
         console.error('Error fetching store:', error);
