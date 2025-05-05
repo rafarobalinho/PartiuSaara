@@ -189,35 +189,45 @@ export default function EditProduct() {
     const files = Array.from(event.target.files);
     const formData = new FormData();
     
+    // Adiciona os arquivos ao FormData
     files.forEach((file) => {
       formData.append('images', file);
     });
 
     try {
-      const response = await fetch('/api/upload/images', {
+      // Faz a chamada para o endpoint de upload com os query params requeridos
+      const response = await fetch(`/api/upload/images?type=product&entityId=${id}`, {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('Falha no upload das imagens');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Falha no upload das imagens');
       }
 
       const result = await response.json();
-      const newImageUrls = result.urls || [];
       
-      setProductImages((prev) => [...prev, ...newImageUrls]);
-      setImagesChanged(true);
-      
-      toast({
-        title: 'Upload concluído',
-        description: 'Imagens enviadas com sucesso.',
-      });
-    } catch (error) {
+      if (result.success && result.images) {
+        // Extrai as URLs das imagens retornadas pelo servidor
+        const newImageUrls = result.images.map((img: any) => img.imageUrl);
+        
+        // Atualiza o estado com as novas imagens
+        setProductImages((prev) => [...prev, ...newImageUrls]);
+        setImagesChanged(true);
+        
+        toast({
+          title: 'Upload concluído',
+          description: `${result.images.length} imagem(ns) enviada(s) com sucesso.`,
+        });
+      } else {
+        throw new Error('Formato de resposta inválido');
+      }
+    } catch (error: any) {
       console.error('Error uploading images:', error);
       toast({
         title: 'Erro no upload',
-        description: 'Ocorreu um erro ao enviar as imagens.',
+        description: error.message || 'Ocorreu um erro ao enviar as imagens.',
         variant: 'destructive',
       });
     }
