@@ -1447,8 +1447,19 @@ export class DatabaseStorage implements IStorage {
   
   // Store operations
   async getStore(id: number): Promise<Store | undefined> {
-    const [store] = await db.select().from(stores).where(eq(stores.id, id));
-    return store;
+    // Validar se o ID é um número válido antes de consultar o banco de dados
+    if (typeof id !== 'number' || isNaN(id)) {
+      console.error(`getStore recebeu ID inválido: ${id}, tipo: ${typeof id}`);
+      return undefined;
+    }
+    
+    try {
+      const [store] = await db.select().from(stores).where(eq(stores.id, id));
+      return store;
+    } catch (error) {
+      console.error(`Erro ao buscar loja com ID ${id}:`, error);
+      return undefined;
+    }
   }
 
   async getStores(options: { category?: string, search?: string, limit?: number } = {}): Promise<Store[]> {
