@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'wouter';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,14 +10,21 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import ProductCard from '@/components/ui/product-card';
 import CountdownTimer from '@/components/ui/countdown-timer';
+import { Loader2 } from 'lucide-react';
 
 // Função que verifica se uma imagem deve ser usada
 function getValidImage(imageUrl: string | undefined, fallbackUrl: string): string {
   // Se não tiver URL, usa a imagem padrão
   if (!imageUrl) return fallbackUrl;
   
-  // Retorna a URL original passada pelo banco de dados
-  return imageUrl;
+  // Verifica se a imagem é uma URL válida
+  try {
+    new URL(imageUrl);
+    return imageUrl;
+  } catch (e) {
+    // Se não for uma URL válida, retorna a imagem padrão
+    return fallbackUrl;
+  }
 }
 
 interface Product {
@@ -50,6 +57,8 @@ export default function ProductDetail() {
   const { toast } = useToast();
   const [activeImage, setActiveImage] = useState(0);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const { data: product, isLoading } = useQuery({
     queryKey: [`/api/products/${id}`]
@@ -61,6 +70,38 @@ export default function ProductDetail() {
     queryKey: [`/api/products/${id}/related`],
     enabled: !!product
   });
+  
+  // Implementar useEffect para inicialização segura do produto
+  useEffect(() => {
+    const fetchProductDetails = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        if (!id) {
+          console.error('ID do produto não encontrado na URL');
+          setError('Produto não encontrado');
+          setLoading(false);
+          return;
+        }
+        
+        console.log('Buscando detalhes do produto ID:', id);
+        
+        // O produto já está sendo buscado pelo useQuery, não precisamos refazer a busca
+        if (product) {
+          // Garantir que todos os dados esperados estejam definidos
+          console.log('Resposta do produto:', product);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar detalhes do produto:', error);
+        setError('Erro ao carregar detalhes do produto');
+        setLoading(false);
+      }
+    };
+    
+    fetchProductDetails();
+  }, [id, product]);
 
   const handleWishlistToggle = async () => {
     if (!isAuthenticated) {
@@ -201,26 +242,32 @@ export default function ProductDetail() {
                 </div>
               )}
               <img 
-                src={getValidImage(product.images[activeImage], '/placeholder-image.jpg')} 
-                alt={product.name} 
+                src={product?.images && product.images.length > 0 ? getValidImage(product.images[activeImage], '/placeholder-image.jpg') : '/placeholder-image.jpg'} 
+                alt={product?.name || 'Produto'} 
                 className="w-full h-full object-contain p-4"
               />
             </div>
           </div>
           <div className="flex space-x-2 overflow-x-auto pb-2">
-            {product.images.map((image, index) => (
-              <button
-                key={index}
-                className={`w-20 h-20 rounded-md border-2 ${activeImage === index ? 'border-primary' : 'border-transparent'}`}
-                onClick={() => setActiveImage(index)}
-              >
-                <img 
-                  src={getValidImage(image, '/placeholder-image.jpg')} 
-                  alt={`${product.name} - imagem ${index + 1}`} 
-                  className="w-full h-full object-contain"
-                />
-              </button>
-            ))}
+            {product?.images && Array.isArray(product.images) && product.images.length > 0 ? (
+              product.images.map((image, index) => (
+                <button
+                  key={index}
+                  className={`w-20 h-20 rounded-md border-2 ${activeImage === index ? 'border-primary' : 'border-transparent'}`}
+                  onClick={() => setActiveImage(index)}
+                >
+                  <img 
+                    src={getValidImage(image, '/placeholder-image.jpg')} 
+                    alt={`${product.name} - imagem ${index + 1}`} 
+                    className="w-full h-full object-contain"
+                  />
+                </button>
+              ))
+            ) : (
+              <div className="w-20 h-20 bg-gray-100 rounded-md flex items-center justify-center">
+                <span className="text-gray-400 text-sm">Sem imagens</span>
+              </div>
+            )}
           </div>
         </div>
 
