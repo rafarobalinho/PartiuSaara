@@ -1,124 +1,192 @@
-import React, { useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useQuery } from '@tanstack/react-query';
-import { Loader2, Store, MapPin } from 'lucide-react';
-import { Link } from 'wouter';
+import React, { useEffect, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { LoaderCircle } from 'lucide-react';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 
-// Componente do mapa de lojas temporário
-export default function StoresMap() {
-  // Buscar as lojas da API
-  const { data: stores = [], isLoading, isError } = useQuery({
-    queryKey: ['/api/stores/map']
-  });
-  
-  // Log dos dados recebidos para debug
-  useEffect(() => {
-    if (stores) {
-      console.log('Dados recebidos:', stores);
+// Definição do estilo padrão para o mapa
+const containerStyle = {
+  width: '100%',
+  height: '100%',
+  minHeight: '500px'
+};
+
+// Centro do mapa padrão (Rio de Janeiro, Saara)
+const defaultCenter = {
+  lat: -22.904,
+  lng: -43.175
+};
+
+// Opções do mapa
+const mapOptions = {
+  disableDefaultUI: false,
+  zoomControl: true,
+  streetViewControl: false,
+  mapTypeControl: false,
+  fullscreenControl: true,
+  clickableIcons: true,
+  styles: [
+    {
+      featureType: 'poi.business',
+      stylers: [{ visibility: 'on' }]
+    },
+    {
+      featureType: 'transit',
+      elementType: 'labels.icon',
+      stylers: [{ visibility: 'on' }]
     }
-  }, [stores]);
-  
-  return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <MapPin className="h-5 w-5" />
-          Lojas
-        </CardTitle>
-        <CardDescription>
-          Encontre as lojas cadastradas no marketplace.
-        </CardDescription>
-      </CardHeader>
-      
-      <CardContent>
-        {isLoading ? (
-          <div className="flex justify-center items-center h-[400px]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : isError ? (
-          <div className="text-center py-8">
-            <div className="text-red-500 mb-2">Erro ao carregar as lojas</div>
-            <Button onClick={() => window.location.reload()}>Tentar novamente</Button>
-          </div>
-        ) : !Array.isArray(stores) || stores.length === 0 ? (
-          <div className="text-center py-8">
-            <Store className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium">Nenhuma loja encontrada</h3>
-            <p className="text-muted-foreground">
-              Não há lojas cadastradas com coordenadas geográficas.
-            </p>
-          </div>
-        ) : (
-          <div>
-            <div className="bg-gray-100 h-[400px] rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <p className="mb-4 text-lg font-medium">Mapa temporariamente indisponível</p>
-                <p className="mb-4 text-muted-foreground">
-                  Aguardando configuração da API do Google Maps
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => window.location.reload()}
-                >
-                  Tentar novamente
-                </Button>
-              </div>
-            </div>
-            
-            <div className="mt-6 space-y-4">
-              <h3 className="text-xl font-medium">Lojas disponíveis</h3>
-              
-              <div className="space-y-4">
-                {Array.isArray(stores) && stores.map(store => (
-                  <Card key={store.id} className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="text-lg font-medium">{store.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {store.address?.street}, {store.address?.city} - {store.address?.state}
-                        </p>
-                        <p className="text-sm mt-2">{store.description}</p>
-                      </div>
-                      <Button size="sm" asChild>
-                        <Link to={`/stores/${store.id}`}>
-                          Ver loja
-                        </Link>
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-            
-            <div className="mt-4 text-sm text-muted-foreground">
-              <p>
-                {stores.length} {stores.length === 1 ? 'loja encontrada' : 'lojas encontradas'}
-              </p>
-            </div>
-          </div>
-        )}
-      </CardContent>
-      
-      <CardFooter className="flex justify-between gap-4">
-        <Button
-          variant="outline"
-          className="flex-1"
-          disabled
-        >
-          <MapPin className="h-4 w-4 mr-2" />
-          Usar minha localização
-        </Button>
+  ]
+};
+
+// Interface para as lojas
+interface Store {
+  id: number;
+  name: string;
+  description?: string;
+  category?: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode?: string;
+  };
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+  images?: string[];
+}
+
+export default function StoresMap() {
+  const { toast } = useToast();
+  const [stores, setStores] = useState<Store[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+
+  // Carregar a API do Google Maps
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+  });
+
+  // Buscar lojas da API
+  useEffect(() => {
+    const fetchStores = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/stores/map');
         
-        <Button
-          variant="outline"
-          className="flex-1"
-          disabled
-        >
-          <Store className="h-4 w-4 mr-2" />
-          Ver todas as lojas
-        </Button>
-      </CardFooter>
-    </Card>
+        if (!response.ok) {
+          throw new Error('Falha ao buscar lojas');
+        }
+        
+        const data = await response.json();
+        console.log('Dados recebidos:', data);
+        
+        setStores(data);
+      } catch (error) {
+        console.error('Erro ao carregar lojas:', error);
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível carregar as lojas no mapa',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStores();
+  }, [toast]);
+
+  // Lidar com erro ao carregar a API
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[500px] bg-gray-50 rounded-lg border border-gray-200">
+        <div className="text-xl font-semibold text-red-500 mb-2">Erro ao carregar o mapa</div>
+        <p className="text-gray-600 text-center max-w-md">
+          Não foi possível carregar o Google Maps. Verifique sua conexão com a internet ou tente novamente mais tarde.
+        </p>
+      </div>
+    );
+  }
+
+  // Exibir carregamento
+  if (!isLoaded || loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[500px] bg-gray-50 rounded-lg border border-gray-200">
+        <LoaderCircle className="h-10 w-10 animate-spin text-orange-500 mb-4" />
+        <div className="text-lg font-medium">Carregando mapa e lojas...</div>
+      </div>
+    );
+  }
+
+  // Verificar se não há lojas
+  if (stores.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[500px] bg-gray-50 rounded-lg border border-gray-200">
+        <div className="text-xl font-semibold mb-2">Nenhuma loja encontrada</div>
+        <p className="text-gray-600 text-center max-w-md">
+          Não foram encontradas lojas com endereços cadastrados.
+        </p>
+      </div>
+    );
+  }
+
+  // Renderizar o mapa
+  return (
+    <div className="h-full w-full rounded-lg overflow-hidden border border-gray-200">
+      <GoogleMap
+        mapContainerStyle={containerStyle}
+        center={defaultCenter}
+        zoom={14}
+        options={mapOptions}
+      >
+        {/* Marcadores para cada loja */}
+        {stores.map((store) => (
+          <Marker
+            key={store.id}
+            position={{
+              lat: store.location.latitude,
+              lng: store.location.longitude
+            }}
+            onClick={() => setSelectedStore(store)}
+            icon='/marker-icon.svg'
+          />
+        ))}
+
+        {/* Janela de informações para a loja selecionada */}
+        {selectedStore && (
+          <InfoWindow
+            position={{
+              lat: selectedStore.location.latitude,
+              lng: selectedStore.location.longitude
+            }}
+            onCloseClick={() => setSelectedStore(null)}
+          >
+            <div className="p-2 max-w-xs">
+              <h3 className="text-lg font-semibold text-gray-900">{selectedStore.name}</h3>
+              {selectedStore.description && (
+                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{selectedStore.description}</p>
+              )}
+              <p className="text-sm text-gray-800 mt-2 font-medium">
+                {selectedStore.address.street}
+              </p>
+              <p className="text-sm text-gray-600">
+                {selectedStore.address.city}, {selectedStore.address.state}{' '}
+                {selectedStore.address.zipCode && `- ${selectedStore.address.zipCode}`}
+              </p>
+              <div className="mt-3">
+                <a
+                  href={`/stores/${selectedStore.id}`}
+                  className="text-sm font-medium text-orange-600 hover:text-orange-800"
+                >
+                  Ver detalhes da loja →
+                </a>
+              </div>
+            </div>
+          </InfoWindow>
+        )}
+      </GoogleMap>
+    </div>
   );
 }

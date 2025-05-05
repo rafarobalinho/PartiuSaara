@@ -6,7 +6,14 @@
 import axios from 'axios';
 import { Store } from '@shared/schema';
 
-// Tipos para os resultados da geocodificação
+// Chave da API do Google Maps
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
+
+// Verificar se a chave da API está disponível
+if (!GOOGLE_MAPS_API_KEY) {
+  console.warn('⚠️ AVISO: Chave da API do Google Maps não encontrada. A geocodificação não funcionará corretamente.');
+}
+
 interface GeocodingResult {
   geometry: {
     location: {
@@ -30,29 +37,30 @@ interface GeocodingResponse {
  */
 export async function geocodeAddress(address: string): Promise<{ latitude: number, longitude: number, place_id: string } | null> {
   try {
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-    
-    if (!apiKey) {
-      console.error('API key do Google Maps não encontrada no ambiente');
+    if (!GOOGLE_MAPS_API_KEY) {
+      console.error('Chave da API do Google Maps não definida');
       return null;
     }
-    
+
     // Codificar o endereço para URL
     const encodedAddress = encodeURIComponent(address);
     
-    // Fazer a requisição para a API de Geocodificação do Google Maps
-    const response = await axios.get<GeocodingResponse>(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`
-    );
+    // URL da API de geocodificação
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${GOOGLE_MAPS_API_KEY}`;
+    
+    // Fazer a requisição
+    const response = await axios.get<GeocodingResponse>(url);
     
     // Verificar se a resposta foi bem-sucedida
-    if (response.data.status !== 'OK' || response.data.results.length === 0) {
-      console.error(`Erro na geocodificação: ${response.data.status}`, address);
+    if (response.data.status !== 'OK' || !response.data.results.length) {
+      console.error('Falha na geocodificação:', response.data.status);
       return null;
     }
     
+    // Obter o primeiro resultado
     const result = response.data.results[0];
     
+    // Retornar as coordenadas e place_id
     return {
       latitude: result.geometry.location.lat,
       longitude: result.geometry.location.lng,
@@ -73,7 +81,14 @@ export function formatFullAddress(store: Partial<Store>): string {
   if (!store.address) return '';
   
   const { street, city, state, zipCode } = store.address;
-  return `${street}, ${city}, ${state}, ${zipCode}, Brasil`;
+  
+  // Verificar se todos os campos necessários estão presentes
+  if (!street || !city || !state) {
+    return '';
+  }
+  
+  // Formatar o endereço completo
+  return `${street}, ${city}, ${state}${zipCode ? ' - ' + zipCode : ''}`;
 }
 
 /**
@@ -84,39 +99,49 @@ export function formatFullAddress(store: Partial<Store>): string {
  */
 export async function batchGeocodeStores(
   stores: Partial<Store>[],
-  processCb?: (store: Partial<Store>, result: { latitude: number, longitude: number, place_id: string } | null) => Promise<void>
+  processCb?: (store: Partial<Store>, geocodeResult: { latitude: number, longitude: number, place_id: string } | null) => Promise<void>
 ): Promise<{ success: number, failed: number }> {
   let success = 0;
   let failed = 0;
   
-  // Processar lojas sequencialmente para evitar limitações de rate da API
+  // Atraso entre as requisições para evitar limites de taxa da API
+  const DELAY_MS = 200;
+  
   for (const store of stores) {
-    if (!store.address) {
-      failed++;
-      continue;
-    }
-    
-    // Ignorar lojas que já possuem coordenadas
-    if (store.location?.latitude && store.location?.longitude) {
-      success++;
-      continue;
-    }
-    
-    const fullAddress = formatFullAddress(store);
-    const result = await geocodeAddress(fullAddress);
-    
-    if (result) {
-      success++;
-      // Executar callback se fornecido
-      if (processCb) {
-        await processCb(store, result);
+    try {
+      if (!store.address) {
+        failed++;
+        continue;
       }
-    } else {
+      
+      // Formatar o endereço completo
+      const fullAddress = formatFullAddress(store);
+      
+      if (!fullAddress) {
+        failed++;
+        continue;
+      }
+      
+      // Geocodificar o endereço
+      const geocodeResult = await geocodeAddress(fullAddress);
+      
+      if (geocodeResult) {
+        success++;
+        
+        // Se tiver callback, processar a loja
+        if (processCb) {
+          await processCb(store, geocodeResult);
+        }
+      } else {
+        failed++;
+      }
+      
+      // Atraso para a próxima requisição
+      await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+    } catch (error) {
+      console.error(`Erro ao geocodificar loja ID ${store.id}:`, error);
       failed++;
     }
-    
-    // Pequeno delay para evitar atingir limites de rate da API
-    await new Promise(resolve => setTimeout(resolve, 200));
   }
   
   return { success, failed };

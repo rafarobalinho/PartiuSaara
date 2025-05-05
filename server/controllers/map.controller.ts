@@ -138,7 +138,7 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
             longitude: geoResult.longitude
           },
           place_id: geoResult.place_id,
-          updated_at: new Date()
+          updatedAt: new Date()
         })
         .where(eq(stores.id, store.id));
     };
