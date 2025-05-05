@@ -424,7 +424,7 @@ export default function StoreDetail() {
                         <FormLabel>Logo da Loja</FormLabel>
                         <FormControl>
                           <ImageUpload
-                            name="store-logo"
+                            name={`store-logo-${store.id}`}
                             multiple={false}
                             value={field.value}
                             onChange={field.onChange}
