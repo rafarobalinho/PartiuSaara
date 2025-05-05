@@ -1,0 +1,87 @@
+FALHA CRÍTICA DE SEGURANÇA: Correção urgente para isolamento de acesso entre lojistas
+Identifiquei uma falha de segurança grave no aplicativo: estou logado como lojista da "Óticas do Bem", mas consigo ver e editar produtos da loja "Balisun" que não me pertence. Todos os lojistas atualmente conseguem ver e modificar todas as lojas do sistema.
+PROBLEMA DE SEGURANÇA:
+
+Usuários lojistas conseguem ver lojas que não pertencem a eles
+Não há isolamento de dados entre diferentes contas de lojistas
+Dados sensíveis de uma loja estão expostos para outros lojistas
+Lojistas podem modificar produtos de outras lojas
+
+CORREÇÕES NECESSÁRIAS:
+
+Backend (prioridade alta):
+
+Modifique todas as rotas de API que retornam ou modificam produtos e lojas
+Adicione verificação de permissão baseada no ID do usuário logado e nas lojas associadas a ele
+Retorne erro 403 (Forbidden) quando um lojista tentar acessar dados de loja que não pertence a ele
+
+Exemplo pseudocódigo para a verificação:
+javascript// Middleware para verificar propriedade da loja
+function verifyStoreOwnership(req, res, next) {
+  const storeId = req.params.storeId || req.query.storeId || req.body.storeId;
+  
+  // Verificar se o usuário logado é dono da loja
+  pool.query(
+    'SELECT * FROM store_users WHERE user_id = $1 AND store_id = $2',
+    [req.user.id, storeId],
+    (error, results) => {
+      if (error || results.rows.length === 0) {
+        return res.status(403).json({ 
+          error: 'Você não tem permissão para acessar esta loja' 
+        });
+      }
+      next();
+    }
+  );
+}
+
+// Aplicar este middleware em todas as rotas que acessam dados de lojas específicas
+app.get('/api/stores/:storeId', authenticate, verifyStoreOwnership, (req, res) => {...});
+app.get('/api/stores/:storeId/products', authenticate, verifyStoreOwnership, (req, res) => {...});
+// etc.
+
+Frontend (igualmente importante):
+
+Modifique os componentes que listam lojas para filtrar apenas as lojas do usuário
+Atualize as chamadas de API para incluir verificação do lojista atual
+Adicione tratamento de erros para permissões negadas
+
+Exemplo para a página de listagem de lojas:
+jsx// Substituir a chamada de API atual que busca todas as lojas
+useEffect(() => {
+  // Antes: api.get('/stores') - Busca todas as lojas
+  // Depois: api.get('/stores/my-stores') - Busca apenas lojas do usuário atual
+  api.get('/stores/my-stores')
+    .then(response => {
+      setStores(response.data);
+    })
+    .catch(error => {
+      console.error('Erro ao buscar lojas:', error);
+      setError('Não foi possível carregar suas lojas');
+    });
+}, []);
+
+Estrutura de Banco de Dados:
+
+Verifique se existe uma tabela de relação entre usuários e lojas (store_users)
+Essa tabela deve conter, no mínimo: user_id, store_id, role (dono, gerente, vendedor, etc.)
+Se não existir, crie-a e migre os dados atuais
+
+
+Endpoints API a revisar:
+
+GET /stores ou /seller/stores - Filtrar por usuário atual
+GET /stores//products - Verificar se usuário tem acesso à loja
+POST/PUT /products - Verificar se produto pertence à loja do usuário
+DELETE /products/ - Verificar propriedade antes de permitir exclusão
+
+
+
+TESTE DE VERIFICAÇÃO:
+Após implementar as mudanças, faça login com duas contas diferentes de lojistas e confirme que:
+
+Cada lojista só vê suas próprias lojas
+Tentativas de acessar URLs diretas de lojas não autorizadas são bloqueadas
+As APIs retornam erro 403 para acessos não autorizados
+
+Esta é uma correção URGENTE de segurança que deve ser priorizada imediatamente.

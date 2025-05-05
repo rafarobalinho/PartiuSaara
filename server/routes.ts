@@ -14,6 +14,7 @@ import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db } from "./db";
 import { and, eq } from "drizzle-orm";
 import { storeImages, productImages } from "@shared/schema";
+import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
@@ -63,21 +64,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Product routes
+  // Rotas públicas de produtos
   app.get('/api/products', ProductController.getProducts);
   app.get('/api/products/featured', ProductController.getFeaturedProducts);
   app.get('/api/products/:id', ProductController.getProduct);
   app.get('/api/products/:id/related', ProductController.getRelatedProducts);
+  
+  // Rotas de produtos que requerem autenticação e verificação de propriedade
   app.post('/api/products', authMiddleware, ProductController.createProduct);
-  app.put('/api/products/:id', authMiddleware, ProductController.updateProduct);
+  app.put('/api/products/:id', authMiddleware, verifyProductOwnership, ProductController.updateProduct);
 
   // Store routes
+  // Rotas públicas de lojas
   app.get('/api/stores', StoreController.getStores);
   app.get('/api/stores/nearby', StoreController.getNearbyStores);
   app.get('/api/stores/:id', StoreController.getStore);
   app.get('/api/stores/:id/products', StoreController.getStoreProducts);
   app.get('/api/stores/:id/coupons', StoreController.getStoreCoupons);
+  
+  // Rota para listar apenas as lojas do usuário logado
+  app.get('/api/stores/my-stores', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const user = req.user;
+      if (!user) return res.status(401).json({ message: 'Unauthorized' });
+      
+      const stores = await storage.getStoresByUserId(user.id);
+      res.json(stores);
+    } catch (error) {
+      console.error('Error fetching user stores:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+  
+  // Rotas que requerem autenticação e verificação de propriedade
   app.post('/api/stores', authMiddleware, StoreController.createStore);
-  app.put('/api/stores/:id', authMiddleware, StoreController.updateStore);
+  app.put('/api/stores/:id', authMiddleware, verifyStoreOwnership, StoreController.updateStore);
 
   // Promotion routes
   app.get('/api/promotions', async (req: Request, res: Response) => {
@@ -100,8 +121,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   app.get('/api/promotions/flash', PromotionController.getFlashPromotions);
   app.get('/api/promotions/:id', PromotionController.getPromotion);
-  app.post('/api/promotions', authMiddleware, PromotionController.createPromotion);
-  app.put('/api/promotions/:id', authMiddleware, PromotionController.updatePromotion);
+  app.post('/api/promotions', authMiddleware, verifyProductOwnership, PromotionController.createPromotion);
+  app.put('/api/promotions/:id', authMiddleware, verifyProductOwnership, PromotionController.updatePromotion);
 
   // Coupon routes
   app.get('/api/coupons', async (req: Request, res: Response) => {
@@ -165,18 +186,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/subscriptions/my-plan', authMiddleware, SubscriptionController.getMySubscription);
 
   // Store analytics routes
-  app.get('/api/stores/:id/analytics', authMiddleware, async (req: Request, res: Response) => {
+  app.get('/api/stores/:id/analytics', authMiddleware, verifyStoreOwnership, async (req: Request, res: Response) => {
     const user = req.user;
     if (!user) return res.status(401).json({ message: 'Unauthorized' });
     
     const { id } = req.params;
     const { startDate, endDate } = req.query;
-    
-    const store = await storage.getStore(Number(id));
-    
-    if (!store || store.userId !== user.id) {
-      return res.status(403).json({ message: 'Not authorized to access this store analytics' });
-    }
     
     const impressions = await storage.getStoreImpressions(
       Number(id),
