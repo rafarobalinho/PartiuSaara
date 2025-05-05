@@ -165,10 +165,10 @@ export default function ProductCard({
         
         <div className="absolute top-2 right-2 z-10">
           <button 
-            className={`${isWishlisted ? 'text-primary' : 'text-gray-400 hover:text-primary'} bg-white rounded-full p-1.5 shadow-sm`}
+            className={`${isWishlisted ? 'text-primary' : 'text-gray-400 hover:text-primary'} bg-white rounded-full p-1.5 shadow-sm h-8 w-8 flex items-center justify-center`}
             onClick={handleWishlistToggle}
           >
-            <i className={isWishlisted ? 'fas fa-heart' : 'far fa-heart'}></i>
+            <i className={`${isWishlisted ? 'fas fa-heart' : 'far fa-heart'} text-sm text-center`}></i>
           </button>
         </div>
         
