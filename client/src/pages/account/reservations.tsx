@@ -18,14 +18,20 @@ interface Reservation {
   expiresAt: string;
   createdAt: string;
   updatedAt: string;
-  product: {
+  // Campos planos adicionados pelo backend
+  product_id: number;
+  product_name: string;
+  product_price: number;
+  product_image: string;
+  // Objeto completo do produto (pode ser undefined)
+  product?: {
     id: number;
     name: string;
     description: string;
     price: number;
     discountedPrice?: number;
-    images: string[];
-    store: {
+    images?: string[];
+    store?: {
       id: number;
       name: string;
     };
@@ -45,7 +51,7 @@ export default function Reservations() {
     return null;
   }
 
-  const { data: reservations = [], isLoading } = useQuery({
+  const { data: reservations = [], isLoading } = useQuery<Reservation[]>({
     queryKey: ['/api/reservations'],
     queryFn: async () => {
       try {
@@ -93,7 +99,7 @@ export default function Reservations() {
     updateStatusMutation.mutate({ id, status: 'completed' });
   };
 
-  const filteredReservations = reservations.filter((reservation: Reservation) => {
+  const filteredReservations = reservations.filter((reservation) => {
     if (activeTab === 'all') return true;
     return reservation.status === activeTab;
   });
@@ -204,7 +210,7 @@ export default function Reservations() {
                   </div>
                 ) : filteredReservations.length > 0 ? (
                   <div className="space-y-4">
-                    {filteredReservations.map((reservation: Reservation) => (
+                    {filteredReservations.map((reservation) => (
                       <div key={reservation.id} className="bg-white rounded-lg shadow-sm p-4 border flex flex-col sm:flex-row">
                         <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 sm:mr-4">
                           <img 
