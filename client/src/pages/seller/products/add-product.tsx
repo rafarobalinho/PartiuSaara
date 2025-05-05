@@ -60,6 +60,7 @@ export default function AddProduct() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [productImages, setProductImages] = useState<string[]>([]);
+  const [selectedStore, setSelectedStore] = useState<string>('');
 
   // If not authenticated or not a seller, redirect
   useEffect(() => {
@@ -126,7 +127,9 @@ export default function AddProduct() {
   // Atualiza o valor de storeId quando stores é carregado
   useEffect(() => {
     if (stores.length > 0 && !form.getValues('storeId')) {
-      form.setValue('storeId', stores[0]?.id.toString() || '');
+      const storeId = stores[0]?.id.toString() || '';
+      form.setValue('storeId', storeId);
+      setSelectedStore(storeId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stores]);
@@ -325,7 +328,10 @@ export default function AddProduct() {
                       <FormItem>
                         <FormLabel>Loja*</FormLabel>
                         <Select 
-                          onValueChange={field.onChange} 
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            setSelectedStore(value);
+                          }} 
                           defaultValue={field.value}
                         >
                           <FormControl>
