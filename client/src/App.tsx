@@ -21,6 +21,7 @@ import ProductDetail from "@/pages/products/product-detail";
 import Promotions from "@/pages/promotions/index";
 import Stores from "@/pages/stores/index";
 import ClientStoreDetail from "@/pages/stores/store-detail";
+import StoresMapPage from "@/pages/stores/map-page";
 import Account from "@/pages/account/index";
 import Wishlist from "@/pages/account/wishlist";
 import Reservations from "@/pages/account/reservations";
