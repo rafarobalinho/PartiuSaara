@@ -1,0 +1,74 @@
+CORREÇÃO SIMPLES PARA ERRO "column "category_id" does not exist"
+Estou tendo um erro específico de banco de dados que precisa ser corrigido:
+Failed to fetch products: 500 ["products": [],"error":"Erro ao buscar produtos","message":"column \"category_id\" does not exist"]
+Este erro ocorre porque a consulta SQL está buscando uma coluna chamada category_id que não existe na minha tabela products.
+Na minha tabela products, a categoria é armazenada como texto diretamente na coluna category (TEXT NOT NULL), e não como um ID de referência para outra tabela. Veja o esquema abaixo:
+id SERIAL PRIMARY KEY
+store_id INTEGER NOT NULL
+name TEXT NOT NULL
+description TEXT
+category TEXT NOT NULL  <-- ESTA é a coluna de categoria (texto, não ID)
+price DOUBLE PRECISION NOT NULL
+discounted_price DOUBLE PRECISION
+stock INTEGER DEFAULT 0
+images TEXT[]
+AÇÃO NECESSÁRIA:
+
+Localize o arquivo de rotas da API que contém o endpoint para buscar produtos (server.js ou routes/products.js)
+Encontre todas as consultas SQL que usam category_id e substitua por category, como no exemplo:
+
+javascript// ERRADO:
+const query = `
+  SELECT * FROM products p
+  WHERE p.category_id = $1 AND p.is_active = true
+`;
+
+// CORRETO:
+const query = `
+  SELECT * FROM products p
+  WHERE p.category = $1 AND p.is_active = true
+`;
+
+Se a consulta estiver tentando fazer JOIN com uma tabela de categorias usando category_id, modifique-a para usar o nome da categoria:
+
+javascript// ERRADO:
+const query = `
+  SELECT p.* FROM products p
+  JOIN categories c ON c.id = p.category_id
+  WHERE c.slug = $1 AND p.is_active = true
+`;
+
+// CORRETO:
+const query = `
+  SELECT p.* FROM products p
+  JOIN categories c ON c.name = p.category
+  WHERE c.slug = $1 AND p.is_active = true
+`;
+Se preferir, você pode implementar uma solução mais simples que busca todos os produtos e filtra por categoria no JavaScript:
+javascriptapp.get('/api/categories/:slug/products', async (req, res) => {
+  try {
+    // Primeiro buscar a categoria pelo slug
+    const categoryQuery = 'SELECT * FROM categories WHERE slug = $1';
+    const categoryResult = await pool.query(categoryQuery, [req.params.slug]);
+    
+    if (categoryResult.rows.length === 0) {
+      return res.json({ products: [] });
+    }
+    
+    const categoryName = categoryResult.rows[0].name;
+    
+    // Agora buscar produtos usando o NOME da categoria
+    const productsQuery = 'SELECT * FROM products WHERE category = $1 AND is_active = true';
+    const productsResult = await pool.query(productsQuery, [categoryName]);
+    
+    return res.json({ products: productsResult.rows });
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    return res.status(500).json({ 
+      products: [],
+      error: 'Erro ao buscar produtos',
+      message: error.message
+    });
+  }
+});
+Este é um problema simples de incompatibilidade entre o código e o esquema do banco de dados. Basta atualizar o código para usar a coluna category que já existe, em vez de tentar usar uma coluna category_id que não existe.
