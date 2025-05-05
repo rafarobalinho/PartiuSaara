@@ -61,41 +61,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/categories/:slug/products', async (req: Request, res: Response) => {
     try {
       const { slug } = req.params;
+      console.log(`Buscando produtos para categoria com slug: ${slug}`);
       
-      // Primeiro buscar o ID da categoria
-      const categoryQuery = 'SELECT id FROM categories WHERE slug = $1';
+      // 1. Primeiro, encontre a categoria pelo slug
+      const categoryQuery = 'SELECT * FROM categories WHERE slug = $1';
       const categoryResult = await pool.query(categoryQuery, [slug]);
       
       if (categoryResult.rows.length === 0) {
-        // Categoria não encontrada - retornar array vazio, não erro
-        return res.json({ 
+        console.log(`Categoria não encontrada com slug: ${slug}`);
+        return res.json({
           products: [],
-          count: 0,
           message: 'Categoria não encontrada'
         });
       }
       
-      const categoryId = categoryResult.rows[0].id;
-      
-      // Agora buscar produtos usando o NOME da categoria
+      // 2. Obter o nome exato da categoria
       const categoryName = categoryResult.rows[0].name;
+      console.log(`Categoria encontrada: ${categoryName}`);
       
-      const productsQuery = 'SELECT * FROM products WHERE category = $1 AND is_active = true';
+      // 3. Buscar produtos que correspondam a essa categoria (comparação case-insensitive)
+      const productsQuery = `
+        SELECT p.* 
+        FROM products p
+        WHERE LOWER(p.category) = LOWER($1)
+          AND p.is_active = true
+        ORDER BY p.created_at DESC
+      `;
+      
       const productsResult = await pool.query(productsQuery, [categoryName]);
+      const products = productsResult.rows;
+      console.log(`Encontrados ${products.length} produtos na categoria "${categoryName}"`);
       
-      // SEMPRE retornar um JSON válido
-      return res.json({ 
-        products: productsResult.rows,
-        count: productsResult.rows.length,
-        categorySlug: slug
+      // 4. Para cada produto, buscar sua imagem primária
+      const productsWithImages = await Promise.all(
+        products.map(async (product) => {
+          try {
+            const imagesQuery = `
+              SELECT * FROM product_images 
+              WHERE product_id = $1
+              ORDER BY is_primary DESC, display_order ASC
+              LIMIT 1
+            `;
+            const imagesResult = await pool.query(imagesQuery, [product.id]);
+            
+            if (imagesResult.rows.length > 0) {
+              return {
+                ...product,
+                primary_image: imagesResult.rows[0]
+              };
+            }
+            return product;
+          } catch (err) {
+            console.error(`Erro ao buscar imagem do produto ${product.id}:`, err);
+            return product;
+          }
+        })
+      );
+      
+      // 5. Retornar JSON com todos os dados
+      return res.json({
+        success: true,
+        category: {
+          id: categoryResult.rows[0].id,
+          name: categoryName,
+          slug: slug
+        },
+        products: productsWithImages,
+        count: productsWithImages.length
       });
+      
     } catch (error) {
       console.error('Erro ao buscar produtos por categoria:', error);
-      
-      // SEMPRE retornar um JSON válido, mesmo em caso de erro
-      return res.status(500).json({ 
+      return res.status(500).json({
+        success: false,
         products: [],
-        error: 'Erro ao buscar produtos',
+        error: 'Erro ao buscar produtos por categoria',
         message: error instanceof Error ? error.message : 'Erro inesperado'
       });
     }

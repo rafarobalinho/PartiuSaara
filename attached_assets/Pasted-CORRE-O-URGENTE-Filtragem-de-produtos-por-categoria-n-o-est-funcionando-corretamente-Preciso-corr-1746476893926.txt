@@ -1,0 +1,205 @@
+CORREÇÃO URGENTE: Filtragem de produtos por categoria não está funcionando corretamente
+Preciso corrigir o problema de filtragem de produtos por categoria. Atualmente, ao navegar para páginas de categoria como /categories/moda-feminina, a página mostra "Nenhum produto encontrado" mesmo para categorias que deveriam ter produtos.
+DETALHES DO PROBLEMA:
+
+Tabela categories tem id, name e slug (ex: "Moda Feminina" e "moda-feminina")
+Tabela products tem campo category como TEXT que armazena o NOME da categoria (não o ID)
+Tabela product_images armazena imagens dos produtos
+
+SOLUÇÃO NECESSÁRIA:
+
+Modifique o endpoint da API:
+
+javascript// Substitua o endpoint atual por este código completo
+app.get('/api/categories/:slug/products', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    console.log(`Buscando produtos para categoria com slug: ${slug}`);
+    
+    // 1. Primeiro, encontre a categoria pelo slug
+    const categoryQuery = 'SELECT * FROM categories WHERE slug = $1';
+    const categoryResult = await pool.query(categoryQuery, [slug]);
+    
+    if (categoryResult.rows.length === 0) {
+      console.log(`Categoria não encontrada com slug: ${slug}`);
+      return res.json({
+        products: [],
+        message: 'Categoria não encontrada'
+      });
+    }
+    
+    // 2. Obter o nome exato da categoria
+    const categoryName = categoryResult.rows[0].name;
+    console.log(`Categoria encontrada: ${categoryName}`);
+    
+    // 3. Buscar produtos que correspondam a essa categoria (comparação case-insensitive)
+    const productsQuery = `
+      SELECT p.* 
+      FROM products p
+      WHERE LOWER(p.category) = LOWER($1)
+        AND p.is_active = true
+      ORDER BY p.created_at DESC
+    `;
+    
+    const productsResult = await pool.query(productsQuery, [categoryName]);
+    const products = productsResult.rows;
+    console.log(`Encontrados ${products.length} produtos na categoria "${categoryName}"`);
+    
+    // 4. Para cada produto, buscar sua imagem primária
+    const productsWithImages = await Promise.all(
+      products.map(async (product) => {
+        try {
+          const imagesQuery = `
+            SELECT * FROM product_images 
+            WHERE product_id = $1
+            ORDER BY is_primary DESC, display_order ASC
+            LIMIT 1
+          `;
+          const imagesResult = await pool.query(imagesQuery, [product.id]);
+          
+          if (imagesResult.rows.length > 0) {
+            return {
+              ...product,
+              primary_image: imagesResult.rows[0]
+            };
+          }
+          return product;
+        } catch (err) {
+          console.error(`Erro ao buscar imagem do produto ${product.id}:`, err);
+          return product;
+        }
+      })
+    );
+    
+    // 5. Retornar JSON com todos os dados
+    return res.json({
+      success: true,
+      category: {
+        id: categoryResult.rows[0].id,
+        name: categoryName,
+        slug: slug
+      },
+      products: productsWithImages,
+      count: productsWithImages.length
+    });
+    
+  } catch (error) {
+    console.error('Erro ao buscar produtos por categoria:', error);
+    return res.status(500).json({
+      success: false,
+      products: [],
+      error: 'Erro ao buscar produtos por categoria',
+      message: error.message
+    });
+  }
+});
+
+Atualize o componente de frontend que exibe produtos por categoria:
+
+jsx// Substitua o componente atual de listagem por categoria
+// (Arquivo: src/pages/CategoryPage.jsx ou similar)
+
+useEffect(() => {
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const categorySlug = router.query.slug || params.slug;
+      if (!categorySlug) {
+        setProducts([]);
+        return;
+      }
+      
+      console.log(`Buscando produtos para categoria: ${categorySlug}`);
+      const response = await api.get(`/api/categories/${categorySlug}/products`);
+      console.log('Resposta da API:', response.data);
+      
+      if (response.data && response.data.products) {
+        setProducts(response.data.products);
+        setCategory(response.data.category);
+      } else {
+        setProducts([]);
+        console.warn('Formato de resposta inesperado:', response.data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error.response?.data || error.message);
+      setError('Erro ao carregar produtos. Tente novamente mais tarde.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  fetchProducts();
+}, [router.query.slug, params.slug]);
+
+// Na parte de renderização, substitua por:
+return (
+  <div className="container mx-auto p-4">
+    {loading ? (
+      <div className="flex justify-center p-8">
+        <div className="animate-spin w-10 h-10 border-t-4 border-orange-500 rounded-full"></div>
+      </div>
+    ) : error ? (
+      <div className="text-center p-8">
+        <div className="text-orange-500 text-5xl mb-3">⚠️</div>
+        <h3 className="text-lg font-medium mb-2">Erro ao carregar produtos</h3>
+        <p className="text-gray-600 mb-4">{error}</p>
+        <button
+          className="px-4 py-2 bg-orange-500 text-white rounded"
+          onClick={() => window.location.reload()}
+        >
+          Limpar Filtros e Tentar Novamente
+        </button>
+      </div>
+    ) : products.length === 0 ? (
+      <div className="text-center p-8">
+        <div className="text-gray-400 text-5xl mb-3">🔍</div>
+        <h3 className="text-lg font-medium mb-2">Nenhum produto encontrado</h3>
+        <p className="text-gray-600 mb-4">
+          Não há produtos disponíveis nesta categoria no momento.
+        </p>
+        <div className="flex justify-center gap-3">
+          <button
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded"
+            onClick={() => router.push('/')}
+          >
+            Voltar para a página inicial
+          </button>
+          <button
+            className="px-4 py-2 bg-orange-500 text-white rounded"
+            onClick={() => router.push('/categories')}
+          >
+            Ver todas as categorias
+          </button>
+        </div>
+      </div>
+    ) : (
+      <>
+        {/* Nome da categoria e contador de produtos */}
+        {category && (
+          <div className="mb-4">
+            <h1 className="text-xl font-bold">{category.name}</h1>
+            <p className="text-sm text-gray-500">{products.length} produtos encontrados</p>
+          </div>
+        )}
+        
+        {/* Grid de produtos */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </>
+    )}
+  </div>
+);
+PONTOS-CHAVE DA CORREÇÃO:
+
+Usa o name da categoria (e não o ID) para buscar produtos, já que o campo category na tabela products armazena o nome
+Implementa comparação case-insensitive (LOWER) para evitar problemas de maiúsculas/minúsculas
+Adiciona logs detalhados para ajudar no diagnóstico de problemas
+Busca a imagem primária de cada produto para exibição
+Implementa tratamento adequado para diferentes estados: carregamento, erro, sem produtos, com produtos
+
+Esta implementação deve garantir que os produtos apareçam nas categorias corretas e que a mensagem "Nenhum produto encontrado" seja exibida apenas quando realmente não há produtos na categoria.

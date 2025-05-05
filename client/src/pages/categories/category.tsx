@@ -215,6 +215,7 @@ export default function CategoryPage() {
 
   // Processamos os dados recebidos da API
   const products = data?.products || [];
+  const categoryInfo = data?.category || null;
   const errorMessage = data?.error || (data?.message && data.count === 0 ? data.message : null);
   
   // Controlamos o estado de carregamento melhorando a lógica para evitar falsos estados de carregamento
@@ -368,18 +369,8 @@ export default function CategoryPage() {
         {/* Products Grid */}
         <div className="lg:w-3/4">
           {isLoading && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {Array(6).fill(0).map((_, index) => (
-                <div key={index} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="aspect-square bg-gray-200 animate-pulse"></div>
-                  <div className="p-3">
-                    <div className="h-4 bg-gray-200 animate-pulse mb-1 w-1/3"></div>
-                    <div className="h-10 bg-gray-200 animate-pulse mb-2"></div>
-                    <div className="h-5 bg-gray-200 animate-pulse mb-3 w-1/2"></div>
-                    <div className="h-8 bg-gray-200 animate-pulse w-full rounded-lg"></div>
-                  </div>
-                </div>
-              ))}
+            <div className="flex justify-center p-8">
+              <div className="animate-spin w-10 h-10 border-t-4 border-orange-500 rounded-full"></div>
             </div>
           )}
           
@@ -402,24 +393,17 @@ export default function CategoryPage() {
           )}
           
           {!isLoading && !isError && products && products.length > 0 && (
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <Badge variant="outline" className="px-3 py-1">
-                  {products.length} produtos encontrados
-                </Badge>
-                
-                <div className="flex items-center text-sm">
-                  <span className="text-gray-500 mr-2">Visualizar:</span>
-                  <button className="w-8 h-8 flex items-center justify-center rounded border text-primary">
-                    <i className="fas fa-th-large"></i>
-                  </button>
-                  <button className="w-8 h-8 flex items-center justify-center rounded border text-gray-400 ml-1">
-                    <i className="fas fa-list"></i>
-                  </button>
+            <>
+              {/* Nome da categoria e contador de produtos */}
+              {categoryInfo && (
+                <div className="mb-4">
+                  <h1 className="text-xl font-bold">{categoryInfo.name}</h1>
+                  <p className="text-sm text-gray-500">{products.length} produtos encontrados</p>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              )}
+              
+              {/* Grid de produtos */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {products.map((product: Product) => (
                   <ProductCard
                     key={product.id}
@@ -437,7 +421,7 @@ export default function CategoryPage() {
                   Atualizando resultados...
                 </div>
               )}
-            </div>
+            </>
           )}
           
           {!isLoading && !isError && data && errorMessage && (
@@ -466,26 +450,25 @@ export default function CategoryPage() {
           )}
           
           {!isLoading && !isError && (!products || products.length === 0) && !errorMessage && (
-            <div className="text-center py-16 bg-white rounded-lg">
-              <div className="text-6xl mb-4 text-gray-300">🔍</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhum produto encontrado</h3>
-              <p className="text-gray-500 mb-4">
-                {debouncedPriceRange[0] > 0 || debouncedPriceRange[1] < 1000
-                  ? "Tente ajustar o filtro de preço ou remover alguns filtros."
-                  : "Não há produtos disponíveis nesta categoria no momento."}
+            <div className="text-center p-8">
+              <div className="text-gray-400 text-5xl mb-3">🔍</div>
+              <h3 className="text-lg font-medium mb-2">Nenhum produto encontrado</h3>
+              <p className="text-gray-600 mb-4">
+                Não há produtos disponíveis nesta categoria no momento.
               </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                <Button
-                  onClick={handleResetFilters}
-                  className="bg-primary/90 text-white hover:bg-primary"
+              <div className="flex justify-center gap-3">
+                <button
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded"
+                  onClick={() => window.location.href = '/'}
                 >
-                  Limpar Filtros
-                </Button>
-                <Link href="/categories">
-                  <Button className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50">
-                    Ver todas as categorias
-                  </Button>
-                </Link>
+                  Voltar para a página inicial
+                </button>
+                <button
+                  className="px-4 py-2 bg-orange-500 text-white rounded"
+                  onClick={() => window.location.href = '/categories'}
+                >
+                  Ver todas as categorias
+                </button>
               </div>
             </div>
           )}
