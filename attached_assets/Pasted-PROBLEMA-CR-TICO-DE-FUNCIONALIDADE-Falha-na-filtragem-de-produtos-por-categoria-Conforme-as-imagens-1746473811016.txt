@@ -1,0 +1,88 @@
+PROBLEMA CRÍTICO DE FUNCIONALIDADE: Falha na filtragem de produtos por categoria
+Conforme as imagens enviadas, meu site não está filtrando corretamente os produtos por categoria nas páginas de categoria específicas. Na URL /categories/moda-feminina e em outras páginas de categoria, TODOS os produtos estão sendo exibidos, independentemente da categoria a que pertencem.
+EXEMPLOS DO PROBLEMA:
+
+Na página principal (imagem 1) e na listagem de produtos (imagem 2) aparecem:
+
+"Máscara Buda Sidarta" (categoria: Decoração)
+"Óculos de grau - Linha Bronze" (categoria: Óticas)
+"Echarpe Indiana Estampada" (categoria: Moda Feminina)
+"Pulseira Indiana Mira" (categoria: Acessórios)
+
+
+
+Mesmo na página específica de categoria /categories/moda-feminina, todos esses produtos aparecem, quando deveria mostrar apenas produtos da categoria "Moda Feminina" ou que tenham essa como categoria secundária.
+CORREÇÃO NECESSÁRIA:
+
+Backend (API):
+Modifique o endpoint que retorna produtos por categoria para filtrar apenas produtos da categoria especificada:
+javascript// Encontre este endpoint no arquivo de rotas da API
+app.get('/api/categories/:slug/products', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    // Consulta SQL atual (problemática) - provavelmente está assim:
+    // const query = 'SELECT * FROM products WHERE is_active = true';
+    
+    // SUBSTITUIR pela consulta SQL correta:
+    const query = `
+      SELECT p.* FROM products p
+      JOIN categories c ON 
+        (c.id = p.category_id OR 
+         c.id = ANY(p.secondary_categories))
+      WHERE c.slug = $1 AND p.is_active = true
+      ORDER BY p.created_at DESC
+    `;
+    
+    const { rows } = await pool.query(query, [slug]);
+    res.json(rows);
+  } catch (error) {
+    console.error('Erro ao buscar produtos por categoria:', error);
+    res.status(500).json({ error: 'Erro ao buscar produtos' });
+  }
+});
+
+Frontend (React):
+Atualize o componente da página de categoria para buscar apenas produtos da categoria selecionada:
+jsx// Arquivo: src/pages/category/[slug].js ou src/pages/CategoryPage.jsx
+
+useEffect(() => {
+  // Chamada de API atual (problemática) - provavelmente está assim:
+  // api.get('/products?is_active=true')
+  
+  // SUBSTITUIR por:
+  const fetchCategoryProducts = async () => {
+    try {
+      setLoading(true);
+      // Use o slug da categoria na URL para buscar produtos específicos
+      const categorySlug = router.query.slug || params.slug;
+      const response = await api.get(`/api/categories/${categorySlug}/products`);
+      setProducts(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar produtos da categoria:', error);
+      setError('Não foi possível carregar os produtos desta categoria');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  if (router.query.slug || params.slug) {
+    fetchCategoryProducts();
+  }
+}, [router.query.slug, params.slug]);
+
+Verifique a estrutura do banco de dados:
+
+Confirme que a tabela products tem uma coluna category_id (categoria principal)
+Verifique se existe uma coluna secondary_categories do tipo array ou uma tabela de junção para categorias secundárias
+Caso não exista suporte para categorias secundárias, adicione-o conforme a necessidade do seu aplicativo
+
+
+Teste a solução:
+
+Navegue para diferentes páginas de categoria e verifique se apenas os produtos corretos são exibidos
+Teste com produtos que têm categorias secundárias para garantir que também apareçam nas páginas apropriadas
+
+
+
+Esta correção garantirá que as páginas de categoria mostrem apenas os produtos relevantes para cada categoria, melhorando significativamente a experiência do usuário
