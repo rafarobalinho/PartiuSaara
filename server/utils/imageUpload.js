@@ -73,8 +73,21 @@ const processImages = async (req, res, next) => {
       console.log(`Processando imagem: ${file.path} -> ${thumbnailPath}`);
       
       try {
-        // Define o caminho para o arquivo JPG otimizado
-        const optimizedPath = file.path.replace(path.extname(file.path), '.jpg');
+        // Define um caminho temporário para evitar reusar o mesmo arquivo
+        const tempDir = path.join(uploadDir, 'temp');
+        if (!fs.existsSync(tempDir)) {
+          fs.mkdirSync(tempDir, { recursive: true });
+        }
+        
+        // Cria caminhos únicos para os arquivos otimizados
+        const fileName = path.basename(file.path);
+        const fileNameWithoutExt = path.basename(fileName, path.extname(fileName));
+        const optimizedPath = path.join(uploadDir, `${fileNameWithoutExt}.jpg`);
+        
+        // Primeiro, processa o arquivo original em um arquivo temporário
+        const tempOptimizedPath = path.join(tempDir, `temp_${fileNameWithoutExt}.jpg`);
+        
+        console.log(`Otimizando imagem para: ${tempOptimizedPath}`);
         
         // Processa o arquivo original para adicionar fundo branco (importante para PNGs transparentes)
         await sharp(file.path)
@@ -86,14 +99,23 @@ const processImages = async (req, res, next) => {
           })
           .flatten({ background: { r: 255, g: 255, b: 255 } }) // Adiciona fundo branco para imagens transparentes
           .jpeg({ quality: 85 }) // Salva como JPEG com qualidade 85% conforme especificação
-          .toFile(optimizedPath);
+          .toFile(tempOptimizedPath);
+        
+        // Mover o arquivo temporário para o destino final
+        fs.renameSync(tempOptimizedPath, optimizedPath);
         
         // Caso o arquivo original não seja JPG, remover o arquivo original
-        if (path.extname(file.path) !== '.jpg') {
-          fs.unlinkSync(file.path);
+        if (file.path !== optimizedPath) {
+          try {
+            fs.unlinkSync(file.path);
+          } catch (e) {
+            console.log(`Aviso: Não foi possível excluir o arquivo original: ${e.message}`);
+          }
         }
         
-        // Usa o sharp para criar thumbnail de 300x300 conforme especificação
+        console.log(`Gerando thumbnail: ${thumbnailPath}`);
+        
+        // Criar o thumbnail como um processo separado
         await sharp(optimizedPath)
           .resize({
             width: 300, // Largura do thumbnail
