@@ -1,0 +1,249 @@
+Por favor, implemente um sistema de geocodificação automática para as lojas do nosso marketplace. O objetivo é preencher automaticamente as coordenadas (latitude e longitude) e o Place ID do Google para cada loja cadastrada.
+Siga estas etapas específicas:
+1. Adicionar o campo place_id à tabela stores
+Execute a seguinte alteração no banco de dados:
+sqlALTER TABLE stores ADD COLUMN place_id VARCHAR(255);
+2. Criar utilitário de geocodificação
+Crie o arquivo server/utils/geocoding.js com o seguinte conteúdo:
+javascriptconst axios = require('axios');
+
+/**
+ * Geocodifica um endereço usando a API do Google Maps
+ * @param {Object} addressData - Dados do endereço
+ * @returns {Promise<Object>} - Coordenadas e Place ID
+ */
+async function geocodeAddress(addressData) {
+  try {
+    console.log('Geocodificando endereço:', addressData);
+    
+    // Formar o endereço completo
+    const formattedAddress = `${addressData.street}, ${addressData.city}, ${addressData.state}, ${addressData.zipCode}, Brasil`;
+    
+    // Fazer a requisição para a API de Geocodificação do Google
+    const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+      params: {
+        address: formattedAddress,
+        key: process.env.GOOGLE_MAPS_API_KEY
+      }
+    });
+    
+    // Verificar se há resultados
+    if (response.data.status === 'OK' && response.data.results.length > 0) {
+      const result = response.data.results[0];
+      
+      console.log('Geocodificação bem-sucedida para:', formattedAddress);
+      
+      return {
+        location: {
+          latitude: result.geometry.location.lat,
+          longitude: result.geometry.location.lng
+        },
+        place_id: result.place_id,
+        formatted_address: result.formatted_address
+      };
+    } else {
+      console.error('Falha na geocodificação. Status:', response.data.status);
+      throw new Error(`Geocodificação falhou: ${response.data.status}`);
+    }
+  } catch (error) {
+    console.error('Erro ao geocodificar endereço:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Obtém detalhes de um lugar usando o Place ID
+ * @param {string} placeId - Google Place ID
+ * @returns {Promise<Object>} - Detalhes do lugar
+ */
+async function getPlaceDetails(placeId) {
+  try {
+    console.log('Obtendo detalhes para Place ID:', placeId);
+    
+    const response = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
+      params: {
+        place_id: placeId,
+        fields: 'name,rating,formatted_phone_number,opening_hours,website,formatted_address,photos',
+        key: process.env.GOOGLE_MAPS_API_KEY
+      }
+    });
+    
+    if (response.data.status === 'OK') {
+      console.log('Detalhes do lugar obtidos com sucesso');
+      return response.data.result;
+    } else {
+      console.error('Falha ao obter detalhes. Status:', response.data.status);
+      throw new Error(`Falha ao obter detalhes do lugar: ${response.data.status}`);
+    }
+  } catch (error) {
+    console.error('Erro ao obter detalhes do lugar:', error.message);
+    throw error;
+  }
+}
+
+module.exports = {
+  geocodeAddress,
+  getPlaceDetails
+};
+3. Implementar middleware de geocodificação
+Crie o arquivo server/middleware/geocoding.middleware.js:
+javascriptconst { geocodeAddress } = require('../utils/geocoding');
+
+/**
+ * Middleware para geocodificar o endereço de uma loja antes de salvá-la
+ */
+async function geocodingMiddleware(req, res, next) {
+  try {
+    console.log('Executando middleware de geocodificação');
+    
+    // Verificar se temos os dados de endereço necessários
+    const { address } = req.body;
+    
+    if (!address || !address.street || !address.city || !address.state || !address.zipCode) {
+      // Se não tivermos endereço completo, apenas continuamos sem geocodificar
+      console.log('Endereço incompleto, pulando geocodificação');
+      return next();
+    }
+    
+    // Verificar se já temos coordenadas e place_id (caso seja uma atualização)
+    if (req.body.location?.latitude && req.body.location?.longitude && req.body.place_id) {
+      console.log('Loja já possui coordenadas e place_id, pulando geocodificação');
+      return next();
+    }
+    
+    console.log('Iniciando geocodificação para:', address);
+    
+    // Geocodificar o endereço
+    const geocodeResult = await geocodeAddress(address);
+    
+    // Adicionar os dados geocodificados ao corpo da requisição
+    req.body.location = geocodeResult.location;
+    req.body.place_id = geocodeResult.place_id;
+    
+    console.log('Geocodificação concluída:', geocodeResult);
+    
+    next();
+  } catch (error) {
+    console.error('Erro durante a geocodificação:', error.message);
+    // Não bloqueamos a criação da loja se a geocodificação falhar
+    next();
+  }
+}
+
+module.exports = geocodingMiddleware;
+4. Aplicar o middleware nas rotas de lojas
+Localize o arquivo de rotas de lojas (provavelmente server/routes/stores.js) e adicione o middleware:
+javascriptconst express = require('express');
+const router = express.Router();
+const geocodingMiddleware = require('../middleware/geocoding.middleware');
+const storesController = require('../controllers/stores.controller');
+
+// Aplicar o middleware de geocodificação nas rotas de criação/atualização
+router.post('/stores', geocodingMiddleware, storesController.createStore);
+router.put('/stores/:id', geocodingMiddleware, storesController.updateStore);
+
+module.exports = router;
+5. Criar endpoint administrativo para geocodificação em lote
+Adicione ao arquivo server/routes/admin.js (crie o arquivo se não existir):
+javascriptconst express = require('express');
+const router = express.Router();
+const { geocodeAddress } = require('../utils/geocoding');
+const db = require('../db'); // Ajuste o caminho conforme necessário
+
+// Endpoint para geocodificar todas as lojas existentes
+router.post('/admin/geocode-all-stores', async (req, res) => {
+  try {
+    console.log('Iniciando geocodificação em lote de todas as lojas');
+    
+    // Buscar todas as lojas que têm endereço mas não têm coordenadas
+    const result = await db.query(`
+      SELECT id, address 
+      FROM stores 
+      WHERE address IS NOT NULL 
+        AND (location IS NULL OR place_id IS NULL)
+    `);
+    
+    const stores = result.rows;
+    console.log(`Encontradas ${stores.length} lojas para geocodificar`);
+    
+    const results = {
+      total: stores.length,
+      success: 0,
+      failed: 0,
+      details: []
+    };
+    
+    // Geocodificar cada loja
+    for (const store of stores) {
+      try {
+        console.log(`Processando loja ID ${store.id}`);
+        
+        if (!store.address.street || !store.address.city || 
+            !store.address.state || !store.address.zipCode) {
+          console.log(`Loja ID ${store.id} tem endereço incompleto, pulando`);
+          results.failed++;
+          results.details.push({
+            id: store.id,
+            status: 'failed',
+            reason: 'Endereço incompleto'
+          });
+          continue;
+        }
+        
+        // Geocodificar
+        const geocodeResult = await geocodeAddress(store.address);
+        
+        // Atualizar a loja no banco de dados
+        await db.query(`
+          UPDATE stores 
+          SET location = $1, place_id = $2 
+          WHERE id = $3
+        `, [
+          geocodeResult.location,
+          geocodeResult.place_id,
+          store.id
+        ]);
+        
+        console.log(`Loja ID ${store.id} geocodificada com sucesso`);
+        results.success++;
+        results.details.push({
+          id: store.id,
+          status: 'success',
+          data: geocodeResult
+        });
+      } catch (error) {
+        console.error(`Falha ao geocodificar loja ID ${store.id}:`, error.message);
+        results.failed++;
+        results.details.push({
+          id: store.id,
+          status: 'failed',
+          reason: error.message
+        });
+      }
+    }
+    
+    console.log('Geocodificação em lote concluída:', results);
+    res.json(results);
+  } catch (error) {
+    console.error('Erro ao geocodificar lojas:', error.message);
+    res.status(500).json({ error: 'Falha ao geocodificar lojas' });
+  }
+});
+
+// Certificar-se de que esta rota está registrada no app.js ou index.js
+module.exports = router;
+6. Registrar a rota administrativa no app principal
+Encontre seu arquivo principal (app.js ou index.js) e adicione:
+javascriptconst adminRoutes = require('./routes/admin');
+app.use('/api', adminRoutes);
+7. Verificar a configuração da variável de ambiente
+Certifique-se de que a variável de ambiente GOOGLE_MAPS_API_KEY está definida no arquivo .env:
+GOOGLE_MAPS_API_KEY=sua_chave_api_aqui
+Esta implementação completa garantirá que:
+
+Novas lojas sejam automaticamente geocodificadas no momento do cadastro
+Lojas existentes possam ser geocodificadas em lote através do endpoint administrativo
+O mapa de lojas sempre exiba marcadores precisos
+Você possa obter informações adicionais do Google My Business
+
+Depois de implementar, você pode testar o sistema criando uma nova loja ou usando o endpoint administrativo /api/admin/geocode-all-stores para processar as lojas existentes.
