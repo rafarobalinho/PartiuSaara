@@ -1,0 +1,83 @@
+Preciso implementar um sistema completo de upload e otimização de imagens para um marketplace. Por favor, faça as seguintes alterações:
+1. Instale as dependências necessárias:
+
+express
+multer
+sharp
+
+2. Crie a estrutura de pastas:
+
+Crie o diretório public/uploads para armazenar imagens otimizadas
+Crie o diretório public/uploads/thumbnails para armazenar miniaturas
+Adicione um script setup.js que cria automaticamente essas pastas se não existirem
+
+3. Implemente o backend de upload de imagens:
+
+Crie um arquivo backend/imageUpload.js com as seguintes funcionalidades:
+
+Configure o multer para aceitar uploads com limite de 5MB por arquivo
+Aceite apenas formatos JPG, PNG e WebP
+Use o sharp para otimizar imagens automaticamente:
+
+Redimensione para máximo 1920x1080 pixels mantendo proporção
+Defina qualidade JPEG para 85%
+Crie thumbnails de 300x300 pixels para listagens
+
+
+Retorne os caminhos das imagens otimizadas e thumbnails após o processamento
+
+
+
+4. Atualize o banco de dados PostgreSQL:
+
+Modifique a estrutura das tabelas para usar um sistema de arquivos em vez de armazenar blobs
+Crie uma tabela product_images com os campos:
+
+id (SERIAL PRIMARY KEY)
+product_id (referência para produtos)
+image_url (caminho da imagem otimizada)
+thumbnail_url (caminho da miniatura)
+is_primary (boolean para imagem principal)
+display_order (ordem de exibição)
+created_at (timestamp)
+
+
+Adicione índices apropriados para otimizar consultas
+
+5. Crie o componente frontend de upload:
+
+Implemente um componente React ImageUpload.jsx com:
+
+Preview das imagens antes do upload
+Validação de tamanho (máximo 5MB) e formato
+Limite de 5 imagens por produto
+Mensagens de erro amigáveis
+Indicador de progresso durante upload
+Botão para remover previews
+Design responsivo e intuitivo
+
+
+
+6. Configure o Express para servir arquivos estáticos:
+
+Configure o Express para servir a pasta public/uploads como estática
+Garanta que as imagens sejam acessíveis via URL no frontend
+
+7. Atualize os componentes existentes:
+
+Modifique os componentes que exibem imagens para usar as novas URLs em vez de blobs
+Implemente lazy loading para melhor performance
+Use thumbnails nas listagens e imagens completas nas páginas de detalhes
+
+8. Adicione tratamento de erros:
+
+Implemente try/catch em todas as operações de upload
+Retorne mensagens de erro apropriadas para o usuário
+Faça log de erros no servidor para debugging
+
+9. Documentação:
+
+Adicione comentários explicativos no código
+Crie um README.md com instruções de uso do sistema de upload
+
+Certifique-se de que todo o sistema seja compatível com usuários não técnicos, com mensagens claras e interface intuitiva. O objetivo é permitir que vendedores façam upload de imagens de produtos facilmente, enquanto o sistema otimiza automaticamente para melhor performance do marketplace.
