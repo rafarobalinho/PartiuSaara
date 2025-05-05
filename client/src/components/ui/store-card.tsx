@@ -81,7 +81,7 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
           <img 
             src={`/api/stores/${store.id}/primary-image`}
             alt={`Vista da loja ${store.name}`}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-fit"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               e.currentTarget.nextElementSibling?.classList.remove('hidden');
