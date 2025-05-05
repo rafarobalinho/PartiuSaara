@@ -76,13 +76,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
   // Consulta para obter os produtos favoritos
   const { data: favoriteData } = useQuery({
     queryKey: ['/api/wishlist'],
-    enabled: isAuthenticated,
-    onSuccess: (data: WishlistItem[]) => {
-      if (Array.isArray(data)) {
-        const productIds = data.map(item => item.productId);
-        setFavoriteProductIds(productIds);
-      }
-    }
+    enabled: isAuthenticated
   });
 
   // Sincroniza os contadores com os dados do servidor quando disponíveis

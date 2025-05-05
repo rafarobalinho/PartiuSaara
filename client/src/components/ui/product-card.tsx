@@ -79,14 +79,16 @@ export default function ProductCard({
 
   const toggleWishlistMutation = useMutation({
     mutationFn: async () => {
-      const isFavorited = isProductFavorite(product.id);
+      // Pega o estado atual antes da mutação
+      const currentlyFavorited = isProductFavorite(product.id);
       return apiRequest(
-        isFavorited ? 'DELETE' : 'POST',
+        currentlyFavorited ? 'DELETE' : 'POST',
         `/api/wishlist/${product.id}`,
         {}
       );
     },
     onSuccess: () => {
+      // Pegamos o estado anterior à mutação para notificações
       const wasFavorited = isProductFavorite(product.id);
       
       if (wasFavorited) {
