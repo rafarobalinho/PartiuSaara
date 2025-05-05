@@ -220,13 +220,15 @@ export default function ProductCard({
 
   return (
     <Link href={`/products/${product.id}`}>
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow relative group block cursor-pointer">
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 relative group block cursor-pointer h-full flex flex-col">
+        {/* Etiqueta de desconto */}
         {discount > 0 && (
           <div className="bg-primary text-white text-xs font-bold absolute top-2 left-0 py-1 px-2 rounded-r-lg z-10">
             -{discount}%
           </div>
         )}
         
+        {/* Botão de favorito */}
         <div className="absolute top-2 right-2 z-10">
           <button 
             className={`${isProductFavorite(product.id) ? 'text-primary' : 'text-gray-400 hover:text-primary'} bg-white rounded-full p-1.5 shadow-sm h-8 w-8 flex items-center justify-center`}
@@ -236,7 +238,8 @@ export default function ProductCard({
           </button>
         </div>
         
-        <div className="relative overflow-hidden bg-white" style={{ height: "200px", width: "100%" }}>
+        {/* Container de imagem - Mais destacado */}
+        <div className="relative overflow-hidden bg-white pb-[100%] w-full">
           {isFlashPromotion && (
             <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-10">
               <div 
@@ -253,24 +256,26 @@ export default function ProductCard({
                 : ('image_url' in product.images[0] ? product.images[0].image_url : '/placeholder-image.jpg')
               : '/placeholder-image.jpg'}
             alt={product.name}
-            className="w-full h-full object-cover object-center p-0"
+            className="absolute inset-0 w-full h-full object-cover object-center p-0"
           />
         </div>
         
-        <div className="p-3">
-          {showCategory && (
+        {/* Conteúdo do card - textos e botões */}
+        <div className="p-3 flex-grow flex flex-col">
+          {/* Categoria ou loja */}
+          {showCategory ? (
             <div className="text-xs text-gray-500 mb-1">{product.category}</div>
-          )}
-          
-          {!showCategory && (
+          ) : (
             <div className="text-xs text-gray-500 mb-1 flex items-center">
               <i className="fas fa-store mr-1"></i> 
               <span className="truncate">{product.store?.name || 'Loja'}</span>
             </div>
           )}
           
-          <h3 className="text-sm font-medium line-clamp-2 h-10">{product.name}</h3>
+          {/* Nome do produto - limitado a 2 linhas */}
+          <h3 className="text-sm font-medium line-clamp-2 mb-auto">{product.name}</h3>
           
+          {/* Preço com formatação para desconto */}
           <div className="mt-2 flex items-baseline">
             {product.discountedPrice ? (
               <>
@@ -282,6 +287,7 @@ export default function ProductCard({
             )}
           </div>
           
+          {/* Botão de reserva - varia conforme propriedade showFullWidthButton */}
           {showFullWidthButton ? (
             <Button
               className="w-full mt-3 bg-primary text-white py-1.5 rounded-lg text-sm hover:bg-primary/90"
