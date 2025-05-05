@@ -1,0 +1,74 @@
+CORREÇÃO URGENTE: Erro de hooks do React no botão de ativar/desativar produtos
+Estou enfrentando um erro de React hooks no arquivo /home/runner/workspace/client/src/pages/seller/stores/store-products.tsx na linha 78-80, onde está implementada a funcionalidade de ativar/desativar produtos.
+ERRO ESPECÍFICO:
+[plugin:runtime-error-plugin]
+Rendered more hooks than during the previous render.
+Este erro ocorre quando o React encontra um número inconsistente de hooks entre renderizações, possivelmente devido a uma condição que envolve hooks.
+PROBLEMA TÉCNICO:
+O código atual está provavelmente usando hooks dentro de uma condição, um loop, ou uma função aninhada, o que viola as regras dos hooks do React.
+CORREÇÃO NECESSÁRIA:
+
+Localize o componente no arquivo store-products.tsx onde está implementada a função toggleProductStatus
+Mova TODOS os hooks (useState, useEffect, useCallback, useMutation, etc.) para o nível superior do componente, fora de condições ou loops
+Refatore a implementação do botão de ativar/desativar seguindo este padrão:
+
+jsx// NO NÍVEL SUPERIOR DO COMPONENTE (não dentro de funções aninhadas)
+const [isUpdating, setIsUpdating] = useState({});
+
+// Declare o hook useMutation sempre, independente de condições
+const toggleProductStatusMutation = useMutation(
+  async (productId) => {
+    setIsUpdating(prev => ({ ...prev, [productId]: true }));
+    try {
+      const response = await api.patch(`/products/${productId}`, {
+        is_active: !products.find(p => p.id === productId).is_active
+      });
+      return response.data;
+    } finally {
+      setIsUpdating(prev => ({ ...prev, [productId]: false }));
+    }
+  },
+  {
+    onSuccess: (data, productId) => {
+      // Atualiza o estado dos produtos após o sucesso
+      setProducts(prev => 
+        prev.map(product => 
+          product.id === productId 
+            ? { ...product, is_active: !product.is_active } 
+            : product
+        )
+      );
+      toast.success(`Produto ${data.is_active ? 'ativado' : 'desativado'} com sucesso!`);
+    },
+    onError: (error) => {
+      toast.error('Erro ao alterar status do produto');
+      console.error('Erro:', error);
+    }
+  }
+);
+
+// Função para lidar com o clique no botão (não deve conter hooks)
+const handleToggleStatus = (productId) => {
+  toggleProductStatusMutation.mutate(productId);
+};
+
+// No JSX, use a função de manipulação
+<button 
+  onClick={() => handleToggleStatus(product.id)}
+  disabled={isUpdating[product.id]}
+  className={`px-3 py-1 rounded text-white text-sm ${product.is_active ? 'bg-gray-500' : 'bg-orange-500'}`}
+>
+  {isUpdating[product.id] ? (
+    <span>Atualizando...</span>
+  ) : (
+    <span>{product.is_active ? 'Desativar' : 'Ativar'}</span>
+  )}
+</button>
+REGRAS IMPORTANTES:
+
+NUNCA use hooks dentro de condições (if), loops (for/while), ou funções aninhadas
+Todos os hooks devem ser chamados no nível superior do componente
+O número de hooks deve ser consistente entre renderizações
+Se você estiver usando react-query ou similar, certifique-se de que o useMutation é chamado sempre, não condicionalmente
+
+Este padrão garante que o estado de loading/updating seja tratado corretamente por produto, enquanto evita o erro de hooks inconsistentes.
