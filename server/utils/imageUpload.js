@@ -69,42 +69,31 @@ const processImages = async (req, res, next) => {
       // Modificamos a extensão para garantir que todos os arquivos sejam salvos como JPG
       const fileNameWithoutExt = path.basename(file.path, path.extname(file.path));
       const thumbnailPath = path.join(thumbnailDir, `${fileNameWithoutExt}.jpg`);
+      const optimizedPath = path.join(uploadDir, `${fileNameWithoutExt}.jpg`);
       
-      console.log(`Processando imagem: ${file.path} -> ${thumbnailPath}`);
+      console.log(`Processando imagem: ${file.path} -> ${optimizedPath}`);
       
       try {
-        // Define um caminho temporário para evitar reusar o mesmo arquivo
-        const tempDir = path.join(uploadDir, 'temp');
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
-        }
+        // Corrigindo o erro "Cannot use same file for input and output"
+        // Utilizamos um nome de arquivo temporário para o processamento
+        const tempFilePath = path.join(uploadDir, `temp_${Date.now()}_${fileNameWithoutExt}.jpg`);
         
-        // Cria caminhos únicos para os arquivos otimizados
-        const fileName = path.basename(file.path);
-        const fileNameWithoutExt = path.basename(fileName, path.extname(fileName));
-        const optimizedPath = path.join(uploadDir, `${fileNameWithoutExt}.jpg`);
-        
-        // Primeiro, processa o arquivo original em um arquivo temporário
-        const tempOptimizedPath = path.join(tempDir, `temp_${fileNameWithoutExt}.jpg`);
-        
-        console.log(`Otimizando imagem para: ${tempOptimizedPath}`);
-        
-        // Processa o arquivo original para adicionar fundo branco (importante para PNGs transparentes)
+        // Processa o arquivo original para adicionar fundo branco e otimizar
         await sharp(file.path)
           .resize({
-            width: 1920, // Largura máxima conforme especificação
-            height: 1080, // Altura máxima conforme especificação
+            width: 1920, // Largura máxima 
+            height: 1080, // Altura máxima
             fit: 'inside', // Mantém a proporção
             withoutEnlargement: true // Não amplia imagens pequenas
           })
-          .flatten({ background: { r: 255, g: 255, b: 255 } }) // Adiciona fundo branco para imagens transparentes
-          .jpeg({ quality: 85 }) // Salva como JPEG com qualidade 85% conforme especificação
-          .toFile(tempOptimizedPath);
+          .flatten({ background: { r: 255, g: 255, b: 255 } }) // Adiciona fundo branco
+          .jpeg({ quality: 85 }) // Qualidade JPEG 85%
+          .toFile(tempFilePath);
+          
+        // Renomeia o arquivo temporário para o nome final
+        fs.renameSync(tempFilePath, optimizedPath);
         
-        // Mover o arquivo temporário para o destino final
-        fs.renameSync(tempOptimizedPath, optimizedPath);
-        
-        // Caso o arquivo original não seja JPG, remover o arquivo original
+        // Remove o arquivo original se for diferente do otimizado
         if (file.path !== optimizedPath) {
           try {
             fs.unlinkSync(file.path);
@@ -115,16 +104,16 @@ const processImages = async (req, res, next) => {
         
         console.log(`Gerando thumbnail: ${thumbnailPath}`);
         
-        // Criar o thumbnail como um processo separado
+        // Criar thumbnail a partir do arquivo otimizado
         await sharp(optimizedPath)
           .resize({
-            width: 300, // Largura do thumbnail
-            height: 300, // Altura do thumbnail
-            fit: 'cover', // Cobre toda a área, cortando se necessário
-            position: 'centre' // Centraliza a imagem
+            width: 300, 
+            height: 300, 
+            fit: 'cover',
+            position: 'centre'
           })
-          .flatten({ background: { r: 255, g: 255, b: 255 } }) // Adiciona fundo branco para imagens transparentes
-          .jpeg({ quality: 80 }) // Qualidade do JPEG (80% é um bom equilíbrio)
+          .flatten({ background: { r: 255, g: 255, b: 255 } })
+          .jpeg({ quality: 80 })
           .toFile(thumbnailPath);
         
         return thumbnailPath;
