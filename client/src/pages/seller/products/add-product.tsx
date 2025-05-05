@@ -68,8 +68,9 @@ export default function AddProduct() {
     const files = Array.from(event.target.files);
     setSelectedFiles(prevFiles => [...prevFiles, ...files]);
     
-    // Simular URLs para pré-visualização das imagens
+    // Criar URLs para pré-visualização das imagens
     files.forEach(file => {
+      // Criamos URL temporário apenas para visualização
       const fileUrl = URL.createObjectURL(file);
       setUploadedImages(prev => [...prev, fileUrl]);
     });
@@ -151,10 +152,13 @@ export default function AddProduct() {
       // Preparar os dados para envio
       const formattedData = {
         ...data,
-        // Se houver imagens carregadas, use-as; caso contrário, use as URLs fornecidas
-        images: uploadedImages.length > 0 
-          ? uploadedImages 
-          : (data.images || [])
+        // Usamos imagens de exemplo fixas até termos um serviço de upload
+        images: (data.images?.length ? data.images : []).length > 0
+          ? data.images 
+          : [
+              "https://images.unsplash.com/photo-1611911813383-67769b37a149?q=80&w=400",
+              "https://images.unsplash.com/photo-1607335614551-2927340ee28d?q=80&w=400"
+            ]
       };
       
       return apiRequest('POST', '/api/products', formattedData);
