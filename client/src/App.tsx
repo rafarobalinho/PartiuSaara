@@ -26,6 +26,7 @@ import Reservations from "@/pages/account/reservations";
 import SellerDashboard from "@/pages/seller/dashboard";
 import SellerProducts from "@/pages/seller/products/index";
 import AddProduct from "@/pages/seller/products/add-product";
+import EditProduct from "@/pages/seller/products/edit-product";
 import SellerPromotions from "@/pages/seller/promotions/index";
 import AddPromotion from "@/pages/seller/promotions/add-promotion";
 import SellerAnalytics from "@/pages/seller/analytics";
@@ -57,6 +58,7 @@ function Router() {
           <Route path="/seller/dashboard" component={SellerDashboard} />
           <Route path="/seller/products" component={SellerProducts} />
           <Route path="/seller/products/add" component={AddProduct} />
+          <Route path="/seller/products/:id/edit" component={EditProduct} />
           <Route path="/seller/promotions" component={SellerPromotions} />
           <Route path="/seller/promotions/add" component={AddPromotion} />
           <Route path="/seller/stores" component={SellerStores} />
