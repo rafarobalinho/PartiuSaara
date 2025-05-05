@@ -1,0 +1,154 @@
+CORREÇÃO ESPECÍFICA: Imagens e preços na página de detalhes do produto
+Estou enfrentando problemas específicos na página de detalhes do produto (client/src/pages/products/product-detail.tsx):
+
+As imagens não estão sendo carregadas corretamente da tabela product_images
+O preço está aparecendo como "R$ NaN" ou "R$ 0,00"
+
+PROBLEMA NAS IMAGENS:
+O código atual está tentando carregar imagens de um caminho estático:
+jsx<img src="/placeholder-image.jpg" alt="Produto" class="w-full h-full object-contain p-4">
+E quando não há imagens, está exibindo:
+jsx<div class="w-20 h-20 bg-gray-100 rounded-md flex items-center justify-center">
+  <span class="text-gray-400 text-sm">Sem imagens</span>
+</div>
+PROBLEMA NO PREÇO:
+O preço está sendo exibido incorretamente:
+jsx<div class="flex items-center mb-1">
+  <span class="text-primary font-bold text-3xl">R$ 0,00</span>
+</div>
+SOLUÇÃO:
+
+Correção para a imagem principal:
+
+jsx{/* Imagem principal do produto */}
+<div className="relative pt-[56.25%] bg-gray-100">
+  {product && product.images && product.images.length > 0 ? (
+    <img 
+      src={product.images[0].image_url} 
+      alt={product.name} 
+      className="absolute top-0 left-0 w-full h-full object-contain p-4" 
+    />
+  ) : (
+    <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+      <span className="text-gray-400">Sem imagem disponível</span>
+    </div>
+  )}
+</div>
+
+Correção para a galeria de imagens:
+
+jsx{/* Galeria de imagens */}
+<div className="mt-4">
+  <h3 className="text-lg font-medium mb-2">Mais imagens</h3>
+  <div className="flex overflow-x-auto space-x-2 pb-2">
+    {product && product.images && product.images.length > 0 ? (
+      product.images.map((image, index) => (
+        <div 
+          key={index} 
+          className="w-20 h-20 flex-shrink-0 rounded-md overflow-hidden border border-gray-200"
+        >
+          <img 
+            src={image.thumbnail_url || image.image_url} 
+            alt={`${product.name} - imagem ${index + 1}`} 
+            className="w-full h-full object-cover" 
+          />
+        </div>
+      ))
+    ) : (
+      <div className="w-20 h-20 bg-gray-100 rounded-md flex items-center justify-center">
+        <span className="text-gray-400 text-sm">Sem imagens</span>
+      </div>
+    )}
+  </div>
+</div>
+
+Correção para o preço:
+
+jsx{/* Preço do produto */}
+<div className="flex items-center mb-1">
+  {product && product.discounted_price ? (
+    <>
+      <span className="line-through text-gray-400 text-lg mr-2">
+        R$ {product.price ? product.price.toFixed(2).replace('.', ',') : '0,00'}
+      </span>
+      <span className="text-primary font-bold text-3xl">
+        R$ {product.discounted_price.toFixed(2).replace('.', ',')}
+      </span>
+    </>
+  ) : (
+    <span className="text-primary font-bold text-3xl">
+      R$ {product && product.price ? product.price.toFixed(2).replace('.', ',') : '0,00'}
+    </span>
+  )}
+</div>
+
+Verifique se o backend está retornando corretamente as imagens:
+Certifique-se de que o endpoint da API (/api/products/:id) esteja buscando as imagens corretamente:
+
+javascript// No arquivo do backend que define o endpoint /api/products/:id
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Buscar o produto
+    const productQuery = 'SELECT * FROM products WHERE id = $1';
+    const productResult = await pool.query(productQuery, [id]);
+    
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Produto não encontrado' });
+    }
+    
+    const product = productResult.rows[0];
+    
+    // Buscar imagens do produto da tabela product_images
+    const imagesQuery = `
+      SELECT * FROM product_images 
+      WHERE product_id = $1
+      ORDER BY is_primary DESC, display_order ASC
+    `;
+    
+    const imagesResult = await pool.query(imagesQuery, [id]);
+    console.log(`Imagens encontradas para o produto ${id}:`, imagesResult.rows);
+    
+    // Adicionar imagens ao objeto do produto
+    product.images = imagesResult.rows;
+    
+    return res.json(product);
+  } catch (error) {
+    console.error('Erro ao buscar produto:', error);
+    return res.status(500).json({ error: 'Erro ao buscar produto' });
+  }
+});
+
+Adicione console.logs para diagnóstico:
+
+javascript// No useEffect da página de detalhes do produto
+useEffect(() => {
+  const fetchProductDetails = async () => {
+    try {
+      setLoading(true);
+      
+      const productId = params.id || router.query.id;
+      console.log('Buscando produto ID:', productId);
+      
+      const response = await api.get(`/api/products/${productId}`);
+      console.log('Dados do produto recebidos:', response.data);
+      
+      if (response.data.images) {
+        console.log('Imagens do produto:', response.data.images);
+      } else {
+        console.log('Produto não tem imagens ou propriedade images não definida');
+      }
+      
+      setProduct(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar produto:', error);
+      setError('Erro ao carregar produto');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  fetchProductDetails();
+}, [params.id, router.query.id]);
+Estas correções devem resolver os problemas específicos com a exibição de imagens e preços na página de detalhes do produto.

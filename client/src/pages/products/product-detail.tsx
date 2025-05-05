@@ -35,8 +35,8 @@ interface Product {
   discountedPrice?: number;
   category: string;
   stock: number;
-  images: string[];
-  store: {
+  images: any[]; // Alterado para aceitar strings ou objetos
+  store?: {
     id: number;
     name: string;
     rating: number;
@@ -59,11 +59,10 @@ export default function ProductDetail() {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [productData, setProductData] = useState<Product | null>(null);
 
   const { data: product, isLoading } = useQuery({
     queryKey: [`/api/products/${id}`]
-    // Removendo o queryFn personalizado para usar o padrão do queryClient
-    // que já está configurado para todas as consultas
   });
 
   const { data: relatedProducts = [], isLoading: isRelatedLoading } = useQuery({
@@ -156,8 +155,7 @@ export default function ProductDetail() {
         }
         
         console.log('Produto normalizado:', safeProduct);
-        // Como já temos useQuery, não precisamos definir o state diretamente
-        // Apenas garantimos que os valores são seguros
+        setProductData(safeProduct as Product);
       } catch (error) {
         console.error('Erro ao carregar detalhes do produto:', error);
         setError('Erro ao carregar detalhes do produto');
@@ -190,8 +188,8 @@ export default function ProductDetail() {
       toast({
         title: isWishlisted ? 'Removido dos favoritos' : 'Adicionado aos favoritos',
         description: isWishlisted ? 
-          `${product.name} foi removido da sua lista de desejos.` : 
-          `${product.name} foi adicionado à sua lista de desejos.`,
+          `${productData?.name || 'Produto'} foi removido da sua lista de desejos.` : 
+          `${productData?.name || 'Produto'} foi adicionado à sua lista de desejos.`,
         variant: "default",
       });
     } catch (error) {
@@ -223,7 +221,7 @@ export default function ProductDetail() {
       
       toast({
         title: 'Reserva criada',
-        description: `${product.name} foi reservado com sucesso. Você tem 72 horas para retirar.`,
+        description: `${productData?.name || 'Produto'} foi reservado com sucesso. Você tem 72 horas para retirar.`,
         variant: "default",
       });
     } catch (error) {
@@ -236,7 +234,7 @@ export default function ProductDetail() {
     }
   };
 
-  if (isLoading) {
+  if (loading || isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row gap-8">
@@ -260,12 +258,12 @@ export default function ProductDetail() {
     );
   }
 
-  if (!product) {
+  if (error || !productData) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <div className="text-4xl mb-4"><i className="fas fa-exclamation-circle text-gray-300"></i></div>
         <h2 className="text-xl font-bold mb-2">Produto não encontrado</h2>
-        <p className="text-gray-600 mb-6">O produto que você está procurando não existe ou foi removido.</p>
+        <p className="text-gray-600 mb-6">{error || 'O produto que você está procurando não existe ou foi removido.'}</p>
         <Link href="/products">
           <Button className="bg-primary text-white hover:bg-primary/90">
             Ver todos os produtos
@@ -275,12 +273,12 @@ export default function ProductDetail() {
     );
   }
 
-  const discount = product.discountedPrice 
-    ? calculateDiscountPercentage(product.price, product.discountedPrice)
+  const discount = productData.discountedPrice 
+    ? calculateDiscountPercentage(productData.price, productData.discountedPrice)
     : 0;
 
-  const isFlashPromotion = product.promotion?.type === 'flash';
-  const endTime = isFlashPromotion ? new Date(product.promotion.endTime) : null;
+  const isFlashPromotion = productData.promotion?.type === 'flash';
+  const endTime = isFlashPromotion ? new Date(productData.promotion.endTime) : null;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -290,66 +288,80 @@ export default function ProductDetail() {
           Produtos
         </Link>
         <span className="mx-2 text-gray-400">/</span>
-        <Link href={`/categories/${product.category}`} className="text-gray-500 hover:text-primary">
-          {product.category}
+        <Link href={`/categories/${productData.category}`} className="text-gray-500 hover:text-primary">
+          {productData.category}
         </Link>
         <span className="mx-2 text-gray-400">/</span>
-        <span className="font-medium text-gray-900 truncate max-w-[200px]">{product.name}</span>
+        <span className="font-medium text-gray-900 truncate max-w-[200px]">{productData.name}</span>
       </div>
 
       <div className="flex flex-col md:flex-row gap-8 mb-12">
         {/* Product Images */}
         <div className="md:w-1/2">
-          <div className="bg-white rounded-lg overflow-hidden mb-4">
-            <div className="aspect-square relative">
-              {discount > 0 && (
-                <div className="absolute top-4 left-0 bg-primary text-white z-10 py-1 px-3 rounded-r-lg font-semibold">
-                  -{discount}%
-                </div>
-              )}
+          {/* Imagem principal do produto */}
+          <div className="relative pt-[56.25%] bg-gray-100">
+            {productData && productData.images && productData.images.length > 0 ? (
               <img 
-                src={product?.images && product.images.length > 0 ? getValidImage(product.images[activeImage], '/placeholder-image.jpg') : '/placeholder-image.jpg'} 
-                alt={product?.name || 'Produto'} 
-                className="w-full h-full object-contain p-4"
+                src={typeof productData.images[activeImage] === 'string' 
+                  ? productData.images[activeImage] 
+                  : productData.images[activeImage].image_url || '/placeholder-image.jpg'} 
+                alt={productData.name} 
+                className="absolute top-0 left-0 w-full h-full object-contain p-4" 
               />
-            </div>
-          </div>
-          <div className="flex space-x-2 overflow-x-auto pb-2">
-            {product?.images && Array.isArray(product.images) && product.images.length > 0 ? (
-              product.images.map((image, index) => (
-                <button
-                  key={index}
-                  className={`w-20 h-20 rounded-md border-2 ${activeImage === index ? 'border-primary' : 'border-transparent'}`}
-                  onClick={() => setActiveImage(index)}
-                >
-                  <img 
-                    src={getValidImage(image, '/placeholder-image.jpg')} 
-                    alt={`${product.name} - imagem ${index + 1}`} 
-                    className="w-full h-full object-contain"
-                  />
-                </button>
-              ))
             ) : (
-              <div className="w-20 h-20 bg-gray-100 rounded-md flex items-center justify-center">
-                <span className="text-gray-400 text-sm">Sem imagens</span>
+              <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+                <span className="text-gray-400">Sem imagem disponível</span>
               </div>
             )}
+            {discount > 0 && (
+              <div className="absolute top-4 left-0 bg-primary text-white z-10 py-1 px-3 rounded-r-lg font-semibold">
+                -{discount}%
+              </div>
+            )}
+          </div>
+          
+          {/* Galeria de imagens */}
+          <div className="mt-4">
+            <h3 className="text-lg font-medium mb-2">Mais imagens</h3>
+            <div className="flex overflow-x-auto space-x-2 pb-2">
+              {productData && productData.images && productData.images.length > 0 ? (
+                productData.images.map((image, index) => (
+                  <div 
+                    key={index} 
+                    className={`w-20 h-20 flex-shrink-0 rounded-md overflow-hidden border-2 cursor-pointer ${activeImage === index ? 'border-primary' : 'border-gray-200'}`}
+                    onClick={() => setActiveImage(index)}
+                  >
+                    <img 
+                      src={typeof image === 'string' 
+                        ? image 
+                        : (image.thumbnail_url || image.image_url || '/placeholder-image.jpg')} 
+                      alt={`${productData.name} - imagem ${index + 1}`} 
+                      className="w-full h-full object-cover" 
+                    />
+                  </div>
+                ))
+              ) : (
+                <div className="w-20 h-20 bg-gray-100 rounded-md flex items-center justify-center">
+                  <span className="text-gray-400 text-sm">Sem imagens</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Product Info */}
         <div className="md:w-1/2">
-          <h1 className="text-2xl font-bold mb-2">{product.name}</h1>
+          <h1 className="text-2xl font-bold mb-2">{productData.name}</h1>
           
-          {product.store && (
-            <Link href={`/stores/${product.store.id}`} className="text-primary hover:underline inline-flex items-center mb-4">
+          {productData.store && (
+            <Link href={`/stores/${productData.store.id}`} className="text-primary hover:underline inline-flex items-center mb-4">
               <i className="fas fa-store mr-1"></i>
-              <span>{product.store.name}</span>
+              <span>{productData.store.name}</span>
               <div className="flex items-center ml-3 text-sm text-gray-700">
                 <i className="fas fa-star text-yellow-400 mr-1"></i>
-                <span>{product.store.rating.toFixed(1)}</span>
+                <span>{productData.store.rating.toFixed(1)}</span>
                 <span className="mx-1">•</span>
-                <span>{product.store.reviewCount} avaliações</span>
+                <span>{productData.store.reviewCount} avaliações</span>
               </div>
             </Link>
           )}
@@ -374,39 +386,40 @@ export default function ProductDetail() {
               </div>
             )}
 
+            {/* Preço do produto */}
             <div className="flex items-center mb-1">
-              {typeof product.discountedPrice === 'number' && product.discountedPrice > 0 ? (
+              {productData && productData.discountedPrice ? (
                 <>
-                  <span className="text-gray-400 line-through text-lg mr-2">
-                    {typeof product.price === 'number' ? formatCurrency(product.price) : 'R$ 0,00'}
+                  <span className="line-through text-gray-400 text-lg mr-2">
+                    R$ {productData.price ? productData.price.toFixed(2).replace('.', ',') : '0,00'}
                   </span>
                   <span className="text-primary font-bold text-3xl">
-                    {formatCurrency(product.discountedPrice)}
+                    R$ {productData.discountedPrice.toFixed(2).replace('.', ',')}
                   </span>
                 </>
               ) : (
                 <span className="text-primary font-bold text-3xl">
-                  {typeof product.price === 'number' ? formatCurrency(product.price) : 'R$ 0,00'}
+                  R$ {productData && productData.price ? productData.price.toFixed(2).replace('.', ',') : '0,00'}
                 </span>
               )}
             </div>
 
             <div className="flex items-center mb-4">
-              <Badge variant={product.stock > 0 ? "outline" : "secondary"} className="text-xs">
-                {product.stock > 0 ? `${product.stock} em estoque` : 'Fora de estoque'}
+              <Badge variant={productData.stock > 0 ? "outline" : "secondary"} className="text-xs">
+                {productData.stock > 0 ? `${productData.stock} em estoque` : 'Fora de estoque'}
               </Badge>
             </div>
           </div>
 
           <div className="prose max-w-none mb-6">
-            <p className="text-gray-700">{product.description}</p>
+            <p className="text-gray-700">{productData.description}</p>
           </div>
 
           <div className="flex flex-col space-y-3">
             <Button
               onClick={handleReserve}
               className="bg-primary text-white hover:bg-primary/90 h-12 text-base"
-              disabled={product.stock <= 0}
+              disabled={productData.stock <= 0}
             >
               <i className="fas fa-bookmark mr-2"></i> Reservar Produto
             </Button>
@@ -446,37 +459,37 @@ export default function ProductDetail() {
           <TabsContent value="details">
             <div className="prose max-w-none">
               <h3 className="text-lg font-medium mb-3">Descrição do Produto</h3>
-              <p className="text-gray-700 whitespace-pre-line">{product.description}</p>
+              <p className="text-gray-700 whitespace-pre-line">{productData.description}</p>
               
               <h3 className="text-lg font-medium mt-6 mb-3">Especificações</h3>
               <ul className="list-disc pl-5">
-                <li className="text-gray-700">Categoria: {product.category}</li>
-                {product.store && (
-                  <li className="text-gray-700">Vendido por: {product.store.name}</li>
+                <li className="text-gray-700">Categoria: {productData.category}</li>
+                {productData.store && (
+                  <li className="text-gray-700">Vendido por: {productData.store.name}</li>
                 )}
-                <li className="text-gray-700">Disponibilidade: {product.stock > 0 ? `${product.stock} unidades em estoque` : 'Fora de estoque'}</li>
+                <li className="text-gray-700">Disponibilidade: {productData.stock > 0 ? `${productData.stock} unidades em estoque` : 'Fora de estoque'}</li>
               </ul>
             </div>
           </TabsContent>
           <TabsContent value="store">
-            {product.store ? (
+            {productData.store ? (
               <>
                 <div className="flex items-center mb-4">
                   <div className="w-16 h-16 bg-gray-100 rounded-full mr-4 flex items-center justify-center">
                     <i className="fas fa-store text-primary text-2xl"></i>
                   </div>
                   <div>
-                    <h3 className="text-lg font-medium">{product.store.name}</h3>
+                    <h3 className="text-lg font-medium">{productData.store.name}</h3>
                     <div className="flex items-center text-sm text-gray-700">
                       <i className="fas fa-star text-yellow-400 mr-1"></i>
-                      <span>{product.store.rating.toFixed(1)}</span>
+                      <span>{productData.store.rating.toFixed(1)}</span>
                       <span className="mx-1">•</span>
-                      <span>{product.store.reviewCount} avaliações</span>
+                      <span>{productData.store.reviewCount} avaliações</span>
                     </div>
                   </div>
                 </div>
                 
-                <Link href={`/stores/${product.store.id}`}>
+                <Link href={`/stores/${productData.store.id}`}>
                   <Button className="bg-primary text-white hover:bg-primary/90">
                     Ver Loja
                   </Button>
@@ -492,11 +505,11 @@ export default function ProductDetail() {
       </div>
 
       {/* Related Products */}
-      {relatedProducts.length > 0 && (
+      {Array.isArray(relatedProducts) && relatedProducts.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">Produtos Relacionados</h2>
-            <Link href={`/categories/${product.category}`} className="text-primary text-sm font-medium">
+            <Link href={`/categories/${productData.category}`} className="text-primary text-sm font-medium">
               Ver mais <i className="fas fa-chevron-right text-xs ml-1"></i>
             </Link>
           </div>
@@ -515,7 +528,7 @@ export default function ProductDetail() {
                 </div>
               ))
             ) : (
-              relatedProducts.slice(0, 4).map((relatedProduct: Product) => (
+              relatedProducts.slice(0, 4).map((relatedProduct: any) => (
                 <ProductCard
                   key={relatedProduct.id}
                   product={relatedProduct}
