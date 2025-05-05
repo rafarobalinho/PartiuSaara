@@ -5,12 +5,11 @@ import ProductCard from '@/components/ui/product-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
 import { formatCurrency } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
-import PriceFilter from '@/components/ui/PriceFilter';
-import RangeSlider from '@/components/ui/RangeSlider';
+import { Loader2, Search } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Product {
   id: number;
@@ -33,32 +32,57 @@ interface Category {
   icon: string;
 }
 
+// Definição das faixas de preço predefinidas
+const PRICE_RANGES = [
+  { id: 'all', label: 'Todos os preços', range: [0, 1000] },
+  { id: 'under-150', label: 'Até R$150', range: [0, 150] },
+  { id: '150-300', label: 'R$150 a R$300', range: [150, 300] },
+  { id: '300-500', label: 'R$300 a R$500', range: [300, 500] },
+  { id: 'above-500', label: 'Acima de R$500', range: [500, 1000] }
+];
+
 export default function CategoryPage() {
   const { category: categorySlug } = useParams();
-  // Configurando o estado para os filtros
-  const [priceRange, setPriceRange] = useState([0, 1000]);
-  const [debouncedPriceRange, setDebouncedPriceRange] = useState([0, 1000]);
+  
+  // Estado para as faixas de preço
+  const [activePriceRangeId, setActivePriceRangeId] = useState<string>('all');
+  const [debouncedPriceRange, setDebouncedPriceRange] = useState<[number, number]>([0, 1000]);
+  
+  // Estado para filtro personalizado
+  const [customMinPrice, setCustomMinPrice] = useState<string>('');
+  const [customMaxPrice, setCustomMaxPrice] = useState<string>('');
+  const [isCustomRangeActive, setIsCustomRangeActive] = useState<boolean>(false);
+  
+  // Outros filtros
   const [sortBy, setSortBy] = useState('popularity');
   const [filterPromotion, setFilterPromotion] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
 
-  // Efeito para aplicar debounce ao filtro de preço
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedPriceRange(priceRange);
-    }, 500); // Debounce de 500ms
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [priceRange]);
-
-  // Feedback para mostrar que estamos aplicando filtros
-  useEffect(() => {
-    if (debouncedPriceRange !== priceRange) {
-      setIsFiltering(true);
+  // Função para aplicar uma faixa de preço predefinida
+  const applyPriceRange = useCallback((rangeId: string) => {
+    const selectedRange = PRICE_RANGES.find(r => r.id === rangeId);
+    if (selectedRange) {
+      setActivePriceRangeId(rangeId);
+      setDebouncedPriceRange(selectedRange.range as [number, number]);
+      setIsCustomRangeActive(false);
     }
-  }, [debouncedPriceRange, priceRange]);
+  }, []);
+
+  // Função para aplicar filtro de preço personalizado
+  const applyCustomPriceRange = useCallback(() => {
+    const min = customMinPrice ? parseInt(customMinPrice, 10) : 0;
+    const max = customMaxPrice ? parseInt(customMaxPrice, 10) : 1000;
+    
+    if (min > max) {
+      // Se min > max, invertemos os valores
+      setDebouncedPriceRange([max, min]);
+    } else {
+      setDebouncedPriceRange([min, max]);
+    }
+    
+    setIsCustomRangeActive(true);
+    setActivePriceRangeId('');
+  }, [customMinPrice, customMaxPrice]);
 
   // Fetch category info
   const { data: category, isLoading: isCategoryLoading } = useQuery({
@@ -122,15 +146,18 @@ export default function CategoryPage() {
     }
   });
 
-  // Handler para o controle deslizante de preço
-  const handlePriceRangeChange = useCallback((value: number[]) => {
-    setPriceRange(value);
-  }, []);
+  // Efeito para indicar quando está filtrando
+  useEffect(() => {
+    setIsFiltering(true);
+  }, [debouncedPriceRange, sortBy, filterPromotion]);
 
   // Reset de todos os filtros
   const handleResetFilters = useCallback(() => {
-    setPriceRange([0, 1000]);
+    setActivePriceRangeId('all');
     setDebouncedPriceRange([0, 1000]);
+    setCustomMinPrice('');
+    setCustomMaxPrice('');
+    setIsCustomRangeActive(false);
     setSortBy('popularity');
     setFilterPromotion(false);
   }, []);
@@ -172,28 +199,73 @@ export default function CategoryPage() {
             <h3 className="font-semibold mb-4">Filtros</h3>
             
             <div className="mb-6">
-              <Label className="mb-2 block">Faixa de Preço</Label>
-              <Slider
-                defaultValue={[0, 1000]}
-                max={1000}
-                step={10}
-                value={priceRange}
-                onValueChange={handlePriceRangeChange}
-                className="mb-2"
-              />
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>{formatCurrency(priceRange[0])}</span>
-                <span>{formatCurrency(priceRange[1])}</span>
+              <Label className="mb-2 block font-medium">Faixa de Preço</Label>
+              
+              {/* Botões de faixas de preço predefinidas */}
+              <div className="space-y-2 mb-4">
+                {PRICE_RANGES.map((range) => (
+                  <Button
+                    key={range.id}
+                    type="button"
+                    onClick={() => applyPriceRange(range.id)}
+                    className={cn(
+                      "w-full justify-start font-normal bg-white border text-left mb-1 hover:bg-gray-50 text-gray-700",
+                      range.id === activePriceRangeId 
+                        ? "border-primary bg-primary/5 text-primary" 
+                        : "border-gray-200"
+                    )}
+                    variant="outline"
+                  >
+                    {range.label}
+                  </Button>
+                ))}
               </div>
-              <Button 
-                onClick={() => {
-                  // Aplicar o filtro imediatamente (sem debounce)
-                  setDebouncedPriceRange(priceRange);
-                }}
-                className="w-full mt-2 bg-primary text-white py-2 px-4 rounded hover:bg-primary/90 transition-colors"
-              >
-                Aplicar Filtro
-              </Button>
+              
+              {/* Filtro de preço personalizado */}
+              <div className="mt-4 border border-gray-200 rounded-md p-3">
+                <Label className="block text-sm font-medium mb-2">Personalizar faixa</Label>
+                <div className="flex items-center gap-2">
+                  <div className="w-1/2">
+                    <Label htmlFor="min-price" className="text-xs text-gray-500">Min</Label>
+                    <Input
+                      id="min-price"
+                      type="number"
+                      placeholder="Min"
+                      value={customMinPrice}
+                      onChange={(e) => setCustomMinPrice(e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div className="w-1/2">
+                    <Label htmlFor="max-price" className="text-xs text-gray-500">Max</Label>
+                    <Input
+                      id="max-price"
+                      type="number"
+                      placeholder="Max"
+                      value={customMaxPrice}
+                      onChange={(e) => setCustomMaxPrice(e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                </div>
+                <Button 
+                  onClick={applyCustomPriceRange}
+                  className="w-full mt-3 bg-primary text-white py-2 px-4 rounded hover:bg-primary/90 transition-colors h-8 text-sm"
+                >
+                  <Search className="h-3.5 w-3.5 mr-2" />
+                  Aplicar
+                </Button>
+              </div>
+
+              {/* Mostrar intervalo atual de preço */}
+              {isCustomRangeActive && (
+                <div className="mt-2 text-sm text-gray-600 flex justify-between">
+                  <span>Intervalo atual:</span>
+                  <span className="font-medium">
+                    {formatCurrency(debouncedPriceRange[0])} - {formatCurrency(debouncedPriceRange[1])}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="mb-6">
