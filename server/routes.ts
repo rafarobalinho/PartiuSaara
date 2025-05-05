@@ -380,22 +380,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rotas de mapa e geocodificação
   app.get('/api/stores/map', async (req, res) => {
     try {
-      // Buscar lojas do storage já implementado
-      const allStores = await storage.getStores();
+      console.log('Recebida requisição para /api/stores/map');
+      // Buscar lojas com coordenadas válidas usando consulta SQL direta
+      const result = await pool.query(`
+        SELECT 
+          id, 
+          name, 
+          description, 
+          category,
+          address,
+          location
+        FROM 
+          stores
+        WHERE 
+          location IS NOT NULL
+      `);
       
-      // Filtrar apenas as lojas que têm location definido
-      const storesWithLocation = allStores.filter(store => 
-        store.location && 
-        typeof store.location === 'object' && 
-        'latitude' in store.location && 
-        'longitude' in store.location
-      );
-      
-      // Log para debug
-      console.log('Lojas encontradas para o mapa:', storesWithLocation.length);
-      
-      // Enviar as lojas como resposta
-      res.json(storesWithLocation);
+      console.log('Lojas encontradas:', result.rows.length);
+      res.json(result.rows);
     } catch (error) {
       console.error('Erro ao buscar lojas para o mapa:', error);
       res.status(500).json({ error: 'Falha ao buscar lojas para o mapa' });
