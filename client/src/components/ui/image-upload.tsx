@@ -70,33 +70,61 @@ export function ImageUpload({
     setIsUploading(true);
 
     try {
+      // Extrair o tipo e ID da entidade do nome
+      // Exemplo: "store-logo-5" => tipo: "store", entityId: "5"
+      const entityInfo = name.split('-');
+      const type = entityInfo[0]; // "store" ou "product"
+      
+      let entityId = '';
+      // Se for formato product-5 ou store-5
+      if (entityInfo.length === 2 && !isNaN(Number(entityInfo[1]))) {
+        entityId = entityInfo[1];
+      } 
+      // Se for formato store-logo-5 ou product-images-5
+      else if (entityInfo.length > 2 && !isNaN(Number(entityInfo[entityInfo.length - 1]))) {
+        entityId = entityInfo[entityInfo.length - 1];
+      } else {
+        throw new Error('Nome de campo inválido. Deve seguir o formato "type-id" ou "type-subtype-id"');
+      }
+
       const formData = new FormData();
       Array.from(files).forEach(file => {
         formData.append('images', file);
       });
 
-      const response = await apiRequest('POST', '/api/upload/images', formData, {
-        headers: {
-          // Não incluir Content-Type, o navegador configura automaticamente para FormData
-        },
-      });
+      // Adicionar os parâmetros type e entityId como query params
+      const response = await apiRequest(
+        'POST', 
+        `/api/upload/images?type=${type}&entityId=${entityId}`, 
+        formData, 
+        {
+          headers: {
+            // Não incluir Content-Type, o navegador configura automaticamente para FormData
+          },
+        }
+      );
 
       const result = await response.json();
 
       if (result.success && result.images) {
-        const newImageUrls = result.images.map((img: { imageUrl: string }) => img.imageUrl);
+        const newImages = result.images.map((img: any) => ({
+          id: img.id,
+          url: img.imageUrl,
+          thumbnailUrl: img.thumbnailUrl,
+          isPrimary: img.isPrimary
+        }));
         
         // Se não for múltiplo, substitui a imagem atual em vez de adicionar
         const updatedImages = multiple 
-          ? [...selectedImages, ...newImageUrls]
-          : newImageUrls; // Para logo, substitui completamente
+          ? [...selectedImages, ...newImages.map(img => img.url)]
+          : newImages.map(img => img.url); // Para logo, substitui completamente
         
         setSelectedImages(updatedImages);
         onChange(updatedImages);
         
         toast({
           title: "Upload realizado com sucesso",
-          description: `${newImageUrls.length} imagem(ns) adicionada(s)`,
+          description: `${newImages.length} imagem(ns) adicionada(s)`,
         });
       } else {
         throw new Error(result.message || 'Erro no upload das imagens');
@@ -122,11 +150,17 @@ export function ImageUpload({
     try {
       const imageToRemove = selectedImages[index];
       
-      // Se a imagem já está salva no servidor, enviar requisição para excluí-la
-      if (imageToRemove.startsWith('/uploads/')) {
-        await apiRequest('DELETE', '/api/upload/images', { 
-          imageUrl: imageToRemove 
-        });
+      // Extrair o tipo e ID da entidade do nome do componente
+      const entityInfo = name.split('-');
+      const type = entityInfo[0]; // "store" ou "product"
+      
+      // Extrair o ID da imagem da URL
+      // Aqui precisamos extrair de uma estrutura como /uploads/123456789.jpg
+      const imageId = imageToRemove.match(/\/uploads\/(\d+)/)?.[1];
+      
+      // Se a imagem já está salva no servidor e temos o ID, enviar requisição para excluí-la
+      if (imageToRemove.startsWith('/uploads/') && imageId) {
+        await apiRequest('DELETE', `/api/upload/images/${imageId}?type=${type}`, {});
       }
       
       const updatedImages = selectedImages.filter((_, i) => i !== index);

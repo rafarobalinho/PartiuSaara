@@ -219,7 +219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Rotas de upload de imagens
   app.post('/api/upload/images', authMiddleware, uploadImages);
-  app.delete('/api/upload/images', authMiddleware, deleteImage);
+  app.delete('/api/upload/images/:id', authMiddleware, deleteImage);
 
   // Servir arquivos estáticos da pasta pública
   app.use('/uploads', express.static('public/uploads'));
