@@ -228,7 +228,7 @@ export default function StoreDetail() {
           <img 
             src={`/api/stores/${store.id}/primary-image`}
             alt={store.name} 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
               e.currentTarget.nextElementSibling?.classList.remove('hidden');
