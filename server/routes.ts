@@ -390,14 +390,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Rota específica para login administrativo
   app.post('/api/admin/login', async (req: Request, res: Response) => {
-    console.log('Requisição de login administrativo recebida:', { email: req.body?.email });
+    // Definir explicitamente o tipo de conteúdo como JSON para evitar respostas HTML
+    res.setHeader('Content-Type', 'application/json');
     
     try {
+      console.log('Requisição de login administrativo recebida');
+      console.log('Headers:', req.headers);
+      console.log('Body:', { email: req.body?.email ? '[PRESENTE]' : '[AUSENTE]', password: req.body?.password ? '[PRESENTE]' : '[AUSENTE]' });
+      
       const { email, password } = req.body;
 
       if (!email || !password) {
         console.log('Falha na autenticação: Email ou senha faltando');
-        return res.status(400).json({ message: 'Email e senha são obrigatórios' });
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Email e senha são obrigatórios' 
+        });
       }
 
       // Buscar o usuário pelo email
@@ -409,13 +417,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!user) {
         console.log('Falha na autenticação: Usuário não encontrado');
-        return res.status(401).json({ message: 'Credenciais inválidas' });
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Credenciais inválidas' 
+        });
       }
 
       // Verificar se o usuário é um administrador
       if (user.role !== 'admin') {
         console.log('Falha na autenticação: Usuário não é administrador');
-        return res.status(403).json({ message: 'Acesso negado. Apenas administradores podem acessar este recurso.' });
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Acesso negado. Apenas administradores podem acessar este recurso.' 
+        });
       }
 
       // Verificar a senha
@@ -424,31 +438,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!isPasswordValid) {
         console.log('Falha na autenticação: Senha incorreta');
-        return res.status(401).json({ message: 'Credenciais inválidas' });
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Credenciais inválidas' 
+        });
       }
 
-      // Autenticar o usuário
-      req.session.userId = user.id;
+      try {
+        // Autenticar o usuário e salvar na sessão
+        req.session.userId = user.id;
+        console.log('ID do usuário salvo na sessão:', user.id);
+        
+        // Salvando a sessão explicitamente
+        await new Promise<void>((resolve, reject) => {
+          req.session.save((err) => {
+            if (err) {
+              console.error('Erro ao salvar sessão:', err);
+              reject(err);
+            } else {
+              console.log('Sessão salva com sucesso');
+              resolve();
+            }
+          });
+        });
+      } catch (sessionError) {
+        console.error('Erro na manipulação da sessão:', sessionError);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Erro ao criar sessão de autenticação' 
+        });
+      }
       
       // Remover a senha da resposta
       const { password: _, ...userWithoutPassword } = user;
       
       const responseData = {
-        ...userWithoutPassword,
+        user: userWithoutPassword,
         success: true,
         message: 'Login administrativo realizado com sucesso'
       };
       
       console.log('Enviando resposta de sucesso para login administrativo');
-      
-      // Definir explicitamente o tipo de conteúdo como JSON para evitar respostas HTML
-      res.setHeader('Content-Type', 'application/json');
       return res.status(200).json(responseData);
     } catch (error) {
       console.error('Erro no login administrativo:', error);
-      // Definir explicitamente o tipo de conteúdo como JSON para evitar respostas HTML
-      res.setHeader('Content-Type', 'application/json');
       return res.status(500).json({ 
+        success: false,
         message: 'Erro ao processar o login administrativo',
         error: error instanceof Error ? error.message : 'Erro desconhecido' 
       });

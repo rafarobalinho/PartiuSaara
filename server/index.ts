@@ -14,6 +14,18 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Middleware para capturar erros de parsing JSON
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof SyntaxError && 'body' in err) {
+    console.error('JSON parsing error:', err);
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Erro no formato JSON enviado' 
+    });
+  }
+  next(err);
+});
+
 // Servir arquivos estáticos da pasta de uploads
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 app.use('/uploads/thumbnails', express.static(path.join(__dirname, '../public/uploads/thumbnails')));
