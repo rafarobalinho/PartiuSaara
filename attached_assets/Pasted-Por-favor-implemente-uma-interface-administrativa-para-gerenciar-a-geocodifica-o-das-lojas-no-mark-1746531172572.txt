@@ -1,0 +1,80 @@
+Por favor, implemente uma interface administrativa para gerenciar a geocodificação das lojas no marketplace, seguindo estes passos detalhados. Em cada passo, verifique se a funcionalidade já existe antes de implementá-la:
+1. Criar a Página Administrativa de Geocodificação
+Verifique se já existe um arquivo client/src/pages/admin/GeocodingPanel.tsx. Se não existir, crie-o com um painel que permita:
+
+Visualizar todas as lojas e seu status de geocodificação
+Executar geocodificação individual ou em lote
+Corrigir coordenadas manualmente
+
+2. Adicionar Novos Endpoints Administrativos
+Verifique se o arquivo server/routes/admin.js existe e se já contém os endpoints abaixo. Caso não exista o arquivo ou os endpoints, implemente-os:
+
+GET /api/admin/stores-geocoding - Para listar todas as lojas com seus dados de localização
+POST /api/admin/geocode-store/:id - Para geocodificar uma única loja
+POST /api/admin/update-store-coordinates/:id - Para atualizar manualmente as coordenadas
+
+3. Adicionar a Página ao Sistema de Rotas
+Verifique o arquivo de rotas da aplicação (normalmente em client/src/routes/index.tsx ou similar) e veja se a rota para a página de geocodificação já existe. Se não existir, adicione-a.
+4. Adicionar um Link no Menu de Administração
+Verifique se já existe um link para a página de geocodificação no menu de administração. Se não existir, adicione-o.
+Instruções Detalhadas
+Passo 1: Componente GeocodingPanel
+Se o componente não existir, implemente-o com:
+
+Uma tabela listando todas as lojas, com colunas para ID, nome, endereço, status de geocodificação e ações
+Um painel lateral para editar coordenadas manualmente
+Um botão para geocodificar todas as lojas de uma vez
+Um minimap para visualizar a localização atual da loja selecionada
+
+Passo 2: Endpoints Administrativos
+Se os endpoints não existirem, implemente-os no arquivo server/routes/admin.js:
+
+GET /api/admin/stores-geocoding:
+
+Busca todas as lojas com seus dados de localização
+Ordena por ID para facilitar a navegação
+
+
+POST /api/admin/geocode-store/:id:
+
+Recebe o ID da loja como parâmetro
+Busca o endereço da loja no banco de dados
+Usa o serviço de geocodificação para obter latitude, longitude e place_id
+Atualiza os dados da loja no banco de dados
+
+
+POST /api/admin/update-store-coordinates/:id:
+
+Recebe o ID da loja e as novas coordenadas (latitude, longitude)
+Valida os valores recebidos
+Atualiza apenas as coordenadas no banco de dados
+
+
+
+Passo 3: Integração com o Sistema de Rotas
+Se a rota não existir:
+
+Importe o componente GeocodingPanel
+Adicione a rota /admin/geocoding que renderiza este componente
+Certifique-se de que a rota está protegida por autenticação de administrador
+
+Passo 4: Link no Menu de Administração
+Se o link não existir:
+
+Adicione um item de menu "Geocodificação de Lojas"
+Configure-o para navegar para /admin/geocoding
+Use um ícone apropriado (como MapPin)
+
+Dependências Necessárias
+Verifique se estas dependências estão instaladas. Se não estiverem, instale-as:
+
+@tanstack/react-query (para gerenciamento de estado)
+lucide-react (para ícones)
+axios (para requisições HTTP)
+
+Considerações de Segurança
+Certifique-se de que:
+
+Todas as rotas administrativas estão protegidas com middleware de autenticação
+Todos os dados recebidos nas APIs são validados
+Há tratamento de erros adequado em toda a aplicação
