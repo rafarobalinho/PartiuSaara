@@ -12,6 +12,7 @@ import * as WishlistController from "./controllers/wishlist.controller";
 import * as SubscriptionController from "./controllers/subscription.controller";
 import * as MapController from "./controllers/map.controller";
 import * as AdminController from "./controllers/admin.controller";
+import * as AdminUserController from "./controllers/admin-user.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db, pool } from "./db";
 import { and, eq } from "drizzle-orm";
@@ -385,6 +386,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/uploads', express.static('public/uploads'));
   app.use('/uploads/thumbnails', express.static('public/uploads/thumbnails'));
 
+
+  // Rotas para gerenciamento de usuários administrativos
+  app.post('/api/admin/init-admin', AdminUserController.initializeAdminUser);
+  app.get('/api/admin/check-admins', AdminUserController.checkForAdminUsers);
+  app.get('/api/admin/users', authMiddleware, adminMiddleware, AdminUserController.listAdminUsers);
+  app.post('/api/admin/users', authMiddleware, adminMiddleware, AdminUserController.createAdminUser);
+  app.post('/api/admin/users/:userId/promote', authMiddleware, adminMiddleware, AdminUserController.promoteUserToAdmin);
 
   // Rotas administrativas para geocodificação
   app.get('/api/admin/stores-geocoding', authMiddleware, adminMiddleware, AdminController.getAllStoresGeocodingStatus);
