@@ -1,0 +1,180 @@
+error: there is no parameter $3
+Esse erro indica que a consulta SQL está esperando um parâmetro $3 que não foi fornecido. Vamos analisar as consultas SQL no código e corrigir esse problema específico.
+Aqui está uma versão atualizada da função batchGeocodeAllStores com o problema corrigido:
+javascript// Função corrigida para geocodificação em lote
+async function batchGeocodeAllStores() {
+  try {
+    console.log('Iniciando processo de geocodificação em lote');
+    
+    // Buscar lojas que precisam de geocodificação
+    const result = await db.query(`
+      SELECT id, name, address 
+      FROM stores 
+      WHERE address IS NOT NULL 
+        AND (location IS NULL OR place_id IS NULL)
+    `);
+    
+    const stores = result.rows;
+    console.log(`Encontradas ${stores.length} lojas para geocodificar`);
+    
+    const results = {
+      total: stores.length,
+      success: 0,
+      failed: 0,
+      details: []
+    };
+    
+    // Se não houver lojas para geocodificar, retornar imediatamente
+    if (stores.length === 0) {
+      return results;
+    }
+    
+    // Importar axios no início da função
+    const axios = require('axios');
+    
+    // Processar cada loja
+    for (const store of stores) {
+      try {
+        console.log(`Geocodificando loja ID ${store.id}: ${store.name}`);
+        
+        // Verificar se o endereço está completo
+        if (!store.address || 
+            typeof store.address !== 'object' || 
+            !store.address.street || 
+            !store.address.city || 
+            !store.address.state || 
+            !store.address.zipCode) {
+          
+          console.log(`Loja ID ${store.id} tem endereço incompleto`);
+          results.failed++;
+          results.details.push({
+            id: store.id,
+            name: store.name || '',
+            status: 'failed',
+            reason: 'Endereço incompleto'
+          });
+          continue;
+        }
+        
+        // Formar o endereço completo
+        const formattedAddress = `${store.address.street}, ${store.address.city}, ${store.address.state}, ${store.address.zipCode}, Brasil`;
+        console.log(`Endereço formatado: ${formattedAddress}`);
+        
+        // Preparar URL da API Google Geocoding
+        const apiUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(formattedAddress)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        
+        // Fazer a requisição HTTP
+        const response = await axios.get(apiUrl);
+        console.log(`Resposta para loja ID ${store.id}: status=${response.data.status}, resultados=${response.data.results ? response.data.results.length : 0}`);
+        
+        // Verificar se a geocodificação foi bem-sucedida
+        if (response.data.status !== 'OK' || !response.data.results || response.data.results.length === 0) {
+          throw new Error(`Falha na geocodificação: ${response.data.status}`);
+        }
+        
+        // Extrair latitude, longitude e place_id da resposta
+        const result = response.data.results[0];
+        
+        // Criar objeto de localização
+        const locationObj = {
+          latitude: result.geometry.location.lat,
+          longitude: result.geometry.location.lng
+        };
+        
+        const placeId = result.place_id;
+        
+        console.log(`Dados extraídos: latitude=${locationObj.latitude}, longitude=${locationObj.longitude}, place_id=${placeId}`);
+        
+        // CORREÇÃO: Atualizar a loja no banco de dados - APENAS 2 PARÂMETROS
+        console.log(`Atualizando loja ID ${store.id} no banco de dados`);
+        
+        // Primeiro, atualizar a location
+        const updateLocationResult = await db.query(`
+          UPDATE stores 
+          SET location = $1::jsonb 
+          WHERE id = $2
+          RETURNING id
+        `, [
+          JSON.stringify(locationObj),
+          store.id
+        ]);
+        
+        // Depois, atualizar o place_id
+        const updatePlaceIdResult = await db.query(`
+          UPDATE stores 
+          SET place_id = $1 
+          WHERE id = $2
+          RETURNING id
+        `, [
+          placeId,
+          store.id
+        ]);
+        
+        // Verificar se ambas as atualizações foram bem-sucedidas
+        if (updateLocationResult.rows.length === 0 || updatePlaceIdResult.rows.length === 0) {
+          throw new Error('Falha ao atualizar o banco de dados');
+        }
+        
+        console.log(`Loja ID ${store.id} atualizada com sucesso`);
+        
+        // Verificar os valores atualizados
+        const checkResult = await db.query(`
+          SELECT id, location, place_id 
+          FROM stores 
+          WHERE id = $1
+        `, [store.id]);
+        
+        if (checkResult.rows.length > 0) {
+          console.log(`Valores atualizados para loja ID ${store.id}:`, checkResult.rows[0]);
+        }
+        
+        results.success++;
+        results.details.push({
+          id: store.id,
+          name: store.name || '',
+          status: 'success',
+          data: {
+            location: locationObj,
+            place_id: placeId
+          }
+        });
+        
+      } catch (error) {
+        console.error(`Erro ao geocodificar loja ID ${store.id}:`, error);
+        results.failed++;
+        results.details.push({
+          id: store.id,
+          name: store.name || '',
+          status: 'failed',
+          reason: error.message
+        });
+      }
+      
+      // Pequeno atraso para evitar limites de taxa da API
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    console.log('Geocodificação em lote concluída:', results);
+    return results;
+  } catch (error) {
+    console.error('Erro na geocodificação em lote:', error);
+    throw error;
+  }
+}
+A principal correção é:
+
+Dividir a atualização em duas consultas separadas:
+
+Agora atualizamos location e place_id em duas consultas SQL separadas
+Cada consulta tem apenas 2 parâmetros ($1 e $2), o que resolve o erro "there is no parameter $3"
+Antes, estávamos tentando usar uma única consulta com 3 parâmetros, mas parece que há um problema com a forma como os parâmetros são passados
+
+
+Verificação adicional após a atualização:
+
+Adicionamos uma consulta de verificação para confirmar que os valores foram atualizados corretamente
+Isso nos ajudará a depurar se houver outros problemas
+
+
+
+Esta versão deve resolver o erro SQL específico que você está enfrentando e permitir que a geocodificação em lote funcione corretamente.
