@@ -83,9 +83,9 @@ export default function GeocodingPanel() {
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'ascending' | 'descending' } | null>(null);
 
   // Carregar a API do Google Maps
-  const { isLoaded: isMapsApiLoaded } = useJsApiLoader({
+  const { isLoaded: isMapsApiLoaded } = useLoadScript({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
-    libraries: ['places']
+    libraries: ['places' as const]
   });
 
   // Buscar todas as lojas com seus dados de geocodificação
@@ -543,7 +543,7 @@ export default function GeocodingPanel() {
                 onClick={handleMapClick}
               >
                 {editCoordinates && newCoordinates.latitude && (
-                  <MarkerF
+                  <Marker
                     position={{
                       lat: newCoordinates.latitude,
                       lng: newCoordinates.longitude
@@ -561,7 +561,7 @@ export default function GeocodingPanel() {
                 )}
                 
                 {selectedStore?.hasValidCoordinates && selectedStore?.location && !editCoordinates && (
-                  <MarkerF
+                  <Marker
                     position={{
                       lat: selectedStore.location.latitude as number,
                       lng: selectedStore.location.longitude as number
