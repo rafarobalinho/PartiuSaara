@@ -28,6 +28,8 @@ import Wishlist from "@/pages/account/wishlist";
 import Reservations from "@/pages/account/reservations";
 import SellerDashboard from "@/pages/seller/dashboard";
 import GeocodingPanel from "@/pages/admin/GeocodingPanel";
+import AdminLogin from "@/pages/admin/login";
+import AdminSetup from "@/pages/admin/admin-setup";
 import SellerProducts from "@/pages/seller/products/index";
 import AddProduct from "@/pages/seller/products/add-product";
 import EditProduct from "@/pages/seller/products/edit-product";
@@ -74,6 +76,8 @@ function Router() {
           <Route path="/seller/analytics" component={SellerAnalytics} />
           <Route path="/seller/subscription" component={SellerSubscription} />
           <Route path="/seller/settings/location" component={LocationSettingsPage} />
+          <Route path="/admin/login" component={AdminLogin} />
+          <Route path="/admin/setup" component={AdminSetup} />
           <Route path="/admin/geocoding">
             {() => (
               <div className="flex-grow">
