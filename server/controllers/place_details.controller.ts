@@ -22,10 +22,9 @@ export async function setupPlaceDetailsTable() {
         utc_offset_minutes INTEGER,
         rating NUMERIC(3,1),
         user_ratings_total INTEGER,
-        opening_hours JSONB,
-        photos JSONB,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        opening_hours TEXT,
+        photos TEXT,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log("✅ Tabela store_place_details criada ou verificada com sucesso");
@@ -148,49 +147,83 @@ export async function refreshStoreGooglePlaceDetails(req: Request, res: Response
     
     const placeDetails = detailsResponse.data.result;
     
-    // Salvar ou atualizar detalhes no banco de dados
-    const upsertQuery = `
-      INSERT INTO store_place_details 
-        (store_id, place_id, formatted_address, formatted_phone_number, 
-         international_phone_number, website, url, vicinity, 
-         utc_offset_minutes, rating, user_ratings_total, opening_hours, photos, updated_at)
-      VALUES 
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)
-      ON CONFLICT (store_id) 
-      DO UPDATE SET
-        place_id = $2,
-        formatted_address = $3,
-        formatted_phone_number = $4,
-        international_phone_number = $5,
-        website = $6,
-        url = $7,
-        vicinity = $8,
-        utc_offset_minutes = $9,
-        rating = $10,
-        user_ratings_total = $11,
-        opening_hours = $12,
-        photos = $13,
-        updated_at = CURRENT_TIMESTAMP
-      RETURNING *
+    // Verificar se já existe um registro para essa loja
+    const checkQuery = `
+      SELECT id FROM store_place_details WHERE store_id = $1
     `;
     
-    const values = [
-      storeId,
-      placeDetails.place_id || null,
-      placeDetails.formatted_address || null,
-      placeDetails.formatted_phone_number || null,
-      placeDetails.international_phone_number || null,
-      placeDetails.website || null,
-      placeDetails.url || null,
-      placeDetails.vicinity || null,
-      placeDetails.utc_offset_minutes || null,
-      placeDetails.rating || null,
-      placeDetails.user_ratings_total || null,
-      placeDetails.opening_hours ? JSON.stringify(placeDetails.opening_hours) : null,
-      placeDetails.photos ? JSON.stringify(placeDetails.photos) : null
-    ];
+    const checkResult = await pool.query(checkQuery, [storeId]);
     
-    const savedDetails = await pool.query(upsertQuery, values);
+    let savedDetails;
+    
+    if (checkResult.rows.length > 0) {
+      // Atualizar registro existente
+      const updateQuery = `
+        UPDATE store_place_details 
+        SET 
+          place_id = $2,
+          formatted_address = $3,
+          formatted_phone_number = $4,
+          international_phone_number = $5,
+          website = $6,
+          url = $7,
+          vicinity = $8,
+          utc_offset_minutes = $9,
+          rating = $10,
+          user_ratings_total = $11,
+          opening_hours = $12,
+          photos = $13
+        WHERE store_id = $1
+        RETURNING *
+      `;
+      
+      const values = [
+        storeId,
+        placeDetails.place_id || null,
+        placeDetails.formatted_address || null,
+        placeDetails.formatted_phone_number || null,
+        placeDetails.international_phone_number || null,
+        placeDetails.website || null,
+        placeDetails.url || null,
+        placeDetails.vicinity || null,
+        placeDetails.utc_offset_minutes || null,
+        placeDetails.rating || null,
+        placeDetails.user_ratings_total || null,
+        placeDetails.opening_hours ? JSON.stringify(placeDetails.opening_hours) : null,
+        placeDetails.photos ? JSON.stringify(placeDetails.photos) : null
+      ];
+      
+      savedDetails = await pool.query(updateQuery, values);
+    } else {
+      // Inserir novo registro
+      const insertQuery = `
+        INSERT INTO store_place_details 
+          (store_id, place_id, formatted_address, formatted_phone_number, 
+           international_phone_number, website, url, vicinity, 
+           utc_offset_minutes, rating, user_ratings_total, opening_hours, photos)
+        VALUES 
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        RETURNING *
+      `;
+      
+      const values = [
+        storeId,
+        placeDetails.place_id || null,
+        placeDetails.formatted_address || null,
+        placeDetails.formatted_phone_number || null,
+        placeDetails.international_phone_number || null,
+        placeDetails.website || null,
+        placeDetails.url || null,
+        placeDetails.vicinity || null,
+        placeDetails.utc_offset_minutes || null,
+        placeDetails.rating || null,
+        placeDetails.user_ratings_total || null,
+        placeDetails.opening_hours ? JSON.stringify(placeDetails.opening_hours) : null,
+        placeDetails.photos ? JSON.stringify(placeDetails.photos) : null
+      ];
+      
+      savedDetails = await pool.query(insertQuery, values);
+    }
     
     return res.status(200).json({ 
       ...savedDetails.rows[0],
@@ -216,7 +249,8 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
   try {
     console.log('Iniciando processo de atualização de detalhes das lojas');
     
-    // Buscar todas as lojas que têm coordenadas geocodificadas mas não têm detalhes ou precisam de atualização
+    // Buscar todas as lojas que têm coordenadas geocodificadas mas não têm detalhes
+    // CORREÇÃO: Simplificamos a consulta para evitar problemas com updated_at
     const result = await pool.query(`
       SELECT s.id, s.name, s.location
       FROM stores s
@@ -224,7 +258,7 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
       WHERE s.location IS NOT NULL 
         AND s.location::jsonb ? 'latitude' 
         AND s.location::jsonb ? 'longitude'
-        AND (d.id IS NULL OR d.updated_at < NOW() - INTERVAL '7 days')
+        AND d.id IS NULL
       LIMIT 50
     `);
     
@@ -338,31 +372,22 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
         
         console.log(`Detalhes obtidos com sucesso para loja ID ${store.id}`);
         
-        // Salvar os detalhes no banco de dados
-        const upsertQuery = `
+        // Função auxiliar para escapar strings para SQL
+        const escapeSql = (str: any) => {
+          if (str === null || str === undefined) return null;
+          return str.toString().replace(/'/g, "''");
+        };
+        
+        // CORREÇÃO: Usar SQL nativo para evitar problemas
+        const insertSql = `
           INSERT INTO store_place_details (
             store_id, place_id, formatted_address, formatted_phone_number, 
             international_phone_number, website, url, vicinity, 
-            utc_offset_minutes, rating, user_ratings_total, opening_hours, photos, updated_at
+            utc_offset_minutes, rating, user_ratings_total, opening_hours, photos
           ) 
           VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
           )
-          ON CONFLICT (store_id) 
-          DO UPDATE SET
-            place_id = $2,
-            formatted_address = $3,
-            formatted_phone_number = $4,
-            international_phone_number = $5,
-            website = $6,
-            url = $7,
-            vicinity = $8,
-            utc_offset_minutes = $9,
-            rating = $10,
-            user_ratings_total = $11,
-            opening_hours = $12,
-            photos = $13,
-            updated_at = CURRENT_TIMESTAMP
           RETURNING id
         `;
         
@@ -382,10 +407,10 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
           placeDetails.photos ? JSON.stringify(placeDetails.photos) : null
         ];
         
-        const saveResult = await pool.query(upsertQuery, values);
+        const saveResult = await pool.query(insertSql, values);
         
         if (saveResult.rows.length === 0) {
-          throw new Error('Nenhum registro foi inserido ou atualizado');
+          throw new Error('Nenhum registro foi inserido');
         }
         
         console.log(`Detalhes salvos com sucesso para loja ID ${store.id}`);
