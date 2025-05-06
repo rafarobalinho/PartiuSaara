@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Search, 
   MapPin, 
@@ -41,13 +42,15 @@ import {
   Edit, 
   Trash, 
   ChevronDown, 
-  ChevronUp 
+  ChevronUp,
+  Info
 } from 'lucide-react';
 import {
   GoogleMap,
   Marker,
   useJsApiLoader
 } from '@react-google-maps/api';
+import PlaceDetailsPanel from '@/components/admin/PlaceDetailsPanel';
 
 // Tipo para uma loja com informações de geocodificação
 interface StoreWithGeoStatus {
@@ -188,6 +191,28 @@ export default function GeocodingPanel() {
       });
     }
   };
+  
+  // Mutation para obter detalhes do Google Places
+  const getPlaceDetailsMutation = useMutation({
+    mutationFn: async (storeId: number) => {
+      const res = await apiRequest('POST', `/api/admin/update-store-details/${storeId}`);
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Detalhes obtidos com sucesso",
+        description: `Detalhes da loja foram atualizados a partir do Google Places.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores-geocoding'] });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Erro ao obter detalhes",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
+  });
 
   // Função para ordenar lojas
   const requestSort = (key: string) => {
