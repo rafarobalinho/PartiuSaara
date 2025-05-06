@@ -1,0 +1,177 @@
+Implementação de Função de Geocodificação em Lote Aprimorada
+Por favor, implemente uma função aprimorada de geocodificação em lote para corrigir o erro atual (Internal Server Error 500) e garantir que tanto as coordenadas quanto o place_id sejam atualizados corretamente para todas as lojas.
+O problema atual
+Há um erro na sintaxe SQL da consulta atual que provoca o seguinte erro:
+invalid input syntax for type boolean: "stores3=>stores3.location.latitude===null||stores3.location.longitude===null"
+Este erro ocorre porque está tentando usar sintaxe JavaScript (===null) em uma consulta SQL, o que não é válido.
+Solução proposta
+Implemente a função batch_geocode_stores a seguir, que corrige esse problema e implementa uma geocodificação em lote robusta:
+javascript// Função para geocodificação em lote de lojas
+async function batchGeocodeAllStores() {
+  try {
+    console.log('Iniciando processo de geocodificação em lote');
+    
+    // Buscar lojas que precisam de geocodificação usando sintaxe SQL correta
+    const result = await db.query(`
+      SELECT id, address 
+      FROM stores 
+      WHERE address IS NOT NULL 
+        AND (location IS NULL OR location->>'latitude' IS NULL OR location->>'longitude' IS NULL OR place_id IS NULL)
+    `);
+    
+    const stores = result.rows;
+    console.log(`Encontradas ${stores.length} lojas para geocodificar`);
+    
+    const results = {
+      total: stores.length,
+      success: 0,
+      failed: 0,
+      details: []
+    };
+    
+    // Processar cada loja com tratamento de erro robusto
+    for (const store of stores) {
+      try {
+        // Verificar se o endereço está completo
+        if (!store.address || !store.address.street || 
+            !store.address.city || !store.address.state || !store.address.zipCode) {
+          console.log(`Loja ID ${store.id} tem endereço incompleto, pulando`);
+          results.failed++;
+          results.details.push({
+            id: store.id,
+            status: 'failed',
+            reason: 'Endereço incompleto'
+          });
+          continue;
+        }
+        
+        // Log detalhado para depuração
+        console.log(`Geocodificando loja ID ${store.id}: ${JSON.stringify(store.address)}`);
+        
+        // Formar o endereço completo
+        const formattedAddress = `${store.address.street}, ${store.address.city}, ${store.address.state}, ${store.address.zipCode}, Brasil`;
+        
+        // Preparar URL da API Google Geocoding (usando a chave da variável de ambiente)
+        const apiUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(formattedAddress)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        
+        // Fazer a requisição HTTP com axios para melhor tratamento de erros
+        const response = await axios.get(apiUrl);
+        
+        // Log da resposta
+        console.log(`Resposta para loja ID ${store.id}: status=${response.data.status}, resultados=${response.data.results ? response.data.results.length : 0}`);
+        
+        // Verificar se a geocodificação foi bem-sucedida
+        if (response.data.status !== 'OK' || !response.data.results || response.data.results.length === 0) {
+          throw new Error(`Falha na geocodificação: ${response.data.status}`);
+        }
+        
+        // Extrair latitude, longitude e place_id da resposta
+        const result = response.data.results[0];
+        const location = {
+          latitude: result.geometry.location.lat,
+          longitude: result.geometry.location.lng
+        };
+        const placeId = result.place_id;
+        
+        // Verificar se os dados são válidos
+        if (!location.latitude || !location.longitude || !placeId) {
+          throw new Error('Dados de geocodificação incompletos ou inválidos');
+        }
+        
+        // Atualizar a loja no banco de dados
+        const updateResult = await db.query(`
+          UPDATE stores 
+          SET location = $1, place_id = $2 
+          WHERE id = $3
+          RETURNING id, location, place_id
+        `, [
+          location,
+          placeId,
+          store.id
+        ]);
+        
+        // Verificar se a atualização foi bem-sucedida
+        if (updateResult.rows.length === 0) {
+          throw new Error('Falha ao atualizar o banco de dados');
+        }
+        
+        console.log(`Loja ID ${store.id} atualizada com sucesso: location=${JSON.stringify(location)}, place_id=${placeId}`);
+        
+        results.success++;
+        results.details.push({
+          id: store.id,
+          status: 'success',
+          data: {
+            location: location,
+            place_id: placeId
+          }
+        });
+        
+        // Adicionar um pequeno atraso para evitar limites de taxa da API
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+      } catch (error) {
+        console.error(`Erro ao geocodificar loja ID ${store.id}:`, error);
+        results.failed++;
+        results.details.push({
+          id: store.id,
+          status: 'failed',
+          reason: error.message
+        });
+      }
+    }
+    
+    console.log('Geocodificação em lote concluída:', results);
+    return results;
+  } catch (error) {
+    console.error('Erro na geocodificação em lote:', error);
+    throw error;
+  }
+}
+
+// Endpoint para acionar a geocodificação em lote
+router.post('/api/admin/geocode-all-stores', async (req, res) => {
+  try {
+    const results = await batchGeocodeAllStores();
+    res.json(results);
+  } catch (error) {
+    console.error('Erro ao processar geocodificação em lote:', error);
+    res.status(500).json({ 
+      error: 'Erro ao processar geocodificação em lote',
+      message: error.message
+    });
+  }
+});
+Explicação do código
+Esta implementação:
+
+Corrige a sintaxe SQL usando IS NULL em vez de ===null e a sintaxe correta para acessar campos JSONB.
+Busca as lojas corretas que precisam de geocodificação: aquelas com endereço mas sem coordenadas ou place_id.
+Implementa validação robusta verificando se:
+
+O endereço está completo antes de tentar geocodificá-lo
+A resposta da API tem o formato esperado
+Os dados extraídos (coordenadas e place_id) são válidos
+A atualização do banco foi bem-sucedida
+
+
+Adiciona logs detalhados em cada etapa para facilitar a depuração:
+
+Log de início e fim do processo
+Log para cada loja processada
+Log das respostas da API
+Log dos erros específicos
+
+
+Controla a taxa de requisições adicionando um pequeno atraso entre as chamadas à API.
+Inclui tratamento de erros completo capturando e registrando exceções em vários níveis:
+
+Para cada loja individual (sem interromper o processamento das demais)
+Para o processo como um todo
+
+
+Retorna resultados detalhados com contagens de sucesso/falha e detalhes para cada loja processada.
+
+Por favor, implemente esta função e ajuste a dependência do axios se necessário:
+javascript// Adicione no topo do arquivo
+const axios = require('axios');
