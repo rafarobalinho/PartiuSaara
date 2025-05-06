@@ -13,6 +13,7 @@ import * as SubscriptionController from "./controllers/subscription.controller";
 import * as MapController from "./controllers/map.controller";
 import * as AdminController from "./controllers/admin.controller";
 import * as AdminUserController from "./controllers/admin-user.controller";
+import * as PlaceDetailsController from "./controllers/place_details.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db, pool } from "./db";
 import { and, eq } from "drizzle-orm";
@@ -502,6 +503,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/geocode-store/:id', authMiddleware, adminMiddleware, AdminController.geocodeStoreById);
   app.post('/api/admin/update-store-coordinates/:id', authMiddleware, adminMiddleware, AdminController.updateStoreCoordinates);
   app.post('/api/admin/geocode-all-stores', authMiddleware, adminMiddleware, MapController.batchGeocodeAllStores);
+  
+  // Rotas para detalhes de lugares do Google Places
+  app.post('/api/admin/create-place-details-table', authMiddleware, adminMiddleware, PlaceDetailsController.createStoreDetailsTable);
+  app.post('/api/admin/update-store-details/:id', authMiddleware, adminMiddleware, PlaceDetailsController.updateStoreDetails);
+  app.get('/api/admin/store-place-details/:id', authMiddleware, adminMiddleware, PlaceDetailsController.getStorePlaceDetails);
 
   const httpServer = createServer(app);
   return httpServer;
