@@ -5,6 +5,7 @@ import { dirname } from 'path';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuthMiddleware } from "./setup-auth";
+import { initCustomTables } from "./db";
 
 // Configuração para obter __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url);
@@ -64,6 +65,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Inicializar tabelas personalizadas
+  try {
+    await initCustomTables();
+    log('✅ Tabelas personalizadas inicializadas com sucesso');
+  } catch (error) {
+    console.error('❌ Erro ao inicializar tabelas personalizadas:', error);
+  }
+  
   const server = await registerRoutes(app);
 
   // Middleware para tratar erros e garantir que sempre retornamos JSON
