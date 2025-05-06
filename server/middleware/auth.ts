@@ -11,7 +11,7 @@ declare global {
         email: string;
         firstName: string;
         lastName: string;
-        role: 'customer' | 'seller';
+        role: 'customer' | 'seller' | 'admin';
       };
     }
   }
@@ -54,6 +54,19 @@ export const sellerMiddleware = (req: Request, res: Response, next: NextFunction
   
   if (req.user.role !== 'seller') {
     return res.status(403).json({ message: 'Forbidden: Seller access required' });
+  }
+  
+  next();
+};
+
+// Additional middleware for admin-only routes
+export const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Forbidden: Admin access required' });
   }
   
   next();
