@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { AlertCircle, Shield } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/context/auth-context';
 
 export default function AdminLogin() {
@@ -17,14 +16,9 @@ export default function AdminLogin() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [_, navigate] = useLocation();
   const { toast } = useToast();
-  const { isAdmin } = useAuth();
-
-  // Se já está autenticado como admin, redirecionar para o painel
-  if (isAdmin) {
-    navigate('/admin/geocoding');
-    return null;
-  }
-
+  const { isAdmin, isLoading } = useAuth();
+  
+  // Definimos o mutation fora de qualquer renderização condicional
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
       try {
@@ -77,6 +71,14 @@ export default function AdminLogin() {
       });
     },
   });
+  
+  // Usando useEffect para controlar o redirecionamento após verificar o estado de autenticação
+  useEffect(() => {
+    // Apenas redireciona quando a verificação de autenticação está completa e o usuário é admin
+    if (!isLoading && isAdmin) {
+      navigate('/admin/geocoding');
+    }
+  }, [isAdmin, isLoading, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +92,16 @@ export default function AdminLogin() {
     loginMutation.mutate({ email, password });
   };
 
+  // Renderiza o loading spinner se necessário
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-orange-500 rounded-full border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  // Renderiza o formulário de login
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <Card className="w-full max-w-md shadow-lg">

@@ -1,0 +1,86 @@
+Por favor, corrija o erro de autenticação no painel administrativo. Atualmente, está aparecendo o erro "Unexpected token '<', '<!DOCTYPE..." ao tentar fazer login.
+Siga estes passos, verificando cada um antes de implementar correções:
+1. Verifique a Rota de Autenticação
+Examine o código que lida com a autenticação administrativa:
+
+Verifique se a rota de login administrativo está funcionando:
+
+Localize o arquivo que define esta rota (provavelmente em server/routes/auth.js ou similar)
+Verifique se o endpoint /api/auth/admin/login (ou caminho similar) está implementado corretamente
+Certifique-se de que a rota está retornando um objeto JSON e não uma página HTML
+
+
+Inspecione a resposta da API:
+
+Adicione logs detalhados na rota de autenticação para ver o que está acontecendo
+Verifique se a API está retornando códigos de status apropriados (200 para sucesso, 401 para falha de autenticação)
+
+
+
+2. Verifique o Código de Autenticação no Frontend
+
+Localize o componente de login administrativo:
+
+Provavelmente em client/src/pages/admin/Login.tsx ou similar
+Verifique como a requisição de login está sendo feita
+
+
+Corrija a chamada de API:
+
+Certifique-se de que a URL correta está sendo usada
+Verifique se o formato do corpo da requisição está correto
+Adicione tratamento de erro adequado
+
+
+
+3. Implemente Logging para Depuração
+Adicione logs tanto no frontend quanto no backend:
+
+No frontend, antes de fazer a requisição:
+javascriptconsole.log('Tentando login com:', { email }); // não logue a senha
+
+No frontend, após receber a resposta:
+javascriptconsole.log('Resposta da API:', response);
+
+No backend, no início da rota de autenticação:
+javascriptconsole.log('Requisição de login recebida:', req.body.email);
+
+No backend, antes de enviar a resposta:
+javascriptconsole.log('Enviando resposta:', { success: true, token });
+
+
+4. Corrija o Middleware de Autenticação
+Se o problema persistir, verifique o middleware que protege as rotas administrativas:
+
+Localize o middleware de autenticação:
+
+Geralmente em server/middleware/auth.js ou similar
+Verifique como ele valida o token
+
+
+Certifique-se de que o middleware retorna erros adequados:
+
+Deve retornar status 401 para tokens inválidos ou expirados
+Deve incluir mensagens de erro claras
+
+
+
+5. Verifique as Configurações CORS
+Se o backend e o frontend estiverem em domínios diferentes:
+
+Verifique a configuração CORS no backend:
+javascriptapp.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
+
+Certifique-se de que as requisições no frontend incluem credenciais:
+javascriptfetch('/api/auth/admin/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password }),
+  credentials: 'include'
+})
+
+
+Após fazer estas verificações e correções, teste o login administrativo novamente para confirmar que o problema foi resolvido.
