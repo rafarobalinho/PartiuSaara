@@ -21,10 +21,28 @@ export async function setupPlaceDetailsTable() {
         total_ratings INTEGER,
         opening_hours TEXT,
         photo_reference TEXT,
+        business_status TEXT,
+        types TEXT,
+        reviews TEXT,
+        editorial_summary TEXT,
         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log("✅ Tabela store_place_details criada ou verificada com sucesso");
+    
+    // Verificar e adicionar colunas que podem não existir em instalações anteriores
+    try {
+      await pool.query(`
+        ALTER TABLE store_place_details 
+        ADD COLUMN IF NOT EXISTS business_status TEXT,
+        ADD COLUMN IF NOT EXISTS types TEXT,
+        ADD COLUMN IF NOT EXISTS reviews TEXT,
+        ADD COLUMN IF NOT EXISTS editorial_summary TEXT
+      `);
+      console.log("✅ Colunas adicionais verificadas/adicionadas na tabela store_place_details");
+    } catch (columnError) {
+      console.error("⚠️ Erro ao adicionar colunas adicionais:", columnError);
+    }
     
     // Criar índices para melhorar a performance
     await pool.query(`
@@ -42,6 +60,31 @@ export async function setupPlaceDetailsTable() {
 /**
  * Garante que a restrição UNIQUE exista na coluna store_id da tabela store_place_details
  */
+/**
+ * Função auxiliar para salvar apenas dados básicos em caso de falha na API
+ */
+async function saveBasicPlaceDetails(store: any, placeId: string) {
+  console.log(`⚠️ Salvando apenas dados básicos para loja ID ${store.id}`);
+  
+  await pool.query(`
+    INSERT INTO store_place_details (
+      store_id, place_id, name, last_updated
+    ) 
+    VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+    ON CONFLICT (store_id) 
+    DO UPDATE SET
+      place_id = $2,
+      name = $3,
+      last_updated = CURRENT_TIMESTAMP
+  `, [
+    store.id,
+    placeId,
+    store.name
+  ]);
+  
+  console.log(`✅ Dados básicos salvos com sucesso para loja ID ${store.id}`);
+}
+
 export async function ensureUniqueConstraint() {
   try {
     // Verificar se a restrição já existe
@@ -412,14 +455,25 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
         
         // Buscar detalhes completos do lugar usando o Place Details API
         console.log(`Obtendo detalhes completos do estabelecimento usando place_id: ${placeId}`);
-        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,opening_hours,photos&key=${googleAPIKey}`;
+        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,opening_hours,business_status,types,reviews,editorial_summary,photos&key=${googleAPIKey}`;
         
         let placePhone = null;
         let placeWebsite = null;
         let placeOpeningHours = null;
+        let placeBusinessStatus = null;
+        let placeTypes = null;
+        let placeReviews = null;
+        let placeEditorialSummary = null;
         
         try {
           const detailsResponse = await axios.get(detailsUrl);
+          
+          if (detailsResponse.data.status !== 'OK') {
+            console.log(`⚠️ API retornou status: ${detailsResponse.data.status} para place_id: ${placeId}`);
+            // Se não conseguir obter detalhes completos, salvamos os dados básicos
+            await saveBasicPlaceDetails(store, placeId);
+            return;
+          }
           
           if (detailsResponse.data.status === 'OK' && detailsResponse.data.result) {
             const placeData = detailsResponse.data.result;
@@ -432,14 +486,43 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
             console.log('- Website:', placeData.website);
             console.log('- Avaliação:', placeData.rating);
             console.log('- Total avaliações:', placeData.user_ratings_total);
-            console.log('- Horários:', placeData.opening_hours ? 'Disponíveis' : 'Não disponíveis');
+            console.log('- Status do negócio:', placeData.business_status || 'Não disponível');
             
-            // Se tivermos horários, formatar para salvar
-            if (placeData.opening_hours && placeData.opening_hours.weekday_text) {
+            // Processar horários de funcionamento
+            if (placeData.opening_hours && Array.isArray(placeData.opening_hours.weekday_text)) {
               placeOpeningHours = JSON.stringify(placeData.opening_hours.weekday_text);
               console.log('- Horários detalhados:', placeData.opening_hours.weekday_text);
               console.log('- Horários formatados para salvar:', placeOpeningHours);
             }
+            console.log('- Horários:', placeOpeningHours ? 'Disponíveis' : 'Não disponíveis');
+            
+            // Processar tipos de estabelecimento
+            if (Array.isArray(placeData.types) && placeData.types.length > 0) {
+              placeTypes = JSON.stringify(placeData.types);
+              console.log('- Tipos:', placeData.types);
+            }
+            console.log('- Tipos:', placeTypes ? 'Disponíveis' : 'Não disponíveis');
+            
+            // Processar avaliações
+            if (Array.isArray(placeData.reviews) && placeData.reviews.length > 0) {
+              // Limitar a quantidade de dados para evitar problemas com tamanho
+              const limitedReviews = placeData.reviews.slice(0, 5).map((review: any) => ({
+                rating: review.rating,
+                text: review.text,
+                time: review.time,
+                author_name: review.author_name
+              }));
+              placeReviews = JSON.stringify(limitedReviews);
+              console.log('- Avaliações:', `${limitedReviews.length} disponíveis`);
+            }
+            console.log('- Avaliações:', placeReviews ? 'Disponíveis' : 'Não disponíveis');
+            
+            // Processar resumo editorial
+            if (placeData.editorial_summary && typeof placeData.editorial_summary.overview === 'string') {
+              placeEditorialSummary = placeData.editorial_summary.overview;
+              console.log('- Resumo editorial:', placeEditorialSummary);
+            }
+            console.log('- Resumo editorial:', placeEditorialSummary ? 'Disponível' : 'Não disponível');
             
             // Atualizar dados com informações mais detalhadas
             placeVicinity = placeData.formatted_address || placeVicinity;
@@ -447,18 +530,30 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
             placeTotalRatings = placeData.user_ratings_total || placeTotalRatings || 0;
             placePhone = placeData.formatted_phone_number || null;
             placeWebsite = placeData.website || null;
+            placeBusinessStatus = placeData.business_status || null;
           }
         } catch (detailsError: any) {
-          console.log('Erro ao buscar detalhes do lugar, usando dados básicos:', detailsError.message);
+          console.log('⚠️ Erro ao buscar detalhes do lugar, usando dados básicos:', detailsError.message);
+          
+          // Mesmo com erro, tentamos salvar os dados básicos
+          try {
+            await saveBasicPlaceDetails(store, placeId);
+            // Após salvar os dados básicos, continuamos a execução
+            console.log('✅ Dados básicos salvos com sucesso após erro na API');
+          } catch (secondaryError: any) {
+            console.error(`❌ Erro secundário ao salvar dados básicos: ${secondaryError.message}`);
+            throw detailsError; // Propagar o erro original
+          }
         }
         
         // Adicionar ou atualizar os detalhes
         const upsertQuery = `
           INSERT INTO store_place_details (
             store_id, place_id, name, formatted_address, phone_number, 
-            website, rating, total_ratings, opening_hours, last_updated
+            website, rating, total_ratings, opening_hours, business_status,
+            types, reviews, editorial_summary, last_updated
           ) 
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)
           ON CONFLICT (store_id) 
           DO UPDATE SET
             place_id = EXCLUDED.place_id,
@@ -469,6 +564,10 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
             rating = EXCLUDED.rating,
             total_ratings = EXCLUDED.total_ratings,
             opening_hours = EXCLUDED.opening_hours,
+            business_status = EXCLUDED.business_status,
+            types = EXCLUDED.types,
+            reviews = EXCLUDED.reviews,
+            editorial_summary = EXCLUDED.editorial_summary,
             last_updated = CURRENT_TIMESTAMP
           RETURNING *
         `;
@@ -482,7 +581,11 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
           placeWebsite,
           placeRating,
           placeTotalRatings,
-          placeOpeningHours
+          placeOpeningHours,
+          placeBusinessStatus,
+          placeTypes,
+          placeReviews,
+          placeEditorialSummary
         ];
         
         console.log(`Inserindo/atualizando detalhes para loja ID ${store.id}`);

@@ -1,0 +1,155 @@
+Para completar a implementação, precisamos adicionar os campos restantes: business_status, types, reviews e editorial_summary.
+javascript
+// Obter os detalhes do lugar com tratamento de erro apropriado
+try {
+  const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,opening_hours,business_status,types,reviews,editorial_summary&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+  
+  const detailsResponse = await axios.get(detailsUrl);
+  
+  if (detailsResponse.data.status !== 'OK') {
+    console.log(`⚠️ API retornou status: ${detailsResponse.data.status} para place_id: ${placeId}`);
+    // Se não conseguir obter detalhes completos, ainda salvamos os dados básicos
+    await saveBasicPlaceDetails(store, placeId);
+    return;
+  }
+  
+  // Extrair os detalhes com verificações de segurança para cada campo
+  const placeData = detailsResponse.data.result || {};
+  
+  // Processar todos os campos com verificações para valores nulos/undefined
+  const formattedAddress = placeData.formatted_address || null;
+  const phoneNumber = placeData.formatted_phone_number || null;
+  const website = placeData.website || null;
+  const rating = placeData.rating || null;
+  const totalRatings = placeData.user_ratings_total || 0;
+  
+  // Processar campos complexos que podem estar ausentes
+  let openingHours = null;
+  if (placeData.opening_hours && Array.isArray(placeData.opening_hours.weekday_text)) {
+    openingHours = JSON.stringify(placeData.opening_hours.weekday_text);
+  }
+  
+  const businessStatus = placeData.business_status || null;
+  
+  let types = null;
+  if (Array.isArray(placeData.types) && placeData.types.length > 0) {
+    types = JSON.stringify(placeData.types);
+  }
+  
+  let reviews = null;
+  if (Array.isArray(placeData.reviews) && placeData.reviews.length > 0) {
+    // Limitar a quantidade de dados para evitar problemas com tamanho
+    const limitedReviews = placeData.reviews.slice(0, 5).map(review => ({
+      rating: review.rating,
+      text: review.text,
+      time: review.time,
+      author_name: review.author_name
+    }));
+    reviews = JSON.stringify(limitedReviews);
+  }
+  
+  let editorialSummary = null;
+  if (placeData.editorial_summary && typeof placeData.editorial_summary.overview === 'string') {
+    editorialSummary = placeData.editorial_summary.overview;
+  }
+  
+  // Log detalhado com todas as verificações
+  console.log('Dados processados com tratamento de erro:');
+  console.log('- Endereço:', formattedAddress ? 'Disponível' : 'Não disponível');
+  console.log('- Telefone:', phoneNumber ? 'Disponível' : 'Não disponível');
+  console.log('- Website:', website ? 'Disponível' : 'Não disponível');
+  console.log('- Avaliação:', rating || 'Não disponível');
+  console.log('- Total avaliações:', totalRatings);
+  console.log('- Horários:', openingHours ? 'Disponíveis' : 'Não disponíveis');
+  console.log('- Status do negócio:', businessStatus || 'Não disponível');
+  console.log('- Tipos:', types ? 'Disponíveis' : 'Não disponíveis');
+  console.log('- Avaliações:', reviews ? 'Disponíveis' : 'Não disponíveis');
+  console.log('- Resumo editorial:', editorialSummary ? 'Disponível' : 'Não disponível');
+  
+  // Salvar no banco de dados com todos os tratamentos de erro
+  await db.query(`
+    INSERT INTO store_place_details (
+      store_id, place_id, name, formatted_address, phone_number, 
+      website, rating, total_ratings, opening_hours, business_status,
+      types, reviews, editorial_summary, last_updated
+    ) 
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)
+    ON CONFLICT (store_id) 
+    DO UPDATE SET
+      place_id = $2,
+      name = $3,
+      formatted_address = $4,
+      phone_number = $5,
+      website = $6,
+      rating = $7,
+      total_ratings = $8,
+      opening_hours = $9,
+      business_status = $10,
+      types = $11,
+      reviews = $12,
+      editorial_summary = $13,
+      last_updated = CURRENT_TIMESTAMP
+  `, [
+    store.id,
+    placeId,
+    store.name, // Manter o nome original da loja
+    formattedAddress,
+    phoneNumber,
+    website,
+    rating,
+    totalRatings,
+    openingHours,
+    businessStatus,
+    types,
+    reviews,
+    editorialSummary
+  ]);
+  
+  console.log(`✅ Detalhes completos salvos com sucesso para loja ID ${store.id}`);
+  
+} catch (error) {
+  console.error(`❌ Erro ao processar detalhes do lugar: ${error.message}`);
+  
+  // Mesmo com erro, tentamos salvar os dados básicos
+  try {
+    await saveBasicPlaceDetails(store, placeId);
+  } catch (secondaryError) {
+    console.error(`❌ Erro secundário ao salvar dados básicos: ${secondaryError.message}`);
+    throw error; // Propagar o erro original
+  }
+}
+
+// Função para salvar dados básicos em caso de falha
+async function saveBasicPlaceDetails(store, placeId) {
+  console.log(`⚠️ Salvando apenas dados básicos para loja ID ${store.id}`);
+  
+  await db.query(`
+    INSERT INTO store_place_details (
+      store_id, place_id, name, last_updated
+    ) 
+    VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+    ON CONFLICT (store_id) 
+    DO UPDATE SET
+      place_id = $2,
+      name = $3,
+      last_updated = CURRENT_TIMESTAMP
+  `, [
+    store.id,
+    placeId,
+    store.name
+  ]);
+  
+  console.log(`✅ Dados básicos salvos com sucesso para loja ID ${store.id}`);
+}
+Esta implementação inclui:
+1.	Verificações para cada campo: Cada campo é verificado individualmente antes de ser processado
+2.	Tratamento de campos complexos: Campos como reviews e types são verificados se são arrays válidos
+3.	Valor padrão para campos ausentes: Cada campo tem um valor padrão (null ou outro apropriado)
+4.	Logs detalhados: Para facilitar a depuração e monitoramento
+5.	Salvamento de dados básicos: Mesmo quando ocorre um erro, tenta salvar pelo menos os dados básicos
+6.	Limitação de dados: Para campos como reviews, limitamos a quantidade para evitar problemas com tamanho
+Com essas alterações, o processo de atualização de detalhes será muito mais robusto, lidando graciosamente com qualquer combinação de campos ausentes ou problemas na API do Google Places.
+Tentar novamente
+O Claude pode cometer erros. 
+Confira sempre as respostas.
+Para completar a implementação, precisamos adicionar os campos restantes: business_status, types, reviews e editorial_summary.
