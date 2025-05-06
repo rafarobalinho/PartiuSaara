@@ -20,7 +20,7 @@ interface AdminLayoutProps {
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [location] = useLocation();
-  const { user, isLoading, logoutMutation } = useAuth();
+  const { user, isLoading, logout } = useAuth();
 
   if (isLoading) {
     return (
@@ -117,7 +117,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             
             <div className="pt-4 mt-6 border-t">
               <button
-                onClick={() => logoutMutation.mutate()}
+                onClick={() => logout()}
                 className="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100 w-full"
               >
                 <LogOut className="mr-3 h-5 w-5" />

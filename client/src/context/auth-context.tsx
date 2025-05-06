@@ -10,7 +10,7 @@ interface User {
   lastName: string;
   dateOfBirth?: string;
   gender?: 'male' | 'female' | 'not_specified';
-  role: 'customer' | 'seller';
+  role: 'customer' | 'seller' | 'admin';
 }
 
 interface AuthContextType {
