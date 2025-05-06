@@ -228,6 +228,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rotas que requerem autenticação e verificação de propriedade
   app.post('/api/stores', authMiddleware, geocodingMiddleware, processStoreMiddleware, StoreController.createStore);
   app.put('/api/stores/:id', authMiddleware, verifyStoreOwnership, geocodingMiddleware, processStoreMiddleware, StoreController.updateStore);
+  
+  // Rota para adicionar imagens a uma loja existente
+  app.post('/api/stores/:id/images', authMiddleware, verifyStoreOwnership, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      const { imageUrls, isPrimary = false } = req.body;
+      
+      if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
+        return res.status(400).json({ message: 'URLs de imagens são obrigatórias' });
+      }
+
+      console.log(`Adicionando ${imageUrls.length} imagens à loja ID ${storeId}`);
+      
+      // Processar cada URL de imagem
+      const imageRecords = [];
+      for (const imageUrl of imageUrls) {
+        // Criar URL para thumbnail a partir da URL da imagem original
+        const thumbnailUrl = imageUrl.replace(/\/uploads\//, '/uploads/thumbnails/');
+        
+        // Inserir a imagem no banco
+        const [image] = await db.insert(storeImages)
+          .values({
+            storeId,
+            imageUrl,
+            thumbnailUrl,
+            isPrimary: isPrimary && imageRecords.length === 0, // Apenas a primeira imagem será primária se isPrimary for true
+            displayOrder: imageRecords.length
+          })
+          .returning();
+          
+        imageRecords.push(image);
+      }
+      
+      return res.status(201).json({ 
+        success: true, 
+        message: 'Imagens adicionadas com sucesso', 
+        images: imageRecords 
+      });
+    } catch (error) {
+      console.error('Erro ao adicionar imagens à loja:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao adicionar imagens', 
+        error: error instanceof Error ? error.message : 'Erro desconhecido' 
+      });
+    }
+  });
 
   // Promotion routes
   app.get('/api/promotions', async (req: Request, res: Response) => {
