@@ -173,6 +173,30 @@ export default function GeocodingPanel() {
       });
     }
   });
+  
+  // Mutation para obter detalhes do lugar no Google Places
+  const getPlaceDetailsMutation = useMutation({
+    mutationFn: async (storeId: number) => {
+      const res = await apiRequest('POST', `/api/admin/stores/${storeId}/refresh-place-details`);
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Detalhes obtidos com sucesso",
+        description: "Os detalhes do Google Places foram obtidos e salvos.",
+      });
+      
+      // Redirecionar para a página de detalhes
+      window.location.href = `/admin/place-details/${data.storeId}`;
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Erro ao obter detalhes do lugar",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
+  });
 
   // Função para mostrar uma loja no mapa
   const showStoreOnMap = (store: StoreWithGeoStatus) => {
@@ -192,27 +216,7 @@ export default function GeocodingPanel() {
     }
   };
   
-  // Mutation para obter detalhes do Google Places
-  const getPlaceDetailsMutation = useMutation({
-    mutationFn: async (storeId: number) => {
-      const res = await apiRequest('POST', `/api/admin/update-store-details/${storeId}`);
-      return await res.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Detalhes obtidos com sucesso",
-        description: `Detalhes da loja foram atualizados a partir do Google Places.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores-geocoding'] });
-    },
-    onError: (err: Error) => {
-      toast({
-        title: "Erro ao obter detalhes",
-        description: err.message,
-        variant: "destructive",
-      });
-    }
-  });
+
 
   // Função para ordenar lojas
   const requestSort = (key: string) => {

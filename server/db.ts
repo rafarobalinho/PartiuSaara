@@ -19,33 +19,11 @@ export async function initCustomTables() {
   try {
     console.log('Inicializando tabelas personalizadas...');
     
-    // Tabela para armazenar detalhes de lugares do Google Places
-    const createStoreDetailsTableQuery = `
-    CREATE TABLE IF NOT EXISTS store_place_details (
-      id SERIAL PRIMARY KEY,
-      store_id INTEGER REFERENCES stores(id),
-      place_id TEXT UNIQUE NOT NULL,
-      name TEXT,
-      formatted_address TEXT,
-      phone_number TEXT,
-      website TEXT,
-      rating DECIMAL,
-      total_ratings INTEGER,
-      business_status TEXT,
-      types JSONB,
-      opening_hours JSONB,
-      reviews JSONB,
-      editorial_summary TEXT,
-      last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
+    // Importar e executar a configuração da tabela de detalhes de lugares
+    const { setupPlaceDetailsTable } = await import('./controllers/place_details.controller');
+    await setupPlaceDetailsTable();
     
-    CREATE INDEX IF NOT EXISTS idx_store_place_details_store_id ON store_place_details(store_id);
-    CREATE INDEX IF NOT EXISTS idx_store_place_details_place_id ON store_place_details(place_id);
-    `;
-    
-    await pool.query(createStoreDetailsTableQuery);
-    console.log('✅ Tabela store_place_details criada ou verificada com sucesso');
-    
+    console.log('✅ Tabelas personalizadas inicializadas com sucesso');
     return true;
   } catch (error) {
     console.error('❌ Erro ao inicializar tabelas personalizadas:', error);

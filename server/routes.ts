@@ -505,9 +505,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/geocode-all-stores', authMiddleware, adminMiddleware, MapController.batchGeocodeAllStores);
   
   // Rotas para detalhes de lugares do Google Places
-  app.post('/api/admin/create-place-details-table', authMiddleware, adminMiddleware, PlaceDetailsController.createStoreDetailsTable);
-  app.post('/api/admin/update-store-details/:id', authMiddleware, adminMiddleware, PlaceDetailsController.updateStoreDetails);
-  app.get('/api/admin/store-place-details/:id', authMiddleware, adminMiddleware, PlaceDetailsController.getStorePlaceDetails);
+  app.get('/api/admin/stores/:storeId/place-details', authMiddleware, adminMiddleware, PlaceDetailsController.getStoreGooglePlaceDetails);
+  app.post('/api/admin/stores/:storeId/refresh-place-details', authMiddleware, adminMiddleware, PlaceDetailsController.refreshStoreGooglePlaceDetails);
 
   const httpServer = createServer(app);
   return httpServer;
