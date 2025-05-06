@@ -1,0 +1,197 @@
+Estamos fazendo bons progressos! O erro atual é "there is no unique or exclusion constraint matching the ON CONFLICT specification", o que ocorre porque estamos usando a cláusula ON CONFLICT na query SQL, mas não especificamos em qual coluna existe a restrição única.
+Existem duas maneiras de consertar isso:
+
+Adicionar ON CONFLICT (store_id) para especificar a coluna com restrição única
+Remover a lógica de ON CONFLICT e usar uma abordagem de "verificar antes de inserir"
+
+Vamos implementar a primeira opção, já que é mais elegante e eficiente:
+javascript// Atualizar a query de inserção/atualização:
+const upsertQuery = `
+  INSERT INTO store_place_details (
+    store_id, place_id, name, formatted_address, phone_number, 
+    website, rating, total_ratings, opening_hours, last_updated
+  ) 
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+  ON CONFLICT (store_id) 
+  DO UPDATE SET
+    place_id = $2,
+    name = $3,
+    formatted_address = $4,
+    phone_number = $5,
+    website = $6,
+    rating = $7,
+    total_ratings = $8,
+    opening_hours = $9,
+    last_updated = CURRENT_TIMESTAMP
+`;
+
+// E garantir que a tabela realmente tenha a restrição UNIQUE:
+async function ensurePlaceDetailsTableExists() {
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS store_place_details (
+      id SERIAL PRIMARY KEY,
+      store_id INTEGER REFERENCES stores(id) UNIQUE,
+      place_id TEXT,
+      name TEXT,
+      formatted_address TEXT,
+      phone_number TEXT,
+      website TEXT,
+      rating DECIMAL,
+      total_ratings INTEGER,
+      opening_hours TEXT,
+      last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_store_place_details_store_id ON store_place_details(store_id);
+    CREATE INDEX IF NOT EXISTS idx_store_place_details_place_id ON store_place_details(place_id);
+  `;
+  
+  try {
+    await db.query(createTableQuery);
+    console.log('✅ Tabela store_place_details criada ou verificada com sucesso');
+  } catch (error) {
+    console.error('Erro ao verificar/criar tabela store_place_details:', error);
+    throw error;
+  }
+}
+Porém, como a tabela já existe, precisamos adicionar essa restrição UNIQUE à tabela existente:
+javascript// Adicionar uma função para garantir que a restrição UNIQUE exista
+async function ensureUniqueConstraint() {
+  try {
+    // Verificar se a restrição já existe
+    const checkConstraint = await db.query(`
+      SELECT COUNT(*) FROM pg_constraint 
+      WHERE conname = 'store_place_details_store_id_key' 
+        AND conrelid = 'store_place_details'::regclass
+    `);
+    
+    if (checkConstraint.rows[0].count === '0') {
+      // Adicionar a restrição UNIQUE se não existir
+      await db.query(`
+        ALTER TABLE store_place_details 
+        ADD CONSTRAINT store_place_details_store_id_key 
+        UNIQUE (store_id)
+      `);
+      console.log('✅ Restrição UNIQUE adicionada à coluna store_id');
+    } else {
+      console.log('✅ Restrição UNIQUE já existe na coluna store_id');
+    }
+  } catch (error) {
+    console.error('Erro ao verificar/adicionar restrição UNIQUE:', error);
+    throw error;
+  }
+}
+
+// Chamar esta função antes de realizar as operações
+await ensureUniqueConstraint();
+Aqui está um prompt para o agente do Replit implementar essa correção:
+
+Por favor, corrija o erro "there is no unique or exclusion constraint matching the ON CONFLICT specification" na função de atualização de detalhes das lojas.
+O problema ocorre porque estamos usando a cláusula ON CONFLICT na query SQL, mas não especificamos a coluna com restrição única ou não existe uma restrição única na tabela.
+Implemente as seguintes soluções:
+
+Modifique a função ensurePlaceDetailsTableExists() para adicionar a restrição UNIQUE:
+
+javascriptasync function ensurePlaceDetailsTableExists() {
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS store_place_details (
+      id SERIAL PRIMARY KEY,
+      store_id INTEGER REFERENCES stores(id) UNIQUE,
+      place_id TEXT,
+      name TEXT,
+      formatted_address TEXT,
+      phone_number TEXT,
+      website TEXT,
+      rating DECIMAL,
+      total_ratings INTEGER,
+      opening_hours TEXT,
+      last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_store_place_details_store_id ON store_place_details(store_id);
+    CREATE INDEX IF NOT EXISTS idx_store_place_details_place_id ON store_place_details(place_id);
+  `;
+  
+  try {
+    await db.query(createTableQuery);
+    console.log('✅ Tabela store_place_details criada ou verificada com sucesso');
+  } catch (error) {
+    console.error('Erro ao verificar/criar tabela store_place_details:', error);
+    throw error;
+  }
+}
+
+Adicione uma função para garantir que a restrição UNIQUE exista na tabela existente:
+
+javascriptasync function ensureUniqueConstraint() {
+  try {
+    // Verificar se a restrição já existe
+    const checkConstraint = await db.query(`
+      SELECT COUNT(*) FROM pg_constraint 
+      WHERE conname = 'store_place_details_store_id_key' 
+        AND conrelid = 'store_place_details'::regclass
+    `);
+    
+    if (checkConstraint.rows[0].count === '0') {
+      // Adicionar a restrição UNIQUE se não existir
+      await db.query(`
+        ALTER TABLE store_place_details 
+        ADD CONSTRAINT store_place_details_store_id_key 
+        UNIQUE (store_id)
+      `);
+      console.log('✅ Restrição UNIQUE adicionada à coluna store_id');
+    } else {
+      console.log('✅ Restrição UNIQUE já existe na coluna store_id');
+    }
+  } catch (error) {
+    console.error('Erro ao verificar/adicionar restrição UNIQUE:', error);
+    throw error;
+  }
+}
+
+Chame esta função no início da função updateAllStoresPlaceDetails():
+
+javascriptasync function updateAllStoresPlaceDetails() {
+  try {
+    console.log('Iniciando processo de atualização de detalhes das lojas');
+    
+    // Verificar se a tabela store_place_details existe, e criar se não existir
+    await ensurePlaceDetailsTableExists();
+    
+    // Garantir que a restrição UNIQUE exista
+    await ensureUniqueConstraint();
+    
+    // Resto do código...
+
+Modifique a query de inserção para especificar a coluna com a restrição UNIQUE:
+
+javascriptconsole.log(`Inserindo/atualizando detalhes para loja ID ${store.id}`);
+await db.query(`
+  INSERT INTO store_place_details (
+    store_id, place_id, name, formatted_address, phone_number, 
+    website, rating, total_ratings, opening_hours, last_updated
+  ) 
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+  ON CONFLICT (store_id) 
+  DO UPDATE SET
+    place_id = $2,
+    name = $3,
+    formatted_address = $4,
+    phone_number = $5,
+    website = $6,
+    rating = $7,
+    total_ratings = $8,
+    opening_hours = $9,
+    last_updated = CURRENT_TIMESTAMP
+`, [
+  store.id,
+  placeId,
+  store.name, // Manter o nome original da loja
+  placeData.formatted_address || null,
+  placeData.formatted_phone_number || null,
+  placeData.website || null,
+  placeData.rating || null,
+  placeData.user_ratings_total || 0,
+  openingHours
+]);
+Estas alterações garantirão que a operação de upsert (insert ou update) funcione corretamente para os detalhes das lojas.

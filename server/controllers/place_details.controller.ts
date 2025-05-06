@@ -11,7 +11,7 @@ export async function setupPlaceDetailsTable() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS store_place_details (
         id SERIAL PRIMARY KEY,
-        store_id INTEGER NOT NULL UNIQUE,
+        store_id INTEGER NOT NULL UNIQUE REFERENCES stores(id),
         place_id TEXT,
         name TEXT,
         formatted_address TEXT,
@@ -35,6 +35,36 @@ export async function setupPlaceDetailsTable() {
     return true;
   } catch (error) {
     console.error("❌ Erro ao configurar tabela store_place_details:", error);
+    throw error;
+  }
+}
+
+/**
+ * Garante que a restrição UNIQUE exista na coluna store_id da tabela store_place_details
+ */
+export async function ensureUniqueConstraint() {
+  try {
+    // Verificar se a restrição já existe
+    const checkConstraint = await pool.query(`
+      SELECT COUNT(*) FROM pg_constraint 
+      WHERE conname = 'store_place_details_store_id_key' 
+        AND conrelid = 'store_place_details'::regclass
+    `);
+    
+    if (checkConstraint.rows[0].count === '0') {
+      // Adicionar a restrição UNIQUE se não existir
+      await pool.query(`
+        ALTER TABLE store_place_details 
+        ADD CONSTRAINT store_place_details_store_id_key 
+        UNIQUE (store_id)
+      `);
+      console.log('✅ Restrição UNIQUE adicionada à coluna store_id');
+    } else {
+      console.log('✅ Restrição UNIQUE já existe na coluna store_id');
+    }
+    return true;
+  } catch (error) {
+    console.error('❌ Erro ao verificar/adicionar restrição UNIQUE:', error);
     throw error;
   }
 }
@@ -255,6 +285,9 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
     
     // Garantir que a tabela de detalhes existe
     await setupPlaceDetailsTable();
+    
+    // Garantir que a restrição UNIQUE exista
+    await ensureUniqueConstraint();
     
     // Buscar todas as lojas que têm coordenadas
     const result = await pool.query(`
