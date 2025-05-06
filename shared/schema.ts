@@ -2,6 +2,23 @@ import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, js
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Definindo interfaces para estruturas complexas
+export interface StoreAddress {
+  street: string;
+  city: string;
+  state: string;
+  zipCode?: string;
+  neighborhood?: string;
+  number?: string;
+  complement?: string;
+}
+
+export interface StoreLocation {
+  latitude: number;
+  longitude: number;
+  place_id?: string;
+}
+
 // Users schema
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -34,8 +51,8 @@ export const stores = pgTable("stores", {
   reviewCount: integer("review_count").default(0),
   images: text("images").array(),
   isOpen: boolean("is_open").default(true),
-  address: jsonb("address").notNull(), // { street, city, state, zipCode }
-  location: jsonb("location").notNull(), // { latitude, longitude }
+  address: jsonb("address").$type<StoreAddress | null>(), // { street, city, state, zipCode }
+  location: jsonb("location").$type<StoreLocation | null>(), // { latitude, longitude, place_id }
   place_id: text("place_id"),
   // Removida a coluna acceptLocationTerms que não existe no banco de dados
   subscriptionPlan: text("subscription_plan").$type<"freemium" | "start" | "pro" | "premium">().default("freemium"),

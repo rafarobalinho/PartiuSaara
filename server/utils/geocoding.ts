@@ -4,7 +4,7 @@
  */
 
 import axios from 'axios';
-import { Store } from '@shared/schema';
+import { Store, StoreAddress, StoreLocation } from '@shared/schema';
 
 // Chave da API do Google Maps
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || '';
@@ -100,14 +100,28 @@ export async function geocodeAddress(address: string): Promise<{
 }
 
 /**
- * Formatar endereço completo a partir do objeto de loja
- * @param store Objeto da loja com informações de endereço
+ * Formatar endereço completo a partir do objeto de loja ou endereço
+ * @param input Objeto da loja com informações de endereço ou objeto de endereço direto
  * @returns String com endereço completo formatado
  */
-export function formatFullAddress(store: Partial<Store>): string {
-  if (!store.address) return '';
+export function formatFullAddress(input: Partial<Store> | StoreAddress | null): string {
+  // Caso seja um objeto de loja
+  if (input === null) return '';
   
-  const { street, city, state, zipCode } = store.address;
+  let address: StoreAddress | null;
+  
+  // Verificar se é um objeto Store ou StoreAddress
+  if ('address' in input) {
+    // É um objeto Store
+    address = input.address as StoreAddress;
+  } else {
+    // É um objeto StoreAddress
+    address = input as StoreAddress;
+  }
+  
+  if (!address) return '';
+  
+  const { street, city, state, zipCode } = address;
   
   // Verificar se todos os campos necessários estão presentes
   if (!street || !city || !state) {

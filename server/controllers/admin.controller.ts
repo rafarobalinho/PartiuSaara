@@ -7,7 +7,7 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import { stores } from '@shared/schema';
 import { eq, and, isNull, isNotNull } from 'drizzle-orm';
-import { geocodeAddress } from '../utils/geocoding';
+import { geocodeAddress, batchGeocodeStores } from '../utils/geocoding';
 
 /**
  * Obter todas as lojas com seus dados de geocodificação
@@ -203,21 +203,44 @@ export async function updateStoreCoordinates(req: Request, res: Response) {
   const { latitude, longitude } = req.body;
 
   if (isNaN(storeId)) {
-    return res.status(400).json({ message: 'ID de loja inválido' });
+    return res.status(400).json({ 
+      success: false,
+      message: 'ID de loja inválido' 
+    });
   }
 
-  if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-    return res.status(400).json({ message: 'Coordenadas inválidas' });
+  // Converter para número se for string (para lidar com dados de formulário)
+  const lat = typeof latitude === 'string' ? parseFloat(latitude) : latitude;
+  const lng = typeof longitude === 'string' ? parseFloat(longitude) : longitude;
+
+  if (typeof lat !== 'number' || isNaN(lat) || typeof lng !== 'number' || isNaN(lng)) {
+    return res.status(400).json({ 
+      success: false,
+      message: 'Coordenadas inválidas. Latitude e longitude devem ser números válidos.' 
+    });
+  }
+
+  // Validar faixa de latitude (-90 a 90) e longitude (-180 a 180)
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return res.status(400).json({ 
+      success: false,
+      message: 'Coordenadas fora dos limites válidos. Latitude deve estar entre -90 e 90, longitude entre -180 e 180.' 
+    });
   }
 
   try {
+    console.log(`Atualizando coordenadas manualmente para loja ID ${storeId}: ${lat}, ${lng}`);
+    
     // Verificar se a loja existe
     const store = await db.query.stores.findFirst({
       where: eq(stores.id, storeId),
     });
 
     if (!store) {
-      return res.status(404).json({ message: 'Loja não encontrada' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Loja não encontrada' 
+      });
     }
 
     // Atualizar as coordenadas
@@ -226,9 +249,10 @@ export async function updateStoreCoordinates(req: Request, res: Response) {
       .set({
         location: {
           ...(store.location || {}),
-          latitude,
-          longitude
-        }
+          latitude: lat,
+          longitude: lng
+        },
+        updatedAt: new Date()
       })
       .where(eq(stores.id, storeId));
 
@@ -237,14 +261,24 @@ export async function updateStoreCoordinates(req: Request, res: Response) {
       where: eq(stores.id, storeId),
     });
 
+    console.log(`Coordenadas da loja ID ${storeId} atualizadas com sucesso: ${lat}, ${lng}`);
+    
     res.json({
       success: true,
       message: 'Coordenadas da loja atualizadas com sucesso',
-      store: updatedStore
+      store: updatedStore,
+      coordinates: {
+        latitude: lat,
+        longitude: lng
+      }
     });
   } catch (error) {
-    console.error('Error updating store coordinates:', error);
-    res.status(500).json({ message: 'Erro ao atualizar coordenadas da loja' });
+    console.error('Erro ao atualizar coordenadas:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erro ao atualizar coordenadas da loja',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
   }
 }
 
@@ -286,7 +320,16 @@ export async function geocodeAllStores(req: Request, res: Response) {
     }
 
     // Função para processar cada loja após geocodificação
-    const processStoreCallback = async (store: any, geocodeResult: any) => {
+    const processStoreCallback = async (
+      store: Partial<Store>, 
+      geocodeResult: { 
+        success: boolean; 
+        latitude?: number; 
+        longitude?: number; 
+        place_id?: string;
+        error?: string;
+      }
+    ) => {
       if (!store.id || !geocodeResult.success || !geocodeResult.latitude || !geocodeResult.longitude) {
         return;
       }
@@ -317,7 +360,13 @@ export async function geocodeAllStores(req: Request, res: Response) {
       total: eligibleStores.length,
       geocoded: batchResults.success,
       failed: batchResults.failed,
-      results: batchResults.results.map(result => ({
+      results: batchResults.results.map((result: {
+        id: number | undefined;
+        name: string | undefined;
+        success: boolean;
+        error?: string;
+        coords?: { latitude: number; longitude: number; }
+      }) => ({
         id: result.id,
         name: result.name,
         success: result.success,
