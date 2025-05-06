@@ -197,6 +197,28 @@ export default function GeocodingPanel() {
       });
     }
   });
+  
+  // Mutation para atualizar detalhes de todas as lojas
+  const updateAllPlaceDetailsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/admin/update-all-store-details');
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Atualização de detalhes em lote concluída",
+        description: `${data.results.success} lojas atualizadas com sucesso. ${data.results.failed} falhas.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stores-geocoding'] });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Erro na atualização de detalhes em lote",
+        description: err.message,
+        variant: "destructive",
+      });
+    }
+  });
 
   // Função para mostrar uma loja no mapa
   const showStoreOnMap = (store: StoreWithGeoStatus) => {
@@ -362,6 +384,19 @@ export default function GeocodingPanel() {
               <Map className="h-4 w-4" />
             )}
             Geocodificar Todas
+          </Button>
+          
+          <Button 
+            onClick={() => updateAllPlaceDetailsMutation.mutate()}
+            disabled={updateAllPlaceDetailsMutation.isPending}
+            className="flex items-center gap-2"
+          >
+            {updateAllPlaceDetailsMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Info className="h-4 w-4" />
+            )}
+            Atualizar Detalhes
           </Button>
         </div>
       </div>

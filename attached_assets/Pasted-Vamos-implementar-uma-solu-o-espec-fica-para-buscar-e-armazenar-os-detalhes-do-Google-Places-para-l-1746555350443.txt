@@ -1,0 +1,249 @@
+Vamos implementar uma solução específica para buscar e armazenar os detalhes do Google Places para lojas que já têm o place_id:
+javascript// Função para buscar e atualizar detalhes de todas as lojas
+async function updateAllStoresPlaceDetails() {
+  try {
+    console.log('Iniciando processo de atualização de detalhes das lojas');
+    
+    // Buscar todas as lojas que têm place_id mas não têm detalhes ou precisam de atualização
+    const result = await db.query(`
+      SELECT s.id, s.name, s.place_id
+      FROM stores s
+      LEFT JOIN store_place_details d ON s.place_id = d.place_id
+      WHERE s.place_id IS NOT NULL 
+        AND (d.id IS NULL OR d.last_updated < NOW() - INTERVAL '7 days')
+    `);
+    
+    const stores = result.rows;
+    console.log(`Encontradas ${stores.length} lojas para atualizar detalhes`);
+    
+    const results = {
+      total: stores.length,
+      success: 0,
+      failed: 0,
+      details: []
+    };
+    
+    // Se não houver lojas para atualizar, retornar imediatamente
+    if (stores.length === 0) {
+      return results;
+    }
+    
+    // Importar axios
+    const axios = require('axios');
+    
+    // Processar cada loja
+    for (const store of stores) {
+      try {
+        console.log(`Buscando detalhes para loja ID ${store.id}: ${store.name}`);
+        
+        if (!store.place_id) {
+          console.log(`Loja ID ${store.id} não possui place_id`);
+          results.failed++;
+          results.details.push({
+            id: store.id,
+            name: store.name || '',
+            status: 'failed',
+            reason: 'Place ID não disponível'
+          });
+          continue;
+        }
+        
+        // Buscar detalhes do lugar via API do Google Places
+        console.log(`Buscando detalhes do lugar para place_id: ${store.place_id}`);
+        
+        // Campos que queremos recuperar da API
+        const fields = [
+          'name',
+          'formatted_address',
+          'formatted_phone_number',
+          'website',
+          'rating',
+          'user_ratings_total',
+          'business_status',
+          'opening_hours',
+          'reviews',
+          'types',
+          'editorial_summary'
+        ].join(',');
+        
+        // Construir URL da API
+        const apiUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${store.place_id}&fields=${fields}&language=pt-BR&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        
+        // Fazer a requisição HTTP
+        const response = await axios.get(apiUrl);
+        
+        // Verificar se a requisição foi bem-sucedida
+        if (response.data.status !== 'OK') {
+          throw new Error(`Falha ao obter detalhes do lugar: ${response.data.status}`);
+        }
+        
+        // Extrair os dados relevantes
+        const placeData = response.data.result;
+        
+        // Formatar os detalhes para salvar no banco
+        const placeDetails = {
+          name: placeData.name,
+          formatted_address: placeData.formatted_address,
+          phone_number: placeData.formatted_phone_number || null,
+          website: placeData.website || null,
+          rating: placeData.rating || null,
+          total_ratings: placeData.user_ratings_total || 0,
+          business_status: placeData.business_status || null,
+          types: placeData.types || [],
+          opening_hours: placeData.opening_hours || {},
+          reviews: placeData.reviews || [],
+          editorial_summary: placeData.editorial_summary ? placeData.editorial_summary.overview : null
+        };
+        
+        console.log(`Detalhes obtidos com sucesso para loja ID ${store.id}`);
+        
+        // Verificar se a tabela store_place_details existe, e criar se não existir
+        await ensurePlaceDetailsTableExists();
+        
+        // Salvar os detalhes no banco de dados (usando SQL nativo para evitar problemas)
+        const sql = `
+          INSERT INTO store_place_details (
+            store_id, place_id, name, formatted_address, phone_number, 
+            website, rating, total_ratings, business_status, types,
+            opening_hours, reviews, editorial_summary, last_updated
+          ) 
+          VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP
+          )
+          ON CONFLICT (place_id) 
+          DO UPDATE SET
+            store_id = $1,
+            name = $3,
+            formatted_address = $4,
+            phone_number = $5,
+            website = $6,
+            rating = $7,
+            total_ratings = $8,
+            business_status = $9,
+            types = $10,
+            opening_hours = $11,
+            reviews = $12,
+            editorial_summary = $13,
+            last_updated = CURRENT_TIMESTAMP
+          RETURNING id;
+        `;
+        
+        const values = [
+          store.id,
+          store.place_id,
+          placeDetails.name,
+          placeDetails.formatted_address,
+          placeDetails.phone_number,
+          placeDetails.website,
+          placeDetails.rating,
+          placeDetails.total_ratings,
+          placeDetails.business_status,
+          JSON.stringify(placeDetails.types),
+          JSON.stringify(placeDetails.opening_hours),
+          JSON.stringify(placeDetails.reviews),
+          placeDetails.editorial_summary
+        ];
+        
+        const saveResult = await db.query(sql, values);
+        
+        if (saveResult.rows.length === 0) {
+          throw new Error('Nenhum registro foi inserido ou atualizado');
+        }
+        
+        console.log(`Detalhes salvos com sucesso para loja ID ${store.id}`);
+        
+        results.success++;
+        results.details.push({
+          id: store.id,
+          name: store.name,
+          status: 'success',
+          details_id: saveResult.rows[0].id
+        });
+        
+      } catch (error) {
+        console.error(`Erro ao processar loja ID ${store.id}:`, error);
+        results.failed++;
+        results.details.push({
+          id: store.id,
+          name: store.name || '',
+          status: 'failed',
+          reason: error.message
+        });
+      }
+      
+      // Pequeno atraso para evitar limites de taxa da API
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    console.log('Atualização de detalhes concluída:', results);
+    return results;
+    
+  } catch (error) {
+    console.error('Erro na atualização de detalhes das lojas:', error);
+    throw error;
+  }
+}
+
+// Função auxiliar para garantir que a tabela existe
+async function ensurePlaceDetailsTableExists() {
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS store_place_details (
+      id SERIAL PRIMARY KEY,
+      store_id INTEGER REFERENCES stores(id),
+      place_id TEXT UNIQUE NOT NULL,
+      name TEXT,
+      formatted_address TEXT,
+      phone_number TEXT,
+      website TEXT,
+      rating DECIMAL,
+      total_ratings INTEGER,
+      business_status TEXT,
+      types JSONB,
+      opening_hours JSONB,
+      reviews JSONB,
+      editorial_summary TEXT,
+      last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_store_place_details_store_id ON store_place_details(store_id);
+    CREATE INDEX IF NOT EXISTS idx_store_place_details_place_id ON store_place_details(place_id);
+  `;
+  
+  try {
+    await db.query(createTableQuery);
+    console.log('Tabela store_place_details verificada/criada com sucesso');
+  } catch (error) {
+    console.error('Erro ao verificar/criar tabela store_place_details:', error);
+    throw error;
+  }
+}
+
+// Endpoint para acionar a atualização de detalhes em lote
+router.post('/api/admin/update-all-store-details', async (req, res) => {
+  try {
+    console.log('Recebida solicitação para atualização de detalhes das lojas');
+    const results = await updateAllStoresPlaceDetails();
+    console.log('Atualização de detalhes concluída com sucesso, enviando resposta');
+    res.json({
+      success: true,
+      message: `Atualização concluída: ${results.success} lojas atualizadas, ${results.failed} falhas`,
+      results
+    });
+  } catch (error) {
+    console.error('Erro ao processar atualização de detalhes:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Erro ao processar atualização de detalhes',
+      message: error.message
+    });
+  }
+});
+Esta implementação difere da geocodificação em lote em vários aspectos:
+
+Consulta diferente: Busca lojas que têm place_id mas NÃO têm detalhes (ou os detalhes estão desatualizados)
+Criação automática da tabela: Garante que a tabela store_place_details exista antes de tentar inserir dados
+Mais campos: Armazena muitos mais detalhes, como horários de funcionamento, avaliações, etc.
+Atualização periódica: Configurada para atualizar detalhes que têm mais de 7 dias
+
+Você poderá acessar essa funcionalidade através do endpoint /api/admin/update-all-store-details, que buscará e atualizará os detalhes de todas as lojas que já têm place_id, mas ainda não têm detalhes armazenados na tabela store_place_details.
+Esta implementação garantirá que os detalhes do Google Places sejam buscados e armazenados corretamente, mesmo para lojas que já foram geocodificadas.
