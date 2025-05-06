@@ -16,8 +16,9 @@ import * as AdminUserController from "./controllers/admin-user.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db, pool } from "./db";
 import { and, eq } from "drizzle-orm";
-import { storeImages, productImages, products, stores } from "@shared/schema";
+import { storeImages, productImages, products, stores, users } from "@shared/schema";
 import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
+import { comparePasswords } from './utils/auth';
 import { geocodingMiddleware } from "./middlewares/geocoding.middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -386,6 +387,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/uploads', express.static('public/uploads'));
   app.use('/uploads/thumbnails', express.static('public/uploads/thumbnails'));
 
+
+  // Rota específica para login administrativo
+  app.post('/api/admin/login', async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: 'Email e senha são obrigatórios' });
+      }
+
+      // Buscar o usuário pelo email
+      const user = await db.query.users.findFirst({
+        where: eq(users.email, email)
+      });
+
+      if (!user) {
+        return res.status(401).json({ message: 'Credenciais inválidas' });
+      }
+
+      // Verificar se o usuário é um administrador
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: 'Acesso negado. Apenas administradores podem acessar este recurso.' });
+      }
+
+      // Verificar a senha
+      const isPasswordValid = await comparePasswords(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: 'Credenciais inválidas' });
+      }
+
+      // Autenticar o usuário
+      req.session.userId = user.id;
+      
+      // Remover a senha da resposta
+      const { password: _, ...userWithoutPassword } = user;
+
+      res.json({
+        ...userWithoutPassword,
+        success: true,
+        message: 'Login administrativo realizado com sucesso'
+      });
+    } catch (error) {
+      console.error('Erro no login administrativo:', error);
+      res.status(500).json({ message: 'Erro ao processar o login administrativo' });
+    }
+  });
 
   // Rotas para gerenciamento de usuários administrativos
   app.post('/api/admin/init-admin', AdminUserController.initializeAdminUser);
