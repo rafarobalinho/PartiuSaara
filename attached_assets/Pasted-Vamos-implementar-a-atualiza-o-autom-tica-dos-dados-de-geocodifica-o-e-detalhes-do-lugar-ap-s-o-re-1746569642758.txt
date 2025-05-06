@@ -1,0 +1,247 @@
+Vamos implementar a atualização automática dos dados de geocodificação e detalhes do lugar após o registro de uma loja. Esta funcionalidade é crucial para garantir que todas as novas lojas tenham suas coordenadas e informações enriquecidas logo após o cadastro.
+Existem algumas abordagens para implementar este comportamento:
+
+Middleware: Interceptar o processo de criação/atualização de lojas
+Hooks: Implementar hooks após a operação de salvar
+Trigger de banco de dados: Criar um trigger no PostgreSQL
+
+Vou sugerir a implementação via middleware, que é uma abordagem flexível e amplamente utilizada:
+javascript// Middleware para processar automaticamente lojas após o cadastro/atualização
+async function processStoreMiddleware(req, res, next) {
+  // Armazenar o manipulador de resposta original
+  const originalSend = res.send;
+  
+  // Sobrescrever o método send para interceptar a resposta
+  res.send = function(body) {
+    try {
+      // Verificar se é uma resposta de sucesso de criação/atualização de loja
+      const responseData = typeof body === 'string' ? JSON.parse(body) : body;
+      
+      if (responseData && responseData.success && responseData.store) {
+        const store = responseData.store;
+        
+        // Executar o processamento de geocodificação e detalhes em background
+        // para não atrasar a resposta ao usuário
+        setTimeout(async () => {
+          try {
+            console.log(`🔄 Processamento automático para loja ID ${store.id}: ${store.name}`);
+            
+            // Verificar se a loja já tem coordenadas
+            if (!store.location || !store.location.latitude || !store.location.longitude) {
+              // Geocodificar a loja
+              console.log(`🌍 Iniciando geocodificação para loja ID ${store.id}`);
+              await geocodeStore(store.id);
+            }
+            
+            // Buscar a loja atualizada para garantir que temos as coordenadas
+            const updatedStoreResult = await db.query(
+              'SELECT id, name, location, place_id FROM stores WHERE id = $1',
+              [store.id]
+            );
+            
+            if (updatedStoreResult.rows.length > 0) {
+              const updatedStore = updatedStoreResult.rows[0];
+              
+              // Verificar se a loja tem coordenadas agora
+              if (updatedStore.location && updatedStore.location.latitude && updatedStore.location.longitude) {
+                // Buscar detalhes do lugar
+                console.log(`🏪 Iniciando busca de detalhes para loja ID ${store.id}`);
+                await updateStorePlaceDetails(updatedStore);
+              }
+            }
+            
+            console.log(`✅ Processamento automático concluído para loja ID ${store.id}`);
+          } catch (error) {
+            console.error(`❌ Erro no processamento automático para loja ID ${store.id}:`, error);
+          }
+        }, 100); // Pequeno delay para garantir que a resposta é enviada primeiro
+      }
+    } catch (error) {
+      console.error('Erro ao processar resposta:', error);
+    }
+    
+    // Chamar o método original para continuar o fluxo normal
+    return originalSend.apply(this, arguments);
+  };
+  
+  // Continuar para o próximo middleware
+  next();
+}
+
+// Função dedicada para geocodificar uma única loja
+async function geocodeStore(storeId) {
+  try {
+    // Buscar dados da loja
+    const storeResult = await db.query(
+      'SELECT id, name, address FROM stores WHERE id = $1',
+      [storeId]
+    );
+    
+    if (storeResult.rows.length === 0) {
+      throw new Error(`Loja ID ${storeId} não encontrada`);
+    }
+    
+    const store = storeResult.rows[0];
+    
+    // Verificar se a loja tem endereço completo
+    if (!store.address || !store.address.street || !store.address.city || 
+        !store.address.state || !store.address.zipCode) {
+      throw new Error(`Loja ID ${storeId} tem endereço incompleto`);
+    }
+    
+    // Importar axios
+    const axios = require('axios');
+    
+    // Formar o endereço completo
+    const formattedAddress = `${store.address.street}, ${store.address.city}, ${store.address.state}, ${store.address.zipCode}, Brasil`;
+    
+    // Buscar coordenadas via API do Google
+    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(formattedAddress)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+    
+    const geocodeResponse = await axios.get(geocodeUrl);
+    
+    if (geocodeResponse.data.status !== 'OK' || !geocodeResponse.data.results || 
+        geocodeResponse.data.results.length === 0) {
+      throw new Error(`Falha na geocodificação: ${geocodeResponse.data.status}`);
+    }
+    
+    // Extrair dados
+    const result = geocodeResponse.data.results[0];
+    const location = {
+      latitude: result.geometry.location.lat,
+      longitude: result.geometry.location.lng
+    };
+    const placeId = result.place_id;
+    
+    // Atualizar a loja
+    await db.query(
+      'UPDATE stores SET location = $1, place_id = $2 WHERE id = $3',
+      [JSON.stringify(location), placeId, storeId]
+    );
+    
+    console.log(`✅ Geocodificação concluída para loja ID ${storeId}`);
+    return { success: true, location, placeId };
+  } catch (error) {
+    console.error(`❌ Erro ao geocodificar loja ID ${storeId}:`, error);
+    throw error;
+  }
+}
+
+// Função dedicada para atualizar detalhes de uma única loja
+async function updateStorePlaceDetails(store) {
+  try {
+    // Verificar se a loja tem coordenadas e place_id
+    if (!store.location || !store.location.latitude || !store.location.longitude) {
+      throw new Error(`Loja ID ${store.id} não tem coordenadas válidas`);
+    }
+    
+    // Importar axios
+    const axios = require('axios');
+    
+    const lat = store.location.latitude;
+    const lng = store.location.longitude;
+    const storeName = encodeURIComponent(store.name);
+    
+    // Buscar o lugar pelo nome + coordenadas
+    const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${storeName}&inputtype=textquery&locationbias=point:${lat},${lng}&fields=place_id,name,formatted_address&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+    
+    const findPlaceResponse = await axios.get(findPlaceUrl);
+    
+    let placeId = null;
+    
+    if (findPlaceResponse.data.status === 'OK' && findPlaceResponse.data.candidates && 
+        findPlaceResponse.data.candidates.length > 0) {
+      placeId = findPlaceResponse.data.candidates[0].place_id;
+    } else {
+      // Se não encontrar pelo nome, buscar lugares próximos
+      const nearbyUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=100&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+      
+      const nearbyResponse = await axios.get(nearbyUrl);
+      
+      if (nearbyResponse.data.status !== 'OK' || !nearbyResponse.data.results || 
+          nearbyResponse.data.results.length === 0) {
+        throw new Error('Nenhum lugar encontrado próximo às coordenadas');
+      }
+      
+      placeId = nearbyResponse.data.results[0].place_id;
+    }
+    
+    // Atualizar o place_id na tabela stores se necessário
+    if (placeId && (!store.place_id || store.place_id !== placeId)) {
+      await db.query(
+        'UPDATE stores SET place_id = $1 WHERE id = $2',
+        [placeId, store.id]
+      );
+    }
+    
+    // Buscar detalhes do lugar
+    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,opening_hours,business_status,types,reviews,editorial_summary&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+    
+    const detailsResponse = await axios.get(detailsUrl);
+    
+    if (detailsResponse.data.status !== 'OK') {
+      throw new Error(`Falha ao obter detalhes do lugar: ${detailsResponse.data.status}`);
+    }
+    
+    // Processar os detalhes com tratamento de erro para cada campo
+    const placeData = detailsResponse.data.result || {};
+    
+    // Inserir ou atualizar os detalhes
+    await db.query(`
+      INSERT INTO store_place_details (
+        store_id, place_id, name, formatted_address, phone_number, 
+        website, rating, total_ratings, opening_hours, business_status,
+        types, reviews, editorial_summary, last_updated
+      ) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)
+      ON CONFLICT (store_id) 
+      DO UPDATE SET
+        place_id = $2,
+        name = $3,
+        formatted_address = $4,
+        phone_number = $5,
+        website = $6,
+        rating = $7,
+        total_ratings = $8,
+        opening_hours = $9,
+        business_status = $10,
+        types = $11,
+        reviews = $12,
+        editorial_summary = $13,
+        last_updated = CURRENT_TIMESTAMP
+    `, [
+      store.id,
+      placeId,
+      store.name,
+      placeData.formatted_address || null,
+      placeData.formatted_phone_number || null,
+      placeData.website || null,
+      placeData.rating || null,
+      placeData.user_ratings_total || 0,
+      placeData.opening_hours?.weekday_text ? JSON.stringify(placeData.opening_hours.weekday_text) : null,
+      placeData.business_status || null,
+      placeData.types ? JSON.stringify(placeData.types) : null,
+      placeData.reviews ? JSON.stringify(placeData.reviews.slice(0, 5)) : null,
+      placeData.editorial_summary?.overview || null
+    ]);
+    
+    console.log(`✅ Detalhes do lugar atualizados para loja ID ${store.id}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`❌ Erro ao atualizar detalhes da loja ID ${store.id}:`, error);
+    throw error;
+  }
+}
+
+// Registrar o middleware nas rotas de criação/atualização de lojas
+app.post('/api/stores', processStoreMiddleware);
+app.put('/api/stores/:id', processStoreMiddleware);
+Esta implementação:
+
+Intercepta as respostas de criação/atualização de lojas
+Processa em background para não atrasar a resposta ao usuário
+Geocodifica automaticamente se a loja não tiver coordenadas
+Busca e salva detalhes após a geocodificação
+Trata erros em cada etapa do processo
+
+Ao integrar este middleware às suas rotas de criação/atualização de lojas, você garante que todas as novas lojas terão coordenadas e detalhes enriquecidos automaticamente, sem intervenção manual.
