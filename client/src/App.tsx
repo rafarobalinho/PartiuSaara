@@ -9,6 +9,7 @@ import { UiProvider } from "@/context/ui-context";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import MobileNavigation from "@/components/layout/mobile-navigation";
+import AdminLayout from "@/components/admin/AdminLayout";
 
 import Home from "@/pages/home";
 import NotFound from "@/pages/not-found";
@@ -26,6 +27,7 @@ import Account from "@/pages/account/index";
 import Wishlist from "@/pages/account/wishlist";
 import Reservations from "@/pages/account/reservations";
 import SellerDashboard from "@/pages/seller/dashboard";
+import GeocodingPanel from "@/pages/admin/GeocodingPanel";
 import SellerProducts from "@/pages/seller/products/index";
 import AddProduct from "@/pages/seller/products/add-product";
 import EditProduct from "@/pages/seller/products/edit-product";
@@ -72,6 +74,15 @@ function Router() {
           <Route path="/seller/analytics" component={SellerAnalytics} />
           <Route path="/seller/subscription" component={SellerSubscription} />
           <Route path="/seller/settings/location" component={LocationSettingsPage} />
+          <Route path="/admin/geocoding">
+            {() => (
+              <div className="flex-grow">
+                <AdminLayout>
+                  <GeocodingPanel />
+                </AdminLayout>
+              </div>
+            )}
+          </Route>
           <Route component={NotFound} />
         </Switch>
       </div>
