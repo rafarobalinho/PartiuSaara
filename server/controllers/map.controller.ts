@@ -6,7 +6,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import { geocodeAddress, formatFullAddress, batchGeocodeStores } from '../utils/geocoding';
-import { stores } from '@shared/schema';
+import { stores, Store } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
 /**
@@ -84,14 +84,22 @@ export async function geocodeStore(req: Request, res: Response) {
       return res.status(500).json({ error: 'Falha ao geocodificar o endereço' });
     }
     
+    // Verificamos se os valores são válidos
+    if (!geoResult.latitude || !geoResult.longitude) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Coordenadas inválidas retornadas pela API de geocodificação'
+      });
+    }
+    
     // Atualizar a loja com as coordenadas
     await db.update(stores)
       .set({ 
         location: {
           latitude: geoResult.latitude,
-          longitude: geoResult.longitude
+          longitude: geoResult.longitude,
+          place_id: geoResult.place_id
         },
-        place_id: geoResult.place_id,
         updatedAt: new Date()
       })
       .where(eq(stores.id, parseInt(id)));
@@ -113,47 +121,108 @@ export async function geocodeStore(req: Request, res: Response) {
  */
 export async function batchGeocodeAllStores(req: Request, res: Response) {
   try {
-    // Buscar todas as lojas que não possuem coordenadas
-    const storesWithoutCoordinates = await db.query.stores.findMany({
-      where: (stores, { or, isNull }) => 
-        or(
-          isNull(stores.location),
-          // @ts-ignore - Verificação mais profunda de location nulo ou vazio 
-          (stores) => stores.location.latitude === null || stores.location.longitude === null
-        )
+    console.log('Iniciando busca por lojas sem coordenadas');
+    
+    // Primeiro vamos buscar lojas onde o campo location é totalmente nulo
+    let storesWithoutCoordinates = await db.query.stores.findMany({
+      where: (stores, { isNull }) => isNull(stores.location)
     });
     
+    console.log(`Lojas com location completamente nulo: ${storesWithoutCoordinates.length}`);
+    
+    // Agora vamos buscar lojas que têm o campo location, mas com latitude ou longitude nulos
+    // Precisamos executar uma query SQL nativa, pois o Drizzle ORM não suporta facilmente 
+    // verificações em campos específicos de objetos JSON
+    const locationNullQueryResult = await db.execute<Store>(`
+      SELECT * FROM stores 
+      WHERE address IS NOT NULL 
+        AND location IS NOT NULL
+        AND (
+          (location->>'latitude' IS NULL) 
+          OR (location->>'longitude' IS NULL)
+          OR NOT (location ? 'latitude')
+          OR NOT (location ? 'longitude')
+        )
+    `);
+    
+    const storesWithPartialLocation = Array.isArray(locationNullQueryResult) 
+      ? locationNullQueryResult 
+      : locationNullQueryResult.rows || [];
+    
+    console.log(`Lojas com location parcial (sem latitude/longitude): ${storesWithPartialLocation.length}`);
+    
+    // Combinando os resultados
+    storesWithoutCoordinates = [
+      ...storesWithoutCoordinates, 
+      ...storesWithPartialLocation
+    ];
+    
     if (storesWithoutCoordinates.length === 0) {
-      return res.json({ message: 'Nenhuma loja sem coordenadas encontrada' });
+      return res.json({ 
+        success: true,
+        message: 'Nenhuma loja sem coordenadas encontrada',
+        total: 0,
+        processed: 0
+      });
     }
     
+    console.log(`Total de ${storesWithoutCoordinates.length} lojas para processar`);
+    
     // Função de callback para atualizar cada loja após geocodificação
-    const updateStoreCallback = async (store: any, geoResult: { latitude: number, longitude: number, place_id: string } | null) => {
-      if (!store.id || !geoResult) return;
+    const updateStoreCallback = async (
+      store: Partial<Store>, 
+      geocodeResult: { 
+        success: boolean; 
+        latitude?: number; 
+        longitude?: number; 
+        place_id?: string;
+        error?: string;
+      }
+    ) => {
+      if (!store.id || !geocodeResult.success || !geocodeResult.latitude || !geocodeResult.longitude) {
+        console.log(`Falha ao geocodificar loja ID ${store.id}: ${geocodeResult.error || 'Erro desconhecido'}`);
+        return;
+      }
       
-      await db.update(stores)
-        .set({ 
-          location: {
-            latitude: geoResult.latitude,
-            longitude: geoResult.longitude
-          },
-          place_id: geoResult.place_id,
-          updatedAt: new Date()
-        })
-        .where(eq(stores.id, store.id));
+      console.log(`Atualizando loja ID ${store.id} com coordenadas: ${geocodeResult.latitude}, ${geocodeResult.longitude}`);
+      
+      try {
+        await db.update(stores)
+          .set({ 
+            location: {
+              latitude: geocodeResult.latitude,
+              longitude: geocodeResult.longitude,
+              place_id: geocodeResult.place_id
+            },
+            updatedAt: new Date()
+          })
+          .where(eq(stores.id, store.id));
+        
+        console.log(`Loja ID ${store.id} atualizada com sucesso`);
+      } catch (error) {
+        console.error(`Erro ao atualizar loja ID ${store.id}:`, error);
+      }
     };
     
     // Executar geocodificação em lote
     const result = await batchGeocodeStores(storesWithoutCoordinates, updateStoreCallback);
     
+    console.log(`Geocodificação em lote concluída: ${result.success} lojas com sucesso, ${result.failed} falhas`);
+    
     res.json({
+      success: true,
       message: 'Geocodificação em lote concluída',
-      total_processed: storesWithoutCoordinates.length,
-      success: result.success,
-      failed: result.failed
+      total: storesWithoutCoordinates.length,
+      geocoded: result.success,
+      failed: result.failed,
+      results: result.results || []
     });
   } catch (error) {
     console.error('Erro na geocodificação em lote:', error);
-    res.status(500).json({ error: 'Erro ao processar geocodificação em lote' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Erro ao processar geocodificação em lote',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
   }
 }
