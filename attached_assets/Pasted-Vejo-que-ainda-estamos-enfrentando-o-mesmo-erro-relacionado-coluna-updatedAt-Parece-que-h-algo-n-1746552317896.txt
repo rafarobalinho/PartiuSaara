@@ -1,0 +1,173 @@
+Vejo que ainda estamos enfrentando o mesmo erro relacionado à coluna updatedAt. Parece que há algo no código do sistema que está tentando atualizar automaticamente esse campo, mesmo quando não o incluímos explicitamente na consulta SQL.
+Este é um problema comum em sistemas que usam ORM (Object-Relational Mapping) com timestamping automático, como Sequelize ou Prisma.
+Vamos tentar uma abordagem diferente, buscando a raiz do problema. Em vez de tentar modificar a função de geocodificação, vamos criar uma função SQL nativa que possa ser executada diretamente no banco de dados:
+javascript// Função corrigida para geocodificação em lote - usando SQL nativo
+async function batchGeocodeAllStores() {
+  try {
+    console.log('Iniciando processo de geocodificação em lote');
+    
+    // Buscar lojas que precisam de geocodificação
+    const result = await db.query(`
+      SELECT id, name, address 
+      FROM stores 
+      WHERE address IS NOT NULL 
+        AND (location IS NULL OR place_id IS NULL)
+    `);
+    
+    const stores = result.rows;
+    console.log(`Encontradas ${stores.length} lojas para geocodificar`);
+    
+    const results = {
+      total: stores.length,
+      success: 0,
+      failed: 0,
+      details: []
+    };
+    
+    // Se não houver lojas para geocodificar, retornar imediatamente
+    if (stores.length === 0) {
+      return results;
+    }
+    
+    // Importar axios no início da função
+    const axios = require('axios');
+    
+    // Processar cada loja
+    for (const store of stores) {
+      try {
+        console.log(`Geocodificando loja ID ${store.id}: ${store.name}`);
+        
+        // Verificar se o endereço está completo
+        if (!store.address || 
+            typeof store.address !== 'object' || 
+            !store.address.street || 
+            !store.address.city || 
+            !store.address.state || 
+            !store.address.zipCode) {
+          
+          console.log(`Loja ID ${store.id} tem endereço incompleto`);
+          results.failed++;
+          results.details.push({
+            id: store.id,
+            name: store.name || '',
+            status: 'failed',
+            reason: 'Endereço incompleto'
+          });
+          continue;
+        }
+        
+        // Formar o endereço completo
+        const formattedAddress = `${store.address.street}, ${store.address.city}, ${store.address.state}, ${store.address.zipCode}, Brasil`;
+        console.log(`Endereço formatado: ${formattedAddress}`);
+        
+        // Preparar URL da API Google Geocoding
+        const apiUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(formattedAddress)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        
+        // Fazer a requisição HTTP
+        const response = await axios.get(apiUrl);
+        console.log(`Resposta para loja ID ${store.id}: status=${response.data.status}, resultados=${response.data.results ? response.data.results.length : 0}`);
+        
+        // Verificar se a geocodificação foi bem-sucedida
+        if (response.data.status !== 'OK' || !response.data.results || response.data.results.length === 0) {
+          throw new Error(`Falha na geocodificação: ${response.data.status}`);
+        }
+        
+        // Extrair latitude, longitude e place_id da resposta
+        const result = response.data.results[0];
+        
+        // Criar objeto de localização
+        const locationObj = {
+          latitude: result.geometry.location.lat,
+          longitude: result.geometry.location.lng
+        };
+        
+        const placeId = result.place_id;
+        
+        console.log(`Dados extraídos: latitude=${locationObj.latitude}, longitude=${locationObj.longitude}, place_id=${placeId}`);
+        
+        // NOVA ABORDAGEM: Atualizar usando SQL nativo (ignorando o ORM)
+        // Isso pode contornar problemas com hooks/triggers automáticos que estão tentando atualizar "updatedAt"
+        
+        // Construir um SQL nativo que não tenta atualizar campos de timestamp
+        const updateSql = `
+          UPDATE stores 
+          SET 
+            location = '${JSON.stringify(locationObj)}'::jsonb,
+            place_id = '${placeId}'
+          WHERE id = ${store.id}
+          RETURNING id;
+        `;
+        
+        console.log(`Executando SQL nativo para atualizar loja ID ${store.id}`);
+        
+        try {
+          // Executar o SQL nativo diretamente
+          const updateResult = await db.query(updateSql);
+          
+          if (updateResult.rows.length === 0) {
+            throw new Error(`Nenhuma linha atualizada para loja ID ${store.id}`);
+          }
+          
+          console.log(`Loja ID ${store.id} atualizada com sucesso:`, updateResult.rows);
+          
+          results.success++;
+          results.details.push({
+            id: store.id,
+            name: store.name || '',
+            status: 'success',
+            data: {
+              location: locationObj,
+              place_id: placeId
+            }
+          });
+        } catch (sqlError) {
+          console.error(`Erro SQL ao atualizar loja ID ${store.id}:`, sqlError);
+          throw new Error(`Erro ao executar SQL: ${sqlError.message}`);
+        }
+        
+      } catch (error) {
+        console.error(`Erro ao geocodificar loja ID ${store.id}:`, error);
+        results.failed++;
+        results.details.push({
+          id: store.id,
+          name: store.name || '',
+          status: 'failed',
+          reason: error.message
+        });
+      }
+      
+      // Pequeno atraso para evitar limites de taxa da API
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    console.log('Geocodificação em lote concluída:', results);
+    return results;
+  } catch (error) {
+    console.error('Erro na geocodificação em lote:', error);
+    throw error;
+  }
+}
+Esta abordagem:
+
+Usa SQL nativo em vez do ORM:
+
+Constroe uma instrução SQL direta que não depende do ORM
+Evita o uso de parâmetros que podem ser transformados pelo ORM
+Isso deve contornar qualquer hook ou callback automático que esteja tentando atualizar o campo updatedAt
+
+
+Maior controle sobre a consulta SQL:
+
+Especifica exatamente quais campos atualizar sem depender da API do ORM
+Ignora o mecanismo normal de consulta parametrizada do ORM
+
+
+Log detalhado da execução SQL:
+
+Mostra exatamente qual consulta SQL está sendo executada
+Permite diagnosticar problemas específicos da consulta
+
+
+
+Por favor, note que o uso de SQL nativo com interpolação de string como no código acima é geralmente não recomendado devido a riscos de injeção SQL, mas neste caso estamos usando valores controlados pelo código. Para uma implementação em produção, você deve usar consultas parametrizadas adequadas ou, se possível, identificar e resolver o problema subjacente com o ORM.
+Essa abordagem deve contornar o problema da coluna updatedAt e permitir que a geocodificação em lote seja concluída com sucesso.

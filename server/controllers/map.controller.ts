@@ -233,55 +233,41 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
         
         console.log(`Dados extraídos: latitude=${locationObj.latitude}, longitude=${locationObj.longitude}, place_id=${placeId}`);
         
-        // Usar pool que foi importado no topo do arquivo
-        console.log(`Atualizando loja ID ${store.id} no banco de dados`);
+        // NOVA ABORDAGEM: Usar SQL nativo diretamente (ignorando o ORM)
+        console.log(`Atualizando loja ID ${store.id} no banco de dados usando SQL nativo`);
         
         const storeId = typeof store.id === 'string' ? parseInt(store.id) : store.id;
         
         let success = true;
         
         try {
-          // 1. Primeiro atualizar a location
-          const updateLocationQuery = `
+          // Construir um SQL nativo que não tenta atualizar campos de timestamp
+          // Isso evita problemas com o campo updatedAt
+          const updateSql = `
             UPDATE stores 
-            SET location = $1::jsonb 
-            WHERE id = $2
-            RETURNING id
+            SET 
+              location = '${JSON.stringify(locationObj)}'::jsonb,
+              place_id = '${placeId}'
+            WHERE id = ${storeId}
+            RETURNING id;
           `;
           
-          const locationResult = await pool.query(updateLocationQuery, [
-            JSON.stringify(locationObj),
-            storeId
-          ]);
+          console.log(`Executando SQL nativo para atualizar loja ID ${storeId}`);
           
-          console.log(`Location atualizada com sucesso para loja ID ${storeId}:`, locationResult.rows);
+          // Executar o SQL nativo diretamente
+          const updateResult = await pool.query(updateSql);
           
-          // 2. Depois atualizar o place_id
-          const updatePlaceIdQuery = `
-            UPDATE stores 
-            SET place_id = $1, "updatedAt" = NOW() 
-            WHERE id = $2
-            RETURNING id
-          `;
-          
-          const placeIdResult = await pool.query(updatePlaceIdQuery, [
-            placeId,
-            storeId
-          ]);
-          
-          console.log(`Place ID atualizado com sucesso para loja ID ${storeId}:`, placeIdResult.rows);
-          
-          // Verificar se as atualizações foram bem-sucedidas
-          if (locationResult.rows.length === 0 || placeIdResult.rows.length === 0) {
-            throw new Error('Falha em uma ou mais atualizações');
+          if (updateResult.rows.length === 0) {
+            throw new Error(`Nenhuma linha atualizada para loja ID ${storeId}`);
           }
           
+          console.log(`Loja ID ${storeId} atualizada com sucesso:`, updateResult.rows);
         } catch (updateError) {
-          console.error(`Erro ao atualizar store ID ${storeId}:`, updateError);
+          console.error(`Erro SQL ao atualizar loja ID ${storeId}:`, updateError);
           success = false;
         }
         
-        // 3. Verificar se as atualizações foram bem-sucedidas
+        // Verificar se as atualizações foram bem-sucedidas
         const updated = success ? [{ id: storeId }] : [];
         
         // Verificar se a atualização foi bem-sucedida
