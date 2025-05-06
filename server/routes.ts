@@ -507,6 +507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rotas para detalhes de lugares do Google Places
   app.get('/api/admin/stores/:storeId/place-details', authMiddleware, adminMiddleware, PlaceDetailsController.getStoreGooglePlaceDetails);
   app.post('/api/admin/stores/:storeId/refresh-place-details', authMiddleware, adminMiddleware, PlaceDetailsController.refreshStoreGooglePlaceDetails);
+  app.post('/api/admin/update-all-store-details', authMiddleware, adminMiddleware, PlaceDetailsController.updateAllStoresPlaceDetails);
 
   const httpServer = createServer(app);
   return httpServer;
