@@ -1,0 +1,113 @@
+enfrentando erros na página /seller/products quando cadastra um novo produto. O erro específico Cannot read properties of null (reading 'length') sugere que a aplicação está tentando acessar a propriedade length de um valor nulo.
+Vamos focar em resolver este problema específico para garantir que novos produtos possam ser cadastrados sem erros. Aqui está uma solução específica:
+javascript// Middleware para garantir que stores nunca seja null na página de produtos do vendedor
+const ensureSellerProductsDataMiddleware = async (req, res, next) => {
+  try {
+    // Buscar todas as lojas ativas
+    const storesResult = await db.query(`
+      SELECT id, name 
+      FROM stores 
+      WHERE active = true
+      ORDER BY name ASC
+    `);
+    
+    // Garantir que stores seja sempre um array, mesmo se vazio
+    req.stores = storesResult.rows || [];
+    res.locals.stores = req.stores;
+    
+    next();
+  } catch (error) {
+    console.error('Erro ao buscar lojas para página de produtos do vendedor:', error);
+    // Mesmo com erro, garantir que stores seja um array vazio
+    req.stores = [];
+    res.locals.stores = [];
+    next();
+  }
+};
+
+// Aplicar o middleware específico apenas na rota que precisa
+app.use('/seller/products*', ensureSellerProductsDataMiddleware);
+
+// Complementar com correção no componente React na página de produtos do vendedor
+// Arquivo: /client/src/pages/seller/products/index.tsx
+Vamos também corrigir o componente React que está gerando o erro:
+javascript// Modificação no componente SellerProducts em /client/src/pages/seller/products/index.tsx
+
+// Importar React e hooks necessários
+import React, { useState, useEffect } from 'react';
+
+// Componente SellerProducts
+const SellerProducts = ({ initialData }) => {
+  // Verificar e garantir que stores sempre seja um array
+  const [stores, setStores] = useState(initialData?.stores || []);
+  
+  // Resto do estado do componente...
+  
+  // Buscar lojas se não estiverem disponíveis inicialmente
+  useEffect(() => {
+    if (!stores || stores.length === 0) {
+      fetchStores();
+    }
+  }, []);
+  
+  // Função para buscar lojas se necessário
+  const fetchStores = async () => {
+    try {
+      const response = await fetch('/api/stores');
+      if (response.ok) {
+        const data = await response.json();
+        setStores(data.stores || []);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar lojas:', error);
+      // Garantir que stores seja pelo menos um array vazio
+      setStores([]);
+    }
+  };
+  
+  // Renderização segura no JSX
+  return (
+    <div className="seller-products">
+      {/* Verificação segura antes de acessar .length */}
+      {Array.isArray(stores) && stores.length > 0 ? (
+        <div>
+          <label htmlFor="store">Selecione a loja:</label>
+          <select 
+            id="store" 
+            value={selectedStore} 
+            onChange={handleStoreChange}
+            className="form-select"
+          >
+            <option value="">Selecione uma loja</option>
+            {stores.map(store => (
+              <option key={store.id} value={store.id}>
+                {store.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <div className="alert alert-warning">
+          Nenhuma loja disponível. Por favor, cadastre uma loja primeiro.
+        </div>
+      )}
+      
+      {/* Resto do componente... */}
+    </div>
+  );
+};
+
+export default SellerProducts;
+Esta solução aborda o problema específico de duas maneiras:
+
+Middleware no servidor: Garante que a variável stores nunca seja null nas rotas de /seller/products, sempre fornecendo pelo menos um array vazio.
+Verificações de segurança no componente React: Adiciona múltiplas camadas de proteção:
+
+Inicialização segura com useState
+Verificação de Array.isArray() antes de acessar .length
+Fallback para buscar lojas via API se não estiverem disponíveis
+Mensagem clara quando não há lojas disponíveis
+
+
+
+Essas correções devem resolver o problema específico na página /seller/products ao cadastrar novos produtos, garantindo que o app não quebre mesmo quando não há lojas cadastradas ou quando ocorrem erros ao buscar os dados.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas.
