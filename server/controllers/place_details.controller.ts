@@ -250,7 +250,6 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
     console.log('Iniciando processo de atualização de detalhes das lojas');
     
     // Buscar todas as lojas que têm coordenadas geocodificadas mas não têm detalhes
-    // CORREÇÃO: Simplificamos a consulta para evitar problemas com updated_at
     const result = await pool.query(`
       SELECT s.id, s.name, s.location
       FROM stores s
@@ -274,7 +273,7 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
         name: string;
         status: string;
         reason?: string;
-        details_id?: number;
+        place_name?: string;
       }>
     };
     
@@ -303,115 +302,53 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
       try {
         console.log(`Buscando detalhes para loja ID ${store.id}: ${store.name}`);
         
+        // Verificar se a loja tem coordenadas
         if (!store.location || !store.location.latitude || !store.location.longitude) {
-          console.log(`Loja ID ${store.id} não possui coordenadas válidas`);
-          results.failed++;
-          results.details.push({
-            id: store.id,
-            name: store.name || '',
-            status: 'failed',
-            reason: 'Coordenadas não disponíveis'
-          });
-          continue;
+          throw new Error('Coordenadas não disponíveis');
         }
         
         const lat = store.location.latitude;
         const lng = store.location.longitude;
         
-        // Primeiro, fazer uma busca por lugares próximos para obter o place_id
         console.log(`Buscando lugares próximos às coordenadas: ${lat}, ${lng}`);
-        const nearbySearchUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=50&key=${googleAPIKey}`;
         
-        const nearbyResponse = await axios.get(nearbySearchUrl);
+        // Buscar lugares próximos às coordenadas
+        const nearbyUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=50&key=${googleAPIKey}`;
         
-        if (!nearbyResponse.data.results || nearbyResponse.data.results.length === 0) {
-          console.log(`Nenhum lugar encontrado próximo às coordenadas da loja ID ${store.id}`);
-          results.failed++;
-          results.details.push({
-            id: store.id,
-            name: store.name || '',
-            status: 'failed',
-            reason: 'Nenhum lugar encontrado próximo às coordenadas'
-          });
-          continue;
+        const nearbyResponse = await axios.get(nearbyUrl);
+        
+        if (nearbyResponse.data.status !== 'OK' || !nearbyResponse.data.results || nearbyResponse.data.results.length === 0) {
+          throw new Error(`Nenhum lugar encontrado próximo às coordenadas: ${nearbyResponse.data.status}`);
         }
         
-        // Usar o primeiro resultado como o mais provável (mais próximo)
+        // Pegar o primeiro lugar encontrado (o mais próximo)
         const place = nearbyResponse.data.results[0];
         const placeId = place.place_id;
         
-        // Campos que queremos recuperar da API
-        const fields = [
-          'name',
-          'formatted_address',
-          'formatted_phone_number',
-          'international_phone_number',
-          'website',
-          'url',
-          'vicinity',
-          'utc_offset_minutes',
-          'rating',
-          'user_ratings_total',
-          'opening_hours',
-          'photos'
-        ].join(',');
+        console.log(`Lugar encontrado: ${place.name}, place_id: ${placeId}`);
         
-        // Buscar detalhes completos usando o place_id
-        console.log(`Buscando detalhes do lugar para place_id: ${placeId}`);
-        const placeDetailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${googleAPIKey}`;
-        
-        const detailsResponse = await axios.get(placeDetailsUrl);
-        
-        // Verificar se a requisição foi bem-sucedida
-        if (detailsResponse.data.status !== 'OK' || !detailsResponse.data.result) {
-          throw new Error(`Falha ao obter detalhes do lugar: ${detailsResponse.data.status}`);
-        }
-        
-        // Extrair os dados relevantes
-        const placeDetails = detailsResponse.data.result;
-        
-        console.log(`Detalhes obtidos com sucesso para loja ID ${store.id}`);
-        
-        // Função auxiliar para escapar strings para SQL
-        const escapeSql = (str: any) => {
-          if (str === null || str === undefined) return null;
-          return str.toString().replace(/'/g, "''");
-        };
-        
-        // CORREÇÃO: Usar SQL nativo para evitar problemas
-        const insertSql = `
+        // Inserir os detalhes básicos obtidos da busca nas proximidades
+        // Isso evita uma segunda chamada API que estava causando o erro INVALID_REQUEST
+        const insertQuery = `
           INSERT INTO store_place_details (
-            store_id, place_id, formatted_address, formatted_phone_number, 
-            international_phone_number, website, url, vicinity, 
-            utc_offset_minutes, rating, user_ratings_total, opening_hours, photos
+            store_id, place_id, name, vicinity, rating, 
+            total_ratings, last_updated
           ) 
-          VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
-          )
-          RETURNING id
+          VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
         `;
         
         const values = [
           store.id,
-          placeDetails.place_id || null,
-          placeDetails.formatted_address || null,
-          placeDetails.formatted_phone_number || null,
-          placeDetails.international_phone_number || null,
-          placeDetails.website || null,
-          placeDetails.url || null,
-          placeDetails.vicinity || null,
-          placeDetails.utc_offset_minutes || null,
-          placeDetails.rating || null,
-          placeDetails.user_ratings_total || null,
-          placeDetails.opening_hours ? JSON.stringify(placeDetails.opening_hours) : null,
-          placeDetails.photos ? JSON.stringify(placeDetails.photos) : null
+          placeId,
+          place.name || null,
+          place.vicinity || null,
+          place.rating || null,
+          place.user_ratings_total || 0
         ];
         
-        const saveResult = await pool.query(insertSql, values);
+        console.log(`Inserindo detalhes básicos para loja ID ${store.id}`);
         
-        if (saveResult.rows.length === 0) {
-          throw new Error('Nenhum registro foi inserido');
-        }
+        await pool.query(insertQuery, values);
         
         console.log(`Detalhes salvos com sucesso para loja ID ${store.id}`);
         
@@ -420,9 +357,8 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
           id: store.id,
           name: store.name,
           status: 'success',
-          details_id: saveResult.rows[0].id
+          place_name: place.name
         });
-        
       } catch (error: any) {
         console.error(`Erro ao processar loja ID ${store.id}:`, error);
         results.failed++;
@@ -435,7 +371,7 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
       }
       
       // Pequeno atraso para evitar limites de taxa da API
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
     
     console.log('Atualização de detalhes concluída:', results);
