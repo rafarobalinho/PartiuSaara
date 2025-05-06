@@ -1,0 +1,213 @@
+Uma abordagem de busca por nome + coordenadas para atualizar todas as informações (inclusive o Place ID) é excelente! Essa estratégia mais direcionada tem maior probabilidade de encontrar os estabelecimentos corretos.
+Vamos implementar uma solução que combine todos esses elementos:
+javascript// Função aprimorada para buscar e atualizar detalhes de todas as lojas
+async function updateAllStoresPlaceDetails() {
+  try {
+    console.log('Iniciando processo de atualização de detalhes das lojas');
+    
+    // Verificar se a tabela store_place_details existe, e criar se não existir
+    await ensurePlaceDetailsTableExists();
+    
+    // Buscar todas as lojas que têm coordenadas
+    const result = await db.query(`
+      SELECT s.id, s.name, s.location, s.place_id as current_place_id
+      FROM stores s
+      LEFT JOIN store_place_details d ON s.id = d.store_id
+      WHERE s.location IS NOT NULL
+    `);
+    
+    const stores = result.rows;
+    console.log(`Encontradas ${stores.length} lojas para atualizar detalhes`);
+    
+    const results = {
+      total: stores.length,
+      success: 0,
+      failed: 0,
+      details: []
+    };
+    
+    // Se não houver lojas para atualizar, retornar imediatamente
+    if (stores.length === 0) {
+      return results;
+    }
+    
+    // Importar axios
+    const axios = require('axios');
+    
+    // Processar cada loja
+    for (const store of stores) {
+      try {
+        console.log(`Buscando detalhes para loja ID ${store.id}: ${store.name}`);
+        
+        // Verificar se a loja tem coordenadas
+        if (!store.location || !store.location.latitude || !store.location.longitude) {
+          throw new Error('Coordenadas não disponíveis');
+        }
+        
+        const lat = store.location.latitude;
+        const lng = store.location.longitude;
+        const storeName = encodeURIComponent(store.name);
+        
+        console.log(`Buscando estabelecimento "${store.name}" nas coordenadas: ${lat}, ${lng}`);
+        
+        // Combinar nome e localização para uma busca mais precisa
+        const findPlaceUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${storeName}&inputtype=textquery&locationbias=point:${lat},${lng}&fields=place_id,name,formatted_address&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        
+        const findPlaceResponse = await axios.get(findPlaceUrl);
+        
+        let placeId = null;
+        
+        if (findPlaceResponse.data.status === 'OK' && findPlaceResponse.data.candidates && 
+            findPlaceResponse.data.candidates.length > 0) {
+          // Encontrou um lugar correspondente ao nome
+          placeId = findPlaceResponse.data.candidates[0].place_id;
+          console.log(`Estabelecimento encontrado via Find Place API: ${placeId}`);
+        } else {
+          // Se não encontrar pelo nome, tenta buscar lugares próximos
+          console.log('Estabelecimento não encontrado pelo nome. Buscando lugares próximos...');
+          
+          const nearbyUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=100&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+          
+          const nearbyResponse = await axios.get(nearbyUrl);
+          
+          if (nearbyResponse.data.status !== 'OK' || !nearbyResponse.data.results || 
+              nearbyResponse.data.results.length === 0) {
+            throw new Error('Nenhum lugar encontrado próximo às coordenadas');
+          }
+          
+          // Usar o primeiro resultado (mais próximo)
+          placeId = nearbyResponse.data.results[0].place_id;
+          console.log(`Estabelecimento mais próximo encontrado: ${placeId}`);
+        }
+        
+        // Atualizar o place_id na tabela stores
+        if (placeId && (!store.current_place_id || store.current_place_id !== placeId)) {
+          console.log(`Atualizando place_id na tabela stores de "${store.current_place_id}" para "${placeId}"`);
+          
+          await db.query(`
+            UPDATE stores 
+            SET place_id = $1
+            WHERE id = $2
+          `, [placeId, store.id]);
+        }
+        
+        // Buscar detalhes completos do lugar
+        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,opening_hours,photos&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        
+        const detailsResponse = await axios.get(detailsUrl);
+        
+        if (detailsResponse.data.status !== 'OK') {
+          throw new Error(`Falha ao obter detalhes do lugar: ${detailsResponse.data.status}`);
+        }
+        
+        // Extrair os detalhes
+        const placeData = detailsResponse.data.result;
+        
+        // Formatar os horários de funcionamento
+        let openingHours = null;
+        if (placeData.opening_hours && placeData.opening_hours.weekday_text) {
+          openingHours = JSON.stringify(placeData.opening_hours.weekday_text);
+        }
+        
+        // Adicionar ou atualizar os detalhes
+        await db.query(`
+          INSERT INTO store_place_details (
+            store_id, place_id, name, formatted_address, phone_number, 
+            website, rating, total_ratings, opening_hours, last_updated
+          ) 
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+          ON CONFLICT (store_id) 
+          DO UPDATE SET
+            place_id = $2,
+            name = $3,
+            formatted_address = $4,
+            phone_number = $5,
+            website = $6,
+            rating = $7,
+            total_ratings = $8,
+            opening_hours = $9,
+            last_updated = CURRENT_TIMESTAMP
+        `, [
+          store.id,
+          placeId,
+          store.name, // Manter o nome original da loja
+          placeData.formatted_address || null,
+          placeData.formatted_phone_number || null,
+          placeData.website || null,
+          placeData.rating || null,
+          placeData.user_ratings_total || 0,
+          openingHours
+        ]);
+        
+        console.log(`Detalhes salvos com sucesso para loja ID ${store.id}`);
+        
+        results.success++;
+        results.details.push({
+          id: store.id,
+          name: store.name,
+          status: 'success',
+          place_id: placeId
+        });
+      } catch (error) {
+        console.error(`Erro ao processar loja ID ${store.id}:`, error);
+        results.failed++;
+        results.details.push({
+          id: store.id,
+          name: store.name || '',
+          status: 'failed',
+          reason: error.message
+        });
+      }
+      
+      // Pequeno atraso para evitar limites de taxa da API
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    console.log('Atualização de detalhes concluída:', results);
+    return results;
+    
+  } catch (error) {
+    console.error('Erro na atualização de detalhes das lojas:', error);
+    throw error;
+  }
+}
+
+// Função para garantir que a tabela existe com a estrutura correta
+async function ensurePlaceDetailsTableExists() {
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS store_place_details (
+      id SERIAL PRIMARY KEY,
+      store_id INTEGER REFERENCES stores(id) UNIQUE,
+      place_id TEXT,
+      name TEXT,
+      formatted_address TEXT,
+      phone_number TEXT,
+      website TEXT,
+      rating DECIMAL,
+      total_ratings INTEGER,
+      opening_hours TEXT,
+      photo_reference TEXT,
+      last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_store_place_details_store_id ON store_place_details(store_id);
+    CREATE INDEX IF NOT EXISTS idx_store_place_details_place_id ON store_place_details(place_id);
+  `;
+  
+  try {
+    await db.query(createTableQuery);
+    console.log('Tabela store_place_details verificada/criada com sucesso');
+  } catch (error) {
+    console.error('Erro ao verificar/criar tabela store_place_details:', error);
+    throw error;
+  }
+}
+As principais melhorias nesta implementação:
+
+API Find Place From Text: Usa a API mais precisa Find Place para buscar estabelecimentos pelo nome + localização
+Atualização do Place ID: Atualiza o place_id na tabela stores quando encontra um melhor
+Upsert para detalhes: Usa o comando ON CONFLICT... DO UPDATE para inserir ou atualizar os detalhes
+Coluna UNIQUE: Define a coluna store_id como UNIQUE para garantir que cada loja tenha apenas um registro de detalhes
+Inclusão de foto: Adiciona um campo para referência de foto, que pode ser usado para exibir imagens do estabelecimento
+
+Esta implementação combina todos os elementos necessários para uma boa experiência de usuário, garantindo que tenhamos os dados mais precisos para cada loja, incluindo coordenadas, place_id e detalhes enriquecidos.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas. 3.7 Sonnet
