@@ -1,0 +1,73 @@
+parece que mesmo tendo obtido o Place ID correto, os detalhes adicionais como horários, avaliações e endereço formatado não estão sendo devidamente salvos na tabela store_place_details.
+Vamos resolver este problema específico. O código está encontrando os estabelecimentos corretos, mas não está salvando todos os detalhes obtidos da API do Google Places.
+Precisamos verificar e corrigir dois pontos principais:
+
+Confirmar que estamos recebendo os detalhes completos da API: Verificar a resposta que vem da API do Google Places Details
+Garantir que os dados são corretamente salvos no banco de dados: Verificar se todos os campos estão sendo passados corretamente para a consulta SQL
+
+Sugiro adicionar mais logs para identificar exatamente onde está ocorrendo o problema:
+javascript// Após obter os detalhes do lugar
+console.log('Detalhes obtidos da API Places Details:');
+console.log('- Nome:', placeData.name);
+console.log('- Endereço:', placeData.formatted_address);
+console.log('- Telefone:', placeData.formatted_phone_number);
+console.log('- Website:', placeData.website);
+console.log('- Avaliação:', placeData.rating);
+console.log('- Total avaliações:', placeData.user_ratings_total);
+console.log('- Horários:', placeData.opening_hours ? 'Disponíveis' : 'Não disponíveis');
+
+// Se tivermos horários, exibir
+if (placeData.opening_hours && placeData.opening_hours.weekday_text) {
+  console.log('- Horários detalhados:', placeData.opening_hours.weekday_text);
+}
+Além disso, é importante verificar se estamos solicitando todos os campos necessários na URL da API:
+javascript// Correção nos campos solicitados à API
+const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,opening_hours,photos&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+Por fim, vamos corrigir a inserção no banco de dados para garantir que todos os dados sejam salvos corretamente:
+javascript// Formatar os horários de funcionamento
+let openingHours = null;
+if (placeData.opening_hours && placeData.opening_hours.weekday_text) {
+  openingHours = JSON.stringify(placeData.opening_hours.weekday_text);
+  console.log('Horários formatados para salvar:', openingHours);
+}
+
+// Formatação de avaliações
+const rating = placeData.rating || null;
+const totalRatings = placeData.user_ratings_total || 0;
+console.log('Formatação de avaliações:', { rating, totalRatings });
+
+// Inserir/atualizar no banco de dados
+console.log(`Inserindo/atualizando detalhes para loja ID ${store.id}`);
+const upsertResult = await db.query(`
+  INSERT INTO store_place_details (
+    store_id, place_id, name, formatted_address, phone_number, 
+    website, rating, total_ratings, opening_hours, last_updated
+  ) 
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+  ON CONFLICT (store_id) 
+  DO UPDATE SET
+    place_id = $2,
+    name = $3,
+    formatted_address = $4,
+    phone_number = $5,
+    website = $6,
+    rating = $7,
+    total_ratings = $8,
+    opening_hours = $9,
+    last_updated = CURRENT_TIMESTAMP
+  RETURNING *
+`, [
+  store.id,
+  placeId,
+  store.name, // Manter o nome original da loja
+  placeData.formatted_address || null,
+  placeData.formatted_phone_number || null,
+  placeData.website || null,
+  rating,
+  totalRatings,
+  openingHours
+]);
+
+// Verificar o resultado inserido/atualizado
+console.log('Registro inserido/atualizado:', upsertResult.rows[0]);
+Estes ajustes devem ajudar a identificar e corrigir o problema com o salvamento dos detalhes das lojas.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas. 3.7 Sonnet
