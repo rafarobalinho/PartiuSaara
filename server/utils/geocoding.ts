@@ -33,14 +33,33 @@ interface GeocodingResponse {
 /**
  * Geocodifica um endereço utilizando a API do Google Maps
  * @param address Endereço completo para geocodificar
- * @returns Objeto com latitude, longitude e place_id
+ * @returns Objeto com status de sucesso, latitude, longitude e place_id, ou erro se falhar
  */
-export async function geocodeAddress(address: string): Promise<{ latitude: number, longitude: number, place_id: string } | null> {
+export async function geocodeAddress(address: string): Promise<{
+  success: boolean;
+  latitude?: number;
+  longitude?: number;
+  place_id?: string;
+  formatted_address?: string;
+  error?: string;
+}> {
   try {
     if (!GOOGLE_MAPS_API_KEY) {
       console.error('Chave da API do Google Maps não definida');
-      return null;
+      return {
+        success: false,
+        error: 'Chave da API do Google Maps não configurada. Contate o administrador do sistema.'
+      };
     }
+
+    if (!address || address.trim() === '') {
+      return {
+        success: false,
+        error: 'Endereço vazio ou inválido'
+      };
+    }
+
+    console.log(`Geocodificando endereço: "${address}"`);
 
     // Codificar o endereço para URL
     const encodedAddress = encodeURIComponent(address);
@@ -54,21 +73,29 @@ export async function geocodeAddress(address: string): Promise<{ latitude: numbe
     // Verificar se a resposta foi bem-sucedida
     if (response.data.status !== 'OK' || !response.data.results.length) {
       console.error('Falha na geocodificação:', response.data.status);
-      return null;
+      return {
+        success: false,
+        error: `Falha na geocodificação: ${response.data.status || 'Nenhum resultado encontrado'}`
+      };
     }
     
     // Obter o primeiro resultado
     const result = response.data.results[0];
     
-    // Retornar as coordenadas e place_id
+    // Retornar as coordenadas, place_id e endereço formatado
     return {
+      success: true,
       latitude: result.geometry.location.lat,
       longitude: result.geometry.location.lng,
-      place_id: result.place_id
+      place_id: result.place_id,
+      formatted_address: result.formatted_address
     };
   } catch (error) {
     console.error('Erro ao geocodificar endereço:', error);
-    return null;
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro desconhecido ao geocodificar endereço'
+    };
   }
 }
 
@@ -95,14 +122,40 @@ export function formatFullAddress(store: Partial<Store>): string {
  * Geocodifica múltiplas lojas em lote
  * @param stores Array de lojas para geocodificar
  * @param processCb Callback opcional para processar cada loja após geocodificação
- * @returns Array com resultados da geocodificação
+ * @returns Objeto com resultados da geocodificação
  */
 export async function batchGeocodeStores(
   stores: Partial<Store>[],
-  processCb?: (store: Partial<Store>, geocodeResult: { latitude: number, longitude: number, place_id: string } | null) => Promise<void>
-): Promise<{ success: number, failed: number }> {
-  let success = 0;
-  let failed = 0;
+  processCb?: (
+    store: Partial<Store>, 
+    geocodeResult: { 
+      success: boolean, 
+      latitude?: number, 
+      longitude?: number, 
+      place_id?: string,
+      error?: string
+    }
+  ) => Promise<void>
+): Promise<{ 
+  success: number, 
+  failed: number, 
+  results: Array<{
+    id: number | undefined,
+    name: string | undefined,
+    success: boolean,
+    error?: string,
+    coords?: { latitude: number, longitude: number }
+  }>
+}> {
+  let successCount = 0;
+  let failedCount = 0;
+  const results: Array<{
+    id: number | undefined,
+    name: string | undefined,
+    success: boolean,
+    error?: string,
+    coords?: { latitude: number, longitude: number }
+  }> = [];
   
   // Atraso entre as requisições para evitar limites de taxa da API
   const DELAY_MS = 200;
@@ -110,7 +163,13 @@ export async function batchGeocodeStores(
   for (const store of stores) {
     try {
       if (!store.address) {
-        failed++;
+        failedCount++;
+        results.push({
+          id: store.id,
+          name: store.name,
+          success: false,
+          error: 'Loja não possui endereço'
+        });
         continue;
       }
       
@@ -118,31 +177,64 @@ export async function batchGeocodeStores(
       const fullAddress = formatFullAddress(store);
       
       if (!fullAddress) {
-        failed++;
+        failedCount++;
+        results.push({
+          id: store.id,
+          name: store.name,
+          success: false,
+          error: 'Endereço incompleto (falta rua, cidade ou estado)'
+        });
         continue;
       }
+      
+      console.log(`Geocodificando loja ${store.id} - ${store.name}: "${fullAddress}"`);
       
       // Geocodificar o endereço
       const geocodeResult = await geocodeAddress(fullAddress);
       
-      if (geocodeResult) {
-        success++;
+      if (geocodeResult.success && geocodeResult.latitude && geocodeResult.longitude) {
+        successCount++;
+        results.push({
+          id: store.id,
+          name: store.name,
+          success: true,
+          coords: {
+            latitude: geocodeResult.latitude,
+            longitude: geocodeResult.longitude
+          }
+        });
         
         // Se tiver callback, processar a loja
         if (processCb) {
           await processCb(store, geocodeResult);
         }
       } else {
-        failed++;
+        failedCount++;
+        results.push({
+          id: store.id,
+          name: store.name,
+          success: false,
+          error: geocodeResult.error || 'Falha na geocodificação'
+        });
       }
       
       // Atraso para a próxima requisição
       await new Promise(resolve => setTimeout(resolve, DELAY_MS));
     } catch (error) {
       console.error(`Erro ao geocodificar loja ID ${store.id}:`, error);
-      failed++;
+      failedCount++;
+      results.push({
+        id: store.id,
+        name: store.name,
+        success: false,
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
     }
   }
   
-  return { success, failed };
+  return { 
+    success: successCount, 
+    failed: failedCount,
+    results
+  };
 }
