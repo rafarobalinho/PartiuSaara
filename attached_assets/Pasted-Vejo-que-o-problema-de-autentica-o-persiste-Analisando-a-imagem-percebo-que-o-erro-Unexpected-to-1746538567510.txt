@@ -1,0 +1,107 @@
+Vejo que o problema de autenticação persiste. Analisando a imagem, percebo que o erro "Unexpected token '<', '<!DOCTYPE..." continua aparecendo, o que significa que a API está retornando HTML em vez de JSON.
+
+Vamos criar um prompt mais específico focado em resolver este problema particular:
+
+Por favor, resolva o problema de autenticação no painel administrativo. O erro "Unexpected token '<', '<!DOCTYPE..." indica que a API está retornando HTML em vez de JSON quando tentamos fazer login.
+
+1. Investigue a rota de autenticação no backend
+Primeiro, verifique o endpoint que está sendo chamado durante o login:
+
+Localize o arquivo que contém o código do frontend de login (provavelmente em client/src/pages/admin/Login.tsx ou similar) e identifique qual URL está sendo usada para autenticação
+Adicione logs para ver exatamente o que está sendo enviado:
+javascript
+// No componente de login
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  console.log('Tentando fazer login com:', email);
+  try {
+    const response = await fetch('/api/auth/admin/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+    
+    console.log('Status da resposta:', response.status);
+    
+    // Tente obter o texto da resposta para depuração
+    const responseText = await response.text();
+    console.log('Texto da resposta:', responseText);
+    
+    // Se não for JSON, mostrará o erro
+    const data = JSON.parse(responseText);
+    
+    // Prossiga com o login...
+  } catch (error) {
+    console.error('Erro detalhado:', error);
+  }
+};
+2. Verifique o tratamento de erros no backend
+Localize o arquivo que contém a rota de autenticação (provavelmente em server/routes/auth.js ou similar)
+Adicione logs detalhados:
+javascript
+// Na rota de login do admin
+app.post('/api/auth/admin/login', (req, res) => {
+  try {
+    console.log('Recebida requisição de login:', req.body);
+    
+    // Resto do código de autenticação...
+    
+    // Certifique-se de que toda resposta seja JSON
+    res.json({ success: true, token: 'seu-token' });
+  } catch (error) {
+    console.error('Erro no login:', error);
+    // Importante: sempre retorne JSON, mesmo em caso de erro
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+3. Verifique as rotas no Express
+É possível que a rota não esteja registrada corretamente ou outra rota esteja interceptando a requisição:
+
+Confirme que a ordem das rotas no arquivo principal (app.js ou index.js) está correta
+Adicione essa verificação no início do arquivo principal do servidor:
+javascript
+// Middleware para logar todas as requisições
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+4. Resolva problemas comuns
+Problema de rota: Certifique-se de que a rota está registrada corretamente
+javascript
+// No index.js ou app.js
+const authRoutes = require('./routes/auth');
+app.use('/api', authRoutes);
+Problema de CORS: Verifique se CORS está configurado adequadamente
+javascript
+const cors = require('cors');
+
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
+Problema de parser JSON: Certifique-se de que o Express está configurado para lidar com JSON
+javascript
+app.use(express.json());
+Problema de redirecionamento: Verifique se não há redirecionamentos não esperados
+javascript
+// No middleware de autenticação, não use res.redirect()
+// Use res.status(401).json({ error: 'Não autorizado' })
+5. Teste a rota manualmente
+Use ferramentas como Postman ou curl para testar a rota diretamente:
+
+bash
+curl -X POST http://localhost:3000/api/auth/admin/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"contato@partiusaara.online","password":"sua-senha-aqui"}'
+Isso ajudará a determinar se o problema está no backend ou no frontend.
+
+Implemente estas mudanças e teste novamente o login administrativo. Se o problema persistir, examine o console do navegador e do servidor para identificar a causa exata do erro.
+
+Este prompt foca especificamente no problema de autenticação e oferece etapas concretas para identificar e corrigir a causa raiz do erro.
+
+
+
+
+

@@ -54,12 +54,21 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
+  // Middleware para tratar erros e garantir que sempre retornamos JSON
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+    
+    console.error('Error handler middleware:', err);
+    
+    // Definir explicitamente o content type para JSON
+    res.setHeader('Content-Type', 'application/json');
+    res.status(status).json({ 
+      message,
+      success: false,
+      error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+    // Não lançar o erro novamente - isso pode causar comportamento inesperado
   });
 
   // importantly only setup vite in development and after
