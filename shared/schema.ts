@@ -11,7 +11,7 @@ export const users = pgTable("users", {
   lastName: text("last_name").notNull(),
   dateOfBirth: text("date_of_birth"),
   gender: text("gender").$type<"male" | "female" | "not_specified">(),
-  role: text("role").$type<"customer" | "seller">().notNull().default("customer"),
+  role: text("role").$type<"customer" | "seller" | "admin">().notNull().default("customer"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
