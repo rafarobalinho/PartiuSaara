@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { authMiddleware } from "./middleware/auth";
+import { authMiddleware, adminMiddleware } from "./middleware/auth";
 import * as AuthController from "./controllers/auth.controller";
 import * as ProductController from "./controllers/product.controller";
 import * as StoreController from "./controllers/store.controller";
@@ -11,6 +11,7 @@ import * as ReservationController from "./controllers/reservation.controller";
 import * as WishlistController from "./controllers/wishlist.controller";
 import * as SubscriptionController from "./controllers/subscription.controller";
 import * as MapController from "./controllers/map.controller";
+import * as AdminController from "./controllers/admin.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db, pool } from "./db";
 import { and, eq } from "drizzle-orm";
@@ -386,8 +387,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Rotas administrativas para geocodificação
-  app.post('/api/admin/geocode/:id', authMiddleware, MapController.geocodeStore);
-  app.post('/api/admin/geocode-all-stores', authMiddleware, MapController.batchGeocodeAllStores);
+  app.get('/api/admin/stores-geocoding', authMiddleware, adminMiddleware, AdminController.getAllStoresGeocodingStatus);
+  app.post('/api/admin/geocode-store/:id', authMiddleware, adminMiddleware, AdminController.geocodeStoreById);
+  app.post('/api/admin/update-store-coordinates/:id', authMiddleware, adminMiddleware, AdminController.updateStoreCoordinates);
+  app.post('/api/admin/geocode-all-stores', authMiddleware, adminMiddleware, MapController.batchGeocodeAllStores);
 
   const httpServer = createServer(app);
   return httpServer;
