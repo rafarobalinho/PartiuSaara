@@ -1,0 +1,185 @@
+o mesmo erro com os detalhes do lugar que tivemos com a geocodificação: column d.updated_at does not exist.
+Este erro indica que a tabela store_place_details está sendo criada corretamente, mas a consulta SQL está tentando usar uma coluna que não existe (neste caso, updated_at).
+Vamos modificar a função para resolver este problema específico. Como vimos anteriormente com a geocodificação, precisamos evitar qualquer referência a colunas de timestamps automáticos que podem não existir na tabela.
+Aqui está uma versão corrigida que evita esse problema:
+javascript// Função corrigida para buscar e atualizar detalhes de todas as lojas
+async function updateAllStoresPlaceDetails() {
+  try {
+    console.log('Iniciando processo de atualização de detalhes das lojas');
+    
+    // Verificar se a tabela store_place_details existe, e criar se não existir
+    await ensurePlaceDetailsTableExists();
+    
+    // Buscar todas as lojas que têm place_id mas não têm detalhes
+    // CORREÇÃO: Usar uma consulta mais simples sem referência a updated_at
+    const result = await db.query(`
+      SELECT s.id, s.name, s.place_id
+      FROM stores s
+      LEFT JOIN store_place_details d ON s.id = d.store_id
+      WHERE s.place_id IS NOT NULL 
+        AND d.id IS NULL
+    `);
+    
+    const stores = result.rows;
+    console.log(`Encontradas ${stores.length} lojas para atualizar detalhes`);
+    
+    const results = {
+      total: stores.length,
+      success: 0,
+      failed: 0,
+      details: []
+    };
+    
+    // Se não houver lojas para atualizar, retornar imediatamente
+    if (stores.length === 0) {
+      return results;
+    }
+    
+    // Importar axios
+    const axios = require('axios');
+    
+    // Processar cada loja
+    for (const store of stores) {
+      try {
+        console.log(`Buscando detalhes para loja ID ${store.id}: ${store.name}`);
+        
+        // Buscar detalhes do lugar via API do Google Places
+        console.log(`Buscando detalhes do lugar para place_id: ${store.place_id}`);
+        
+        // Campos que queremos recuperar da API
+        const fields = [
+          'name',
+          'formatted_address',
+          'formatted_phone_number',
+          'website',
+          'rating',
+          'user_ratings_total',
+          'business_status',
+          'opening_hours',
+          'reviews',
+          'types',
+          'editorial_summary'
+        ].join(',');
+        
+        // Construir URL da API
+        const apiUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${store.place_id}&fields=${fields}&language=pt-BR&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        
+        // Fazer a requisição HTTP
+        const response = await axios.get(apiUrl);
+        
+        // Verificar se a requisição foi bem-sucedida
+        if (response.data.status !== 'OK') {
+          throw new Error(`Falha ao obter detalhes do lugar: ${response.data.status}`);
+        }
+        
+        // Extrair os dados relevantes
+        const placeData = response.data.result;
+        
+        // CORREÇÃO: Usar SQL nativo para evitar problemas com tabelas
+        // Inserir os detalhes usando SQL nativo
+        const sql = `
+          INSERT INTO store_place_details (
+            store_id, place_id, name, formatted_address, phone_number, 
+            website, rating, total_ratings, business_status, types,
+            opening_hours, reviews, editorial_summary, last_updated
+          ) 
+          VALUES (
+            ${store.id}, 
+            '${store.place_id}', 
+            '${escapeSql(placeData.name || '')}', 
+            '${escapeSql(placeData.formatted_address || '')}', 
+            '${escapeSql(placeData.formatted_phone_number || '')}', 
+            '${escapeSql(placeData.website || '')}', 
+            ${placeData.rating || 'NULL'}, 
+            ${placeData.user_ratings_total || 0}, 
+            '${escapeSql(placeData.business_status || '')}', 
+            '${escapeSql(JSON.stringify(placeData.types || []))}', 
+            '${escapeSql(JSON.stringify(placeData.opening_hours || {}))}', 
+            '${escapeSql(JSON.stringify(placeData.reviews || []))}', 
+            '${escapeSql(placeData.editorial_summary ? placeData.editorial_summary.overview : '')}'
+          );
+        `;
+        
+        console.log(`Inserindo detalhes para loja ID ${store.id}`);
+        
+        await db.query(sql);
+        
+        console.log(`Detalhes salvos com sucesso para loja ID ${store.id}`);
+        
+        results.success++;
+        results.details.push({
+          id: store.id,
+          name: store.name,
+          status: 'success'
+        });
+      } catch (error) {
+        console.error(`Erro ao processar loja ID ${store.id}:`, error);
+        results.failed++;
+        results.details.push({
+          id: store.id,
+          name: store.name || '',
+          status: 'failed',
+          reason: error.message
+        });
+      }
+      
+      // Pequeno atraso para evitar limites de taxa da API
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    console.log('Atualização de detalhes concluída:', results);
+    return results;
+    
+  } catch (error) {
+    console.error('Erro na atualização de detalhes das lojas:', error);
+    throw error;
+  }
+}
+
+// Função auxiliar para evitar injeção SQL
+function escapeSql(str) {
+  if (str === null || str === undefined) return '';
+  return str.toString().replace(/'/g, "''");
+}
+
+// Função auxiliar para garantir que a tabela existe
+async function ensurePlaceDetailsTableExists() {
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS store_place_details (
+      id SERIAL PRIMARY KEY,
+      store_id INTEGER REFERENCES stores(id),
+      place_id TEXT,
+      name TEXT,
+      formatted_address TEXT,
+      phone_number TEXT,
+      website TEXT,
+      rating DECIMAL,
+      total_ratings INTEGER,
+      business_status TEXT,
+      types TEXT,
+      opening_hours TEXT,
+      reviews TEXT,
+      editorial_summary TEXT,
+      last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_store_place_details_store_id ON store_place_details(store_id);
+    CREATE INDEX IF NOT EXISTS idx_store_place_details_place_id ON store_place_details(place_id);
+  `;
+  
+  try {
+    await db.query(createTableQuery);
+    console.log('Tabela store_place_details verificada/criada com sucesso');
+  } catch (error) {
+    console.error('Erro ao verificar/criar tabela store_place_details:', error);
+    throw error;
+  }
+}
+As principais modificações:
+
+Simplificação da consulta para buscar lojas: Removemos a referência a d.last_updated, buscando apenas lojas que têm place_id mas não têm nenhum registro em store_place_details
+Uso de SQL nativo para inserção: Em vez de usar parâmetros que podem ser transformados pelo ORM, construímos o SQL diretamente com valores escapados
+Definição de tipos de coluna mais simples: Alteramos os tipos JSONB para TEXT, o que pode ser mais compatível com seu banco de dados
+Função de escape SQL: Adicionamos uma função para escapar strings antes de incluí-las no SQL, evitando problemas com aspas e caracteres especiais
+
+Esta abordagem deve resolver o problema da coluna updated_at inexistente, permitindo que você armazene os detalhes do Google Places para suas lojas.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas. 3.7 Sonnet
