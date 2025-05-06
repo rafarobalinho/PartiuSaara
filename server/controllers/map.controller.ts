@@ -124,19 +124,15 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
     console.log('Iniciando processo de geocodificação em lote');
     
     // Buscar lojas que precisam de geocodificação usando sintaxe SQL correta
-    const result = await db.execute(`
+    // Usando query nativa para maior controle
+    const result = await pool.query(`
       SELECT id, name, address 
       FROM stores 
       WHERE address IS NOT NULL 
-        AND (
-          location IS NULL 
-          OR location->>'latitude' IS NULL 
-          OR location->>'longitude' IS NULL 
-          OR place_id IS NULL
-        )
+        AND (location IS NULL OR place_id IS NULL)
     `);
     
-    const stores = Array.isArray(result) ? result : (result.rows || []);
+    const stores = result.rows;
     console.log(`Encontradas ${stores.length} lojas para geocodificar`);
     
     const results = {
@@ -174,14 +170,18 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
     // Processar cada loja com tratamento de erro robusto
     for (const store of stores) {
       try {
-        // Verificar se o endereço está completo
-        if (!store.address || !store.address.street || 
-            !store.address.city || !store.address.state) {
+        // Verificar se o endereço está completo - verificação mais robusta
+        if (!store.address || 
+            typeof store.address !== 'object' || 
+            !store.address.street || 
+            !store.address.city || 
+            !store.address.state) {
+          
           console.log(`Loja ID ${store.id} tem endereço incompleto, pulando`);
           results.failed++;
           results.details.push({
             id: store.id,
-            name: store.name,
+            name: store.name || '',
             status: 'failed',
             reason: 'Endereço incompleto'
           });
@@ -194,6 +194,7 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
         // Formar o endereço completo
         const zipCode = store.address.zipCode || '';
         const formattedAddress = `${store.address.street}, ${store.address.city}, ${store.address.state}${zipCode ? ', ' + zipCode : ''}, Brasil`;
+        console.log(`Endereço formatado: ${formattedAddress}`);
         
         // Verificar se a API Key está definida
         if (!process.env.GOOGLE_MAPS_API_KEY) {
@@ -216,35 +217,54 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
         
         // Extrair latitude, longitude e place_id da resposta
         const geoResult = response.data.results[0];
-        const location = {
+        
+        // Criar objeto de localização no formato correto para o banco
+        const locationObj = {
           latitude: geoResult.geometry.location.lat,
           longitude: geoResult.geometry.location.lng
         };
+        
         const placeId = geoResult.place_id;
         
         // Verificar se os dados são válidos
-        if (!location.latitude || !location.longitude || !placeId) {
+        if (!locationObj.latitude || !locationObj.longitude || !placeId) {
           throw new Error('Dados de geocodificação incompletos ou inválidos');
         }
         
-        // Atualizar a loja no banco de dados
-        await db.update(stores)
-          .set({
-            location: location,
-            place_id: placeId,
-            updatedAt: new Date()
-          })
-          .where(eq(stores.id, store.id));
+        console.log(`Dados extraídos: latitude=${locationObj.latitude}, longitude=${locationObj.longitude}, place_id=${placeId}`);
         
-        console.log(`Loja ID ${store.id} atualizada com sucesso: location=${JSON.stringify(location)}, place_id=${placeId}`);
+        // Atualizar a loja no banco de dados usando query nativa para evitar problemas com TypeORM
+        console.log(`Atualizando loja ID ${store.id} no banco de dados`);
+        
+        // Usar query nativa com formatação JSON adequada para o PostgreSQL
+        const updateResult = await pool.query(`
+          UPDATE stores 
+          SET 
+            location = $1::jsonb,
+            place_id = $2,
+            "updatedAt" = NOW()
+          WHERE id = $3
+          RETURNING id
+        `, [
+          JSON.stringify(locationObj), // Converte explicitamente para string JSON
+          placeId,
+          store.id
+        ]);
+        
+        // Verificar se a atualização foi bem-sucedida
+        if (!updateResult.rows || updateResult.rows.length === 0) {
+          throw new Error('Falha ao atualizar o banco de dados');
+        }
+        
+        console.log(`Loja ID ${store.id} atualizada com sucesso: location=${JSON.stringify(locationObj)}, place_id=${placeId}`);
         
         results.success++;
         results.details.push({
           id: store.id,
-          name: store.name,
+          name: store.name || '',
           status: 'success',
           data: {
-            location: location,
+            location: locationObj,
             place_id: placeId
           }
         });
@@ -257,7 +277,7 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
         results.failed++;
         results.details.push({
           id: store.id,
-          name: store.name,
+          name: store.name || '',
           status: 'failed',
           reason: error instanceof Error ? error.message : 'Erro desconhecido'
         });
@@ -268,7 +288,7 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
     
     res.json({
       success: true,
-      message: 'Geocodificação em lote concluída',
+      message: `Geocodificação concluída: ${results.success} lojas atualizadas, ${results.failed} falhas`,
       total: results.total,
       geocoded: results.success,
       failed: results.failed,

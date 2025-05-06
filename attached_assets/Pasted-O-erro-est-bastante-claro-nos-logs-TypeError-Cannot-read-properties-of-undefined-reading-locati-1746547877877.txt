@@ -1,0 +1,184 @@
+O erro está bastante claro nos logs:
+TypeError: Cannot read properties of undefined (reading 'location')
+Este erro está ocorrendo porque o código está tentando ler a propriedade 'location' de um objeto que é undefined (não definido). Analisando os logs, vejo que o processo encontra as lojas, mas falha ao tentar acessar os dados existentes.
+O problema específico parece estar na maneira como a função está tentando acessar e atualizar os campos no banco de dados. Vamos criar uma versão corrigida da função que lida especificamente com este erro:
+javascript// Função corrigida para geocodificação em lote
+async function batchGeocodeAllStores() {
+  try {
+    console.log('Iniciando processo de geocodificação em lote');
+    
+    // Buscar lojas que precisam de geocodificação
+    const result = await db.query(`
+      SELECT id, address 
+      FROM stores 
+      WHERE address IS NOT NULL 
+        AND (location IS NULL OR place_id IS NULL)
+    `);
+    
+    const stores = result.rows;
+    console.log(`Encontradas ${stores.length} lojas para geocodificar`);
+    
+    const results = {
+      total: stores.length,
+      success: 0,
+      failed: 0,
+      details: []
+    };
+    
+    // Processar cada loja
+    for (const store of stores) {
+      try {
+        console.log(`Geocodificando loja ID ${store.id}:`, store.address);
+        
+        // Verificar se o endereço está completo - verificando cada campo individualmente
+        if (!store.address || 
+            typeof store.address !== 'object' || 
+            !store.address.street || 
+            !store.address.city || 
+            !store.address.state || 
+            !store.address.zipCode) {
+          
+          console.log(`Loja ID ${store.id} tem endereço incompleto`);
+          results.failed++;
+          results.details.push({
+            id: store.id,
+            name: store.name || '',
+            status: 'failed',
+            reason: 'Endereço incompleto'
+          });
+          continue;
+        }
+        
+        // Formar o endereço completo
+        const formattedAddress = `${store.address.street}, ${store.address.city}, ${store.address.state}, ${store.address.zipCode}, Brasil`;
+        console.log(`Endereço formatado: ${formattedAddress}`);
+        
+        // Preparar URL da API Google Geocoding
+        const apiUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(formattedAddress)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        
+        // Fazer a requisição HTTP
+        const response = await axios.get(apiUrl);
+        console.log(`Resposta para loja ID ${store.id}: status=${response.data.status}, resultados=${response.data.results ? response.data.results.length : 0}`);
+        
+        // Verificar se a geocodificação foi bem-sucedida
+        if (response.data.status !== 'OK' || !response.data.results || response.data.results.length === 0) {
+          throw new Error(`Falha na geocodificação: ${response.data.status}`);
+        }
+        
+        // Extrair latitude, longitude e place_id da resposta
+        const result = response.data.results[0];
+        
+        // Criar objeto de localização no formato correto para o banco de dados
+        const locationObj = {
+          latitude: result.geometry.location.lat,
+          longitude: result.geometry.location.lng
+        };
+        
+        const placeId = result.place_id;
+        
+        console.log(`Dados extraídos: latitude=${locationObj.latitude}, longitude=${locationObj.longitude}, place_id=${placeId}`);
+        
+        // Atualizar a loja no banco de dados - CORRIGIDO para usar formato JSON adequado
+        console.log(`Atualizando loja ID ${store.id} no banco de dados`);
+        
+        // Usar formatação JSON adequada para o PostgreSQL
+        const updateResult = await db.query(`
+          UPDATE stores 
+          SET 
+            location = $1::jsonb,
+            place_id = $2
+          WHERE id = $3
+          RETURNING id
+        `, [
+          JSON.stringify(locationObj), // Converte explicitamente para string JSON
+          placeId,
+          store.id
+        ]);
+        
+        // Verificar se a atualização foi bem-sucedida
+        if (updateResult.rows.length === 0) {
+          throw new Error('Falha ao atualizar o banco de dados');
+        }
+        
+        console.log(`Loja ID ${store.id} atualizada com sucesso`);
+        
+        results.success++;
+        results.details.push({
+          id: store.id,
+          name: store.name || '',
+          status: 'success',
+          data: {
+            location: locationObj,
+            place_id: placeId
+          }
+        });
+        
+      } catch (error) {
+        console.error(`Erro ao geocodificar loja ID ${store.id}:`, error);
+        results.failed++;
+        results.details.push({
+          id: store.id,
+          name: store.name || '',
+          status: 'failed',
+          reason: error.message
+        });
+      }
+      
+      // Pequeno atraso para evitar limites de taxa da API
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    console.log('Geocodificação em lote concluída:', results);
+    return results;
+  } catch (error) {
+    console.error('Erro na geocodificação em lote:', error);
+    throw error;
+  }
+}
+
+// Endpoint para acionar a geocodificação em lote
+router.post('/api/admin/geocode-all-stores', async (req, res) => {
+  try {
+    const results = await batchGeocodeAllStores();
+    res.json({
+      success: true,
+      message: `Geocodificação concluída: ${results.success} lojas atualizadas, ${results.failed} falhas`,
+      results: results
+    });
+  } catch (error) {
+    console.error('Erro ao processar geocodificação em lote:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Erro ao processar geocodificação em lote',
+      message: error.message
+    });
+  }
+});
+As principais correções nesta versão:
+
+Tratamento adequado do formato JSON:
+
+Uso de JSON.stringify(locationObj) antes de passar para o banco de dados
+Uso de ::jsonb no SQL para garantir o tipo correto
+
+
+Verificação mais robusta do endereço:
+
+Verificação de que store.address é realmente um objeto
+Verificação individual de cada campo necessário
+
+
+Mensagens de erro mais claras e detalhadas:
+
+Logs específicos para cada etapa do processo
+Inclusão do nome da loja nos resultados para facilitar a identificação
+
+
+Tratamento explícito do formato de dados:
+
+Criação explícita do objeto de localização no formato esperado pelo banco
+Verificação de que os dados extraídos são válidos antes de tentar atualizar
+
+
+
+Esta implementação deve resolver o erro "Cannot read properties of undefined (reading 'location')" e garantir que as coordenadas e o place_id sejam corretamente atualizados no banco de dados.
