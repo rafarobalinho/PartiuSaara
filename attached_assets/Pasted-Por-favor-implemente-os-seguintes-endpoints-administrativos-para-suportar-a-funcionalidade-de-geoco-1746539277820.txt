@@ -1,0 +1,147 @@
+Por favor, implemente os seguintes endpoints administrativos para suportar a funcionalidade de geocodificação de lojas. Primeiro, verifique se o arquivo server/routes/admin.js existe. Se não existir, crie-o.
+Adicione os seguintes endpoints ao arquivo:
+javascriptconst express = require('express');
+const router = express.Router();
+const { geocodeAddress } = require('../utils/geocoding');
+const db = require('../db'); // Ajuste o caminho conforme a estrutura do seu projeto
+
+// 1. Endpoint para listar todas as lojas com seus dados de localização
+router.get('/admin/stores-geocoding', async (req, res) => {
+  try {
+    console.log('Buscando lojas para painel de geocodificação');
+    
+    const result = await db.query(`
+      SELECT 
+        id, 
+        name, 
+        description, 
+        category,
+        address,
+        location,
+        place_id
+      FROM 
+        stores
+      ORDER BY
+        id ASC
+    `);
+    
+    console.log(`Encontradas ${result.rows.length} lojas`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Erro ao buscar lojas:', error);
+    res.status(500).json({ error: 'Falha ao buscar lojas' });
+  }
+});
+
+// 2. Endpoint para geocodificar uma única loja
+router.post('/admin/geocode-store/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`Iniciando geocodificação da loja ID ${id}`);
+    
+    // Buscar a loja
+    const storeResult = await db.query(`
+      SELECT address FROM stores WHERE id = $1
+    `, [id]);
+    
+    if (storeResult.rows.length === 0) {
+      console.log(`Loja ID ${id} não encontrada`);
+      return res.status(404).json({ error: 'Loja não encontrada' });
+    }
+    
+    const store = storeResult.rows[0];
+    
+    // Verificar se a loja tem endereço completo
+    if (!store.address || !store.address.street || !store.address.city || 
+        !store.address.state || !store.address.zipCode) {
+      console.log(`Loja ID ${id} tem endereço incompleto`);
+      return res.status(400).json({ error: 'Endereço da loja incompleto' });
+    }
+    
+    console.log(`Geocodificando endereço: ${JSON.stringify(store.address)}`);
+    
+    // Geocodificar o endereço
+    const geocodeResult = await geocodeAddress(store.address);
+    
+    console.log(`Resultado da geocodificação: ${JSON.stringify(geocodeResult)}`);
+    
+    // Atualizar a loja no banco de dados
+    await db.query(`
+      UPDATE stores 
+      SET location = $1, place_id = $2 
+      WHERE id = $3
+    `, [
+      geocodeResult.location,
+      geocodeResult.place_id,
+      id
+    ]);
+    
+    console.log(`Loja ID ${id} atualizada com sucesso`);
+    
+    res.json({
+      success: true,
+      location: geocodeResult.location,
+      place_id: geocodeResult.place_id
+    });
+  } catch (error) {
+    console.error(`Erro ao geocodificar loja ID ${id}:`, error);
+    res.status(500).json({ error: 'Falha ao geocodificar loja' });
+  }
+});
+
+// 3. Endpoint para atualizar coordenadas manualmente
+router.post('/admin/update-store-coordinates/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { latitude, longitude } = req.body;
+    
+    console.log(`Atualizando coordenadas manualmente para loja ID ${id}:`, { latitude, longitude });
+    
+    // Validação básica
+    if (latitude === undefined || longitude === undefined || isNaN(latitude) || isNaN(longitude)) {
+      console.log('Coordenadas inválidas:', { latitude, longitude });
+      return res.status(400).json({ error: 'Coordenadas inválidas' });
+    }
+    
+    // Verificar se a loja existe
+    const storeResult = await db.query(`
+      SELECT id FROM stores WHERE id = $1
+    `, [id]);
+    
+    if (storeResult.rows.length === 0) {
+      console.log(`Loja ID ${id} não encontrada`);
+      return res.status(404).json({ error: 'Loja não encontrada' });
+    }
+    
+    // Atualizar as coordenadas
+    await db.query(`
+      UPDATE stores 
+      SET location = $1
+      WHERE id = $2
+    `, [
+      { latitude: parseFloat(latitude), longitude: parseFloat(longitude) },
+      id
+    ]);
+    
+    console.log(`Coordenadas da loja ID ${id} atualizadas com sucesso`);
+    
+    res.json({
+      success: true,
+      message: 'Coordenadas atualizadas com sucesso'
+    });
+  } catch (error) {
+    console.error(`Erro ao atualizar coordenadas da loja ID ${id}:`, error);
+    res.status(500).json({ error: 'Falha ao atualizar coordenadas' });
+  }
+});
+
+// Se o arquivo é novo, certifique-se de exportá-lo corretamente
+module.exports = router;
+Depois de criar/modificar o arquivo server/routes/admin.js, certifique-se de que essas rotas estão registradas no arquivo principal da aplicação (geralmente server/index.js ou server/app.js):
+javascript// No arquivo principal do servidor
+const adminRoutes = require('./routes/admin');
+
+// Registrar as rotas
+app.use('/api', adminRoutes);
+Verifique também se a função geocodeAddress está corretamente implementada no arquivo utils/geocoding.js. Se não estiver, implemente-a conforme o código fornecido anteriormente.
+Após implementar esses endpoints, teste-os usando ferramentas como Postman ou o próprio painel administrativo, quando estiver completamente implementado.
