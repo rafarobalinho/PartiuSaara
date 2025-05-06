@@ -5,7 +5,7 @@ import { useLocation, Link } from 'wouter';
 import { z } from 'zod';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { CheckIcon, Upload, X } from 'lucide-react';
+import { CheckIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ImageUpload } from '@/components/ui/image-upload';
 
 // Esquema para validação do formulário da loja
 const storeSchema = z.object({
@@ -32,8 +33,7 @@ const storeSchema = z.object({
   description: z.string().min(10, { message: 'A descrição deve ter pelo menos 10 caracteres' }),
   categories: z.array(z.string()).min(1, { message: 'Selecione pelo menos uma categoria' }).max(3, { message: 'Selecione no máximo 3 categorias' }),
   tags: z.string().optional(),
-  imageFiles: z.instanceof(FileList).optional(),
-  imageUrls: z.string().optional(),
+  images: z.array(z.string()).default([]),
   address: z.object({
     street: z.string().min(1, { message: 'Preencha o endereço' }),
     city: z.string().min(1, { message: 'Preencha a cidade' }),
@@ -51,8 +51,8 @@ export default function AddStore() {
   const [, navigate] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
   
-  // Definir estado para imagens carregadas
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  // Estado temporário para armazenar o ID da loja criada (para upload posterior)
+  const [tempStoreId, setTempStoreId] = useState<number | null>(null);
 
   // Redirecionar se não estiver autenticado ou não for vendedor
   const isAuthenticated = !!user;
@@ -84,7 +84,7 @@ export default function AddStore() {
       description: '',
       categories: [],
       tags: '',
-      imageUrls: '',
+      images: [],
       address: {
         street: '',
         city: '',
@@ -104,29 +104,33 @@ export default function AddStore() {
         description: data.description,
         category: data.categories && data.categories.length > 0 ? data.categories[0] : '',
         tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()) : [],
-        images: uploadedImages.length > 0 ? uploadedImages : 
-                (data.imageUrls ? data.imageUrls.split(',').map((img: string) => img.trim()) : []),
         address: data.address,
         // Posição padrão para o SAARA
         location: {
           latitude: -22.903539,
           longitude: -43.175003
         },
-        // Removemos o acceptLocationTerms pois não existe essa coluna no banco de dados
         // Add userId
         userId: user?.id,
       };
       
+      // Não incluímos as imagens no objeto da loja - serão salvas posteriormente
+      // na tabela store_images
+      
       return apiRequest('POST', '/api/stores', formattedData);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
-      toast({
-        title: 'Loja adicionada',
-        description: 'Sua loja foi adicionada com sucesso.',
-        variant: "default",
-      });
-      navigate('/seller/stores');
+    onSuccess: (response: any) => {
+      // Salvamos o ID da loja para associar às imagens
+      if (response && response.id) {
+        setTempStoreId(response.id);
+        
+        // Se houver imagens, só vamos redirecionar após o upload delas
+        if (form.getValues('images').length === 0) {
+          finishStoreCreation();
+        }
+      } else {
+        finishStoreCreation();
+      }
     },
     onError: (error) => {
       toast({
@@ -138,6 +142,17 @@ export default function AddStore() {
     }
   });
   
+  // Função para finalizar o processo e redirecionar
+  const finishStoreCreation = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
+    toast({
+      title: 'Loja adicionada',
+      description: 'Sua loja foi adicionada com sucesso.',
+      variant: "default",
+    });
+    navigate('/seller/stores');
+  };
+  
   // Submit handler
   function onSubmit(data: StoreFormValues) {
     createStoreMutation.mutate(data);
@@ -148,6 +163,37 @@ export default function AddStore() {
       navigate('/login');
     }
   }, [authLoading, isAuthenticated, isSeller, navigate]);
+
+  // Efeito para lidar com upload de imagens quando a loja é criada
+  useEffect(() => {
+    const uploadStoreImages = async () => {
+      const images = form.getValues('images');
+      if (tempStoreId && images.length > 0) {
+        try {
+          // Atualizar a primeira imagem como primária
+          const isPrimary = true;
+          
+          // Fazer o upload usando a API
+          await apiRequest('POST', `/api/stores/${tempStoreId}/images`, {
+            imageUrls: images,
+            isPrimary
+          });
+          
+          finishStoreCreation();
+        } catch (error) {
+          console.error('Erro ao fazer upload das imagens da loja:', error);
+          toast({
+            title: 'Atenção',
+            description: 'Sua loja foi criada, mas houve um erro ao salvar as imagens.',
+            variant: "destructive",
+          });
+          navigate('/seller/stores');
+        }
+      }
+    };
+    
+    uploadStoreImages();
+  }, [tempStoreId]);
 
   if (!isAuthenticated || !isSeller) {
     return null;
@@ -281,70 +327,21 @@ export default function AddStore() {
                   <div className="grid grid-cols-1 gap-4">
                     <FormField
                       control={form.control}
-                      name="imageFiles"
-                      render={({ field: { value, onChange, ...fieldProps } }) => (
-                        <FormItem>
-                          <FormLabel>Imagens da Loja*</FormLabel>
-                          <FormControl>
-                            <div className="flex flex-col space-y-3">
-                              <Input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                onChange={(e) => {
-                                  onChange(e.target.files);
-                                  // Simular upload para demo (URLs locais temporárias)
-                                  if (e.target.files && e.target.files.length > 0) {
-                                    const tempUrls = Array.from(e.target.files).map(file => 
-                                      URL.createObjectURL(file)
-                                    );
-                                    setUploadedImages(prev => [...prev, ...tempUrls]);
-                                  }
-                                }}
-                                {...fieldProps}
-                              />
-                              
-                              {uploadedImages.length > 0 && (
-                                <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mt-3">
-                                  {uploadedImages.map((url, index) => (
-                                    <div key={index} className="relative group aspect-square border rounded-md overflow-hidden">
-                                      <img src={url} alt={`Upload ${index + 1}`} className="w-full h-full object-cover" />
-                                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                                        <X 
-                                          className="h-6 w-6 text-white cursor-pointer" 
-                                          onClick={() => setUploadedImages(
-                                            uploadedImages.filter((_, i) => i !== index)
-                                          )}
-                                        />
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </FormControl>
-                          <FormDescription>
-                            Faça upload de imagens ou use o campo abaixo para URLs de imagens
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="imageUrls"
+                      name="images"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>URLs de Imagens (alternativo)</FormLabel>
+                          <FormLabel>Imagem da Loja*</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg" 
-                              {...field} 
+                            <ImageUpload
+                              name="store-upload"
+                              multiple={false}
+                              maxImages={1}
+                              value={field.value}
+                              onChange={field.onChange}
                             />
                           </FormControl>
                           <FormDescription>
-                            URLs de imagens separadas por vírgula
+                            Selecione uma imagem para sua loja
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
