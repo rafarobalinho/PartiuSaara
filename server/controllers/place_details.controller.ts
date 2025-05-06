@@ -331,8 +331,8 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
         // Isso evita uma segunda chamada API que estava causando o erro INVALID_REQUEST
         const insertQuery = `
           INSERT INTO store_place_details (
-            store_id, place_id, name, vicinity, rating, 
-            total_ratings, last_updated
+            store_id, place_id, name, formatted_address, rating, 
+            user_ratings_total, last_updated
           ) 
           VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
         `;
@@ -341,7 +341,7 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
           store.id,
           placeId,
           place.name || null,
-          place.vicinity || null,
+          place.vicinity || null,  // Usaremos vicinity como endereço formatado
           place.rating || null,
           place.user_ratings_total || 0
         ];

@@ -1,0 +1,163 @@
+Isso é um sinal positivo, pois agora estamos conseguindo encontrar lugares próximos às coordenadas corretamente. Precisamos apenas ajustar as colunas na consulta de inserção para corresponder às colunas disponíveis na tabela.
+Vamos corrigir isso com uma versão atualizada do código:
+javascript// Função corrigida para buscar e atualizar detalhes de todas as lojas
+async function updateAllStoresPlaceDetails() {
+  try {
+    console.log('Iniciando processo de atualização de detalhes das lojas');
+    
+    // Verificar se a tabela store_place_details existe, e criar se não existir
+    await ensurePlaceDetailsTableExists();
+    
+    // Buscar todas as lojas que têm coordenadas mas não têm detalhes
+    const result = await db.query(`
+      SELECT s.id, s.name, s.location
+      FROM stores s
+      LEFT JOIN store_place_details d ON s.id = d.store_id
+      WHERE s.location IS NOT NULL 
+        AND d.id IS NULL
+    `);
+    
+    const stores = result.rows;
+    console.log(`Encontradas ${stores.length} lojas para atualizar detalhes`);
+    
+    const results = {
+      total: stores.length,
+      success: 0,
+      failed: 0,
+      details: []
+    };
+    
+    // Se não houver lojas para atualizar, retornar imediatamente
+    if (stores.length === 0) {
+      return results;
+    }
+    
+    // Importar axios
+    const axios = require('axios');
+    
+    // Processar cada loja
+    for (const store of stores) {
+      try {
+        console.log(`Buscando detalhes para loja ID ${store.id}: ${store.name}`);
+        
+        // Verificar se a loja tem coordenadas
+        if (!store.location || !store.location.latitude || !store.location.longitude) {
+          throw new Error('Coordenadas não disponíveis');
+        }
+        
+        const lat = store.location.latitude;
+        const lng = store.location.longitude;
+        
+        console.log(`Buscando lugares próximos às coordenadas: ${lat}, ${lng}`);
+        
+        // Primeiro, buscar lugares próximos às coordenadas
+        const nearbyUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=50&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        
+        const nearbyResponse = await axios.get(nearbyUrl);
+        
+        if (nearbyResponse.data.status !== 'OK' || !nearbyResponse.data.results || nearbyResponse.data.results.length === 0) {
+          throw new Error(`Nenhum lugar encontrado próximo às coordenadas: ${nearbyResponse.data.status}`);
+        }
+        
+        // Pegar o primeiro lugar encontrado (o mais próximo)
+        const place = nearbyResponse.data.results[0];
+        const placeId = place.place_id;
+        
+        console.log(`Lugar encontrado: ${place.name || place.vicinity}, place_id: ${placeId}`);
+        
+        // Agora, buscar detalhes desse lugar usando o place_id
+        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,formatted_phone_number,website,rating,user_ratings_total&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        
+        const detailsResponse = await axios.get(detailsUrl);
+        
+        if (detailsResponse.data.status !== 'OK') {
+          console.log('Utilizando dados básicos do lugar (sem detalhes completos)');
+          
+          // Se não conseguir obter detalhes completos, usar os dados básicos do nearby search
+          console.log('Inserindo detalhes básicos para loja ID', store.id);
+          
+          const insertQuery = `
+            INSERT INTO store_place_details (
+              store_id, place_id, name, formatted_address, rating, 
+              total_ratings, last_updated
+            ) 
+            VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+          `;
+          
+          const values = [
+            store.id,
+            placeId,
+            place.name || null,
+            place.vicinity || null,
+            place.rating || null,
+            place.user_ratings_total || 0
+          ];
+          
+          await db.query(insertQuery, values);
+        } else {
+          // Usar os detalhes completos
+          const placeData = detailsResponse.data.result;
+          
+          console.log('Inserindo detalhes completos para loja ID', store.id);
+          
+          const insertQuery = `
+            INSERT INTO store_place_details (
+              store_id, place_id, name, formatted_address, phone_number, 
+              website, rating, total_ratings, last_updated
+            ) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+          `;
+          
+          const values = [
+            store.id,
+            placeId,
+            placeData.name || null,
+            placeData.formatted_address || null,
+            placeData.formatted_phone_number || null,
+            placeData.website || null,
+            placeData.rating || null,
+            placeData.user_ratings_total || 0
+          ];
+          
+          await db.query(insertQuery, values);
+        }
+        
+        console.log(`Detalhes salvos com sucesso para loja ID ${store.id}`);
+        
+        results.success++;
+        results.details.push({
+          id: store.id,
+          name: store.name,
+          status: 'success',
+          place_name: place.name || place.vicinity
+        });
+      } catch (error) {
+        console.error(`Erro ao processar loja ID ${store.id}:`, error);
+        results.failed++;
+        results.details.push({
+          id: store.id,
+          name: store.name || '',
+          status: 'failed',
+          reason: error.message
+        });
+      }
+      
+      // Pequeno atraso para evitar limites de taxa da API
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    console.log('Atualização de detalhes concluída:', results);
+    return results;
+    
+  } catch (error) {
+    console.error('Erro na atualização de detalhes das lojas:', error);
+    throw error;
+  }
+}
+As principais correções são:
+
+Remoção da coluna 'vicinity' das queries de inserção, já que essa coluna não existe na tabela store_place_details
+Dois caminhos de inserção: Um para quando conseguimos obter detalhes completos e outro para quando temos apenas informações básicas do nearbysearch
+Queries de inserção adaptadas para incluir apenas as colunas que existem na tabela
+
+Esta implementação deve resolver o erro da coluna 'vicinity' e permitir que os detalhes dos lugares sejam salvos corretamente.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas. 3.7 Sonnet
