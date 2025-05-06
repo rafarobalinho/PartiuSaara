@@ -524,6 +524,23 @@ export default function GeocodingPanel() {
                             )}
                           </Button>
                         )}
+                        
+                        {/* Botão para visualizar detalhes do Google Places */}
+                        {store.geocodingStatus === 'geocoded' && (
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            onClick={() => getPlaceDetailsMutation.mutate(store.id)}
+                            disabled={getPlaceDetailsMutation.isPending}
+                            title="Obter detalhes do Google Places"
+                          >
+                            {getPlaceDetailsMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Info className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

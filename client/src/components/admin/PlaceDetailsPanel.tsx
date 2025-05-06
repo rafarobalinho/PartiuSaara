@@ -1,439 +1,310 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
 } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Info,
-  Phone,
-  Globe,
-  Star,
-  Clock,
-  MessageSquare,
-  Store,
-  Loader2,
-  RefreshCw,
-  AlertTriangle
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Loader2, RefreshCw, Star, Phone, Globe, Clock, MapPin } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { Progress } from '@/components/ui/progress';
 
+// Interface para as propriedades do componente
 interface PlaceDetailsProps {
   storeId: number;
   placeName?: string;
 }
 
+// Interface para os detalhes do lugar
+interface PlaceDetails {
+  place_id?: string;
+  formatted_address?: string;
+  formatted_phone_number?: string;
+  international_phone_number?: string;
+  website?: string;
+  url?: string;
+  vicinity?: string;
+  utc_offset_minutes?: number;
+  rating?: number;
+  user_ratings_total?: number;
+  opening_hours?: {
+    open_now?: boolean;
+    periods?: Array<{
+      open: {
+        day: number;
+        time: string;
+      };
+      close: {
+        day: number;
+        time: string;
+      };
+    }>;
+    weekday_text?: string[];
+  };
+  photos?: Array<{
+    photo_reference: string;
+    width: number;
+    height: number;
+  }>;
+}
+
+// Função para formatar os dias da semana
+const formatWeekday = (day: number): string => {
+  const days = [
+    'Domingo',
+    'Segunda-feira',
+    'Terça-feira',
+    'Quarta-feira',
+    'Quinta-feira',
+    'Sexta-feira',
+    'Sábado'
+  ];
+  return days[day] || '';
+};
+
+// Função para formatar o horário
+const formatTime = (time: string): string => {
+  if (time.length === 4) {
+    return `${time.substring(0, 2)}:${time.substring(2, 4)}`;
+  }
+  return time;
+};
+
 export default function PlaceDetailsPanel({ storeId, placeName }: PlaceDetailsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  // Buscar detalhes do lugar para uma loja específica
+  
+  // Busca os detalhes do lugar
   const { 
-    data: placeDetails,
-    isLoading,
-    isError,
-    error,
-    refetch
-  } = useQuery({
-    queryKey: [`/api/admin/store-place-details/${storeId}`],
+    data: placeDetails, 
+    isLoading: isLoadingDetails,
+    error: placeDetailsError,
+    refetch: refetchPlaceDetails
+  } = useQuery<PlaceDetails>({
+    queryKey: ['/api/admin/stores', storeId, 'place-details'],
     queryFn: async () => {
-      const res = await apiRequest('GET', `/api/admin/store-place-details/${storeId}`);
-      return await res.json();
+      const res = await apiRequest('GET', `/api/admin/stores/${storeId}/place-details`);
+      return res.json();
     },
-    enabled: !!storeId,
-    refetchOnWindowFocus: false
+    enabled: !!storeId
   });
 
-  // Mutation para atualizar os detalhes do lugar
-  const updateDetailsMutation = useMutation({
-    mutationFn: async (storeId: number) => {
-      const res = await apiRequest('POST', `/api/admin/update-store-details/${storeId}`);
-      return await res.json();
+  // Mutação para atualizar os detalhes do lugar
+  const refreshPlaceDetailsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', `/api/admin/stores/${storeId}/refresh-place-details`);
+      return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
-        title: "Detalhes atualizados",
-        description: `Detalhes do lugar atualizados com sucesso.`,
+        title: 'Detalhes atualizados',
+        description: 'Os detalhes do Google Places foram atualizados com sucesso.',
+        variant: 'default',
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/admin/store-place-details/${storeId}`] });
-      setDialogOpen(false);
+      
+      queryClient.invalidateQueries({
+        queryKey: ['/api/admin/stores', storeId, 'place-details']
+      });
     },
     onError: (err: Error) => {
       toast({
-        title: "Erro ao atualizar detalhes",
-        description: err.message,
-        variant: "destructive",
+        title: 'Erro ao atualizar',
+        description: `Não foi possível atualizar os detalhes: ${err.message}`,
+        variant: 'destructive',
       });
     }
   });
 
-  // Função para formatar horários de funcionamento
-  const formatOpeningHours = (hours: any) => {
-    if (!hours || !hours.weekday_text) return "Horário não disponível";
-    return hours.weekday_text;
-  };
-
-  // Renderizar avaliações
-  const renderRating = (rating: number) => {
+  // Renderiza um esqueleto de carregamento
+  if (isLoadingDetails) {
     return (
-      <div className="flex items-center">
-        <Star className="w-5 h-5 text-yellow-500 mr-1" />
-        <span className="font-medium">{rating.toFixed(1)}</span>
+      <div className="p-4 space-y-4">
+        <div className="flex items-center justify-center h-40">
+          <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+        </div>
       </div>
     );
-  };
+  }
 
-  // Handler para atualizar os detalhes
-  const handleUpdateDetails = () => {
-    updateDetailsMutation.mutate(storeId);
-  };
-
-  // Se estiver carregando
-  if (isLoading) {
+  // Renderiza mensagem de erro
+  if (placeDetailsError) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center">
-            <Store className="mr-2 h-5 w-5" />
-            Carregando detalhes...
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex justify-center items-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-        </CardContent>
-      </Card>
+      <div className="p-4 space-y-4">
+        <div className="text-center py-8">
+          <p className="text-red-500 mb-4">
+            Erro ao carregar detalhes do lugar
+          </p>
+          <Button 
+            variant="outline" 
+            onClick={() => refetchPlaceDetails()}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      </div>
     );
   }
 
-  // Se ocorreu um erro
-  if (isError || !placeDetails?.success) {
-    const errorMessage = error instanceof Error 
-      ? error.message 
-      : placeDetails?.error || 'Erro desconhecido';
-    
+  // Não tem detalhes mas tem ID da loja
+  if (!placeDetails || !placeDetails.place_id) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center">
-            <AlertTriangle className="mr-2 h-5 w-5 text-amber-500" />
-            Detalhes não disponíveis
-          </CardTitle>
-          <CardDescription>
-            {placeDetails?.message || 'Não foi possível carregar os detalhes do lugar.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-red-500">{errorMessage}</div>
-          
-          <div className="mt-6 flex justify-end space-x-2">
-            <Button 
-              variant="outline" 
-              onClick={() => refetch()}
-              className="flex items-center"
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Tentar Novamente
-            </Button>
-            
-            <Button 
-              onClick={handleUpdateDetails}
-              disabled={updateDetailsMutation.isPending}
-              className="flex items-center"
-            >
-              {updateDetailsMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              Atualizar Detalhes
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="p-4 space-y-4">
+        <div className="text-center py-8">
+          <p className="text-gray-500 mb-4">
+            Não há detalhes do Google Places disponíveis para esta loja.
+          </p>
+          <Button 
+            onClick={() => refreshPlaceDetailsMutation.mutate()}
+            disabled={refreshPlaceDetailsMutation.isPending}
+          >
+            {refreshPlaceDetailsMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Buscar Detalhes
+          </Button>
+        </div>
+      </div>
     );
   }
 
-  // Dados do lugar
-  const place = placeDetails.data;
-
+  // Renderiza os detalhes do lugar
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-xl flex items-center">
-              <Store className="mr-2 h-5 w-5" />
-              {place.name || placeName || `Loja ID ${storeId}`}
-            </CardTitle>
-            <CardDescription>
-              Detalhes obtidos do Google Places - Última atualização: {new Date(place.last_updated).toLocaleString()}
-            </CardDescription>
-          </div>
-          <Badge className={place.business_status === 'OPERATIONAL' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-            {place.business_status === 'OPERATIONAL' ? 'Em Operação' : place.business_status}
-          </Badge>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold">
+            {placeName || 'Detalhes do Lugar'}
+          </h3>
+          <p className="text-gray-600 text-sm">
+            {placeDetails.formatted_address || placeDetails.vicinity}
+          </p>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Informações básicas */}
-        <div className="space-y-3">
-          <div className="flex items-start">
-            <Info className="h-5 w-5 mr-3 mt-0.5 text-gray-500" />
-            <div>
-              <h3 className="font-medium">Endereço</h3>
-              <p className="text-gray-600">{place.formatted_address}</p>
-            </div>
-          </div>
-          
-          {place.phone_number && (
-            <div className="flex items-start">
-              <Phone className="h-5 w-5 mr-3 mt-0.5 text-gray-500" />
-              <div>
-                <h3 className="font-medium">Telefone</h3>
-                <p className="text-gray-600">{place.phone_number}</p>
-              </div>
-            </div>
-          )}
-          
-          {place.website && (
-            <div className="flex items-start">
-              <Globe className="h-5 w-5 mr-3 mt-0.5 text-gray-500" />
-              <div>
-                <h3 className="font-medium">Website</h3>
-                <a 
-                  href={place.website} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  {place.website}
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        <Separator />
-        
-        {/* Avaliações e categorias */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="font-medium flex items-center mb-2">
-              <Star className="h-5 w-5 mr-2 text-yellow-500" />
-              Avaliações
-            </h3>
-            
-            {place.rating ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    {renderRating(place.rating)}
-                    <span className="text-gray-500 ml-2">
-                      ({place.total_ratings} avaliações)
-                    </span>
-                  </div>
-                </div>
-                <Progress value={place.rating * 20} className="h-2" />
-              </div>
-            ) : (
-              <p className="text-gray-500">Sem avaliações disponíveis</p>
-            )}
-          </div>
-          
-          <div>
-            <h3 className="font-medium flex items-center mb-2">
-              <Store className="h-5 w-5 mr-2 text-gray-500" />
-              Categorias
-            </h3>
-            
-            {place.types && place.types.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {place.types.map((type: string, index: number) => (
-                  <Badge key={index} variant="outline" className="capitalize">
-                    {type.replace(/_/g, ' ')}
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500">Sem categorias disponíveis</p>
-            )}
-          </div>
-        </div>
-        
-        <Separator />
-        
-        {/* Horários e Avaliações */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Horários */}
-          <div>
-            <h3 className="font-medium flex items-center mb-2">
-              <Clock className="h-5 w-5 mr-2 text-gray-500" />
-              Horários de Funcionamento
-            </h3>
-            
-            {place.opening_hours && place.opening_hours.weekday_text ? (
-              <ul className="space-y-1 text-sm">
-                {place.opening_hours.weekday_text.map((day: string, index: number) => (
-                  <li key={index} className="text-gray-600">{day}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-500">Horários não disponíveis</p>
-            )}
-          </div>
-          
-          {/* Resumo */}
-          <div>
-            <h3 className="font-medium flex items-center mb-2">
-              <MessageSquare className="h-5 w-5 mr-2 text-gray-500" />
-              Resumo Editorial
-            </h3>
-            
-            {place.editorial_summary ? (
-              <p className="text-gray-600">{place.editorial_summary}</p>
-            ) : (
-              <p className="text-gray-500">Resumo não disponível</p>
-            )}
-          </div>
-        </div>
-        
-        {/* Reviews */}
-        {place.reviews && place.reviews.length > 0 && (
-          <>
-            <Separator />
-            
-            <div>
-              <h3 className="font-medium flex items-center mb-3">
-                <MessageSquare className="h-5 w-5 mr-2 text-gray-500" />
-                Avaliações Recentes
-              </h3>
-              
-              <div className="space-y-4">
-                {place.reviews.slice(0, 3).map((review: any, index: number) => (
-                  <div key={index} className="p-3 border rounded-lg">
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="font-medium">{review.author_name}</div>
-                      {renderRating(review.rating)}
-                    </div>
-                    <p className="text-sm text-gray-600">{review.text}</p>
-                    <div className="text-xs text-gray-400 mt-2">
-                      {new Date(review.time * 1000).toLocaleDateString()}
-                    </div>
-                  </div>
-                ))}
-                
-                {place.reviews.length > 3 && (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full">
-                        Ver todas as {place.reviews.length} avaliações
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Todas as Avaliações</DialogTitle>
-                        <DialogDescription>
-                          {place.reviews.length} avaliações para {place.name}
-                        </DialogDescription>
-                      </DialogHeader>
-                      
-                      <div className="space-y-4 mt-4">
-                        {place.reviews.map((review: any, index: number) => (
-                          <div key={index} className="p-3 border rounded-lg">
-                            <div className="flex justify-between items-center mb-2">
-                              <div className="font-medium">{review.author_name}</div>
-                              {renderRating(review.rating)}
-                            </div>
-                            <p className="text-sm text-gray-600">{review.text}</p>
-                            <div className="text-xs text-gray-400 mt-2">
-                              {new Date(review.time * 1000).toLocaleDateString()}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </CardContent>
-      
-      <CardFooter className="flex justify-end space-x-2">
         <Button 
           variant="outline" 
-          onClick={() => refetch()}
-          className="flex items-center"
+          size="sm"
+          onClick={() => refreshPlaceDetailsMutation.mutate()}
+          disabled={refreshPlaceDetailsMutation.isPending}
         >
-          <RefreshCw className="mr-2 h-4 w-4" />
+          {refreshPlaceDetailsMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-2" />
+          )}
           Atualizar
         </Button>
-        
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              onClick={() => {}}
-              className="flex items-center"
-            >
-              Atualizar Detalhes via API
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Atualizar detalhes do Google Places</DialogTitle>
-              <DialogDescription>
-                Isso fará uma nova requisição à API do Google Places para obter dados atualizados.
-                Essa operação pode levar alguns segundos.
-              </DialogDescription>
-            </DialogHeader>
+      </div>
+
+      {placeDetails.rating && (
+        <div className="flex items-center gap-2">
+          <div className="flex items-center">
+            <Star className="h-5 w-5 text-yellow-500 mr-1 fill-yellow-500" />
+            <span className="font-medium">{placeDetails.rating.toFixed(1)}</span>
+          </div>
+          <span className="text-gray-500 text-sm">
+            ({placeDetails.user_ratings_total || 0} avaliações)
+          </span>
+        </div>
+      )}
+
+      <Separator />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Informações de contato */}
+        <div>
+          <h4 className="text-sm font-medium mb-3">Informações de Contato</h4>
+          <ul className="space-y-3">
+            {placeDetails.formatted_phone_number && (
+              <li className="flex items-start gap-2">
+                <Phone className="h-4 w-4 text-gray-500 mt-0.5" />
+                <div>
+                  <p className="text-sm">{placeDetails.formatted_phone_number}</p>
+                  {placeDetails.international_phone_number && (
+                    <p className="text-xs text-gray-500">{placeDetails.international_phone_number}</p>
+                  )}
+                </div>
+              </li>
+            )}
             
-            <div className="py-4">
-              <p>Tem certeza que deseja atualizar os detalhes para:</p>
-              <p className="font-semibold mt-1">{place.name || placeName || `Loja ID ${storeId}`}</p>
-            </div>
+            {placeDetails.website && (
+              <li className="flex items-start gap-2">
+                <Globe className="h-4 w-4 text-gray-500 mt-0.5" />
+                <div>
+                  <a 
+                    href={placeDetails.website} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    {new URL(placeDetails.website).hostname}
+                  </a>
+                </div>
+              </li>
+            )}
             
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => setDialogOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleUpdateDetails}
-                disabled={updateDetailsMutation.isPending}
-              >
-                {updateDetailsMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Atualizando...
-                  </>
-                ) : 'Atualizar Detalhes'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </CardFooter>
-    </Card>
+            {placeDetails.url && (
+              <li className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-gray-500 mt-0.5" />
+                <div>
+                  <a 
+                    href={placeDetails.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Ver no Google Maps
+                  </a>
+                </div>
+              </li>
+            )}
+          </ul>
+        </div>
+
+        {/* Horário de funcionamento */}
+        {placeDetails.opening_hours && placeDetails.opening_hours.weekday_text && (
+          <div>
+            <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Horário de Funcionamento
+              {placeDetails.opening_hours.open_now !== undefined && (
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  placeDetails.opening_hours.open_now 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {placeDetails.opening_hours.open_now ? 'Aberto' : 'Fechado'}
+                </span>
+              )}
+            </h4>
+            <ul className="space-y-1 text-sm">
+              {placeDetails.opening_hours.weekday_text.map((text, index) => (
+                <li key={index} className="text-gray-700">{text}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {/* Google Maps Place ID (para referência) */}
+      <div className="pt-4 border-t border-gray-200">
+        <p className="text-xs text-gray-500">
+          <span className="font-medium">Google Place ID:</span> {placeDetails.place_id}
+        </p>
+      </div>
+    </div>
   );
 }
