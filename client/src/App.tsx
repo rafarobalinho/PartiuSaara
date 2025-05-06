@@ -28,6 +28,7 @@ import Wishlist from "@/pages/account/wishlist";
 import Reservations from "@/pages/account/reservations";
 import SellerDashboard from "@/pages/seller/dashboard";
 import GeocodingPanel from "@/pages/admin/GeocodingPanel";
+import PlaceDetailsPage from "@/pages/admin/PlaceDetailsPage";
 import AdminLogin from "@/pages/admin/login";
 import AdminSetup from "@/pages/admin/admin-setup";
 import SellerProducts from "@/pages/seller/products/index";
@@ -83,6 +84,15 @@ function Router() {
               <div className="flex-grow">
                 <AdminLayout>
                   <GeocodingPanel />
+                </AdminLayout>
+              </div>
+            )}
+          </Route>
+          <Route path="/admin/place-details/:id">
+            {() => (
+              <div className="flex-grow">
+                <AdminLayout>
+                  <PlaceDetailsPage />
                 </AdminLayout>
               </div>
             )}
