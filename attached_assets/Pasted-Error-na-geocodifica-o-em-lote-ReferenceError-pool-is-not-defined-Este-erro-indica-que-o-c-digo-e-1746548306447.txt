@@ -1,0 +1,172 @@
+Error na geocodificação em lote: ReferenceError: pool is not defined
+Este erro indica que o código está tentando usar um objeto pool que não foi definido. Este é um problema de configuração no banco de dados - a aplicação está tentando acessar um pool de conexões que não foi inicializado corretamente.
+Vamos corrigir esse erro específico:
+javascript// Função corrigida para geocodificação em lote
+async function batchGeocodeAllStores() {
+  try {
+    console.log('Iniciando processo de geocodificação em lote');
+    
+    // Certificar-se de que estamos usando a conexão correta - db, não pool
+    // Buscar lojas que precisam de geocodificação
+    const result = await db.query(`
+      SELECT id, name, address 
+      FROM stores 
+      WHERE address IS NOT NULL 
+        AND (location IS NULL OR place_id IS NULL)
+    `);
+    
+    const stores = result.rows;
+    console.log(`Encontradas ${stores.length} lojas para geocodificar`);
+    
+    const results = {
+      total: stores.length,
+      success: 0,
+      failed: 0,
+      details: []
+    };
+    
+    // Se não houver lojas para geocodificar, retornar imediatamente
+    if (stores.length === 0) {
+      return results;
+    }
+    
+    // Processar cada loja
+    for (const store of stores) {
+      try {
+        console.log(`Geocodificando loja ID ${store.id}: ${store.name}`);
+        
+        // Verificar se o endereço está completo
+        if (!store.address || 
+            typeof store.address !== 'object' || 
+            !store.address.street || 
+            !store.address.city || 
+            !store.address.state || 
+            !store.address.zipCode) {
+          
+          console.log(`Loja ID ${store.id} tem endereço incompleto`);
+          results.failed++;
+          results.details.push({
+            id: store.id,
+            name: store.name || '',
+            status: 'failed',
+            reason: 'Endereço incompleto'
+          });
+          continue;
+        }
+        
+        // Formar o endereço completo
+        const formattedAddress = `${store.address.street}, ${store.address.city}, ${store.address.state}, ${store.address.zipCode}, Brasil`;
+        console.log(`Endereço formatado: ${formattedAddress}`);
+        
+        // Usar axios que deve estar importado no topo do arquivo
+        const axios = require('axios');
+        
+        // Preparar URL da API Google Geocoding
+        const apiUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(formattedAddress)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+        
+        // Fazer a requisição HTTP
+        const response = await axios.get(apiUrl);
+        console.log(`Resposta para loja ID ${store.id}: status=${response.data.status}, resultados=${response.data.results ? response.data.results.length : 0}`);
+        
+        // Verificar se a geocodificação foi bem-sucedida
+        if (response.data.status !== 'OK' || !response.data.results || response.data.results.length === 0) {
+          throw new Error(`Falha na geocodificação: ${response.data.status}`);
+        }
+        
+        // Extrair latitude, longitude e place_id da resposta
+        const result = response.data.results[0];
+        
+        // Criar objeto de localização
+        const locationObj = {
+          latitude: result.geometry.location.lat,
+          longitude: result.geometry.location.lng
+        };
+        
+        const placeId = result.place_id;
+        
+        console.log(`Dados extraídos: latitude=${locationObj.latitude}, longitude=${locationObj.longitude}, place_id=${placeId}`);
+        
+        // Atualizar a loja no banco de dados
+        console.log(`Atualizando loja ID ${store.id} no banco de dados`);
+        
+        // Usar formatação JSON adequada para o PostgreSQL
+        const updateResult = await db.query(`
+          UPDATE stores 
+          SET 
+            location = $1::jsonb,
+            place_id = $2
+          WHERE id = $3
+          RETURNING id
+        `, [
+          JSON.stringify(locationObj), // Converte explicitamente para string JSON
+          placeId,
+          store.id
+        ]);
+        
+        // Verificar se a atualização foi bem-sucedida
+        if (updateResult.rows.length === 0) {
+          throw new Error('Falha ao atualizar o banco de dados');
+        }
+        
+        console.log(`Loja ID ${store.id} atualizada com sucesso`);
+        
+        results.success++;
+        results.details.push({
+          id: store.id,
+          name: store.name || '',
+          status: 'success',
+          data: {
+            location: locationObj,
+            place_id: placeId
+          }
+        });
+        
+      } catch (error) {
+        console.error(`Erro ao geocodificar loja ID ${store.id}:`, error);
+        results.failed++;
+        results.details.push({
+          id: store.id,
+          name: store.name || '',
+          status: 'failed',
+          reason: error.message
+        });
+      }
+      
+      // Pequeno atraso para evitar limites de taxa da API
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    console.log('Geocodificação em lote concluída:', results);
+    return results;
+  } catch (error) {
+    console.error('Erro na geocodificação em lote:', error);
+    throw error;
+  }
+}
+As principais correções nesta versão:
+
+Removidas todas as referências a pool:
+
+O código estava tentando usar um objeto pool que não existe
+Usamos db para todas as consultas, que parece ser o objeto de conexão correto
+
+
+Importação explícita do axios:
+
+Adição de const axios = require('axios'); dentro da função
+Isso garante que o axios esteja disponível mesmo que não esteja importado globalmente
+
+
+Adicionada verificação adicional para zero lojas:
+
+Se não houver lojas para geocodificar, a função retorna imediatamente
+Isso evita problemas com arrays vazios
+
+
+Incluído o nome da loja nos logs:
+
+Agora usamos store.name nos logs para facilitar a identificação
+
+
+
+Esta versão deve corrigir o erro "pool is not defined" e continuar com a implementação da geocodificação em lote.
