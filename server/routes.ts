@@ -390,10 +390,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Rota específica para login administrativo
   app.post('/api/admin/login', async (req: Request, res: Response) => {
+    console.log('Requisição de login administrativo recebida:', { email: req.body?.email });
+    
     try {
       const { email, password } = req.body;
 
       if (!email || !password) {
+        console.log('Falha na autenticação: Email ou senha faltando');
         return res.status(400).json({ message: 'Email e senha são obrigatórios' });
       }
 
@@ -402,18 +405,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         where: eq(users.email, email)
       });
 
+      console.log('Usuário encontrado:', user ? 'Sim' : 'Não');
+      
       if (!user) {
+        console.log('Falha na autenticação: Usuário não encontrado');
         return res.status(401).json({ message: 'Credenciais inválidas' });
       }
 
       // Verificar se o usuário é um administrador
       if (user.role !== 'admin') {
+        console.log('Falha na autenticação: Usuário não é administrador');
         return res.status(403).json({ message: 'Acesso negado. Apenas administradores podem acessar este recurso.' });
       }
 
       // Verificar a senha
       const isPasswordValid = await comparePasswords(password, user.password);
+      console.log('Senha válida:', isPasswordValid ? 'Sim' : 'Não');
+      
       if (!isPasswordValid) {
+        console.log('Falha na autenticação: Senha incorreta');
         return res.status(401).json({ message: 'Credenciais inválidas' });
       }
 
@@ -422,15 +432,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Remover a senha da resposta
       const { password: _, ...userWithoutPassword } = user;
-
-      res.json({
+      
+      const responseData = {
         ...userWithoutPassword,
         success: true,
         message: 'Login administrativo realizado com sucesso'
-      });
+      };
+      
+      console.log('Enviando resposta de sucesso para login administrativo');
+      
+      // Definir explicitamente o tipo de conteúdo como JSON para evitar respostas HTML
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(200).json(responseData);
     } catch (error) {
       console.error('Erro no login administrativo:', error);
-      res.status(500).json({ message: 'Erro ao processar o login administrativo' });
+      // Definir explicitamente o tipo de conteúdo como JSON para evitar respostas HTML
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(500).json({ 
+        message: 'Erro ao processar o login administrativo',
+        error: error instanceof Error ? error.message : 'Erro desconhecido' 
+      });
     }
   });
 
