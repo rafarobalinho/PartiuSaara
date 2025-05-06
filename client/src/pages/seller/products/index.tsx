@@ -76,11 +76,15 @@ export default function SellerProducts() {
 
   // Set the selected store when stores are loaded
   useEffect(() => {
-    if (Array.isArray(stores) && stores.length > 0 && !selectedStoreId) {
-      // Garantir que id seja um número válido antes de converter para string
-      const storeId = stores[0].id;
-      if (storeId && !isNaN(storeId)) {
-        setSelectedStoreId(storeId.toString());
+    if (Array.isArray(stores) && stores?.length > 0 && !selectedStoreId) {
+      try {
+        // Garantir que id seja um número válido antes de converter para string
+        const storeId = stores[0]?.id;
+        if (storeId !== undefined && storeId !== null && !isNaN(storeId)) {
+          setSelectedStoreId(storeId.toString());
+        }
+      } catch (error) {
+        console.error('Erro ao definir loja selecionada:', error);
       }
     }
   }, [stores, selectedStoreId]);
@@ -112,7 +116,7 @@ export default function SellerProducts() {
   // Fetch images for each product
   useEffect(() => {
     const fetchProductImages = async () => {
-      if (!products.length) return;
+      if (!products || !Array.isArray(products) || products.length === 0) return;
       
       setIsLoadingImages(true);
       
@@ -192,7 +196,7 @@ export default function SellerProducts() {
       <Card className="mb-6">
         <CardContent className="p-4 space-y-4">
           {/* Store selector */}
-          {stores.length > 1 && (
+          {Array.isArray(stores) && stores?.length > 1 && (
             <div>
               <label htmlFor="store-select" className="block text-sm font-medium text-gray-700 mb-1">
                 Selecionar Loja
@@ -206,8 +210,8 @@ export default function SellerProducts() {
                 </SelectTrigger>
                 <SelectContent>
                   {stores.map((store) => (
-                    <SelectItem key={store.id} value={store.id.toString()}>
-                      {store.name}
+                    <SelectItem key={store?.id} value={store?.id?.toString() || ''}>
+                      {store?.name || 'Loja sem nome'}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -256,7 +260,7 @@ export default function SellerProducts() {
             </div>
           ))}
         </div>
-      ) : filteredProducts.length > 0 ? (
+      ) : Array.isArray(filteredProducts) && filteredProducts?.length > 0 ? (
         <div>
           {/* Mobile grid view */}
           <div className="block md:hidden">
