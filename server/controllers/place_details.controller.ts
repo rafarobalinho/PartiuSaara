@@ -332,7 +332,7 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
         const insertQuery = `
           INSERT INTO store_place_details (
             store_id, place_id, name, formatted_address, rating, 
-            user_ratings_total, last_updated
+            total_ratings, last_updated
           ) 
           VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
         `;

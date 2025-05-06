@@ -1,0 +1,58 @@
+Por favor, corrija o erro "column 'user_ratings_total' of relation 'store_place_details' does not exist" na função de atualização de detalhes das lojas.
+O problema está na consulta de inserção onde estamos tentando usar o campo user_ratings_total (que vem da API do Google), mas na nossa tabela a coluna correspondente se chama total_ratings.
+Modifique as consultas de inserção da seguinte forma:
+
+Na consulta para inserção de dados básicos:
+
+javascript// Se não conseguir obter detalhes completos, usar os dados básicos do nearby search
+console.log('Inserindo detalhes básicos para loja ID', store.id);
+
+const insertQuery = `
+  INSERT INTO store_place_details (
+    store_id, place_id, name, formatted_address, rating, 
+    total_ratings, last_updated
+  ) 
+  VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+`;
+
+const values = [
+  store.id,
+  placeId,
+  place.name || null,
+  place.vicinity || null,
+  place.rating || null,
+  place.user_ratings_total || 0 // Este valor está correto, mas o nome da coluna na consulta precisa ser "total_ratings"
+];
+
+await db.query(insertQuery, values);
+
+Na consulta para inserção de detalhes completos:
+
+javascript// Usar os detalhes completos
+const placeData = detailsResponse.data.result;
+
+console.log('Inserindo detalhes completos para loja ID', store.id);
+
+const insertQuery = `
+  INSERT INTO store_place_details (
+    store_id, place_id, name, formatted_address, phone_number, 
+    website, rating, total_ratings, last_updated
+  ) 
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+`;
+
+const values = [
+  store.id,
+  placeId,
+  placeData.name || null,
+  placeData.formatted_address || null,
+  placeData.formatted_phone_number || null,
+  placeData.website || null,
+  placeData.rating || null,
+  placeData.user_ratings_total || 0 // Este valor está correto, mas o nome da coluna na consulta precisa ser "total_ratings"
+];
+
+await db.query(insertQuery, values);
+A tabela está correta, e os valores enviados também estão corretos. O problema está apenas no nome da coluna na consulta SQL, que deve corresponder ao nome na tabela.
+
+Este prompt corrige especificamente o erro que você está enfrentando, garantindo que a coluna usada na consulta (total_ratings) corresponda à coluna existente na tabela.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas. 3.7 Sonnet
