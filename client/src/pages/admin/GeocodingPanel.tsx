@@ -46,7 +46,7 @@ import {
 import {
   GoogleMap,
   Marker,
-  useLoadScript
+  useJsApiLoader
 } from '@react-google-maps/api';
 
 // Tipo para uma loja com informações de geocodificação
@@ -83,9 +83,9 @@ export default function GeocodingPanel() {
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'ascending' | 'descending' } | null>(null);
 
   // Carregar a API do Google Maps
-  const { isLoaded: isMapsApiLoaded } = useLoadScript({
+  const { isLoaded: isMapsApiLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
-    libraries: ['places' as const]
+    libraries: ['places']
   });
 
   // Buscar todas as lojas com seus dados de geocodificação
