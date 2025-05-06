@@ -2,8 +2,23 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    try {
+      // Primeiro, tenta analisar como JSON
+      const data = await res.json();
+      throw new Error(data.message || `${res.status}: ${res.statusText}`);
+    } catch (e) {
+      // Se não for JSON válido, usa o text() como fallback
+      if (e instanceof SyntaxError) {
+        const text = await res.text();
+        // Verifica se é uma resposta HTML (que geralmente começa com <!DOCTYPE ou <html)
+        if (text.trim().startsWith('<')) {
+          throw new Error(`Erro de servidor: resposta HTML recebida em vez de JSON`);
+        }
+        throw new Error(`${res.status}: ${text || res.statusText}`);
+      }
+      // Se já é um Error construído do JSON, repassa
+      throw e;
+    }
   }
 }
 

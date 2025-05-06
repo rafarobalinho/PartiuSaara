@@ -27,12 +27,38 @@ export default function AdminLogin() {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      const res = await apiRequest('POST', '/api/admin/login', credentials);
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Falha na autenticação');
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(credentials),
+          credentials: 'include',
+        });
+        
+        if (!res.ok) {
+          let errorMessage = 'Falha na autenticação';
+          try {
+            const errorData = await res.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            // Se não puder analisar como JSON, use o texto
+            const text = await res.text();
+            if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+              errorMessage = 'Erro de servidor: resposta HTML em vez de JSON';
+            } else {
+              errorMessage = text || errorMessage;
+            }
+          }
+          throw new Error(errorMessage);
+        }
+        
+        return await res.json();
+      } catch (error) {
+        console.error('Erro na autenticação:', error);
+        throw error;
       }
-      return await res.json();
     },
     onSuccess: (data) => {
       toast({
