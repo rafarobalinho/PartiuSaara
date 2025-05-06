@@ -21,6 +21,7 @@ import { storeImages, productImages, products, stores, users } from "@shared/sch
 import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
 import { comparePasswords } from './utils/auth';
 import { geocodingMiddleware } from "./middlewares/geocoding.middleware";
+import { processStoreMiddleware } from "./middleware/store-processor.middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
@@ -225,8 +226,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rotas que requerem geocodificação
 
   // Rotas que requerem autenticação e verificação de propriedade
-  app.post('/api/stores', authMiddleware, geocodingMiddleware, StoreController.createStore);
-  app.put('/api/stores/:id', authMiddleware, verifyStoreOwnership, geocodingMiddleware, StoreController.updateStore);
+  app.post('/api/stores', authMiddleware, geocodingMiddleware, processStoreMiddleware, StoreController.createStore);
+  app.put('/api/stores/:id', authMiddleware, verifyStoreOwnership, geocodingMiddleware, processStoreMiddleware, StoreController.updateStore);
 
   // Promotion routes
   app.get('/api/promotions', async (req: Request, res: Response) => {
