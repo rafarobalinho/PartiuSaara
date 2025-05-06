@@ -1,18 +1,27 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
+import { 
+  MapPin, 
+  ShoppingBag, 
+  Store, 
+  Users, 
+  BarChart3, 
+  Settings,
+  ChevronRight,
+  User
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/auth-context';
 import { 
-  Settings, 
-  Users, 
-  Package, 
-  Store, 
-  Map, 
-  LogOut, 
-  BarChart4, 
-  ChevronRight,
-  Shield,
-  Loader2
-} from 'lucide-react';
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -20,151 +29,188 @@ interface AdminLayoutProps {
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [location] = useLocation();
-  const { user, isLoading, logout } = useAuth();
+  const { user, logout } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <Loader2 className="h-10 w-10 animate-spin text-orange-500 mb-4" />
-        <p className="text-lg">Carregando...</p>
-      </div>
-    );
-  }
+  const navItems = [
+    {
+      title: 'Visão Geral',
+      href: '/admin',
+      icon: <BarChart3 className="h-5 w-5" />,
+      exact: true
+    },
+    {
+      title: 'Lojas',
+      href: '/admin/stores',
+      icon: <Store className="h-5 w-5" />
+    },
+    {
+      title: 'Produtos',
+      href: '/admin/products',
+      icon: <ShoppingBag className="h-5 w-5" />
+    },
+    {
+      title: 'Usuários',
+      href: '/admin/users',
+      icon: <Users className="h-5 w-5" />
+    },
+    {
+      title: 'Geocodificação',
+      href: '/admin/geocoding',
+      icon: <MapPin className="h-5 w-5" />
+    },
+    {
+      title: 'Configurações',
+      href: '/admin/settings',
+      icon: <Settings className="h-5 w-5" />
+    }
+  ];
 
-  // Se o usuário não é admin, redirecionar para a página inicial
-  if (!user || user.role !== 'admin') {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <Shield className="h-16 w-16 text-red-500 mb-6" />
-        <h1 className="text-2xl font-bold mb-2">Acesso Restrito</h1>
-        <p className="text-gray-600 mb-6 text-center max-w-md">
-          Esta área é restrita aos administradores do sistema. Você não tem permissão para acessar.
-        </p>
-        <Link href="/">
-          <a className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-orange-500 text-white hover:bg-orange-600 transition-colors">
-            Voltar para a página inicial
-          </a>
-        </Link>
-      </div>
-    );
-  }
+  const isActive = (path: string, exact = false) => {
+    if (exact) return location === path;
+    return location.startsWith(path);
+  };
 
-  // Se o usuário é admin, mostrar o layout de administração
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className="hidden md:flex md:flex-col md:w-64 md:fixed md:inset-y-0 bg-white border-r">
-        <div className="flex flex-col flex-grow pt-5 overflow-y-auto">
-          <div className="flex items-center flex-shrink-0 px-4 mb-5">
-            <span className="font-bold text-xl text-orange-600">Partiu Saara</span>
-            <span className="ml-2 px-2 py-1 text-xs rounded-md bg-orange-100 text-orange-800">Admin</span>
-          </div>
-          
-          <nav className="flex-1 px-2 pb-4 space-y-1">
-            <Link href="/admin">
-              <a className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                location === '/admin' ? 'bg-orange-100 text-orange-700' : 'text-gray-600 hover:bg-gray-100'
-              }`}>
-                <BarChart4 className="mr-3 h-5 w-5" />
-                Dashboard
-              </a>
+      <div className="hidden md:flex md:flex-col md:w-64 md:bg-white md:border-r">
+        <div className="flex items-center h-16 px-6 border-b">
+          <Link href="/admin" className="flex items-center space-x-2">
+            <MapPin className="h-6 w-6 text-orange-500" />
+            <span className="font-bold text-lg">Admin Panel</span>
+          </Link>
+        </div>
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {navItems.map((item) => (
+            <Link 
+              key={item.href} 
+              href={item.href}
+              className={cn(
+                "flex items-center space-x-3 px-3 py-2 rounded-md transition-colors",
+                isActive(item.href, item.exact) 
+                  ? "bg-orange-50 text-orange-600" 
+                  : "text-gray-700 hover:bg-gray-100"
+              )}
+            >
+              {React.cloneElement(item.icon, {
+                className: cn(
+                  item.icon.props.className,
+                  isActive(item.href, item.exact) ? "text-orange-500" : "text-gray-500"
+                )
+              })}
+              <span>{item.title}</span>
+              {isActive(item.href, item.exact) && (
+                <ChevronRight className="h-4 w-4 ml-auto text-orange-500" />
+              )}
             </Link>
-            
-            <Link href="/admin/stores">
-              <a className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                location === '/admin/stores' ? 'bg-orange-100 text-orange-700' : 'text-gray-600 hover:bg-gray-100'
-              }`}>
-                <Store className="mr-3 h-5 w-5" />
-                Lojas
-              </a>
-            </Link>
-            
-            <Link href="/admin/products">
-              <a className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                location === '/admin/products' ? 'bg-orange-100 text-orange-700' : 'text-gray-600 hover:bg-gray-100'
-              }`}>
-                <Package className="mr-3 h-5 w-5" />
-                Produtos
-              </a>
-            </Link>
-            
-            <Link href="/admin/users">
-              <a className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                location === '/admin/users' ? 'bg-orange-100 text-orange-700' : 'text-gray-600 hover:bg-gray-100'
-              }`}>
-                <Users className="mr-3 h-5 w-5" />
-                Usuários
-              </a>
-            </Link>
-            
-            <Link href="/admin/geocoding">
-              <a className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                location === '/admin/geocoding' ? 'bg-orange-100 text-orange-700' : 'text-gray-600 hover:bg-gray-100'
-              }`}>
-                <Map className="mr-3 h-5 w-5" />
-                Geocodificação
-              </a>
-            </Link>
-            
-            <Link href="/admin/settings">
-              <a className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                location === '/admin/settings' ? 'bg-orange-100 text-orange-700' : 'text-gray-600 hover:bg-gray-100'
-              }`}>
-                <Settings className="mr-3 h-5 w-5" />
-                Configurações
-              </a>
-            </Link>
-            
-            <div className="pt-4 mt-6 border-t">
-              <button
+          ))}
+        </nav>
+        <div className="p-4 border-t">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="w-full flex items-center justify-start px-3 py-2">
+                <Avatar className="h-8 w-8 mr-2">
+                  <AvatarFallback>
+                    {user ? getInitials(`${user.firstName} ${user.lastName}`) : 'AD'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-medium">
+                    {user ? `${user.firstName} ${user.lastName}` : 'Admin'}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {user?.email}
+                  </span>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/account" className="cursor-pointer">
+                  <User className="h-4 w-4 mr-2" />
+                  Perfil
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/account/settings" className="cursor-pointer">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configurações
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
                 onClick={() => logout()}
-                className="group flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-100 w-full"
+                className="text-red-600 cursor-pointer"
               >
-                <LogOut className="mr-3 h-5 w-5" />
                 Sair
-              </button>
-            </div>
-          </nav>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
       {/* Mobile header */}
-      <div className="md:hidden bg-white border-b p-4 flex justify-between items-center">
-        <div className="flex items-center">
-          <span className="font-bold text-xl text-orange-600">Partiu Saara</span>
-          <span className="ml-2 px-2 py-1 text-xs rounded-md bg-orange-100 text-orange-800">Admin</span>
-        </div>
-        
-        {/* Mobile menu button (você pode implementar um menu dropdown móvel se necessário) */}
+      <div className="md:hidden flex items-center justify-between h-16 px-4 border-b bg-white w-full fixed top-0 z-10">
+        <Link href="/admin" className="flex items-center space-x-2">
+          <MapPin className="h-6 w-6 text-orange-500" />
+          <span className="font-bold text-lg">Admin</span>
+        </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback>
+                  {user ? getInitials(`${user.firstName} ${user.lastName}`) : 'AD'}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Navegação</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {navItems.map((item) => (
+              <DropdownMenuItem key={item.href} asChild>
+                <Link 
+                  href={item.href}
+                  className={cn(
+                    "flex items-center w-full",
+                    isActive(item.href, item.exact) ? "text-orange-600" : ""
+                  )}
+                >
+                  {React.cloneElement(item.icon, {
+                    className: cn(
+                      "h-4 w-4 mr-2",
+                      isActive(item.href, item.exact) ? "text-orange-500" : "text-gray-500"
+                    )
+                  })}
+                  {item.title}
+                </Link>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => logout()} className="text-red-600 cursor-pointer">
+              Sair
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-      
+
       {/* Main content */}
-      <div className="md:ml-64 flex-1">
-        <div className="pt-4 md:pt-0">
-          {/* Breadcrumbs */}
-          <div className="hidden md:flex items-center text-sm px-4 py-2 border-b text-gray-500">
-            <Link href="/">
-              <a className="hover:text-orange-600">Marketplace</a>
-            </Link>
-            <ChevronRight className="h-4 w-4 mx-1" />
-            <Link href="/admin">
-              <a className="hover:text-orange-600">Admin</a>
-            </Link>
-            
-            {location.startsWith('/admin/geocoding') && (
-              <>
-                <ChevronRight className="h-4 w-4 mx-1" />
-                <span className="text-gray-700">Geocodificação</span>
-              </>
-            )}
-            
-            {/* Adicionar outros breadcrumbs baseados na localização */}
-          </div>
-          
-          <main className="pb-12">
-            {children}
-          </main>
-        </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 overflow-y-auto bg-gray-50 pt-16 md:pt-0">
+          {children}
+        </main>
       </div>
     </div>
   );

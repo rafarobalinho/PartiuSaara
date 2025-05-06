@@ -17,6 +17,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isSeller: boolean;
+  isAdmin: boolean;
   isLoading: boolean;
   error: Error | null;
   login: (email: string, password: string) => Promise<void>;
@@ -161,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     isAuthenticated: !!user,
     isSeller: user?.role === 'seller',
+    isAdmin: user?.role === 'admin',
     isLoading,
     error,
     login,
