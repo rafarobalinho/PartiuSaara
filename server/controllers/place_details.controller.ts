@@ -410,21 +410,67 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
           `, [placeId, store.id]);
         }
         
+        // Buscar detalhes completos do lugar usando o Place Details API
+        console.log(`Obtendo detalhes completos do estabelecimento usando place_id: ${placeId}`);
+        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,opening_hours,photos&key=${googleAPIKey}`;
+        
+        let placePhone = null;
+        let placeWebsite = null;
+        let placeOpeningHours = null;
+        
+        try {
+          const detailsResponse = await axios.get(detailsUrl);
+          
+          if (detailsResponse.data.status === 'OK' && detailsResponse.data.result) {
+            const placeData = detailsResponse.data.result;
+            
+            // Exibir detalhes obtidos para debug
+            console.log('Detalhes obtidos da API Places Details:');
+            console.log('- Nome:', placeData.name);
+            console.log('- Endereço:', placeData.formatted_address);
+            console.log('- Telefone:', placeData.formatted_phone_number);
+            console.log('- Website:', placeData.website);
+            console.log('- Avaliação:', placeData.rating);
+            console.log('- Total avaliações:', placeData.user_ratings_total);
+            console.log('- Horários:', placeData.opening_hours ? 'Disponíveis' : 'Não disponíveis');
+            
+            // Se tivermos horários, formatar para salvar
+            if (placeData.opening_hours && placeData.opening_hours.weekday_text) {
+              placeOpeningHours = JSON.stringify(placeData.opening_hours.weekday_text);
+              console.log('- Horários detalhados:', placeData.opening_hours.weekday_text);
+              console.log('- Horários formatados para salvar:', placeOpeningHours);
+            }
+            
+            // Atualizar dados com informações mais detalhadas
+            placeVicinity = placeData.formatted_address || placeVicinity;
+            placeRating = placeData.rating || placeRating;
+            placeTotalRatings = placeData.user_ratings_total || placeTotalRatings || 0;
+            placePhone = placeData.formatted_phone_number || null;
+            placeWebsite = placeData.website || null;
+          }
+        } catch (detailsError: any) {
+          console.log('Erro ao buscar detalhes do lugar, usando dados básicos:', detailsError.message);
+        }
+        
         // Adicionar ou atualizar os detalhes
         const upsertQuery = `
           INSERT INTO store_place_details (
-            store_id, place_id, name, formatted_address, rating, 
-            total_ratings, last_updated
+            store_id, place_id, name, formatted_address, phone_number, 
+            website, rating, total_ratings, opening_hours, last_updated
           ) 
-          VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
           ON CONFLICT (store_id) 
           DO UPDATE SET
             place_id = EXCLUDED.place_id,
             name = EXCLUDED.name,
             formatted_address = EXCLUDED.formatted_address,
+            phone_number = EXCLUDED.phone_number,
+            website = EXCLUDED.website,
             rating = EXCLUDED.rating,
             total_ratings = EXCLUDED.total_ratings,
+            opening_hours = EXCLUDED.opening_hours,
             last_updated = CURRENT_TIMESTAMP
+          RETURNING *
         `;
         
         const values = [
@@ -432,13 +478,21 @@ export async function updateAllStoresPlaceDetails(req: Request, res: Response) {
           placeId,
           store.name, // Mantemos o nome original da loja
           placeVicinity || null,
+          placePhone,
+          placeWebsite,
           placeRating,
-          placeTotalRatings
+          placeTotalRatings,
+          placeOpeningHours
         ];
         
         console.log(`Inserindo/atualizando detalhes para loja ID ${store.id}`);
         
-        await pool.query(upsertQuery, values);
+        const upsertResult = await pool.query(upsertQuery, values);
+        
+        // Verificar o resultado inserido/atualizado
+        if (upsertResult.rows && upsertResult.rows.length > 0) {
+          console.log('Registro inserido/atualizado com sucesso:', upsertResult.rows[0].id);
+        }
         
         console.log(`Detalhes salvos com sucesso para loja ID ${store.id}`);
         
