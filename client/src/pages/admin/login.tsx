@@ -9,6 +9,7 @@ import { AlertCircle, Shield } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
+import { queryClient } from '@/lib/queryClient';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -21,38 +22,9 @@ export default function AdminLogin() {
   // Definimos o mutation fora de qualquer renderização condicional
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      try {
-        const res = await fetch('/api/admin/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(credentials),
-          credentials: 'include',
-        });
-        
-        if (!res.ok) {
-          let errorMessage = 'Falha na autenticação';
-          try {
-            const errorData = await res.json();
-            errorMessage = errorData.message || errorMessage;
-          } catch (e) {
-            // Se não puder analisar como JSON, use o texto
-            const text = await res.text();
-            if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-              errorMessage = 'Erro de servidor: resposta HTML em vez de JSON';
-            } else {
-              errorMessage = text || errorMessage;
-            }
-          }
-          throw new Error(errorMessage);
-        }
-        
-        return await res.json();
-      } catch (error) {
-        console.error('Erro na autenticação:', error);
-        throw error;
-      }
+      // Não use este método diretamente, estamos fazendo a chamada manual no handleSubmit
+      // para depuração e solução de problemas
+      return { success: true };
     },
     onSuccess: (data) => {
       toast({
@@ -80,7 +52,7 @@ export default function AdminLogin() {
     }
   }, [isAdmin, isLoading, navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password) {
@@ -88,8 +60,69 @@ export default function AdminLogin() {
       return;
     }
     
-    setErrorMessage(null);
-    loginMutation.mutate({ email, password });
+    // Logs detalhados para depuração
+    console.log('Tentando fazer login com:', { email });
+    
+    try {
+      // Fazer chamada API diretamente para depuração
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ email, password }),
+      });
+      
+      console.log('Status da resposta:', response.status);
+      
+      // Verificar headers da resposta
+      const contentType = response.headers.get('content-type');
+      console.log('Content-Type da resposta:', contentType);
+      
+      // Tente obter o texto da resposta para depuração
+      const responseText = await response.text();
+      console.log('Texto da resposta:', responseText);
+      
+      if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
+        console.error('Recebida resposta HTML em vez de JSON');
+        throw new Error('Erro de servidor: resposta HTML em vez de JSON');
+      }
+      
+      // Se for uma string JSON válida, parse e use
+      try {
+        const data = JSON.parse(responseText);
+        console.log('Dados JSON:', data);
+        
+        if (data.success) {
+          // Redirecionar após sucesso
+          toast({
+            title: 'Login bem-sucedido',
+            description: 'Você foi autenticado como administrador',
+            variant: 'default',
+          });
+          
+          // Atualizar o estado do usuário após login bem-sucedido
+          queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+          
+          navigate('/admin/geocoding');
+        } else {
+          setErrorMessage(data.message || 'Falha na autenticação');
+        }
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta JSON:', parseError);
+        throw new Error('Resposta inválida do servidor');
+      }
+    } catch (error) {
+      console.error('Erro detalhado:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Erro desconhecido');
+      toast({
+        title: 'Erro de autenticação',
+        description: error instanceof Error ? error.message : 'Falha ao fazer login como administrador',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Renderiza o loading spinner se necessário
