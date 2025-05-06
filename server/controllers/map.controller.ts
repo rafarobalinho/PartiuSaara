@@ -4,7 +4,7 @@
  */
 
 import { Request, Response } from 'express';
-import { db } from '../db';
+import { db, pool } from '../db';
 import { geocodeAddress, formatFullAddress, batchGeocodeStores } from '../utils/geocoding';
 import { stores, Store } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -233,30 +233,56 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
         
         console.log(`Dados extraídos: latitude=${locationObj.latitude}, longitude=${locationObj.longitude}, place_id=${placeId}`);
         
-        // Atualizar a loja no banco de dados usando SQL direto
+        // Usar pool que foi importado no topo do arquivo
         console.log(`Atualizando loja ID ${store.id} no banco de dados`);
         
         const storeId = typeof store.id === 'string' ? parseInt(store.id) : store.id;
         
-        // Usar SQL nativo para evitar problemas com o ORM
-        const updateQuery = `
-          UPDATE stores 
-          SET 
-            location = $1::jsonb,
-            place_id = $2,
-            "updatedAt" = NOW()
-          WHERE id = $3
-          RETURNING id
-        `;
+        let success = true;
         
-        const updateParams = [
-          JSON.stringify(locationObj),
-          placeId,
-          storeId
-        ];
+        try {
+          // 1. Primeiro atualizar a location
+          const updateLocationQuery = `
+            UPDATE stores 
+            SET location = $1::jsonb 
+            WHERE id = $2
+            RETURNING id
+          `;
+          
+          const locationResult = await pool.query(updateLocationQuery, [
+            JSON.stringify(locationObj),
+            storeId
+          ]);
+          
+          console.log(`Location atualizada com sucesso para loja ID ${storeId}:`, locationResult.rows);
+          
+          // 2. Depois atualizar o place_id
+          const updatePlaceIdQuery = `
+            UPDATE stores 
+            SET place_id = $1, "updatedAt" = NOW() 
+            WHERE id = $2
+            RETURNING id
+          `;
+          
+          const placeIdResult = await pool.query(updatePlaceIdQuery, [
+            placeId,
+            storeId
+          ]);
+          
+          console.log(`Place ID atualizado com sucesso para loja ID ${storeId}:`, placeIdResult.rows);
+          
+          // Verificar se as atualizações foram bem-sucedidas
+          if (locationResult.rows.length === 0 || placeIdResult.rows.length === 0) {
+            throw new Error('Falha em uma ou mais atualizações');
+          }
+          
+        } catch (updateError) {
+          console.error(`Erro ao atualizar store ID ${storeId}:`, updateError);
+          success = false;
+        }
         
-        const updateResult = await db.execute(updateQuery, updateParams);
-        const updated = Array.isArray(updateResult) ? updateResult : (updateResult.rows || []);
+        // 3. Verificar se as atualizações foram bem-sucedidas
+        const updated = success ? [{ id: storeId }] : [];
         
         // Verificar se a atualização foi bem-sucedida
         if (!updated || updated.length === 0) {
