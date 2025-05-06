@@ -8,6 +8,7 @@ import { db } from '../db';
 import { geocodeAddress, formatFullAddress, batchGeocodeStores } from '../utils/geocoding';
 import { stores, Store } from '@shared/schema';
 import { eq } from 'drizzle-orm';
+import axios from 'axios';
 
 /**
  * Obter todas as lojas com informações de localização para exibição no mapa
@@ -123,20 +124,22 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
   try {
     console.log('Iniciando processo de geocodificação em lote');
     
-    // Buscar lojas que precisam de geocodificação usando sintaxe SQL correta
-    // Usando query nativa para maior controle
-    const result = await pool.query(`
+    // Obter todas as lojas sem coordenadas
+    const query = `
       SELECT id, name, address 
       FROM stores 
       WHERE address IS NOT NULL 
         AND (location IS NULL OR place_id IS NULL)
-    `);
+    `;
     
-    const stores = result.rows;
-    console.log(`Encontradas ${stores.length} lojas para geocodificar`);
+    // Usar a instância do db para consulta SQL segura
+    const queryResult = await db.execute(query);
+    const storeArray = Array.isArray(queryResult) ? queryResult : (queryResult.rows || []);
+    
+    console.log(`Encontradas ${storeArray.length} lojas para geocodificar`);
     
     const results = {
-      total: stores.length,
+      total: storeArray.length,
       success: 0,
       failed: 0,
       details: [] as Array<{
@@ -154,7 +157,8 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
       }>
     };
     
-    if (stores.length === 0) {
+    // Se não houver lojas para geocodificar, retornar imediatamente
+    if (storeArray.length === 0) {
       return res.json({ 
         success: true,
         message: 'Nenhuma loja sem coordenadas encontrada',
@@ -164,13 +168,12 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
       });
     }
     
-    // Importar axios para requisições HTTP
-    const axios = await import('axios');
-    
     // Processar cada loja com tratamento de erro robusto
-    for (const store of stores) {
+    for (const store of storeArray) {
       try {
-        // Verificar se o endereço está completo - verificação mais robusta
+        console.log(`Geocodificando loja ID ${store.id}: ${store.name}`);
+        
+        // Verificar se o endereço está completo
         if (!store.address || 
             typeof store.address !== 'object' || 
             !store.address.street || 
@@ -188,9 +191,6 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
           continue;
         }
         
-        // Log detalhado para depuração
-        console.log(`Geocodificando loja ID ${store.id}: ${JSON.stringify(store.address)}`);
-        
         // Formar o endereço completo
         const zipCode = store.address.zipCode || '';
         const formattedAddress = `${store.address.street}, ${store.address.city}, ${store.address.state}${zipCode ? ', ' + zipCode : ''}, Brasil`;
@@ -205,7 +205,7 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
         const apiUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(formattedAddress)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
         
         // Fazer a requisição HTTP
-        const response = await axios.default.get(apiUrl);
+        const response = await axios.get(apiUrl);
         
         // Log da resposta
         console.log(`Resposta para loja ID ${store.id}: status=${response.data.status}, resultados=${response.data.results ? response.data.results.length : 0}`);
@@ -233,11 +233,13 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
         
         console.log(`Dados extraídos: latitude=${locationObj.latitude}, longitude=${locationObj.longitude}, place_id=${placeId}`);
         
-        // Atualizar a loja no banco de dados usando query nativa para evitar problemas com TypeORM
+        // Atualizar a loja no banco de dados usando SQL direto
         console.log(`Atualizando loja ID ${store.id} no banco de dados`);
         
-        // Usar query nativa com formatação JSON adequada para o PostgreSQL
-        const updateResult = await pool.query(`
+        const storeId = typeof store.id === 'string' ? parseInt(store.id) : store.id;
+        
+        // Usar SQL nativo para evitar problemas com o ORM
+        const updateQuery = `
           UPDATE stores 
           SET 
             location = $1::jsonb,
@@ -245,14 +247,19 @@ export async function batchGeocodeAllStores(req: Request, res: Response) {
             "updatedAt" = NOW()
           WHERE id = $3
           RETURNING id
-        `, [
-          JSON.stringify(locationObj), // Converte explicitamente para string JSON
+        `;
+        
+        const updateParams = [
+          JSON.stringify(locationObj),
           placeId,
-          store.id
-        ]);
+          storeId
+        ];
+        
+        const updateResult = await db.execute(updateQuery, updateParams);
+        const updated = Array.isArray(updateResult) ? updateResult : (updateResult.rows || []);
         
         // Verificar se a atualização foi bem-sucedida
-        if (!updateResult.rows || updateResult.rows.length === 0) {
+        if (!updated || updated.length === 0) {
           throw new Error('Falha ao atualizar o banco de dados');
         }
         
