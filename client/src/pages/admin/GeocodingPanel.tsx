@@ -84,6 +84,7 @@ export default function GeocodingPanel() {
 
   // Carregar a API do Google Maps
   const { isLoaded: isMapsApiLoaded } = useJsApiLoader({
+    id: 'google-map-script',
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
     libraries: ['places']
   });
@@ -464,9 +465,10 @@ export default function GeocodingPanel() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {store.hasValidCoordinates && store.location ? (
+                      {store.hasValidCoordinates && store.location && 
+                        store.location.latitude !== null && store.location.longitude !== null ? (
                         <span>
-                          {store.location.latitude.toFixed(6)}, {store.location.longitude.toFixed(6)}
+                          {Number(store.location.latitude).toFixed(6)}, {Number(store.location.longitude).toFixed(6)}
                         </span>
                       ) : (
                         <span className="text-gray-400">Não disponível</span>
@@ -548,23 +550,15 @@ export default function GeocodingPanel() {
                       lat: newCoordinates.latitude,
                       lng: newCoordinates.longitude
                     }}
-                    draggable={true}
-                    onDragEnd={(e) => {
-                      if (e.latLng) {
-                        setNewCoordinates({
-                          latitude: e.latLng.lat(),
-                          longitude: e.latLng.lng()
-                        });
-                      }
-                    }}
                   />
                 )}
                 
-                {selectedStore?.hasValidCoordinates && selectedStore?.location && !editCoordinates && (
+                {selectedStore?.hasValidCoordinates && selectedStore?.location && !editCoordinates && 
+                  selectedStore.location.latitude !== null && selectedStore.location.longitude !== null && (
                   <Marker
                     position={{
-                      lat: selectedStore.location.latitude as number,
-                      lng: selectedStore.location.longitude as number
+                      lat: Number(selectedStore.location.latitude),
+                      lng: Number(selectedStore.location.longitude)
                     }}
                   />
                 )}
@@ -658,16 +652,17 @@ export default function GeocodingPanel() {
                   )}
                 </div>
                 
-                {selectedStore.hasValidCoordinates && selectedStore.location && (
+                {selectedStore.hasValidCoordinates && selectedStore.location && 
+                  selectedStore.location.latitude !== null && selectedStore.location.longitude !== null && (
                   <div>
                     <h4 className="font-medium text-sm mb-1">Coordenadas</h4>
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-gray-700">
-                          <span className="font-medium">Lat:</span> {selectedStore.location.latitude.toFixed(6)}
+                          <span className="font-medium">Lat:</span> {Number(selectedStore.location.latitude).toFixed(6)}
                         </p>
                         <p className="text-gray-700">
-                          <span className="font-medium">Lng:</span> {selectedStore.location.longitude.toFixed(6)}
+                          <span className="font-medium">Lng:</span> {Number(selectedStore.location.longitude).toFixed(6)}
                         </p>
                       </div>
                       <Button 
