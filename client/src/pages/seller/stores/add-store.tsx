@@ -333,7 +333,7 @@ export default function AddStore() {
                           <FormLabel>Imagem da Loja*</FormLabel>
                           <FormControl>
                             <ImageUpload
-                              name="store-upload"
+                              name="store-upload-new"
                               multiple={false}
                               maxImages={1}
                               value={field.value}
