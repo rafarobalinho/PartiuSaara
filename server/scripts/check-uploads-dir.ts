@@ -1,81 +1,112 @@
 /**
- * Script para verificar e corrigir permissões do diretório de uploads
- * 
- * Este script verifica se o diretório de uploads existe e tem as permissões corretas
+ * Script para verificar e corrigir a estrutura de diretórios de uploads
+ * Este script é usado para diagnosticar problemas com permissões e diretórios
  */
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
-// Obter o diretório atual em módulos ES
+// Configuração para obter __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(__filename);
 
-// Diretórios necessários
-const directories = [
-  '../../public/uploads',
-  '../../public/uploads/thumbnails',
-  '../../public/uploads/originals'
-];
+// Diretórios a serem verificados
+const BASE_DIR = path.join(__dirname, '../../public');
+const UPLOADS_DIR = path.join(BASE_DIR, 'uploads');
+const THUMBNAILS_DIR = path.join(UPLOADS_DIR, 'thumbnails');
+const ORIGINALS_DIR = path.join(UPLOADS_DIR, 'originals');
+
+// Logs
+console.log('==== Verificação de diretórios de uploads ====');
+console.log('Diretório base:', BASE_DIR);
+console.log('Diretório de uploads:', UPLOADS_DIR);
+console.log('Diretório de miniaturas:', THUMBNAILS_DIR);
+console.log('Diretório de originais:', ORIGINALS_DIR);
 
 /**
- * Verifica se um diretório existe e cria se necessário
- * 
- * @param {string} dir Caminho do diretório
- * @returns {boolean} True se o diretório existia ou foi criado com sucesso
+ * Cria um diretório se não existir
+ * @param dir Caminho do diretório
+ * @returns true se o diretório foi criado, false se já existia
  */
-function checkAndCreateDirectory(dir: string): boolean {
-  const fullPath = path.resolve(__dirname, dir);
-  
+function createDirIfNotExists(dir: string): boolean {
+  if (!fs.existsSync(dir)) {
+    console.log(`Criando diretório: ${dir}`);
+    fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Verifica e corrige permissões de um diretório
+ * @param dir Caminho do diretório
+ */
+function checkAndFixPermissions(dir: string) {
   try {
-    console.log(`Verificando diretório: ${fullPath}`);
+    // Verificar permissões atuais
+    const stats = fs.statSync(dir);
+    const currentMode = stats.mode & 0o777; // Extrai apenas os bits de permissão
     
-    if (fs.existsSync(fullPath)) {
-      console.log(`✅ Diretório existe: ${fullPath}`);
-      
-      // Verificar permissões - deve ser 0755 (leitura/escrita para dono, leitura/execução para outros)
-      const stats = fs.statSync(fullPath);
-      const mode = stats.mode & 0o777; // Pegar apenas bits de permissão
-      
-      console.log(`📊 Permissões atuais: ${mode.toString(8).padStart(3, '0')}`);
-      
-      if (mode !== 0o755) {
-        console.log(`⚠️ Ajustando permissões para 0755: ${fullPath}`);
-        fs.chmodSync(fullPath, 0o755);
-      }
-      
-      return true;
-    } else {
-      console.log(`❌ Diretório não existe, criando: ${fullPath}`);
-      fs.mkdirSync(fullPath, { recursive: true, mode: 0o755 });
-      console.log(`✅ Diretório criado: ${fullPath}`);
-      return true;
+    console.log(`Permissões atuais de ${dir}: ${currentMode.toString(8)}`);
+    
+    // Se as permissões não forem 755, corrigir
+    if (currentMode !== 0o755) {
+      console.log(`Corrigindo permissões de ${dir} para 755`);
+      fs.chmodSync(dir, 0o755);
     }
   } catch (error) {
-    console.error(`❌ Erro ao verificar/criar diretório ${fullPath}:`, error);
-    return false;
+    console.error(`Erro ao verificar/corrigir permissões de ${dir}:`, error);
   }
 }
 
 /**
- * Função principal para verificar todos os diretórios
+ * Lista os arquivos em um diretório com suas permissões
+ * @param dir Caminho do diretório
  */
-export function checkAllDirectories(): boolean {
-  console.log('🔍 Verificando diretórios de uploads...');
-  
-  let success = true;
-  
-  for (const dir of directories) {
-    if (!checkAndCreateDirectory(dir)) {
-      success = false;
+function listFilesWithPermissions(dir: string) {
+  try {
+    if (!fs.existsSync(dir)) {
+      console.log(`Diretório ${dir} não existe.`);
+      return;
     }
+    
+    const files = fs.readdirSync(dir);
+    console.log(`\nArquivos em ${dir} (${files.length}):`);
+    
+    files.forEach(file => {
+      const filePath = path.join(dir, file);
+      const stats = fs.statSync(filePath);
+      const mode = (stats.mode & 0o777).toString(8);
+      const size = stats.size;
+      const isDir = stats.isDirectory();
+      
+      console.log(`${isDir ? 'd' : '-'}${mode} ${size.toString().padStart(8)} ${file}`);
+    });
+  } catch (error) {
+    console.error(`Erro ao listar arquivos de ${dir}:`, error);
   }
-  
-  if (success) {
-    console.log('✅ Todos os diretórios verificados e corrigidos com sucesso');
-  } else {
-    console.error('❌ Houve problemas com alguns diretórios');
-  }
-  
-  return success;
 }
+
+// Criar/verificar diretórios
+const baseCreated = createDirIfNotExists(BASE_DIR);
+const uploadsCreated = createDirIfNotExists(UPLOADS_DIR);
+const thumbnailsCreated = createDirIfNotExists(THUMBNAILS_DIR);
+const originalsCreated = createDirIfNotExists(ORIGINALS_DIR);
+
+// Verificar e corrigir permissões
+console.log('\n==== Verificando permissões ====');
+checkAndFixPermissions(BASE_DIR);
+checkAndFixPermissions(UPLOADS_DIR);
+checkAndFixPermissions(THUMBNAILS_DIR);
+checkAndFixPermissions(ORIGINALS_DIR);
+
+// Listar arquivos nos diretórios
+console.log('\n==== Listando arquivos ====');
+listFilesWithPermissions(UPLOADS_DIR);
+listFilesWithPermissions(THUMBNAILS_DIR);
+listFilesWithPermissions(ORIGINALS_DIR);
+
+console.log('\n==== Verificação concluída ====');
+console.log(`Para executar novamente: npx tsx server/scripts/check-uploads-dir.ts`);
