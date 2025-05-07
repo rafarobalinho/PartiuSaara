@@ -7,6 +7,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuthMiddleware } from "./setup-auth";
 import { initCustomTables } from "./db";
+import { setupCSP } from "./middleware/csp";
 
 // Configuração para obter __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url);
@@ -51,6 +52,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
+
+// Configurar o middleware CSP
+setupCSP(app);
 
 // Configurar parsers antes do middleware de erros
 app.use(express.json());
@@ -112,6 +116,14 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Verificar diretórios de uploads
+  try {
+    const { checkAllDirectories } = require('./scripts/check-uploads-dir');
+    checkAllDirectories();
+  } catch (error) {
+    console.error('❌ Erro ao verificar diretórios de uploads:', error);
+  }
+  
   // Inicializar tabelas personalizadas
   try {
     await initCustomTables();
