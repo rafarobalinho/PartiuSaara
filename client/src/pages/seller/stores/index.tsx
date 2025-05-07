@@ -187,43 +187,45 @@ export default function SellerStores() {
             ))}
           </div>
         </CardContent>
-        <CardFooter className="grid grid-cols-4 gap-2 border-t bg-gray-50 p-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => navigate(`/seller/stores/${store.id}`)}
-            className="col-span-1"
-          >
-            <i className="fas fa-edit mr-2"></i>
-            Editar
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => navigate(`/seller/stores/${store.id}/products`)}
-            className="col-span-1"
-          >
-            <i className="fas fa-box mr-2"></i>
-            Produtos
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => navigate(`/seller/stores/${store.id}/analytics`)}
-            className="col-span-1"
-          >
-            <i className="fas fa-chart-bar mr-2"></i>
-            Análises
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => handleDeleteStore(store.id)}
-            className="col-span-1 text-red-500 hover:text-red-700 hover:bg-red-50"
-          >
-            <i className="fas fa-trash-alt mr-2"></i>
-            Excluir
-          </Button>
+        <CardFooter className="border-t bg-gray-50 p-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate(`/seller/stores/${store.id}`)}
+              className="w-full flex items-center justify-center"
+            >
+              <i className="fas fa-edit mr-1 text-xs md:text-sm md:mr-2"></i>
+              <span className="text-xs md:text-sm">Editar</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate(`/seller/stores/${store.id}/products`)}
+              className="w-full flex items-center justify-center"
+            >
+              <i className="fas fa-box mr-1 text-xs md:text-sm md:mr-2"></i>
+              <span className="text-xs md:text-sm">Produtos</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate(`/seller/stores/${store.id}/analytics`)}
+              className="w-full flex items-center justify-center"
+            >
+              <i className="fas fa-chart-bar mr-1 text-xs md:text-sm md:mr-2"></i>
+              <span className="text-xs md:text-sm">Análises</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => handleDeleteStore(store.id)}
+              className="w-full flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-50"
+            >
+              <i className="fas fa-trash-alt mr-1 text-xs md:text-sm md:mr-2"></i>
+              <span className="text-xs md:text-sm">Excluir</span>
+            </Button>
+          </div>
         </CardFooter>
       </Card>
     ));
