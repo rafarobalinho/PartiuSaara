@@ -1,6 +1,8 @@
 import type { Express, Request, Response } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
+import path from "path";
+import fs from "fs";
 import { storage } from "./storage";
 import { authMiddleware, adminMiddleware } from "./middleware/auth";
 import * as AuthController from "./controllers/auth.controller";
@@ -630,6 +632,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/stores/:storeId/place-details', authMiddleware, adminMiddleware, PlaceDetailsController.getStoreGooglePlaceDetails);
   app.post('/api/admin/stores/:storeId/refresh-place-details', authMiddleware, adminMiddleware, PlaceDetailsController.refreshStoreGooglePlaceDetails);
   app.post('/api/admin/update-all-store-details', authMiddleware, adminMiddleware, PlaceDetailsController.updateAllStoresPlaceDetails);
+  
+  // Rota de diagnóstico para verificar arquivos do diretório de uploads
+  app.get('/api/admin/check-uploads', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+    try {
+      const uploadsDir = path.join(__dirname, '../public/uploads');
+      const thumbnailsDir = path.join(__dirname, '../public/uploads/thumbnails');
+      
+      // Verificar se os diretórios existem
+      if (!fs.existsSync(uploadsDir)) {
+        return res.status(500).json({
+          success: false,
+          error: 'Diretório de uploads não encontrado',
+          path: uploadsDir
+        });
+      }
+      
+      // Ler arquivos do diretório principal
+      const files = fs.readdirSync(uploadsDir).filter(file => 
+        !fs.statSync(path.join(uploadsDir, file)).isDirectory()
+      );
+      
+      // Ler arquivos do diretório de thumbnails (se existir)
+      let thumbnails: string[] = [];
+      if (fs.existsSync(thumbnailsDir)) {
+        thumbnails = fs.readdirSync(thumbnailsDir);
+      }
+      
+      // Coletar estatísticas dos arquivos
+      const fileStats = files.map(file => {
+        const filePath = path.join(uploadsDir, file);
+        const stats = fs.statSync(filePath);
+        return {
+          name: file,
+          path: `/uploads/${file}`,
+          size: stats.size,
+          created: stats.birthtime,
+          formattedSize: `${Math.round(stats.size / 1024)} KB`
+        };
+      });
+      
+      // Verificar arquivos no banco de dados
+      const storeImagesResult = await db.query.storeImages.findMany();
+      const productImagesResult = await db.query.productImages.findMany();
+      
+      // Identificar arquivos que existem fisicamente mas não estão no banco
+      const dbImageNames = new Set([
+        ...storeImagesResult.map(img => path.basename(img.imageUrl || '')),
+        ...productImagesResult.map(img => path.basename(img.imageUrl || ''))
+      ].filter(Boolean));
+      
+      const orphanedFiles = files.filter(file => !dbImageNames.has(file));
+      
+      // Identificar registros no banco que não têm arquivos físicos
+      const missingFiles = [
+        ...storeImagesResult.filter(img => {
+          const filename = path.basename(img.imageUrl || '');
+          return filename && !files.includes(filename);
+        }),
+        ...productImagesResult.filter(img => {
+          const filename = path.basename(img.imageUrl || '');
+          return filename && !files.includes(filename);
+        })
+      ];
+      
+      return res.json({
+        success: true,
+        directories: {
+          uploads: {
+            path: uploadsDir,
+            exists: true,
+            fileCount: files.length
+          },
+          thumbnails: {
+            path: thumbnailsDir,
+            exists: fs.existsSync(thumbnailsDir),
+            fileCount: thumbnails.length
+          }
+        },
+        database: {
+          storeImages: storeImagesResult.length,
+          productImages: productImagesResult.length
+        },
+        summary: {
+          totalPhysicalFiles: files.length,
+          totalDatabaseReferences: dbImageNames.size,
+          orphanedFiles: orphanedFiles.length,
+          missingFiles: missingFiles.length
+        },
+        files: fileStats,
+        orphanedFiles: orphanedFiles.map(file => `/uploads/${file}`),
+        missingFiles: missingFiles.map(record => ({
+          id: record.id,
+          type: 'storeImage' in record ? 'store' : 'product',
+          entityId: 'storeImage' in record ? record.storeId : record.productId,
+          url: record.imageUrl
+        }))
+      });
+    } catch (error) {
+      console.error('Erro ao verificar diretório de uploads:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Erro ao ler diretório de uploads',
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

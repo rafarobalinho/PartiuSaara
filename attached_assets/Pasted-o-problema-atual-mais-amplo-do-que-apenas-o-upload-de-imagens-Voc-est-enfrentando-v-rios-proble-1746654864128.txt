@@ -1,0 +1,187 @@
+o problema atual é mais amplo do que apenas o upload de imagens. Você está enfrentando vários problemas de Content Security Policy (CSP) que estão afetando:
+
+Carregamento de imagens (tanto as existentes quanto uploads)
+Carregamento de scripts de terceiros (Google Maps, Cloudflare)
+Carregamento de fontes e estilos
+
+O Problema Principal: Content Security Policy (CSP)
+Os erros mostram claramente que o Replit está aplicando uma política de segurança muito restritiva que está bloqueando recursos externos importantes:
+Refused to load the image 'https://images.unsplash.com/...' because it violates the following Content Security Policy directive: "img-src 'self' data: https://maps.googleapis.com https://placehold.co"
+O servidor só está permitindo imagens de:
+
+'self' (mesmo domínio)
+data: URLs
+maps.googleapis.com
+placehold.co
+
+Solução Completa
+Precisamos implementar uma solução abrangente que resolva todos esses problemas de CSP:
+1. Configurar Corretamente o CSP no Servidor
+Crie um arquivo csp.js no diretório de middleware:
+javascript// middleware/csp.js
+module.exports = function setupCSP(app) {
+  app.use((req, res, next) => {
+    // Política de segurança abrangente que permite recursos necessários
+    res.setHeader(
+      'Content-Security-Policy',
+      [
+        // Origens padrão - mesmo domínio e dados inline
+        "default-src 'self'",
+        
+        // Scripts - inclui Google Maps e avaliação inline para algumas bibliotecas
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://apis.google.com https://cdnjs.cloudflare.com https://*.replit.com",
+        
+        // Estilos - permite inline e fontes
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
+        
+        // Fontes - Google Fonts e outros
+        "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
+        
+        // Imagens - permite várias fontes, incluindo dados inline
+        "img-src 'self' data: https://*.googleapis.com https://placehold.co https://images.unsplash.com https://*.replit.app blob: https://maps.gstatic.com",
+        
+        // Conectividade - APIs e serviços
+        "connect-src 'self' https://*.googleapis.com https://maps.googleapis.com wss://*.replit.com https://*.replit.app",
+        
+        // Frames - para widgets incorporados
+        "frame-src 'self' https://*.google.com",
+        
+        // Manifesto - para PWA
+        "manifest-src 'self'"
+      ].join('; ')
+    );
+    
+    next();
+  });
+};
+2. Implementar no Arquivo Principal da Aplicação
+No arquivo principal do seu servidor (index.js, app.js ou server.js):
+javascriptconst express = require('express');
+const app = express();
+const setupCSP = require('./middleware/csp');
+
+// Configurar CSP antes de qualquer outro middleware
+setupCSP(app);
+
+// Resto das configurações e rotas da aplicação
+// ...
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log('Servidor iniciado na porta', process.env.PORT || 3000);
+});
+3. Configurar o Replit para Servir Arquivos Estáticos Corretamente
+Verifique se o seu arquivo .replit tem a configuração correta para servir arquivos estáticos:
+run = "npm start"
+entrypoint = "index.js"
+hidden = [".config", "package-lock.json"]
+
+[nix]
+channel = "stable-22_11"
+
+[env]
+PATH = "/home/runner/$REPL_SLUG/node_modules/.bin"
+UPLOAD_DIRECTORY = "/home/runner/$REPL_SLUG/public/uploads"
+
+[static]
+directory = "public"
+
+[http_service]
+internal_port = 3000
+external_port = 80
+4. Implementar Fallbacks Robustos para Imagens
+Modifique o componente que exibe imagens com um fallback mais robusto:
+jsxconst ImageWithFallback = ({ src, alt, className }) => {
+  const [imgSrc, setImgSrc] = useState(src);
+  const [errorCount, setErrorCount] = useState(0);
+  
+  useEffect(() => {
+    setImgSrc(src);
+    setErrorCount(0);
+  }, [src]);
+  
+  const handleError = () => {
+    // Limitar tentativas de fallback
+    if (errorCount >= 2) {
+      setImgSrc('https://placehold.co/300x300/F2600C/FFFFFF?text=IMAGEM_INDISPONÍVEL');
+      return;
+    }
+    
+    // Tentar diferentes variações do caminho
+    if (errorCount === 0 && imgSrc.startsWith('/uploads/')) {
+      // Tentar sem a barra inicial
+      setImgSrc(imgSrc.substring(1));
+    } else if (errorCount === 1 && imgSrc.startsWith('uploads/')) {
+      // Tentar o caminho completo
+      setImgSrc(`${window.location.origin}/${imgSrc}`);
+    }
+    
+    setErrorCount(prev => prev + 1);
+  };
+  
+  return (
+    <img 
+      src={imgSrc} 
+      alt={alt || 'Imagem'} 
+      className={className || 'w-full h-full object-cover'}
+      onError={handleError}
+    />
+  );
+};
+5. Script para Limpar o Cache do Replit
+Às vezes, problemas com o Replit podem ser resolvidos limpando o cache. Crie este script e execute-o:
+bash#!/bin/bash
+# clean-replit.sh
+
+echo "Limpando cache do Replit..."
+rm -rf .replit.cache
+rm -rf .config/replit/cache
+rm -rf node_modules/.cache
+
+echo "Reiniciando o servidor..."
+pkill node
+npm start
+Execute com:
+chmod +x clean-replit.sh
+./clean-replit.sh
+Verificação dos Arquivos
+Para garantir que os arquivos estejam disponíveis no servidor, adicione este endpoint para listar arquivos no diretório uploads:
+javascript// Rota de diagnóstico para verificar arquivos
+app.get('/api/admin/check-uploads', (req, res) => {
+  const uploadsDir = path.join(__dirname, 'public', 'uploads');
+  
+  fs.readdir(uploadsDir, (err, files) => {
+    if (err) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao ler diretório de uploads',
+        message: err.message
+      });
+    }
+    
+    const fileStats = files.map(file => {
+      const filePath = path.join(uploadsDir, file);
+      const stats = fs.statSync(filePath);
+      return {
+        name: file,
+        path: `/uploads/${file}`,
+        size: stats.size,
+        created: stats.birthtime
+      };
+    });
+    
+    res.json({
+      success: true,
+      directory: uploadsDir,
+      fileCount: files.length,
+      files: fileStats
+    });
+  });
+});
+Esta solução abrangente:
+
+Resolve os problemas de CSP que estão bloqueando recursos
+Melhora o tratamento de erros de carregamento de imagens
+Fornece ferramentas de diagnóstico para identificar problemas
+Mantém as melhorias anteriores no ImageUpload.tsx
+
+Após implementar essas mudanças, seu app deve funcionar corretamente em produção, sem os erros de CSP e com carregamento adequado de imagens.
