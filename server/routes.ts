@@ -228,6 +228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rotas que requerem autenticação e verificação de propriedade
   app.post('/api/stores', authMiddleware, geocodingMiddleware, processStoreMiddleware, StoreController.createStore);
   app.put('/api/stores/:id', authMiddleware, verifyStoreOwnership, geocodingMiddleware, processStoreMiddleware, StoreController.updateStore);
+  app.patch('/api/stores/:id', authMiddleware, verifyStoreOwnership, geocodingMiddleware, processStoreMiddleware, StoreController.updateStore);
   
   // Rota para excluir uma loja
   app.delete('/api/stores/:id', authMiddleware, verifyStoreOwnership, async (req: Request, res: Response) => {
