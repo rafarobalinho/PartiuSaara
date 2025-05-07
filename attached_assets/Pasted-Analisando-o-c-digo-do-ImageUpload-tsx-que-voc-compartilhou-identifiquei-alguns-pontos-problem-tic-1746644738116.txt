@@ -1,0 +1,313 @@
+Analisando o código do ImageUpload.tsx que você compartilhou, identifiquei alguns pontos problemáticos que podem estar causando essas falhas recorrentes no upload e exibição de imagens:
+Problemas no ImageUpload.tsx
+
+Tratamento inadequado de URLs blob:
+Na função getValidImage(), quando o código detecta um URL blob, ele usa este comentário:
+javascript// Se for uma URL Blob (temporária do navegador)
+if (url.startsWith('blob:')) {
+  console.log('URL do tipo blob detectada, retornando como está:', url);
+  return url;
+}
+O problema aqui é que ele identifica a URL blob, mas a retorna sem processá-la, quando deveria convertê-la em um arquivo e fazer upload.
+Upload incompleto no handleUpload:
+O método está enviando corretamente para o controller, mas não está preparado para lidar com as URLs blob que já estão no estado.
+Falta de sincronização:
+Não há nenhum mecanismo para processar URLs blob que existem no estado (selectedImages) antes de salvar o formulário.
+
+Solução Permanente
+Vamos implementar uma solução permanente que resolva este problema de uma vez por todas:
+javascript// 1. Adicionar esta nova função ao ImageUpload.tsx
+// Esta função centraliza toda a lógica de conversão de blob para arquivo
+async function blobUrlToFile(blobUrl) {
+  try {
+    console.log('Convertendo blob URL para arquivo:', blobUrl);
+    
+    // Baixar o conteúdo do blob
+    const response = await fetch(blobUrl);
+    if (!response.ok) throw new Error('Falha ao buscar conteúdo do blob');
+    
+    const blobData = await response.blob();
+    
+    // Criar um nome de arquivo único
+    const filename = `image_${Date.now()}.jpg`;
+    
+    // Criar um objeto File
+    const file = new File([blobData], filename, { type: 'image/jpeg' });
+    
+    console.log('Blob convertido com sucesso para arquivo:', filename);
+    return file;
+  } catch (error) {
+    console.error('Erro ao converter blob para arquivo:', error);
+    throw error;
+  }
+}
+
+// 2. Modificar a função getValidImage para nunca retornar URLs blob
+const getValidImage = (url: string | undefined): string => {
+  if (!url) return '';
+  
+  try {
+    // Se for uma URL Blob (temporária do navegador)
+    if (url.startsWith('blob:')) {
+      console.log('URL do tipo blob detectada, substituindo por placeholder temporário');
+      // Nunca mais retornamos a URL blob diretamente
+      return 'https://placehold.co/300x300/BBBBBB/666666?text=Processando...';
+    }
+    
+    // Resto do código permanece igual
+    // ...
+  } catch (error) {
+    console.error('Erro ao processar URL da imagem:', error, url);
+    return 'https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO';
+  }
+};
+
+// 3. Criar função para processar uploads de blobs
+async function processAndUploadBlob(blobUrl, entityType, entityId) {
+  try {
+    console.log(`Processando blob para upload: ${blobUrl}`);
+    
+    // Converter blob para arquivo
+    const file = await blobUrlToFile(blobUrl);
+    
+    // Criar FormData
+    const formData = new FormData();
+    formData.append('images', file);
+    
+    // Enviar para a API
+    console.log(`Enviando arquivo para API: type=${entityType}, entityId=${entityId}`);
+    
+    const response = await apiRequest(
+      'POST', 
+      `/api/upload/images?type=${entityType}&entityId=${entityId}`, 
+      formData
+    );
+    
+    const result = await response.json();
+    
+    if (result.success && result.images && result.images.length > 0) {
+      const newImageUrl = result.images[0].imageUrl;
+      console.log(`Blob processado com sucesso. Nova URL:`, newImageUrl);
+      return newImageUrl;
+    } else {
+      throw new Error(result.message || 'Erro no upload da imagem');
+    }
+  } catch (error) {
+    console.error('Erro ao processar e fazer upload de blob:', error);
+    throw error;
+  }
+}
+
+// 4. Adicionar esta função auxiliar
+// Isso expõe o método de processamento para o componente pai
+function processBlobsIfNeeded(images) {
+  return async () => {
+    if (!images || images.length === 0) return images;
+    
+    // Extrair informações do nome do campo
+    const entityInfo = name.split('-');
+    const entityType = entityInfo[0]; // "store" ou "product"
+    const entityId = entityInfo[entityInfo.length - 1];
+    
+    // Verificar se entityId é válido
+    if (!entityId || isNaN(Number(entityId))) {
+      console.error(`ID inválido: ${entityId}`);
+      return images;
+    }
+    
+    let hasChanged = false;
+    const processed = [...images]; // Clone para não modificar o original
+    
+    // Processar cada imagem
+    for (let i = 0; i < processed.length; i++) {
+      if (processed[i].startsWith('blob:')) {
+        try {
+          const newUrl = await processAndUploadBlob(processed[i], entityType, entityId);
+          processed[i] = newUrl;
+          hasChanged = true;
+        } catch (error) {
+          console.error(`Falha ao processar blob no índice ${i}:`, error);
+        }
+      }
+    }
+    
+    // Atualizar estado apenas se algo mudou
+    if (hasChanged) {
+      setSelectedImages(processed);
+      onChange(processed);
+    }
+    
+    return processed;
+  };
+}
+
+// 5. Modificar a renderização para adicionar um método no componente
+// Adicionar isso ao final do componente
+useImperativeHandle(ref, () => ({
+  // Expõe função para o componente pai processar blobs antes de salvar
+  processBlobs: async () => {
+    return await processBlobsIfNeeded(selectedImages)();
+  },
+  
+  // Verifica se há blobs que precisam ser processados
+  hasBlobs: () => {
+    return selectedImages.some(url => url?.startsWith('blob:'));
+  }
+}));
+
+// 6. Modificar o componente para exportar com forwardRef
+// Mudar a exportação para:
+export const ImageUpload = React.forwardRef(ImageUploadComponent);
+Modificação no Componente de Formulário
+Agora precisamos modificar os componentes de formulário que usam ImageUpload para garantir que todos os blobs sejam processados antes de salvar:
+javascript// No componente de formulário (StoreForm.tsx ou similar)
+function StoreForm({ initialData, onSubmit }) {
+  // Refs para os componentes de upload
+  const logoRef = useRef(null);
+  const imagesRef = useRef(null);
+  
+  const handleSubmit = async (formData) => {
+    try {
+      // Verificar e processar blobs antes de enviar
+      let hasBlobs = false;
+      
+      // Processar logo se existir
+      if (logoRef.current?.hasBlobs()) {
+        hasBlobs = true;
+        await logoRef.current.processBlobs();
+      }
+      
+      // Processar imagens se existirem
+      if (imagesRef.current?.hasBlobs()) {
+        hasBlobs = true;
+        await imagesRef.current.processBlobs();
+      }
+      
+      // Se processamos blobs, esperamos um momento para garantir que o estado está atualizado
+      if (hasBlobs) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      // Prosseguir com o submit normal
+      onSubmit(formData);
+    } catch (error) {
+      console.error('Erro ao processar imagens:', error);
+      // Mostrar erro ao usuário
+    }
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Outros campos do formulário */}
+      
+      <ImageUpload
+        ref={logoRef}
+        name={`store-logo-${initialData?.id || 'new'}`}
+        value={initialData?.logo ? [initialData.logo] : []}
+        onChange={(urls) => setFormData({...formData, logo: urls[0]})}
+      />
+      
+      <ImageUpload
+        ref={imagesRef}
+        name={`store-images-${initialData?.id || 'new'}`}
+        multiple
+        value={initialData?.images || []}
+        onChange={(urls) => setFormData({...formData, images: urls})}
+      />
+      
+      {/* Botão de submit e outros campos */}
+    </form>
+  );
+}
+Solução Permanente e Global
+Para garantir que isso seja uma solução global e permanente para todos os uploads de imagem no seu aplicativo:
+
+Criar um serviço centralizado de manipulação de imagens:
+
+javascript// Em src/services/imageService.js
+// Este serviço centraliza toda a lógica de processamento de imagens
+
+export const imageService = {
+  // Conversão de blob para arquivo
+  blobToFile: async (blobUrl) => {
+    // Implementação conforme a função blobUrlToFile acima
+  },
+  
+  // Upload de arquivo para o servidor
+  uploadFile: async (file, type, entityId) => {
+    // Lógica de upload para o servidor
+  },
+  
+  // Processamento completo: blob -> file -> upload -> url
+  processBlob: async (blobUrl, type, entityId) => {
+    // Lógica completa de processamento
+  },
+  
+  // Verificação e validação de URLs
+  getValidImageUrl: (url) => {
+    // Lógica de validação de URLs
+  }
+};
+
+Criar um hook personalizado para upload de imagens:
+
+javascript// Em src/hooks/useImageUpload.js
+import { useState, useRef } from 'react';
+import { imageService } from '../services/imageService';
+
+export function useImageUpload(options) {
+  const [images, setImages] = useState(options.initialValues || []);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  // Lógica para processar uploads
+  const uploadImages = async (files) => {
+    // Implementação de upload
+  };
+  
+  // Função para processar blobs existentes
+  const processExistingBlobs = async () => {
+    // Implementação do processamento
+  };
+  
+  // Outras funções úteis
+  
+  return {
+    images,
+    setImages,
+    isUploading,
+    error,
+    uploadImages,
+    processExistingBlobs,
+    // Outros métodos úteis
+  };
+}
+
+Implementar um middleware no frontend:
+
+javascript// Em src/middleware/imageMiddleware.js
+import { imageService } from '../services/imageService';
+
+// Middleware para processar dados antes de enviar para a API
+export const processImagesMiddleware = async (data) => {
+  // Clone profundo dos dados
+  const processedData = JSON.parse(JSON.stringify(data));
+  
+  // Função recursiva para processar objetos aninhados
+  const processNestedObjects = async (obj, path = '') => {
+    // Implementação da lógica de processamento recursivo
+  };
+  
+  // Iniciar processamento
+  await processNestedObjects(processedData);
+  
+  return processedData;
+};
+Esta abordagem garante que:
+
+Toda a lógica de manipulação de imagens está centralizada
+Todos os componentes usam a mesma lógica
+Há verificações em múltiplos níveis para prevenir URLs blob
+O processamento ocorre automaticamente antes do submit de qualquer formulário
+
+Implementando esta solução global, você terá um sistema robusto que não voltará a ter problemas com URLs blob, independentemente de onde elas apareçam no seu aplicativo.

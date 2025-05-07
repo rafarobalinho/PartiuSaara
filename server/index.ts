@@ -18,8 +18,8 @@ console.log(`[Server] Inicializando no ambiente: ${isProduction ? 'Produção' :
 
 // Configurar CORS
 const allowedOrigins = isProduction 
-  ? [process.env.FRONTEND_URL || '*.replit.app'] // URLs de produção (pode ser configurada via env)
-  : ['http://localhost:5000', 'http://localhost:3000']; // URLs de desenvolvimento
+  ? [process.env.FRONTEND_URL || '*.replit.app', '*.replit.dev', '*.replit.co'] // URLs de produção (pode ser configurada via env)
+  : ['http://localhost:5000', 'http://localhost:3000', 'https://*.replit.dev', 'https://*.replit.co']; // URLs de desenvolvimento
 
 console.log(`[Server] CORS configurado para origens: ${allowedOrigins.join(', ')}`);
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocation, Link } from 'wouter';
@@ -50,6 +50,9 @@ export default function AddStore() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
+  
+  // Referência para o componente de upload de imagens
+  const imageUploadRef = useRef<any>(null);
   
   // Estado temporário para armazenar o ID da loja criada (para upload posterior)
   const [tempStoreId, setTempStoreId] = useState<number | null>(null);
@@ -154,8 +157,32 @@ export default function AddStore() {
   };
   
   // Submit handler
-  function onSubmit(data: StoreFormValues) {
-    createStoreMutation.mutate(data);
+  async function onSubmit(data: StoreFormValues) {
+    try {
+      // Verificar se há blobs para processar
+      if (imageUploadRef.current?.hasBlobs && imageUploadRef.current.hasBlobs()) {
+        console.log('Processando blobs antes de enviar o formulário...');
+        // Processar blobs antes de enviar o formulário
+        await imageUploadRef.current.processBlobs();
+        
+        // Pequena pausa para garantir que o estado foi atualizado
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Obter os valores atualizados após o processamento
+        const updatedImages = form.getValues('images');
+        data = { ...data, images: updatedImages };
+      }
+      
+      // Continuar com a submissão normal
+      createStoreMutation.mutate(data);
+    } catch (error) {
+      console.error('Erro ao processar imagens:', error);
+      toast({
+        title: 'Erro no processamento de imagens',
+        description: 'Ocorreu um erro ao processar as imagens. Tente novamente.',
+        variant: "destructive",
+      });
+    }
   }
 
   useEffect(() => {
@@ -333,6 +360,7 @@ export default function AddStore() {
                           <FormLabel>Imagem da Loja*</FormLabel>
                           <FormControl>
                             <ImageUpload
+                              ref={imageUploadRef}
                               name="store-upload-new"
                               multiple={false}
                               maxImages={1}

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,55 +16,150 @@ interface ImageUploadProps {
   className?: string;
 }
 
-export function ImageUpload({
+// Componente com ref para acessar métodos internos
+const ImageUploadComponent = forwardRef(({
   name,
   multiple = false,
   maxImages = 5,
   onChange,
   value = [],
   className = '',
-}: ImageUploadProps) {
+}: ImageUploadProps, ref) => {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedImages, setSelectedImages] = useState<string[]>(value);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Converter URL blob para File
+  async function blobUrlToFile(blobUrl: string): Promise<File> {
+    try {
+      console.log('Convertendo blob URL para arquivo:', blobUrl);
+      
+      // Baixar o conteúdo do blob
+      const response = await fetch(blobUrl);
+      if (!response.ok) throw new Error('Falha ao buscar conteúdo do blob');
+      
+      const blobData = await response.blob();
+      
+      // Criar um nome de arquivo único
+      const filename = `image_${Date.now()}.jpg`;
+      
+      // Criar um objeto File
+      const file = new File([blobData], filename, { type: 'image/jpeg' });
+      
+      console.log('Blob convertido com sucesso para arquivo:', filename);
+      return file;
+    } catch (error) {
+      console.error('Erro ao converter blob para arquivo:', error);
+      throw error;
+    }
+  }
+  
+  // Processar e fazer upload de um blob
+  async function processAndUploadBlob(blobUrl: string, entityType: string, entityId: string): Promise<string> {
+    try {
+      console.log(`Processando blob para upload: ${blobUrl}`);
+      
+      // Converter blob para arquivo
+      const file = await blobUrlToFile(blobUrl);
+      
+      // Criar FormData
+      const formData = new FormData();
+      formData.append('images', file);
+      
+      // Enviar para a API
+      console.log(`Enviando arquivo para API: type=${entityType}, entityId=${entityId}`);
+      
+      const response = await apiRequest(
+        'POST', 
+        `/api/upload/images?type=${entityType}&entityId=${entityId}`, 
+        formData
+      );
+      
+      const result = await response.json();
+      
+      if (result.success && result.images && result.images.length > 0) {
+        const newImageUrl = result.images[0].imageUrl;
+        console.log(`Blob processado com sucesso. Nova URL:`, newImageUrl);
+        return newImageUrl;
+      } else {
+        throw new Error(result.message || 'Erro no upload da imagem');
+      }
+    } catch (error) {
+      console.error('Erro ao processar e fazer upload de blob:', error);
+      throw error;
+    }
+  }
+  
+  // Função para verificar se a matriz de imagens contém blobs que precisam ser processados
+  const processBlobsIfNeeded = async (): Promise<string[]> => {
+    if (!selectedImages || selectedImages.length === 0) return selectedImages;
+    
+    // Extrair informações do nome do campo
+    const entityInfo = name.split('-');
+    const entityType = entityInfo[0]; // "store" ou "product"
+    const entityId = entityInfo[entityInfo.length - 1];
+    
+    // Verificar se entityId é válido
+    if (!entityId || isNaN(Number(entityId))) {
+      console.error(`ID inválido: ${entityId}`);
+      return selectedImages;
+    }
+    
+    let hasChanged = false;
+    const processed = [...selectedImages]; // Clone para não modificar o original
+    
+    // Processar cada imagem
+    for (let i = 0; i < processed.length; i++) {
+      if (processed[i].startsWith('blob:')) {
+        try {
+          const newUrl = await processAndUploadBlob(processed[i], entityType, entityId);
+          processed[i] = newUrl;
+          hasChanged = true;
+        } catch (error) {
+          console.error(`Falha ao processar blob no índice ${i}:`, error);
+        }
+      }
+    }
+    
+    // Atualizar estado apenas se algo mudou
+    if (hasChanged) {
+      setSelectedImages(processed);
+      onChange(processed);
+    }
+    
+    return processed;
+  };
+  
   // Validar e normalizar URLs de imagem
   const getValidImage = (url: string | undefined): string => {
     if (!url) return '';
     
-    // Logging para debug
-    console.log('URL da imagem a ser validada:', url);
-    
     try {
       // Se for uma URL Blob (temporária do navegador)
       if (url.startsWith('blob:')) {
-        console.log('URL do tipo blob detectada, retornando como está:', url);
-        return url;
+        console.log('URL do tipo blob detectada, substituindo por placeholder temporário');
+        // Nunca mais retornamos a URL blob diretamente
+        return 'https://placehold.co/300x300/BBBBBB/666666?text=Processando...';
       }
       
       // Se começar com http, é uma URL completa
       if (url.startsWith('http')) {
-        console.log('URL externa válida:', url);
         return url;
       }
       
       // Se já for uma URL completa relativa ao servidor
       if (url.startsWith('/uploads/')) {
-        console.log('URL relativa já formatada corretamente:', url);
         return url;
       }
       
       // Se começar com barra mas não for o formato esperado
       if (url.startsWith('/') && !url.startsWith('/uploads/')) {
-        console.log('URL relativa em formato desconhecido:', url);
         // Tentar extrair qualquer ID de arquivo no final do path
         const segments = url.split('/');
         const lastSegment = segments[segments.length - 1];
         if (lastSegment && (lastSegment.includes('.jpg') || lastSegment.includes('.png'))) {
-          const correctedUrl = `/uploads/${lastSegment}`;
-          console.log('URL corrigida para:', correctedUrl);
-          return correctedUrl;
+          return `/uploads/${lastSegment}`;
         }
         // Se não foi possível corrigir, retornar como está
         return url;
@@ -72,13 +167,10 @@ export function ImageUpload({
       
       // Se for apenas um nome de arquivo, adicionar o prefixo /uploads/
       const fileName = url.replace(/^uploads\//, ''); // Remove uploads/ duplicado se existir
-      const prefixedUrl = `/uploads/${fileName}`;
-      console.log('URL normalizada:', prefixedUrl);
-      return prefixedUrl;
+      return `/uploads/${fileName}`;
     } catch (error) {
       console.error('Erro ao processar URL da imagem:', error, url);
-      // Em caso de erro, retorna URL original ou placeholder
-      return url || 'https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO';
+      return 'https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO';
     }
   };
 
@@ -160,8 +252,8 @@ export function ImageUpload({
         
         // Se não for múltiplo, substitui a imagem atual em vez de adicionar
         const updatedImages = multiple 
-          ? [...selectedImages, ...newImages.map(img => img.url)]
-          : newImages.map(img => img.url); // Para logo, substitui completamente
+          ? [...selectedImages, ...newImages.map((img: any) => img.url)]
+          : newImages.map((img: any) => img.url); // Para logo, substitui completamente
         
         setSelectedImages(updatedImages);
         onChange(updatedImages);
@@ -259,6 +351,19 @@ export function ImageUpload({
     }
   };
 
+  // Expor funções para o componente pai
+  useImperativeHandle(ref, () => ({
+    // Expõe função para o componente pai processar blobs antes de salvar
+    processBlobs: async () => {
+      return await processBlobsIfNeeded();
+    },
+    
+    // Verifica se há blobs que precisam ser processados
+    hasBlobs: () => {
+      return selectedImages.some(url => url?.startsWith('blob:'));
+    }
+  }));
+
   return (
     <div className={`space-y-4 ${className}`}>
       <div className="space-y-2">
@@ -352,4 +457,7 @@ export function ImageUpload({
       )}
     </div>
   );
-}
+});
+
+// Exportar o componente com forwardRef
+export const ImageUpload = forwardRef(ImageUploadComponent);
