@@ -51,15 +51,41 @@ export default function Header() {
           
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
-              <div className="hidden lg:flex items-center space-x-2">
-                <span className="text-sm">{user?.firstName}</span>
-                <Button 
-                  variant="ghost" 
-                  onClick={logout} 
-                  className="text-sm hover:text-primary"
-                >
-                  Sair
-                </Button>
+              <div className="hidden lg:flex items-center space-x-3">
+                {/* Menu de Minha Conta com Dropdown */}
+                <div className="relative group">
+                  <button className="flex items-center text-sm space-x-1 py-3">
+                    <span className="flex items-center">
+                      <i className="fas fa-user-circle mr-2 text-primary"></i>
+                      <span>{user?.firstName}</span>
+                    </span>
+                    <i className="fas fa-chevron-down text-xs ml-1"></i>
+                  </button>
+                  
+                  {/* Dropdown para Minha Conta */}
+                  <div className="absolute right-0 top-full w-56 bg-white shadow-lg rounded-md py-2 z-50 hidden group-hover:block border border-gray-200">
+                    <Link href="/account" className="flex items-center p-2 text-sm hover:bg-gray-100">
+                      <i className="fas fa-user-circle w-8 text-primary"></i>
+                      <span>Minha Conta</span>
+                    </Link>
+                    <Link href="/account/wishlist" className="flex items-center p-2 text-sm hover:bg-gray-100">
+                      <i className="fas fa-heart w-8 text-primary"></i>
+                      <span>Lista de Desejos</span>
+                    </Link>
+                    <Link href="/account/reservations" className="flex items-center p-2 text-sm hover:bg-gray-100">
+                      <i className="fas fa-bookmark w-8 text-primary"></i>
+                      <span>Minhas Reservas</span>
+                    </Link>
+                    <div className="border-t border-gray-200 my-1"></div>
+                    <button 
+                      onClick={logout}
+                      className="flex items-center w-full p-2 hover:bg-red-50 rounded text-red-500 text-sm"
+                    >
+                      <i className="fas fa-sign-out-alt w-8"></i>
+                      <span>Sair</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <Link href="/login" className="hidden lg:block text-sm hover:text-primary">
@@ -67,6 +93,7 @@ export default function Header() {
               </Link>
             )}
             
+            {/* Links rápidos para favoritos e reservas com ícones */}
             <Link href="/account/wishlist" className="relative">
               <i className="fas fa-heart text-xl"></i>
               {wishlistCount > 0 && (
@@ -302,29 +329,7 @@ export default function Header() {
                 </span>
               </Link>
               
-              {/* Menu de usuário */}
-              {isAuthenticated && (
-                <>
-                  <Link href="/account" className={`text-sm font-medium ${location === '/account' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
-                    <span className="flex items-center">
-                      <i className="fas fa-user-circle mr-2"></i>
-                      Minha Conta
-                    </span>
-                  </Link>
-                  <Link href="/account/wishlist" className={`text-sm font-medium ${location === '/account/wishlist' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
-                    <span className="flex items-center">
-                      <i className="fas fa-heart mr-2"></i>
-                      Lista de Desejos
-                    </span>
-                  </Link>
-                  <Link href="/account/reservations" className={`text-sm font-medium ${location === '/account/reservations' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
-                    <span className="flex items-center">
-                      <i className="fas fa-bookmark mr-2"></i>
-                      Minhas Reservas
-                    </span>
-                  </Link>
-                </>
-              )}
+              {/* Removido os links redundantes de usuário do menu principal, pois agora estão no dropdown do header */}
             </div>
             
             {/* Menu de lojista */}
