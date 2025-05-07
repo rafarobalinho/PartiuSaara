@@ -1,0 +1,150 @@
+estamos enfrentando dois problemas distintos após o deploy:
+
+O problema original de upload/exibição de imagens
+Um novo problema onde o menu de usuário não carrega, com erros específicos no console
+
+O erro no console indica um problema com JSON inválido e propriedades indefinidas, sugerindo que há dados corrompidos ou um problema de formato no estado do usuário.
+Solução Focada no ImageUpload.tsx
+Para resolver o problema de upload e exibição de imagens de forma definitiva, precisamos fazer uma modificação direcionada no componente ImageUpload.tsx que previna completamente a persistência de URLs blob:
+javascript// Modificações no ImageUpload.tsx
+
+// 1. Modificar a função getValidImage para nunca retornar URLs blob
+const getValidImage = (url: string | undefined): string => {
+  if (!url) return '';
+  
+  try {
+    // Se for uma URL Blob (temporária do navegador)
+    if (url.startsWith('blob:')) {
+      console.log('URL do tipo blob detectada, substituindo por placeholder');
+      // Retornar um placeholder em vez da URL blob
+      return 'https://placehold.co/300x300/CCCCCC/666666?text=Processando...';
+    }
+    
+    // Resto do código permanece igual
+    
+  } catch (error) {
+    console.error('Erro ao processar URL da imagem:', error, url);
+    return 'https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO';
+  }
+};
+
+// 2. Adicionar verificação de URLs blob antes do upload
+const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Código existente para validação de arquivos
+  
+  // ADICIONAR ESTA VERIFICAÇÃO ANTES DE ENVIAR:
+  // Verificar se há URLs blob nas imagens atuais
+  const blobUrls = selectedImages.filter(url => url && url.startsWith('blob:'));
+  if (blobUrls.length > 0) {
+    console.warn('URLs blob detectadas no estado. Estas serão ignoradas:', blobUrls);
+    // Remover URLs blob do estado
+    setSelectedImages(selectedImages.filter(url => !url || !url.startsWith('blob:')));
+  }
+  
+  // Continuar com o upload normal dos arquivos
+  // ...resto do código existente
+};
+Correção do Menu de Usuário
+O problema do menu de usuário parece ser relacionado a dados JSON inválidos. A mensagem de erro "Unexpected token '<', '<!DOCTYPE..." sugere que o backend está retornando HTML em vez de JSON, possivelmente uma página de erro ou redirect.
+Isso pode ser causado por:
+
+Problemas de autenticação após o login
+Problema no endpoint que fornece os dados do usuário
+Problemas no formato de cookies no ambiente de produção
+
+Para resolver este problema:
+javascript// Adicionar este middleware no lado cliente para tratar erros de resposta JSON
+// Adicionar ao arquivo apiRequest.js ou similar
+
+export const apiRequest = async (method, url, data = null, options = {}) => {
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    };
+
+    const requestOptions = {
+      method,
+      headers,
+      credentials: 'include', // Importante para cookies de autenticação
+      ...options
+    };
+
+    if (data && method !== 'GET') {
+      if (data instanceof FormData) {
+        // Remove o content-type para que o navegador defina corretamente com boundary
+        delete requestOptions.headers['Content-Type'];
+        requestOptions.body = data;
+      } else {
+        requestOptions.body = JSON.stringify(data);
+      }
+    }
+
+    const response = await fetch(url, requestOptions);
+    
+    // Verificar resposta e tipo de conteúdo
+    const contentType = response.headers.get('content-type');
+    
+    if (!response.ok) {
+      // Se for erro 401 ou 403, provavelmente é problema de autenticação
+      if (response.status === 401 || response.status === 403) {
+        console.error('Erro de autenticação:', response.status);
+        // Redirecionar para login ou atualizar token se necessário
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        throw new Error('Sessão expirada ou inválida');
+      }
+      
+      // Tentar obter erro como JSON
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro no servidor');
+      } else {
+        // Se não for JSON, obter texto do erro
+        const errorText = await response.text();
+        throw new Error(`Erro ${response.status}: ${errorText.substring(0, 100)}...`);
+      }
+    }
+    
+    // Para respostas bem-sucedidas, verificar se é JSON
+    if (contentType && contentType.includes('application/json')) {
+      return response;
+    } else {
+      console.warn('Resposta não JSON recebida:', contentType);
+      return response;
+    }
+  } catch (error) {
+    console.error('Erro na requisição API:', error);
+    throw error;
+  }
+};
+Prompt para o Agente do Replit (Solução Completa)
+CORREÇÃO URGENTE: Problemas Críticos após Deploy da Aplicação
+
+Estamos enfrentando dois problemas críticos após o deploy da aplicação Partiu Saara:
+
+1. PROBLEMA DE IMAGENS:
+As imagens de lojas mostram "ERRO" em vez da imagem real. Isto acontece porque URLs blob temporárias estão sendo salvas no banco de dados em vez de serem processadas pelo upload.controller.js.
+
+2. PROBLEMA DE MENU DE USUÁRIO:
+Após login, quando o usuário clica no menu de perfil, recebemos erros no console:
+- SyntaxError: Unexpected token '<', '<!DOCTYPE...' is not valid JSON
+- TypeError: Cannot read properties of undefined (reading 'name')
+
+CORREÇÕES NECESSÁRIAS:
+
+Para o problema de imagens:
+1. Modifique o arquivo ImageUpload.tsx:
+   - Altere a função `getValidImage` para nunca retornar URLs blob diretamente
+   - Substitua URLs blob por um placeholder temporário
+   - Adicione verificação no handleUpload para ignorar URLs blob existentes
+
+2. Para o problema do menu de usuário:
+   - Modifique o arquivo apiRequest.js para melhor tratamento de erros
+   - Adicione verificação de tipo de conteúdo (application/json)
+   - Implemente tratamento específico para erros 401/403
+   - Adicione logs detalhados para identificar a fonte do erro
+
+Este é um problema crítico que afeta a usabilidade da aplicação. Por favor, priorize esta correção.
+Esta solução foca nos problemas específicos sem alterar toda a infraestrutura. Para o problema de imagens, estamos impedindo que URLs blob sejam usadas ou exibidas. Para o problema do menu de usuário, estamos melhorando o tratamento de erros para detectar e lidar com respostas HTML inesperadas.
