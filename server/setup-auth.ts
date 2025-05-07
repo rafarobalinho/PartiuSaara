@@ -18,6 +18,13 @@ export function setupAuthMiddleware(app: Express) {
   // Usar um segredo mais seguro (idealmente viria de uma variável de ambiente)
   const sessionSecret = process.env.SESSION_SECRET || 'partiu-saara-secure-session-key-a84d7c5f';
   
+  const isProduction = process.env.NODE_ENV === 'production';
+  console.log(`[Auth Setup] Ambiente: ${isProduction ? 'Produção' : 'Desenvolvimento'}`);
+  
+  // Opcional: Detectar domínio para configuração de cookies
+  const domain = process.env.COOKIE_DOMAIN || undefined;
+  console.log(`[Auth Setup] Domínio de cookies: ${domain || 'Padrão (não definido)'}`);
+  
   // Configuração da sessão
   app.use(session({
     store: new PostgresStore({
@@ -31,11 +38,15 @@ export function setupAuthMiddleware(app: Express) {
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
+    proxy: isProduction,            // Confiar em proxies reversos em produção
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 dias em milissegundos
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      sameSite: 'lax'               // Proteção contra ataques CSRF
+      secure: isProduction,         // Use HTTPS em produção
+      httpOnly: true,               // Previne acesso via JavaScript
+      sameSite: isProduction ? 'none' : 'lax', // Permite cookies em requisições cross-site em produção
+      domain: domain                // Define o domínio do cookie se fornecido
     }
   }));
+  
+  console.log('[Auth Setup] Middleware de sessão configurado com sucesso');
 }
