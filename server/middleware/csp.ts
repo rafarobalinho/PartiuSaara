@@ -2,7 +2,7 @@
  * Middleware para Content Security Policy (CSP)
  * 
  * Este middleware configura a política de segurança de conteúdo
- * para permitir recursos específicos como Google Maps API
+ * para permitir recursos específicos como Google Maps API e outras fontes externas
  */
 import { Express, Request, Response, NextFunction } from 'express';
 
@@ -13,35 +13,44 @@ import { Express, Request, Response, NextFunction } from 'express';
  */
 export function setupCSP(app: Express) {
   app.use((req: Request, res: Response, next: NextFunction) => {
-    // Configuração da política de segurança de conteúdo
+    // Configuração da política de segurança de conteúdo abrangente
     res.setHeader(
       'Content-Security-Policy',
       [
-        // Fontes de scripts permitidas
-        "script-src 'self' https://apis.google.com https://maps.googleapis.com 'unsafe-inline'",
-        // Fontes de estilos permitidas
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        // Fontes de imagens permitidas
-        "img-src 'self' data: https://maps.googleapis.com https://placehold.co https://*.googleapis.com",
-        // Fontes de conexão permitidas
-        "connect-src 'self' https://maps.googleapis.com https://*.googleapis.com",
-        // Fontes de fontes permitidas
-        "font-src 'self' https://fonts.gstatic.com",
-        // Fontes de mídia permitidas
-        "media-src 'self'",
-        // Objetos permitidos (Flash, etc.)
-        "object-src 'none'",
-        // Fontes de frame permitidas
-        "frame-src 'self' https://maps.googleapis.com https://*.googleapis.com",
-        // Permitir worker scripts
+        // Origens padrão - mesmo domínio e dados inline
+        "default-src 'self'",
+        
+        // Scripts - inclui Google Maps e avaliação inline para algumas bibliotecas
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://apis.google.com https://cdnjs.cloudflare.com https://*.replit.com",
+        
+        // Estilos - permite inline e fontes
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
+        
+        // Fontes - Google Fonts e outros
+        "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
+        
+        // Imagens - permite várias fontes, incluindo dados inline e URLs blob
+        "img-src 'self' data: https://*.googleapis.com https://placehold.co https://images.unsplash.com https://*.replit.app blob: https://maps.gstatic.com",
+        
+        // Conectividade - APIs e serviços
+        "connect-src 'self' https://*.googleapis.com https://maps.googleapis.com wss://*.replit.com https://*.replit.app",
+        
+        // Frames - para widgets incorporados
+        "frame-src 'self' https://*.google.com",
+        
+        // Manifesto - para PWA
+        "manifest-src 'self'",
+        
+        // Worker scripts (incluindo blob URLs)
         "worker-src 'self' blob:",
-        // Política padrão para outras fontes
-        "default-src 'self'"
+        
+        // Objetos - não permitir para segurança
+        "object-src 'none'"
       ].join('; ')
     );
 
     next();
   });
 
-  console.log('[CSP] Política de segurança de conteúdo configurada');
+  console.log('[CSP] Política de segurança de conteúdo configurada com suporte abrangente para recursos externos');
 }
