@@ -30,72 +30,24 @@ const ImageUploadComponent = forwardRef(({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
-  // Processar automaticamente URLs blob quando detectadas
+  // Detectar e limpar URLs blob automaticamente
   useEffect(() => {
-    // Verificar se existem URLs blob entre as imagens selecionadas
-    const processBlobs = async () => {
-      const hasBlobUrls = selectedImages.some(url => url && url.startsWith('blob:'));
+    // Verificar se há URLs blob na lista
+    const blobUrls = selectedImages.filter(url => url && url.startsWith('blob:'));
+    if (blobUrls.length > 0) {
+      console.warn('⚠️ URLs blob detectadas no estado, removendo:', blobUrls);
       
-      if (hasBlobUrls) {
-        console.log('Detectadas URLs blob, processando automaticamente...');
-        
-        // Extrair informações do nome para upload
-        const parts = name.split('-');
-        const type = parts[0]; // "store" ou "product"
-        const entityId = parts[parts.length - 1];
-        
-        if (!entityId || isNaN(Number(entityId))) {
-          console.error('ID da entidade inválido para processamento automático de blobs');
-          return;
-        }
-        
-        // Processar cada blob
-        const updatedImages = [...selectedImages];
-        let changed = false;
-        
-        for (let i = 0; i < updatedImages.length; i++) {
-          if (updatedImages[i] && updatedImages[i].startsWith('blob:')) {
-            try {
-              // Buscar o conteúdo do blob
-              const response = await fetch(updatedImages[i]);
-              const blob = await response.blob();
-              
-              // Criar um arquivo
-              const filename = `image_${Date.now()}.jpg`;
-              const file = new File([blob], filename, { type: 'image/jpeg' });
-              
-              // Fazer upload manualmente
-              const formData = new FormData();
-              formData.append('images', file);
-              
-              const uploadResponse = await apiRequest(
-                'POST',
-                `/api/upload/images?type=${type}&entityId=${entityId}`,
-                formData
-              );
-              
-              const result = await uploadResponse.json();
-              
-              if (result.success && result.images && result.images.length > 0) {
-                updatedImages[i] = result.images[0].imageUrl;
-                changed = true;
-                console.log(`Blob convertido para ${updatedImages[i]}`);
-              }
-            } catch (error) {
-              console.error('Falha ao processar blob:', error);
-            }
-          }
-        }
-        
-        if (changed) {
-          setSelectedImages(updatedImages);
-          onChange(updatedImages);
-        }
+      // Filtrar as URLs blob
+      const cleanedImages = selectedImages.filter(url => !url || !url.startsWith('blob:'));
+      
+      // Atualizar estado apenas se houve mudança
+      if (cleanedImages.length !== selectedImages.length) {
+        console.log('Atualizando estado com imagens limpas');
+        setSelectedImages(cleanedImages);
+        onChange(cleanedImages);
       }
-    };
-    
-    processBlobs();
-  }, [selectedImages, name, onChange]);
+    }
+  }, [selectedImages, onChange]);
 
   // Converter URL blob para File
   async function blobUrlToFile(blobUrl: string): Promise<File> {
@@ -202,11 +154,14 @@ const ImageUploadComponent = forwardRef(({
   const getValidImage = (url: string | undefined): string => {
     if (!url) return '';
     
+    // Log para debugging
+    console.log('Validando URL de imagem:', url);
+    
     try {
-      // Se for uma URL Blob (temporária do navegador), NUNCA retorná-la
-      if (url && url.startsWith('blob:')) {
-        console.warn('URL blob detectada, substituindo por placeholder:', url);
-        return 'https://placehold.co/300x300/CCCCCC/666666?text=Processando...';
+      // NUNCA retornar URLs blob - substituir por placeholder
+      if (url.startsWith('blob:')) {
+        console.warn('⚠️ URL blob detectada, substituindo por placeholder', url);
+        return 'https://placehold.co/300x300/CCCCCC/666666?text=Carregando...';
       }
       
       // Se começar com http, é uma URL completa
@@ -219,29 +174,25 @@ const ImageUploadComponent = forwardRef(({
         return url;
       }
       
-      // Se começar com barra mas não for o formato esperado
-      if (url.startsWith('/') && !url.startsWith('/uploads/')) {
-        // Tentar extrair qualquer ID de arquivo no final do path
-        const segments = url.split('/');
-        const lastSegment = segments[segments.length - 1];
-        if (lastSegment && (lastSegment.includes('.jpg') || lastSegment.includes('.png'))) {
-          return `/uploads/${lastSegment}`;
-        }
-        // Se não foi possível corrigir, retornar como está
-        return url;
-      }
-      
       // Se for apenas um nome de arquivo, adicionar o prefixo /uploads/
-      const fileName = url.replace(/^uploads\//, ''); // Remove uploads/ duplicado se existir
-      return `/uploads/${fileName}`;
+      return `/uploads/${url.replace(/^uploads\//, '')}`;
     } catch (error) {
-      console.error('Erro ao processar URL da imagem:', error, url);
+      console.error('❌ Erro ao processar URL da imagem:', error, url);
       return 'https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO';
     }
   };
 
   // Lidar com o upload das imagens
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Remover qualquer URL blob existente antes de adicionar novas imagens
+    const filteredImages = selectedImages.filter(url => !url || !url.startsWith('blob:'));
+    if (filteredImages.length !== selectedImages.length) {
+      console.warn('⚠️ Removendo URLs blob existentes antes do upload:', 
+        selectedImages.filter(url => url && url.startsWith('blob:')));
+      setSelectedImages(filteredImages);
+      onChange(filteredImages);
+    }
+    
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
