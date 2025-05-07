@@ -77,11 +77,11 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
   return (
     <Link href={`/stores/${store.id}`}>
       <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow block h-full flex flex-col">
-        {/* Imagem com ratio mais vertical (3:4) */}
-        <div className="aspect-[3/4] relative overflow-hidden bg-white">
+        {/* Imagem com ratio 1:1 (quadrado) para seguir o modelo de referência */}
+        <div className="aspect-square relative overflow-hidden bg-white">
           <img 
             src={`/api/stores/${store.id}/primary-image`}
-            alt={`Vista da loja ${store.name}`}
+            alt={`Loja ${store.name}`}
             className="w-full h-full object-cover"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
@@ -92,61 +92,52 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
             <i className="fas fa-store text-gray-400 text-4xl"></i>
           </div>
           
-          {/* Badges e botões */}
-          <div className="absolute top-0 left-0 right-0 p-3 flex justify-between">
-            <Badge className="bg-primary text-white text-xs py-1 px-2 rounded-lg">
+          {/* Badge de categoria no canto superior esquerdo */}
+          <div className="absolute top-0 left-0 p-2">
+            <Badge className="bg-primary text-white text-xs py-1 px-2 rounded-md">
               {store.category}
             </Badge>
+          </div>
+          
+          {/* Status e coração de favoritos no canto inferior */}
+          <div className="absolute bottom-0 left-0 right-0 p-2 flex justify-between items-center bg-black/10 backdrop-blur-sm">
+            <span className={`text-xs ${store.isOpen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} py-0.5 px-2 rounded-full shadow-sm`}>
+              {store.isOpen ? 'Aberto' : 'Fechado'}
+            </span>
             <button 
-              className={`${isFavorite ? 'text-primary' : 'text-gray-400 hover:text-primary'} bg-white rounded-full p-1.5 shadow-sm`}
+              className={`${isFavorite ? 'text-primary' : 'text-gray-200 hover:text-primary'} bg-white/80 rounded-full p-1.5 shadow-sm`}
               onClick={handleFavoriteToggle}
             >
               <i className={isFavorite ? 'fas fa-heart' : 'far fa-heart'}></i>
             </button>
           </div>
-          
-          {/* Status de operação (Aberta/Fechada) */}
-          <div className="absolute top-12 left-0 p-2">
-            <span className={`text-xs ${store.isOpen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} py-0.5 px-2 rounded-full shadow-sm`}>
-              {store.isOpen ? 'Aberta agora' : 'Fechada'}
-            </span>
-          </div>
-          
-          {/* Informações principais sobre a loja */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent text-white p-3">
-            <h3 className="font-bold text-lg">{store.name}</h3>
-            <div className="flex items-center text-sm">
-              <i className="fas fa-star text-yellow-400 mr-1"></i> 
-              <span>{store.rating ? store.rating.toFixed(1) : '0.0'}</span>
-              <span className="mx-1">•</span>
-              <span>{store.reviewCount || 0} avaliações</span>
-            </div>
-            {distance && (
-              <div className="text-sm text-white mt-1">
-                <i className="fas fa-map-marker-alt mr-1"></i> {distance} de distância
-              </div>
-            )}
-          </div>
         </div>
         
-        {/* Descrição e tags */}
-        <div className="p-3 flex-grow flex flex-col justify-between">
-          <p className="text-sm line-clamp-2 text-gray-600 mb-3">
-            {store.description}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {store.tags && store.tags.length > 0 ? (
-              store.tags.slice(0, 3).map((tag, index) => (
-                <span key={index} className="text-xs bg-gray-100 text-gray-700 py-0.5 px-2 rounded-full">
-                  {tag}
-                </span>
-              ))
-            ) : (
-              <span className="text-xs bg-gray-100 text-gray-700 py-0.5 px-2 rounded-full">
-                Loja
-              </span>
+        {/* Informações da loja */}
+        <div className="p-3 flex-grow flex flex-col">
+          {/* Nome da loja com limite de 2 linhas */}
+          <h3 className="font-medium text-sm line-clamp-2 mb-1 text-gray-800">
+            {store.name}
+          </h3>
+          
+          {/* Exibição de avaliações em linha */}
+          <div className="flex items-center text-xs text-gray-500 mb-2">
+            <i className="fas fa-star text-yellow-400 mr-1"></i> 
+            <span>{store.rating ? store.rating.toFixed(1) : '0.0'}</span>
+            <span className="mx-1">•</span>
+            <span>{store.reviewCount || 0} avaliações</span>
+            {distance && (
+              <>
+                <span className="mx-1">•</span>
+                <span><i className="fas fa-map-marker-alt mr-1"></i>{distance}</span>
+              </>
             )}
           </div>
+          
+          {/* Descrição da loja */}
+          <p className="text-sm text-gray-600 line-clamp-3 mt-1 mb-2">
+            {store.description}
+          </p>
         </div>
       </div>
     </Link>

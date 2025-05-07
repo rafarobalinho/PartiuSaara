@@ -173,27 +173,39 @@ export default function Stores() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {Array(6).fill(0).map((_, index) => (
                 <div key={index} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col">
-                  <div className="aspect-[3/4] bg-gray-200 animate-pulse relative">
-                    {/* Simulação dos elementos dentro da imagem */}
-                    <div className="absolute top-0 left-0 right-0 p-3 flex justify-between">
-                      <div className="h-6 bg-gray-300 animate-pulse w-20 rounded-lg"></div>
+                  <div className="aspect-square bg-gray-200 animate-pulse relative">
+                    {/* Badge de categoria no canto superior esquerdo */}
+                    <div className="absolute top-0 left-0 p-2">
+                      <div className="h-5 bg-gray-300 animate-pulse w-16 rounded-md"></div>
+                    </div>
+                    {/* Badge de desconto no canto superior direito */}
+                    <div className="absolute top-0 right-0 p-2">
+                      <div className="h-5 bg-red-300 animate-pulse w-10 rounded-md"></div>
+                    </div>
+                    {/* Barra inferior com status e favorito */}
+                    <div className="absolute bottom-0 left-0 right-0 p-2 flex justify-between items-center bg-gray-300/20">
+                      <div className="h-5 bg-gray-300 animate-pulse w-16 rounded-full"></div>
                       <div className="h-6 bg-gray-300 animate-pulse w-6 rounded-full"></div>
                     </div>
-                    <div className="absolute top-12 left-0 p-2">
-                      <div className="h-5 bg-gray-300 animate-pulse w-20 rounded-full"></div>
-                    </div>
-                    <div className="absolute bottom-0 left-0 right-0 bg-gray-300/20 p-3">
-                      <div className="h-5 bg-gray-300 animate-pulse w-3/4 mb-2"></div>
-                      <div className="h-4 bg-gray-300 animate-pulse w-2/4 mb-1"></div>
-                      <div className="h-4 bg-gray-300 animate-pulse w-1/3"></div>
-                    </div>
                   </div>
-                  <div className="p-3 flex-grow flex flex-col justify-between">
-                    <div className="h-12 bg-gray-200 animate-pulse mb-3"></div>
-                    <div className="flex flex-wrap gap-1.5">
-                      <div className="h-5 bg-gray-200 animate-pulse w-16 rounded-full"></div>
-                      <div className="h-5 bg-gray-200 animate-pulse w-20 rounded-full"></div>
-                      <div className="h-5 bg-gray-200 animate-pulse w-24 rounded-full"></div>
+                  <div className="p-3 flex-grow flex flex-col">
+                    {/* Nome do produto */}
+                    <div className="h-4 bg-gray-200 animate-pulse w-full mb-1"></div>
+                    <div className="h-4 bg-gray-200 animate-pulse w-3/4 mb-2"></div>
+                    
+                    {/* Avaliações */}
+                    <div className="h-3 bg-gray-200 animate-pulse w-2/3 mb-2"></div>
+                    
+                    {/* Etiqueta de frete grátis */}
+                    <div className="h-5 bg-green-100 animate-pulse w-full mb-2 rounded-sm"></div>
+                    
+                    {/* Preço */}
+                    <div className="mt-auto pt-2 border-t border-gray-100">
+                      <div className="flex items-center mb-1">
+                        <div className="h-6 bg-gray-300 animate-pulse w-1/3 mr-2"></div>
+                        <div className="h-3 bg-gray-200 animate-pulse w-1/4"></div>
+                      </div>
+                      <div className="h-3 bg-gray-200 animate-pulse w-1/2"></div>
                     </div>
                   </div>
                 </div>
