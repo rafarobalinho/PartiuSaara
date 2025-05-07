@@ -459,5 +459,5 @@ const ImageUploadComponent = forwardRef(({
   );
 });
 
-// Exportar o componente com forwardRef
-export const ImageUpload = forwardRef(ImageUploadComponent);
+// Exportar o componente
+export const ImageUpload = ImageUploadComponent;
