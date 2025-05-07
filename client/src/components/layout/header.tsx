@@ -269,7 +269,8 @@ export default function Header() {
       <div className="hidden lg:block border-t border-gray-200">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center">
-            <div className="flex space-x-8 py-3">
+            {/* Menu de navegação principal */}
+            <div className="flex space-x-6 py-3">
               <Link href="/" className={`text-sm font-medium ${location === '/' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
                 <span className="flex items-center">
                   <i className="fas fa-home mr-2"></i>
@@ -300,16 +301,76 @@ export default function Header() {
                   Promoções
                 </span>
               </Link>
+              
+              {/* Menu de usuário */}
+              {isAuthenticated && (
+                <>
+                  <Link href="/account" className={`text-sm font-medium ${location === '/account' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
+                    <span className="flex items-center">
+                      <i className="fas fa-user-circle mr-2"></i>
+                      Minha Conta
+                    </span>
+                  </Link>
+                  <Link href="/account/wishlist" className={`text-sm font-medium ${location === '/account/wishlist' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
+                    <span className="flex items-center">
+                      <i className="fas fa-heart mr-2"></i>
+                      Lista de Desejos
+                    </span>
+                  </Link>
+                  <Link href="/account/reservations" className={`text-sm font-medium ${location === '/account/reservations' ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
+                    <span className="flex items-center">
+                      <i className="fas fa-bookmark mr-2"></i>
+                      Minhas Reservas
+                    </span>
+                  </Link>
+                </>
+              )}
             </div>
             
+            {/* Menu de lojista */}
             {isAuthenticated && user?.role === 'seller' && (
-              <div className="flex items-center space-x-4 py-3">
-                <Link href="/seller/dashboard" className={`text-sm font-medium ${location.startsWith('/seller') ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
-                  <span className="flex items-center">
-                    <i className="fas fa-store-alt mr-2"></i>
-                    Área do Lojista
-                  </span>
-                </Link>
+              <div className="relative group">
+                <button className={`flex items-center text-sm font-medium py-3 space-x-1 ${location.startsWith('/seller') ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}>
+                  <i className="fas fa-store-alt mr-1"></i>
+                  <span>Área do Lojista</span>
+                  <i className="fas fa-chevron-down text-xs ml-1"></i>
+                </button>
+                
+                {/* Dropdown do menu lojista */}
+                <div className="absolute right-0 top-full w-64 bg-white shadow-lg rounded-md py-2 z-50 hidden group-hover:block border border-gray-200">
+                  <Link href="/seller/dashboard" className={`flex items-center p-2 text-sm hover:bg-gray-100 ${location === '/seller/dashboard' ? 'text-primary' : 'text-gray-700'}`}>
+                    <i className="fas fa-tachometer-alt w-8 text-primary"></i>
+                    <span>Dashboard</span>
+                  </Link>
+                  <Link href="/seller/stores" className={`flex items-center p-2 text-sm hover:bg-gray-100 ${location === '/seller/stores' ? 'text-primary' : 'text-gray-700'}`}>
+                    <i className="fas fa-store w-8 text-primary"></i>
+                    <span>Minhas Lojas</span>
+                  </Link>
+                  <Link href="/seller/stores/add-store" className={`flex items-center p-2 text-sm hover:bg-gray-100 ${location === '/seller/stores/add-store' ? 'text-primary' : 'text-gray-700'}`}>
+                    <i className="fas fa-plus-circle w-8 text-primary"></i>
+                    <span>Adicionar Loja</span>
+                  </Link>
+                  <Link href="/seller/products" className={`flex items-center p-2 text-sm hover:bg-gray-100 ${location === '/seller/products' ? 'text-primary' : 'text-gray-700'}`}>
+                    <i className="fas fa-box w-8 text-primary"></i>
+                    <span>Meus Produtos</span>
+                  </Link>
+                  <Link href="/seller/products/add" className={`flex items-center p-2 text-sm hover:bg-gray-100 ${location === '/seller/products/add' ? 'text-primary' : 'text-gray-700'}`}>
+                    <i className="fas fa-plus-square w-8 text-primary"></i>
+                    <span>Adicionar Produto</span>
+                  </Link>
+                  <Link href="/seller/promotions" className={`flex items-center p-2 text-sm hover:bg-gray-100 ${location === '/seller/promotions' ? 'text-primary' : 'text-gray-700'}`}>
+                    <i className="fas fa-bolt w-8 text-primary"></i>
+                    <span>Minhas Promoções</span>
+                  </Link>
+                  <Link href="/seller/promotions/add" className={`flex items-center p-2 text-sm hover:bg-gray-100 ${location === '/seller/promotions/add' ? 'text-primary' : 'text-gray-700'}`}>
+                    <i className="fas fa-percent w-8 text-primary"></i>
+                    <span>Criar Promoção</span>
+                  </Link>
+                  <Link href="/seller/analytics" className={`flex items-center p-2 text-sm hover:bg-gray-100 ${location === '/seller/analytics' ? 'text-primary' : 'text-gray-700'}`}>
+                    <i className="fas fa-chart-line w-8 text-primary"></i>
+                    <span>Analytics</span>
+                  </Link>
+                </div>
               </div>
             )}
           </div>
