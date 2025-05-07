@@ -439,7 +439,27 @@ const ImageUploadComponent = forwardRef(({
                   onLoad={() => console.log(`Imagem ${index + 1} carregada com sucesso:`, getValidImage(image))}
                   onError={(e) => {
                     console.error(`Erro ao carregar imagem ${index + 1}:`, getValidImage(image));
-                    (e.target as HTMLImageElement).src = 'https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO';
+                    // Tentar uma versão alternativa do caminho
+                    const imgElement = e.target as HTMLImageElement;
+                    const currentSrc = imgElement.src;
+                    
+                    if (!currentSrc.includes('?v=')) {
+                      // Tenta com caminho alternativo
+                      if (currentSrc.startsWith('/uploads/')) {
+                        console.log('Tentando caminho alternativo 1:', currentSrc.replace('/uploads/', '/public/uploads/'));
+                        imgElement.src = currentSrc.replace('/uploads/', '/public/uploads/');
+                        return;
+                      } else if (currentSrc.includes('/uploads/')) {
+                        // Extrai nome do arquivo e constrói caminho absoluto
+                        const filename = currentSrc.split('/').pop();
+                        console.log('Tentando caminho alternativo 2:', `/uploads/${filename}`);
+                        imgElement.src = `/uploads/${filename}`;
+                        return;
+                      }
+                    }
+                    
+                    // Se já tentamos alternativas ou não foi possível extrair o caminho, usar placeholder
+                    imgElement.src = 'https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO';
                   }}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">

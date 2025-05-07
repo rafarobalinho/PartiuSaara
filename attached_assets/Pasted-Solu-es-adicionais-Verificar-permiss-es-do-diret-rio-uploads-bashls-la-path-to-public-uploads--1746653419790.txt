@@ -1,0 +1,96 @@
+Soluções adicionais:
+
+Verificar permissões do diretório uploads:
+bashls -la /path/to/public/uploads/
+
+Adicionar manipulador de fallback para arquivos não encontrados:
+Modifique o código de manipulação de erro na tag img para usar uma estratégia mais robusta:
+javascript<img 
+  src={getValidImage(image)} 
+  alt={`Imagem ${index + 1}`} 
+  className="object-cover w-full h-full"
+  onError={(e) => {
+    console.error(`Erro ao carregar imagem ${index + 1}:`, getValidImage(image));
+    // Tentar uma versão alternativa do caminho
+    const imgElement = e.target as HTMLImageElement;
+    const currentSrc = imgElement.src;
+    
+    if (!currentSrc.includes('?v=')) {
+      // Tenta com caminho alternativo
+      imgElement.src = currentSrc.replace('/uploads/', '/public/uploads/');
+      return;
+    }
+    
+    // Se já tentamos alternativas, usar placeholder
+    imgElement.src = 'https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO';
+  }}
+/>
+
+Script para verificar integridade de arquivos:
+Crie um script que verifica se os arquivos referenciados no banco de dados realmente existem no sistema de arquivos:
+javascript// scripts/verifyImages.js
+const fs = require('fs');
+const path = require('path');
+const { db } = require('../server/db');
+
+async function verifyImages() {
+  // Verificar diretório de uploads
+  const uploadsDir = path.join(__dirname, '../public/uploads');
+  console.log(`Verificando diretório de uploads: ${uploadsDir}`);
+  
+  if (!fs.existsSync(uploadsDir)) {
+    console.error(`Diretório de uploads não encontrado: ${uploadsDir}`);
+    return;
+  }
+  
+  // Listar arquivos no diretório
+  const files = fs.readdirSync(uploadsDir);
+  console.log(`Arquivos encontrados: ${files.length}`);
+  
+  // Buscar referências no banco de dados
+  const storeImages = await db.query('SELECT * FROM store_images');
+  const productImages = await db.query('SELECT * FROM product_images');
+  
+  console.log(`Referências no banco: ${storeImages.rows.length + productImages.rows.length}`);
+  
+  // Verificar cada referência
+  let missingFiles = 0;
+  
+  for (const img of storeImages.rows) {
+    const filename = path.basename(img.image_url);
+    if (!files.includes(filename)) {
+      console.log(`Arquivo ausente: ${filename} (ID: ${img.id})`);
+      missingFiles++;
+    }
+  }
+  
+  for (const img of productImages.rows) {
+    const filename = path.basename(img.image_url);
+    if (!files.includes(filename)) {
+      console.log(`Arquivo ausente: ${filename} (ID: ${img.id})`);
+      missingFiles++;
+    }
+  }
+  
+  console.log(`Total de arquivos ausentes: ${missingFiles}`);
+}
+
+verifyImages()
+  .then(() => console.log('Verificação concluída'))
+  .catch(err => console.error('Erro durante verificação:', err))
+  .finally(() => process.exit());
+
+Corrigir o erro de Content Security Policy:
+Este erro está relacionado ao carregamento de scripts do Google (possivelmente para o mapa). Adicione as diretivas CSP adequadas ao seu servidor:
+javascript// Adicionar ao middleware de configuração do Express
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' https://apis.google.com https://maps.googleapis.com 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://maps.googleapis.com https://placehold.co; connect-src 'self' https://maps.googleapis.com;"
+  );
+  next();
+});
+
+
+Estas soluções adicionais devem ajudar a resolver os problemas persistentes após o deploy. O ImageUpload.tsx está corretamente implementado, mas os erros de carregamento de imagens e Content Security Policy sugerem problemas na infraestrutura ou configuração do servidor.
+Recomendo implementar essas soluções adicionais para resolver completamente os problemas após o deploy.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas.
