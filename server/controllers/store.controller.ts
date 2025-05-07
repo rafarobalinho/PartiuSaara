@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
 import { storage } from '../storage';
 import { z } from 'zod';
-import { insertStoreSchema } from '@shared/schema';
+import { insertStoreSchema, storeImages } from '@shared/schema';
 import { sellerMiddleware } from '../middleware/auth';
+import { db } from '../db';
+import { eq } from 'drizzle-orm';
 
 // Get all stores with filtering options
 export async function getStores(req: Request, res: Response) {
@@ -143,17 +145,53 @@ export async function updateStore(req: Request, res: Response) {
       // Processar os dados atualizados
       const updateData = {...req.body};
       
-      // Se houver imagens e o primeiro elemento é um blob, não salvar
+      // Processar as imagens
       if (updateData.images && Array.isArray(updateData.images) && updateData.images.length > 0) {
-        // Verificamos se é um URL de blob
-        if (typeof updateData.images[0] === 'string' && updateData.images[0].startsWith('blob:')) {
-          // Mantém o valor antigo
-          delete updateData.images;
-        } else if (typeof updateData.images[0] === 'string' && !updateData.images[0].startsWith('blob:')) {
-          // Se não for blob e for uma string (URL de imagem válida), definir como logo
-          updateData.logo = updateData.images[0];
-          // Removemos do array de imagens para evitar duplicação
-          updateData.images = [];
+        // Filtramos URLs inválidas (blobs)
+        updateData.images = updateData.images.filter(
+          img => typeof img === 'string' && !img.startsWith('blob:')
+        );
+        
+        console.log('Imagens processadas para store ID:', id, updateData.images);
+        
+        // Adicionar imagens na tabela storeImages se for necessário
+        try {
+          if (updateData.images.length > 0) {
+            // Obter as imagens existentes para verificar se já estão salvas
+            const existingImages = await db.select()
+              .from(storeImages)
+              .where(eq(storeImages.storeId, Number(id)));
+              
+            const existingUrls = existingImages.map(img => img.imageUrl);
+            
+            // Filtrar apenas novas imagens
+            const newImages = updateData.images.filter(
+              imgUrl => !existingUrls.includes(imgUrl)
+            );
+            
+            // Se houver novas imagens, salvar na tabela storeImages
+            if (newImages.length > 0) {
+              console.log('Adicionando novas imagens à tabela storeImages:', newImages);
+              
+              for (const imgUrl of newImages) {
+                // Verificar se é uma URL válida de imagem
+                if (imgUrl && typeof imgUrl === 'string' && imgUrl.includes('/uploads/')) {
+                  const thumbnailUrl = imgUrl.replace('/uploads/', '/uploads/thumbnails/');
+                  
+                  await db.insert(storeImages)
+                    .values({
+                      storeId: Number(id),
+                      imageUrl: imgUrl,
+                      thumbnailUrl,
+                      isPrimary: existingImages.length === 0, // Primeira imagem será primária se não houver outras
+                      displayOrder: existingImages.length
+                    });
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao processar imagens da loja:', error);
         }
       }
       
