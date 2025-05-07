@@ -178,10 +178,7 @@ export default function Stores() {
                     <div className="absolute top-0 left-0 p-2">
                       <div className="h-5 bg-gray-300 animate-pulse w-16 rounded-md"></div>
                     </div>
-                    {/* Badge de desconto no canto superior direito */}
-                    <div className="absolute top-0 right-0 p-2">
-                      <div className="h-5 bg-red-300 animate-pulse w-10 rounded-md"></div>
-                    </div>
+                    
                     {/* Barra inferior com status e favorito */}
                     <div className="absolute bottom-0 left-0 right-0 p-2 flex justify-between items-center bg-gray-300/20">
                       <div className="h-5 bg-gray-300 animate-pulse w-16 rounded-full"></div>
@@ -189,24 +186,15 @@ export default function Stores() {
                     </div>
                   </div>
                   <div className="p-3 flex-grow flex flex-col">
-                    {/* Nome do produto */}
+                    {/* Nome da loja */}
                     <div className="h-4 bg-gray-200 animate-pulse w-full mb-1"></div>
                     <div className="h-4 bg-gray-200 animate-pulse w-3/4 mb-2"></div>
                     
                     {/* Avaliações */}
                     <div className="h-3 bg-gray-200 animate-pulse w-2/3 mb-2"></div>
                     
-                    {/* Etiqueta de frete grátis */}
-                    <div className="h-5 bg-green-100 animate-pulse w-full mb-2 rounded-sm"></div>
-                    
-                    {/* Preço */}
-                    <div className="mt-auto pt-2 border-t border-gray-100">
-                      <div className="flex items-center mb-1">
-                        <div className="h-6 bg-gray-300 animate-pulse w-1/3 mr-2"></div>
-                        <div className="h-3 bg-gray-200 animate-pulse w-1/4"></div>
-                      </div>
-                      <div className="h-3 bg-gray-200 animate-pulse w-1/2"></div>
-                    </div>
+                    {/* Descrição */}
+                    <div className="h-16 bg-gray-200 animate-pulse w-full rounded-sm"></div>
                   </div>
                 </div>
               ))}
