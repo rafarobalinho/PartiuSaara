@@ -138,9 +138,9 @@ const ImageUploadComponent = forwardRef(({
     try {
       // Se for uma URL Blob (temporária do navegador)
       if (url.startsWith('blob:')) {
-        console.log('URL do tipo blob detectada, substituindo por placeholder temporário');
-        // Nunca mais retornamos a URL blob diretamente
-        return 'https://placehold.co/300x300/BBBBBB/666666?text=Processando...';
+        console.log('URL do tipo blob detectada, substituindo por placeholder');
+        // Retornar um placeholder em vez da URL blob
+        return 'https://placehold.co/300x300/CCCCCC/666666?text=Processando...';
       }
       
       // Se começar com http, é uma URL completa
@@ -187,6 +187,14 @@ const ImageUploadComponent = forwardRef(({
         variant: "destructive"
       });
       return;
+    }
+    
+    // Verificar se há URLs blob nas imagens atuais
+    const blobUrls = selectedImages.filter(url => url && url.startsWith('blob:'));
+    if (blobUrls.length > 0) {
+      console.warn('URLs blob detectadas no estado. Estas serão ignoradas:', blobUrls);
+      // Remover URLs blob do estado
+      setSelectedImages(selectedImages.filter(url => !url || !url.startsWith('blob:')));
     }
 
     setIsUploading(true);
