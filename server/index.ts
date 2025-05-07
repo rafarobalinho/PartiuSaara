@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import cors from 'cors';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuthMiddleware } from "./setup-auth";
@@ -11,7 +12,47 @@ import { initCustomTables } from "./db";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Verificar ambiente
+const isProduction = process.env.NODE_ENV === 'production';
+console.log(`[Server] Inicializando no ambiente: ${isProduction ? 'Produção' : 'Desenvolvimento'}`);
+
+// Configurar CORS
+const allowedOrigins = isProduction 
+  ? [process.env.FRONTEND_URL || '*.replit.app'] // URLs de produção (pode ser configurada via env)
+  : ['http://localhost:5000', 'http://localhost:3000']; // URLs de desenvolvimento
+
+console.log(`[Server] CORS configurado para origens: ${allowedOrigins.join(', ')}`);
+
 const app = express();
+
+// Aplicar CORS antes de outros middlewares
+app.use(cors({
+  origin: function(origin, callback) {
+    // Permitir requisições sem origem (como chamadas diretas da API)
+    if (!origin) return callback(null, true);
+    
+    // Verificar se a origem está na lista de permitidas ou se corresponde a um padrão wildcard
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (allowedOrigin.includes('*')) {
+        const pattern = allowedOrigin.replace(/\*/g, '.*');
+        return new RegExp(pattern).test(origin);
+      }
+      return allowedOrigin === origin;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Bloqueando requisição de origem não permitida: ${origin}`);
+      callback(new Error('Origem não permitida pelo CORS'));
+    }
+  },
+  credentials: true, // Importante: permitir cookies nas requisições cross-origin
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+}));
+
+// Configurar parsers antes do middleware de erros
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -30,6 +71,12 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 // Servir arquivos estáticos da pasta de uploads
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 app.use('/uploads/thumbnails', express.static(path.join(__dirname, '../public/uploads/thumbnails')));
+
+// Definir content-type padrão para rotas API
+app.use('/api', (req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  next();
+});
 
 // Configurar o middleware de autenticação
 setupAuthMiddleware(app);
