@@ -92,20 +92,20 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
             <i className="fas fa-store text-gray-400 text-4xl"></i>
           </div>
           
-          {/* Badge de categoria no canto superior esquerdo */}
-          <div className="absolute top-0 left-0 p-2">
-            <Badge className="bg-primary text-white text-xs py-1 px-2 rounded-md">
+          {/* Badge de categoria no canto superior esquerdo - mais compacto */}
+          <div className="absolute top-0 left-0 p-1">
+            <Badge className="bg-primary text-white text-[10px] py-0.5 px-1.5 rounded-md">
               {store.category}
             </Badge>
           </div>
           
-          {/* Status e coração de favoritos no canto inferior */}
-          <div className="absolute bottom-0 left-0 right-0 p-2 flex justify-between items-center bg-black/10 backdrop-blur-sm">
-            <span className={`text-xs ${store.isOpen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} py-0.5 px-2 rounded-full shadow-sm`}>
+          {/* Status e coração de favoritos no canto inferior - mais compacto */}
+          <div className="absolute bottom-0 left-0 right-0 p-1 flex justify-between items-center bg-black/10 backdrop-blur-sm">
+            <span className={`text-[10px] ${store.isOpen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} py-0.5 px-1.5 rounded-full shadow-sm`}>
               {store.isOpen ? 'Aberto' : 'Fechado'}
             </span>
             <button 
-              className={`${isFavorite ? 'text-primary' : 'text-gray-200 hover:text-primary'} bg-white/80 rounded-full p-1.5 shadow-sm`}
+              className={`${isFavorite ? 'text-primary' : 'text-gray-200 hover:text-primary'} bg-white/80 rounded-full p-1 shadow-sm text-xs`}
               onClick={handleFavoriteToggle}
             >
               <i className={isFavorite ? 'fas fa-heart' : 'far fa-heart'}></i>
@@ -113,29 +113,29 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
           </div>
         </div>
         
-        {/* Informações da loja */}
-        <div className="p-3 flex-grow flex flex-col">
-          {/* Nome da loja com limite de 2 linhas */}
-          <h3 className="font-medium text-sm line-clamp-2 mb-1 text-gray-800">
+        {/* Informações da loja - mais compactas */}
+        <div className="p-2 flex-grow flex flex-col">
+          {/* Nome da loja com limite de 2 linhas - fonte menor */}
+          <h3 className="font-medium text-xs line-clamp-2 mb-0.5 text-gray-800">
             {store.name}
           </h3>
           
-          {/* Exibição de avaliações em linha */}
-          <div className="flex items-center text-xs text-gray-500 mb-2">
-            <i className="fas fa-star text-yellow-400 mr-1"></i> 
+          {/* Exibição de avaliações em linha - fonte menor */}
+          <div className="flex items-center text-[10px] text-gray-500 mb-1">
+            <i className="fas fa-star text-yellow-400 mr-0.5"></i> 
             <span>{store.rating ? store.rating.toFixed(1) : '0.0'}</span>
-            <span className="mx-1">•</span>
+            <span className="mx-0.5">•</span>
             <span>{store.reviewCount || 0} avaliações</span>
             {distance && (
               <>
-                <span className="mx-1">•</span>
-                <span><i className="fas fa-map-marker-alt mr-1"></i>{distance}</span>
+                <span className="mx-0.5">•</span>
+                <span><i className="fas fa-map-marker-alt mr-0.5"></i>{distance}</span>
               </>
             )}
           </div>
           
-          {/* Descrição da loja */}
-          <p className="text-sm text-gray-600 line-clamp-3 mt-1 mb-2">
+          {/* Descrição da loja - mais compacta */}
+          <p className="text-[10px] text-gray-600 line-clamp-2 mt-0.5">
             {store.description}
           </p>
         </div>
