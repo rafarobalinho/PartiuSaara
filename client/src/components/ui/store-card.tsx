@@ -35,6 +35,56 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isStoreOpen, setIsStoreOpen] = useState(store.isOpen);
+  
+  // Buscar os detalhes do lugar na API
+  const { data: placeDetails } = useQuery({
+    queryKey: [`/api/stores/${store.id}/place-details`],
+    queryFn: async () => {
+      try {
+        const response = await fetch(`/api/stores/${store.id}/place-details`);
+        if (response.ok) {
+          return await response.json();
+        }
+        return null;
+      } catch (error) {
+        console.error('Erro ao carregar detalhes do lugar:', error);
+        return null;
+      }
+    },
+    enabled: !!store.id
+  });
+  
+  // Traduzir dias da semana do inglês para português
+  const translateDayOfWeek = (day: string): string => {
+    const translations: Record<string, string> = {
+      'Monday': 'Segunda',
+      'Tuesday': 'Terça',
+      'Wednesday': 'Quarta',
+      'Thursday': 'Quinta',
+      'Friday': 'Sexta',
+      'Saturday': 'Sábado',
+      'Sunday': 'Domingo'
+    };
+    
+    for (const [eng, pt] of Object.entries(translations)) {
+      if (day.startsWith(eng)) {
+        return day.replace(eng, pt);
+      }
+    }
+    return day;
+  };
+  
+  // Verificar status de funcionamento baseado nos detalhes do lugar
+  useEffect(() => {
+    if (placeDetails?.business_status) {
+      if (placeDetails.business_status === 'OPERATIONAL') {
+        setIsStoreOpen(true);
+      } else if (['CLOSED_TEMPORARILY', 'CLOSED_PERMANENTLY'].includes(placeDetails.business_status)) {
+        setIsStoreOpen(false);
+      }
+    }
+  }, [placeDetails]);
 
   const toggleFavoriteMutation = useMutation({
     mutationFn: async () => {
@@ -108,8 +158,8 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
           
           {/* Status e coração de favoritos no canto inferior - mais compacto */}
           <div className="absolute bottom-0 left-0 right-0 p-1 flex justify-between items-center">
-            <span className={`text-[10px] ${store.isOpen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} py-0.5 px-1.5 rounded-full shadow-sm`}>
-              {store.isOpen ? 'Aberto' : 'Fechado'}
+            <span className={`text-[10px] ${isStoreOpen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} py-0.5 px-1.5 rounded-full shadow-sm`}>
+              {isStoreOpen ? 'Aberto' : 'Fechado'}
             </span>
             <button 
               className={`${isFavorite ? 'text-[#F2600C]' : 'text-gray-200 hover:text-[#F2600C]'} bg-white rounded-full shadow-sm flex items-center justify-center h-5 w-5`}
@@ -130,9 +180,9 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
           {/* Exibição de avaliações em linha - fonte menor */}
           <div className="flex items-center text-[10px] text-gray-500 mb-1">
             <i className="fas fa-star text-yellow-400 mr-0.5"></i> 
-            <span>{store.rating ? store.rating.toFixed(1) : '0.0'}</span>
+            <span>{placeDetails?.rating ? placeDetails.rating.toFixed(1) : (store.rating ? store.rating.toFixed(1) : '0.0')}</span>
             <span className="mx-0.5">•</span>
-            <span>{store.reviewCount || 0} avaliações</span>
+            <span>{placeDetails?.total_ratings || store.reviewCount || 0} avaliações</span>
             {distance && (
               <>
                 <span className="mx-0.5">•</span>
@@ -140,6 +190,31 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
               </>
             )}
           </div>
+          
+          {/* Horários de funcionamento - se disponíveis */}
+          {placeDetails?.opening_hours && (
+            <div className="mt-0.5 mb-1">
+              <div 
+                className="text-[10px] text-gray-600 cursor-pointer flex items-center" 
+                title="Horários de funcionamento"
+              >
+                <i className="far fa-clock mr-0.5"></i> 
+                {(() => {
+                  try {
+                    const horariosJson = JSON.parse(placeDetails.opening_hours);
+                    if (Array.isArray(horariosJson)) {
+                      // Exibir apenas o primeiro horário traduzido
+                      const firstDay = horariosJson[0] || "";
+                      return translateDayOfWeek(firstDay);
+                    }
+                    return "Horários disponíveis";
+                  } catch {
+                    return "Horários disponíveis";
+                  }
+                })()}
+              </div>
+            </div>
+          )}
           
           {/* Descrição da loja - mais compacta */}
           <p className="text-[10px] text-gray-600 line-clamp-2 mt-0.5">
