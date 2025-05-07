@@ -485,6 +485,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Rota específica para login administrativo
+  // Endpoint administrativo para limpar URLs blob do banco de dados
+  app.post('/api/admin/clean-blob-urls', async (req: Request, res: Response) => {
+    try {
+      // Verificar se o usuário é admin
+      if (!req.session.userId || req.session.role !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Acesso negado. Apenas administradores podem realizar esta operação.' });
+      }
+      
+      // Importar e executar a função de limpeza
+      const { cleanAllBlobUrls } = await import('./scripts/clean-blob-urls');
+      const result = await cleanAllBlobUrls();
+      
+      return res.json({ 
+        success: true, 
+        message: `Limpeza concluída: ${result.stores} lojas e ${result.products} produtos atualizados.`,
+        result 
+      });
+    } catch (error) {
+      console.error('Erro ao limpar URLs blob:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao executar limpeza de URLs blob.',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   app.post('/api/admin/login', async (req: Request, res: Response) => {
     // Definir explicitamente o tipo de conteúdo como JSON para evitar respostas HTML
     res.setHeader('Content-Type', 'application/json');

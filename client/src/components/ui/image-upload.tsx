@@ -1,4 +1,4 @@
-import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,73 @@ const ImageUploadComponent = forwardRef(({
   const [selectedImages, setSelectedImages] = useState<string[]>(value);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  
+  // Processar automaticamente URLs blob quando detectadas
+  useEffect(() => {
+    // Verificar se existem URLs blob entre as imagens selecionadas
+    const processBlobs = async () => {
+      const hasBlobUrls = selectedImages.some(url => url && url.startsWith('blob:'));
+      
+      if (hasBlobUrls) {
+        console.log('Detectadas URLs blob, processando automaticamente...');
+        
+        // Extrair informações do nome para upload
+        const parts = name.split('-');
+        const type = parts[0]; // "store" ou "product"
+        const entityId = parts[parts.length - 1];
+        
+        if (!entityId || isNaN(Number(entityId))) {
+          console.error('ID da entidade inválido para processamento automático de blobs');
+          return;
+        }
+        
+        // Processar cada blob
+        const updatedImages = [...selectedImages];
+        let changed = false;
+        
+        for (let i = 0; i < updatedImages.length; i++) {
+          if (updatedImages[i] && updatedImages[i].startsWith('blob:')) {
+            try {
+              // Buscar o conteúdo do blob
+              const response = await fetch(updatedImages[i]);
+              const blob = await response.blob();
+              
+              // Criar um arquivo
+              const filename = `image_${Date.now()}.jpg`;
+              const file = new File([blob], filename, { type: 'image/jpeg' });
+              
+              // Fazer upload manualmente
+              const formData = new FormData();
+              formData.append('images', file);
+              
+              const uploadResponse = await apiRequest(
+                'POST',
+                `/api/upload/images?type=${type}&entityId=${entityId}`,
+                formData
+              );
+              
+              const result = await uploadResponse.json();
+              
+              if (result.success && result.images && result.images.length > 0) {
+                updatedImages[i] = result.images[0].imageUrl;
+                changed = true;
+                console.log(`Blob convertido para ${updatedImages[i]}`);
+              }
+            } catch (error) {
+              console.error('Falha ao processar blob:', error);
+            }
+          }
+        }
+        
+        if (changed) {
+          setSelectedImages(updatedImages);
+          onChange(updatedImages);
+        }
+      }
+    };
+    
+    processBlobs();
+  }, [selectedImages, name, onChange]);
 
   // Converter URL blob para File
   async function blobUrlToFile(blobUrl: string): Promise<File> {
@@ -136,10 +203,9 @@ const ImageUploadComponent = forwardRef(({
     if (!url) return '';
     
     try {
-      // Se for uma URL Blob (temporária do navegador)
-      if (url.startsWith('blob:')) {
-        console.log('URL do tipo blob detectada, substituindo por placeholder');
-        // Retornar um placeholder em vez da URL blob
+      // Se for uma URL Blob (temporária do navegador), NUNCA retorná-la
+      if (url && url.startsWith('blob:')) {
+        console.warn('URL blob detectada, substituindo por placeholder:', url);
         return 'https://placehold.co/300x300/CCCCCC/666666?text=Processando...';
       }
       
