@@ -1,0 +1,79 @@
+CORREÇÃO URGENTE PARA IMAGEUPLOAD.TSX: PROBLEMAS COM URLS BLOB
+
+Estamos enfrentando um problema crítico onde URLs blob estão sendo salvas no banco de dados e causando falhas ao carregar imagens na aplicação após o deploy.
+
+Por favor, aplique EXATAMENTE estas alterações no arquivo src/components/ui/ImageUpload.tsx:
+
+1. LOCALIZAR:
+   A função getValidImage(), aproximadamente na linha 40-70
+
+2. SUBSTITUIR TOTALMENTE esta função pelo código abaixo:
+
+```typescript
+// Validar e normalizar URLs de imagem
+const getValidImage = (url: string | undefined): string => {
+  if (!url) return '';
+  
+  // Log para debugging
+  console.log('Validando URL de imagem:', url);
+  
+  try {
+    // NUNCA retornar URLs blob - substituir por placeholder
+    if (url.startsWith('blob:')) {
+      console.warn('⚠️ URL blob detectada, substituindo por placeholder', url);
+      return 'https://placehold.co/300x300/CCCCCC/666666?text=Carregando...';
+    }
+    
+    // Se começar com http, é uma URL completa
+    if (url.startsWith('http')) {
+      return url;
+    }
+    
+    // Se já for uma URL completa relativa ao servidor
+    if (url.startsWith('/uploads/')) {
+      return url;
+    }
+    
+    // Se for apenas um nome de arquivo, adicionar o prefixo /uploads/
+    return `/uploads/${url.replace(/^uploads\//, '')}`;
+  } catch (error) {
+    console.error('❌ Erro ao processar URL da imagem:', error, url);
+    return 'https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO';
+  }
+}
+
+LOCALIZAR:
+A função handleUpload(), aproximadamente na linha 90-160
+ADICIONAR este código no INÍCIO da função handleUpload, ANTES de qualquer outro código:
+
+typescript// Remover qualquer URL blob existente antes de adicionar novas imagens
+const filteredImages = selectedImages.filter(url => !url || !url.startsWith('blob:'));
+if (filteredImages.length !== selectedImages.length) {
+  console.warn('⚠️ Removendo URLs blob existentes antes do upload:', 
+    selectedImages.filter(url => url && url.startsWith('blob:')));
+  setSelectedImages(filteredImages);
+  onChange(filteredImages);
+}
+
+ADICIONAR este novo useEffect logo após as declarações de estado no componente:
+
+typescript// Detectar e limpar URLs blob automaticamente
+useEffect(() => {
+  // Verificar se há URLs blob na lista
+  const blobUrls = selectedImages.filter(url => url && url.startsWith('blob:'));
+  if (blobUrls.length > 0) {
+    console.warn('⚠️ URLs blob detectadas no estado, removendo:', blobUrls);
+    
+    // Filtrar as URLs blob
+    const cleanedImages = selectedImages.filter(url => !url || !url.startsWith('blob:'));
+    
+    // Atualizar estado apenas se houve mudança
+    if (cleanedImages.length !== selectedImages.length) {
+      console.log('Atualizando estado com imagens limpas');
+      setSelectedImages(cleanedImages);
+      onChange(cleanedImages);
+    }
+  }
+}, [selectedImages]);
+Por favor, aplique EXATAMENTE estas alterações no arquivo indicado sem modificar outras partes do código.
+Em seguida, crie um script para limpar URLs blob existentes no banco de dados e nos informe como executá-lo.
