@@ -170,8 +170,8 @@ export default function Stores() {
 
         <TabsContent value="list" className="mt-0">
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array(6).fill(0).map((_, index) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {Array(4).fill(0).map((_, index) => (
                 <div key={index} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col">
                   <div className="aspect-square bg-gray-200 animate-pulse relative">
                     {/* Badge de categoria no canto superior esquerdo */}
@@ -200,7 +200,7 @@ export default function Stores() {
               ))}
             </div>
           ) : storesWithDistance.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {storesWithDistance.map((store: Store & { distance: number }) => (
                 <StoreCard 
                   key={store.id} 
