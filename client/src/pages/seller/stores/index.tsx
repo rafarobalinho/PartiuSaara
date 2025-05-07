@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Card, 
   CardContent,
@@ -14,11 +14,28 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/auth-context';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function SellerStores() {
   const [, navigate] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
+  const [storeToDelete, setStoreToDelete] = useState<number | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Redirecionar se não estiver autenticado ou não for vendedor
   const isAuthenticated = !!user;
@@ -49,6 +66,47 @@ export default function SellerStores() {
     },
     enabled: !!isAuthenticated && !!isSeller
   });
+
+  // Mutation para excluir loja
+  const deleteStoreMutation = useMutation({
+    mutationFn: async (storeId: number) => {
+      const response = await apiRequest('DELETE', `/api/stores/${storeId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao excluir loja');
+      }
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
+      toast({
+        title: "Loja excluída",
+        description: "Sua loja foi excluída com sucesso",
+      });
+      setStoreToDelete(null);
+      setIsDeleteDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao excluir loja",
+        description: error.message || 'Ocorreu um erro ao excluir a loja',
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Função para iniciar o processo de exclusão
+  const handleDeleteStore = (storeId: number) => {
+    setStoreToDelete(storeId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Função para confirmar a exclusão
+  const confirmDeleteStore = () => {
+    if (storeToDelete) {
+      deleteStoreMutation.mutate(storeToDelete);
+    }
+  };
 
   if (!isAuthenticated || !isSeller) {
     return null;
@@ -129,11 +187,12 @@ export default function SellerStores() {
             ))}
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between border-t bg-gray-50">
+        <CardFooter className="grid grid-cols-4 gap-2 border-t bg-gray-50 p-2">
           <Button 
             variant="outline" 
             size="sm"
             onClick={() => navigate(`/seller/stores/${store.id}`)}
+            className="col-span-1"
           >
             <i className="fas fa-edit mr-2"></i>
             Editar
@@ -142,6 +201,7 @@ export default function SellerStores() {
             variant="outline" 
             size="sm"
             onClick={() => navigate(`/seller/stores/${store.id}/products`)}
+            className="col-span-1"
           >
             <i className="fas fa-box mr-2"></i>
             Produtos
@@ -150,9 +210,19 @@ export default function SellerStores() {
             variant="outline" 
             size="sm"
             onClick={() => navigate(`/seller/stores/${store.id}/analytics`)}
+            className="col-span-1"
           >
             <i className="fas fa-chart-bar mr-2"></i>
             Análises
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleDeleteStore(store.id)}
+            className="col-span-1 text-red-500 hover:text-red-700 hover:bg-red-50"
+          >
+            <i className="fas fa-trash-alt mr-2"></i>
+            Excluir
           </Button>
         </CardFooter>
       </Card>
@@ -203,6 +273,29 @@ export default function SellerStores() {
           <p className="text-gray-600">Nenhuma loja encontrada com os filtros selecionados.</p>
         </div>
       )}
+
+      {/* Diálogo de confirmação de exclusão */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso excluirá permanentemente a loja
+              e todos os produtos associados a ela.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setStoreToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteStore}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={deleteStoreMutation.isPending}
+            >
+              {deleteStoreMutation.isPending ? 'Excluindo...' : 'Sim, excluir loja'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
