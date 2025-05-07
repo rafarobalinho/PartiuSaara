@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'wouter';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,13 @@ interface Store {
   reviewCount: number;
   images: string[];
   isOpen: boolean;
+}
+
+interface PlaceDetails {
+  rating: number | null;
+  total_ratings: number | null;
+  opening_hours: string | null;
+  business_status: string | null;
 }
 
 interface StoreCardProps {
@@ -100,15 +107,15 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
           </div>
           
           {/* Status e coração de favoritos no canto inferior - mais compacto */}
-          <div className="absolute bottom-0 left-0 right-0 p-1 flex justify-between items-center bg-black/10 backdrop-blur-sm">
+          <div className="absolute bottom-0 left-0 right-0 p-1 flex justify-between items-center">
             <span className={`text-[10px] ${store.isOpen ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} py-0.5 px-1.5 rounded-full shadow-sm`}>
               {store.isOpen ? 'Aberto' : 'Fechado'}
             </span>
             <button 
-              className={`${isFavorite ? 'text-primary' : 'text-gray-200 hover:text-primary'} bg-white/80 rounded-full p-1 shadow-sm text-xs`}
+              className={`${isFavorite ? 'text-[#F2600C]' : 'text-gray-200 hover:text-[#F2600C]'} bg-white rounded-full shadow-sm flex items-center justify-center h-5 w-5`}
               onClick={handleFavoriteToggle}
             >
-              <i className={isFavorite ? 'fas fa-heart' : 'far fa-heart'}></i>
+              <i className={isFavorite ? 'fas fa-heart text-[10px]' : 'far fa-heart text-[10px]'}></i>
             </button>
           </div>
         </div>
