@@ -229,6 +229,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/stores', authMiddleware, geocodingMiddleware, processStoreMiddleware, StoreController.createStore);
   app.put('/api/stores/:id', authMiddleware, verifyStoreOwnership, geocodingMiddleware, processStoreMiddleware, StoreController.updateStore);
   
+  // Rota para excluir uma loja
+  app.delete('/api/stores/:id', authMiddleware, verifyStoreOwnership, async (req: Request, res: Response) => {
+    try {
+      const storeId = parseInt(req.params.id);
+      
+      console.log(`Solicitação para excluir loja ID: ${storeId}`);
+      
+      // 1. Primeiro excluir imagens relacionadas
+      await db.delete(storeImages)
+        .where(eq(storeImages.storeId, storeId));
+      
+      // 2. Verificar se há produtos associados a esta loja
+      const storeProducts = await db.select()
+        .from(products)
+        .where(eq(products.storeId, storeId));
+      
+      if (storeProducts.length > 0) {
+        // 2.1 Para cada produto, excluir imagens relacionadas
+        for (const product of storeProducts) {
+          await db.delete(productImages)
+            .where(eq(productImages.productId, product.id));
+        }
+        
+        // 2.2 Excluir todos os produtos da loja
+        await db.delete(products)
+          .where(eq(products.storeId, storeId));
+      }
+      
+      // 3. Excluir a loja
+      await db.delete(stores)
+        .where(eq(stores.id, storeId));
+      
+      return res.json({
+        success: true,
+        message: 'Loja excluída com sucesso'
+      });
+    } catch (error) {
+      console.error('Erro ao excluir loja:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Ocorreu um erro ao excluir a loja',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
   // Rota para adicionar imagens a uma loja existente
   app.post('/api/stores/:id/images', authMiddleware, verifyStoreOwnership, async (req: Request, res: Response) => {
     try {
