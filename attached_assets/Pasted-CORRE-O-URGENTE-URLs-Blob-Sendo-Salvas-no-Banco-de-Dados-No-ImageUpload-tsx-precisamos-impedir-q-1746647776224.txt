@@ -1,0 +1,174 @@
+CORREÇÃO URGENTE: URLs Blob Sendo Salvas no Banco de Dados
+
+No ImageUpload.tsx, precisamos impedir que URLs blob sejam usadas e garantir que todas as imagens passem pelo upload.controller.js:
+
+1. Modifique a função getValidImage:
+
+```javascript
+const getValidImage = (url: string | undefined): string => {
+  if (!url) return '';
+  
+  // Se for uma URL Blob (temporária do navegador), NUNCA retorná-la
+  if (url && url.startsWith('blob:')) {
+    console.warn('URL blob detectada, substituindo por placeholder:', url);
+    return 'https://placehold.co/300x300/CCCCCC/666666?text=Processando...';
+  }
+  
+  // Resto do código normal para URLs válidas
+  // ...
+};
+
+Adicione este código no useEffect do componente para processar automaticamente URLs blob quando detectadas:
+
+javascriptuseEffect(() => {
+  // Verificar se existem URLs blob entre as imagens selecionadas
+  const processBlobs = async () => {
+    const hasBlobUrls = selectedImages.some(url => url && url.startsWith('blob:'));
+    
+    if (hasBlobUrls) {
+      console.log('Detectadas URLs blob, processando automaticamente...');
+      
+      // Extrair informações do nome para upload
+      const parts = name.split('-');
+      const type = parts[0]; // "store" ou "product"
+      const entityId = parts[parts.length - 1];
+      
+      if (!entityId || isNaN(Number(entityId))) {
+        console.error('ID da entidade inválido para processamento automático de blobs');
+        return;
+      }
+      
+      // Processar cada blob
+      const updatedImages = [...selectedImages];
+      let changed = false;
+      
+      for (let i = 0; i < updatedImages.length; i++) {
+        if (updatedImages[i] && updatedImages[i].startsWith('blob:')) {
+          try {
+            // Buscar o conteúdo do blob
+            const response = await fetch(updatedImages[i]);
+            const blob = await response.blob();
+            
+            // Criar um arquivo
+            const filename = `image_${Date.now()}.jpg`;
+            const file = new File([blob], filename, { type: 'image/jpeg' });
+            
+            // Fazer upload manualmente
+            const formData = new FormData();
+            formData.append('images', file);
+            
+            const uploadResponse = await apiRequest(
+              'POST',
+              `/api/upload/images?type=${type}&entityId=${entityId}`,
+              formData
+            );
+            
+            const result = await uploadResponse.json();
+            
+            if (result.success && result.images && result.images.length > 0) {
+              updatedImages[i] = result.images[0].imageUrl;
+              changed = true;
+              console.log(`Blob convertido para ${updatedImages[i]}`);
+            }
+          } catch (error) {
+            console.error('Falha ao processar blob:', error);
+          }
+        }
+      }
+      
+      if (changed) {
+        setSelectedImages(updatedImages);
+        onChange(updatedImages);
+      }
+    }
+  };
+  
+  processBlobs();
+}, [selectedImages]);
+
+Modifique o método handleUpload para verificar URLs blob ANTES de iniciar um novo upload:
+
+javascriptconst handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ... código existente para validação
+
+  // ADICIONAR: Verificar e remover quaisquer URLs blob existentes
+  const filteredImages = selectedImages.filter(url => !url || !url.startsWith('blob:'));
+  if (filteredImages.length !== selectedImages.length) {
+    console.log('Removendo URLs blob antes de novo upload');
+    setSelectedImages(filteredImages);
+  }
+  
+  // ... resto do código de upload
+};
+Por favor, implemente estas mudanças no ImageUpload.tsx para garantir que URLs blob nunca sejam salvas no banco de dados.
+
+## Solução adicional: Script para limpar URLs blob existentes
+
+Além da correção preventiva acima, precisamos de um script que limpe URLs blob que já estão no banco de dados:
+
+```javascript
+// Script para limpar URLs blob do banco de dados
+
+// 1. Para tabela de lojas (stores)
+async function cleanBlobUrlsInStores() {
+  try {
+    console.log('Iniciando limpeza de URLs blob em stores...');
+    
+    // Buscar todas as lojas
+    const stores = await db.select().from('stores').all();
+    let count = 0;
+    
+    for (const store of stores) {
+      if (!store.images || !Array.isArray(store.images)) continue;
+      
+      // Verificar se há URLs blob no array images
+      const hasBlobUrls = store.images.some(url => 
+        typeof url === 'string' && url.startsWith('blob:')
+      );
+      
+      if (hasBlobUrls) {
+        console.log(`Limpando URLs blob da loja ${store.id}: ${store.name}`);
+        
+        // Remover todas as URLs blob do array
+        const cleanedImages = store.images.filter(url => 
+          typeof url !== 'string' || !url.startsWith('blob:')
+        );
+        
+        // Atualizar no banco
+        await db.update('stores')
+          .set({ images: cleanedImages })
+          .where({ id: store.id });
+          
+        count++;
+      }
+    }
+    
+    console.log(`Limpeza concluída. ${count} lojas atualizadas.`);
+    return count;
+  } catch (error) {
+    console.error('Erro ao limpar URLs blob:', error);
+    throw error;
+  }
+}
+
+// 2. Mesmo para produtos
+async function cleanBlobUrlsInProducts() {
+  // Similar ao anterior, mas para tabela products
+}
+
+// Executor
+export async function cleanAllBlobUrls() {
+  const storesCount = await cleanBlobUrlsInStores();
+  const productsCount = await cleanBlobUrlsInProducts();
+  
+  return {
+    stores: storesCount,
+    products: productsCount
+  };
+}
+Esta abordagem resolve o problema de duas maneiras:
+
+Prevenção: Modificações no ImageUpload.tsx para garantir que URLs blob sejam sempre processadas antes de salvar e nunca exibidas diretamente
+Limpeza: Script para limpar URLs blob que já existem no banco de dados
+
+Vamos focar em implementar estas soluções uma por uma, começando pela modificação do ImageUpload.tsx para evitar novos problemas, e depois executar o script de limpeza para corrigir dados existentes.
