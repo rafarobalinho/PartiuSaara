@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import fs from 'fs';
 import cors from 'cors';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -118,8 +119,30 @@ app.use((req, res, next) => {
 (async () => {
   // Verificar diretórios de uploads
   try {
-    const { checkAllDirectories } = require('./scripts/check-uploads-dir');
-    checkAllDirectories();
+    // Verificar manualmente os diretórios de uploads
+    const uploadsDir = path.join(__dirname, '../public/uploads');
+    const thumbnailsDir = path.join(__dirname, '../public/uploads/thumbnails');
+    const originalsDir = path.join(__dirname, '../public/uploads/originals');
+    
+    console.log('🔍 Verificando diretórios de uploads...');
+    
+    // Verificar e criar diretórios se não existirem
+    if (!fs.existsSync(uploadsDir)) {
+      console.log(`❌ Diretório não existe, criando: ${uploadsDir}`);
+      fs.mkdirSync(uploadsDir, { recursive: true, mode: 0o755 });
+    }
+    
+    if (!fs.existsSync(thumbnailsDir)) {
+      console.log(`❌ Diretório não existe, criando: ${thumbnailsDir}`);
+      fs.mkdirSync(thumbnailsDir, { recursive: true, mode: 0o755 });
+    }
+    
+    if (!fs.existsSync(originalsDir)) {
+      console.log(`❌ Diretório não existe, criando: ${originalsDir}`);
+      fs.mkdirSync(originalsDir, { recursive: true, mode: 0o755 });
+    }
+    
+    console.log('✅ Todos os diretórios verificados e criados com sucesso');
   } catch (error) {
     console.error('❌ Erro ao verificar diretórios de uploads:', error);
   }
