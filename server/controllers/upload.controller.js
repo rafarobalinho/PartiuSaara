@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import { imageUpload } from '../utils/imageUpload.js';
 import { db } from '../db.js';
 import { storeImages, productImages } from '../../shared/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 
 // Obtém o caminho do diretório atual em ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -77,16 +77,22 @@ export const uploadImages = async (req, res) => {
 
         // Salva as imagens no banco de dados
         const savedImages = [];
-        let isPrimary = true; // A primeira imagem será primária
 
         for (const image of processedImages) {
           if (type === 'store') {
-            // Salva imagem para a loja
+            // Se for uma loja, primeiro desativa todas as imagens primárias existentes
+            await db.update(storeImages)
+              .set({
+                isPrimary: false
+              })
+              .where(eq(storeImages.storeId, parseInt(entityId)));
+            
+            // Salva a nova imagem como primária (sempre a mais recente será primária)
             const [savedImage] = await db.insert(storeImages).values({
               storeId: parseInt(entityId),
               imageUrl: image.imageUrl,
               thumbnailUrl: image.thumbnailUrl,
-              isPrimary: isPrimary,
+              isPrimary: true, // Sempre verdadeiro - a imagem mais recente é a primária
               displayOrder: savedImages.length
             }).returning();
             
@@ -96,12 +102,19 @@ export const uploadImages = async (req, res) => {
               isPrimary: savedImage.isPrimary
             });
           } else {
-            // Salva imagem para o produto
+            // Se for um produto, primeiro desativa todas as imagens primárias existentes
+            await db.update(productImages)
+              .set({
+                isPrimary: false
+              })
+              .where(eq(productImages.productId, parseInt(entityId)));
+            
+            // Salva a nova imagem como primária (sempre a mais recente será primária)
             const [savedImage] = await db.insert(productImages).values({
               productId: parseInt(entityId),
               imageUrl: image.imageUrl,
               thumbnailUrl: image.thumbnailUrl,
-              isPrimary: isPrimary,
+              isPrimary: true, // Sempre verdadeiro - a imagem mais recente é a primária
               displayOrder: savedImages.length
             }).returning();
             
@@ -111,9 +124,6 @@ export const uploadImages = async (req, res) => {
               isPrimary: savedImage.isPrimary
             });
           }
-          
-          // Apenas a primeira imagem é primária
-          if (isPrimary) isPrimary = false;
         }
 
         return res.status(200).json({
@@ -197,10 +207,46 @@ export const deleteImage = async (req, res) => {
     const thumbnailDeleted = deleteFileIfExists(thumbnailPath);
 
     // Remove o registro do banco de dados
+    const isPrimaryImage = imageRecord.isPrimary;
+    
     if (type === 'store') {
       await db.delete(storeImages).where(eq(storeImages.id, parseInt(id)));
+      
+      // Se estava excluindo a imagem primária, definir outra como primária
+      if (isPrimaryImage) {
+        // Buscar a imagem mais recente (com o maior ID)
+        const [newestImage] = await db.select()
+          .from(storeImages)
+          .where(eq(storeImages.storeId, imageRecord.storeId))
+          .orderBy(desc(storeImages.id))
+          .limit(1);
+          
+        if (newestImage) {
+          // Definir esta imagem como primária
+          await db.update(storeImages)
+            .set({ isPrimary: true })
+            .where(eq(storeImages.id, newestImage.id));
+        }
+      }
     } else {
       await db.delete(productImages).where(eq(productImages.id, parseInt(id)));
+      
+      // Se estava excluindo a imagem primária, definir outra como primária
+      if (isPrimaryImage) {
+        // Buscar a imagem mais recente (com o maior ID)
+        const [newestImage] = await db.select()
+          .from(productImages)
+          .where(eq(productImages.productId, imageRecord.productId))
+          .orderBy(desc(productImages.id))
+          .limit(1);
+          
+        if (newestImage) {
+          // Definir esta imagem como primária
+          await db.update(productImages)
+            .set({ isPrimary: true })
+            .where(eq(productImages.id, newestImage.id));
+        }
+      }
     }
 
     return res.status(200).json({
