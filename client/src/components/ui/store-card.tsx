@@ -5,6 +5,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import ImageWithFallback from './image-with-fallback';
 
 interface Store {
   id: number;
@@ -136,14 +137,11 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
       <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow block h-full flex flex-col">
         {/* Imagem com ratio 1:1 (quadrado) para seguir o modelo de referência */}
         <div className="aspect-square relative overflow-hidden bg-white">
-          <img 
+          <ImageWithFallback 
             src={`/api/stores/${store.id}/primary-image`}
             alt={`Loja ${store.name}`}
             className="w-full h-full object-cover"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              e.currentTarget.nextElementSibling?.classList.remove('hidden');
-            }}
+            onLoad={() => console.log(`Imagem da loja ${store.id} carregada com sucesso`)}
           />
           <div className="w-full h-full bg-gray-200 flex items-center justify-center hidden">
             <i className="fas fa-store text-gray-400 text-4xl"></i>
