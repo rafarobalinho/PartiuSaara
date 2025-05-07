@@ -120,21 +120,22 @@ export default function StoreDetail() {
   // Atualizar valores do formulário quando os dados da loja forem carregados
   useEffect(() => {
     if (store) {
+      console.log("Carregando dados da loja:", store);
       form.reset({
         name: store.name,
         description: store.description,
-        address: store.address,
-        city: store.city,
-        state: store.state,
-        zipCode: store.zipCode,
-        phoneNumber: store.phoneNumber,
+        address: store.address?.street || store.address || '',
+        city: store.address?.city || '',
+        state: store.address?.state || '',
+        zipCode: store.address?.zipCode || '',
+        phoneNumber: store.phoneNumber || '',
         businessHours: store.businessHours || '',
         category: store.category,
         images: Array.isArray(store.images) ? store.images : 
                (store.images ? [store.images] : []),
         isOpen: store.isOpen,
-        latitude: store.latitude || 0,
-        longitude: store.longitude || 0,
+        latitude: store.location?.latitude || 0,
+        longitude: store.location?.longitude || 0,
       });
     }
   }, [store, form]);
@@ -182,7 +183,23 @@ export default function StoreDetail() {
 
   // Função para lidar com o envio do formulário
   const onSubmit = async (data: StoreFormValues) => {
-    updateStoreMutation.mutate(data);
+    // Transformar os dados para o formato esperado pelo backend
+    const formattedData = {
+      ...data,
+      address: {
+        street: data.address,
+        city: data.city,
+        state: data.state,
+        zipCode: data.zipCode
+      },
+      location: {
+        latitude: data.latitude,
+        longitude: data.longitude
+      }
+    };
+    
+    console.log("Enviando dados formatados:", formattedData);
+    updateStoreMutation.mutate(formattedData as any);
   };
 
   if (!isAuthenticated || !isSeller) {
