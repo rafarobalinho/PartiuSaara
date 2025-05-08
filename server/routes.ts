@@ -20,12 +20,16 @@ import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db, pool } from "./db";
 import { and, eq } from "drizzle-orm";
 import { storeImages, productImages, products, stores, users } from "@shared/schema";
+import imagesRoutes from "./routes/images";
 import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
 import { comparePasswords } from './utils/auth';
 import { geocodingMiddleware } from "./middlewares/geocoding.middleware";
 import { processStoreMiddleware } from "./middleware/store-processor.middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Registrar as rotas de imagens
+  app.use('/api', imagesRoutes);
+
   // Auth routes
   app.post('/api/auth/register', AuthController.register);
   app.post('/api/auth/login', AuthController.login);

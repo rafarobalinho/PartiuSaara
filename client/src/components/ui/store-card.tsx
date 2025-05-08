@@ -5,7 +5,7 @@ import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import ImageWithFallback from './image-with-fallback';
+import { SafeImage } from './safe-image';
 
 interface Store {
   id: number;

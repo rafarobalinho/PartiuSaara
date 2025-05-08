@@ -23,11 +23,6 @@ router.get('/stores/:id/primary-image', async (req: Request, res: Response) => {
     const result = await db.select()
       .from(storeImages)
       .where(eq(storeImages.storeId, storeId))
-      .orderBy((cols) => [
-        cols.isPrimary.desc(),
-        cols.displayOrder.asc(),
-        cols.id.desc()
-      ])
       .limit(1);
     
     if (result.length === 0) {
@@ -73,11 +68,6 @@ router.get('/products/:id/primary-image', async (req: Request, res: Response) =>
     const result = await db.select()
       .from(productImages)
       .where(eq(productImages.productId, productId))
-      .orderBy((cols) => [
-        cols.isPrimary.desc(),
-        cols.displayOrder.asc(),
-        cols.id.desc()
-      ])
       .limit(1);
     
     if (result.length === 0) {
