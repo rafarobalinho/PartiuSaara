@@ -64,7 +64,7 @@ export default function SellerPromotions() {
               name: 'Smartphone XYZ',
               price: 1299.90,
               discountedPrice: 999.90,
-              images: ['/assets/product-electronics-1.jpg']
+              images: ['/uploads/product-electronics-1.jpg']
             }
           },
           {
