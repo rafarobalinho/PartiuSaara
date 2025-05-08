@@ -21,7 +21,7 @@ export default function MainBanner() {
       const defaultBanners: Banner[] = [
         {
           id: 1,
-          imageUrl: '/assets/banner-ofertas.jpg',
+          imageUrl: '/uploads/banner-ofertas.jpg',
           title: 'Semana de Ofertas',
           description: 'Economize até 50% em produtos selecionados nas melhores lojas do Saara!',
           couponCode: 'PROMO50',
@@ -30,7 +30,7 @@ export default function MainBanner() {
         },
         {
           id: 2,
-          imageUrl: '/assets/banner-eletronicos.jpg',
+          imageUrl: '/uploads/banner-eletronicos.jpg',
           title: 'Desconto em Eletrônicos',
           description: 'Gadgets, acessórios e smartphones com descontos imperdíveis!',
           couponCode: 'TECH30',
@@ -39,7 +39,7 @@ export default function MainBanner() {
         },
         {
           id: 3,
-          imageUrl: '/assets/banner-moda.jpg',
+          imageUrl: '/uploads/banner-moda.jpg',
           title: 'Moda Feminina',
           description: 'As melhores tendências da estação em promoção especial',
           couponCode: 'MODA25',

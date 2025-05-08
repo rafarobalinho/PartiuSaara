@@ -222,7 +222,7 @@ export default function Stores() {
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="h-[600px] relative">
               {/* In a real application, this would be replaced with an actual map component */}
-              <div className="w-full h-full bg-cover bg-center" style={{backgroundImage: "url('/assets/map-banner.jpg')"}}>
+              <div className="w-full h-full bg-cover bg-center" style={{backgroundImage: "url('/uploads/map-banner.jpg')"}}>
                 <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
                   <div className="bg-white/90 p-6 rounded-lg max-w-md text-center">
                     <h3 className="text-xl font-bold mb-2">Mapa de Lojas</h3>

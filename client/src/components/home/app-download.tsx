@@ -30,7 +30,7 @@ export default function AppDownload() {
             alt="Smartphone com app Partiu Saara"
             className="w-full md:h-64 object-cover"
             onError={(e) => {
-              e.currentTarget.src = '/assets/image-unavailable.jpg';
+              e.currentTarget.src = '/uploads/placeholder-unavailable.jpg';
             }}
           />
         </div>
