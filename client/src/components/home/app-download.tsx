@@ -26,7 +26,7 @@ export default function AppDownload() {
         </div>
         <div className="md:w-2/5 relative">
           <img 
-            src="/assets/smartphone-app.jpg" 
+            src="/uploads/smartphone-app.jpg" 
             alt="Smartphone com app Partiu Saara"
             className="w-full md:h-64 object-cover"
             onError={(e) => {

@@ -162,7 +162,7 @@ const ImageUploadComponent = forwardRef(({
       // NUNCA retornar URLs blob - substituir por placeholder
       if (url.startsWith('blob:')) {
         console.warn('⚠️ URL blob detectada, substituindo por placeholder', url);
-        return '/assets/placeholder-loading.png';
+        return '/uploads/placeholder-loading.jpg';
       }
       
       // Se começar com http, é uma URL completa
@@ -179,7 +179,7 @@ const ImageUploadComponent = forwardRef(({
       return `/uploads/${url.replace(/^uploads\//, '')}`;
     } catch (error) {
       console.error('❌ Erro ao processar URL da imagem:', error, url);
-      return '/assets/placeholder-error.png';
+      return '/uploads/placeholder-error.jpg';
     }
   };
 
