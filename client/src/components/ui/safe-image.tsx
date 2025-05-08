@@ -21,7 +21,7 @@ export function SafeImage({
   width,
   height,
   onLoad,
-  fallbackSrc = '/assets/image-unavailable.jpg'
+  fallbackSrc = '/uploads/image-unavailable.jpg'
 }: SafeImageProps) {
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [error, setError] = useState(false);

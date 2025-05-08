@@ -438,7 +438,7 @@ const ImageUploadComponent = forwardRef(({
                   alt={`Imagem ${index + 1}`} 
                   className="object-cover w-full h-full"
                   onLoad={() => console.log(`Imagem ${index + 1} carregada com sucesso:`, getValidImage(image))}
-                  fallbackSrc="/assets/default-image.jpg"
+                  fallbackSrc="/uploads/default-image.jpg"
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
                   <Button

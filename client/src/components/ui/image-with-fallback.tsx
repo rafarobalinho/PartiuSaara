@@ -37,7 +37,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
     // Limitar tentativas de fallback
     if (errorCount >= 3) {
       console.error('Esgotadas as tentativas de carregamento, usando placeholder:', src);
-      setImgSrc('/assets/placeholder-unavailable.png');
+      setImgSrc('/uploads/placeholder-unavailable.jpg');
       return;
     }
     
@@ -51,7 +51,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
       } else if (imgSrc.startsWith('blob:')) {
         // Se for um blob URL, substitui por placeholder
         console.log('URL blob detectada, substituindo por placeholder');
-        setImgSrc('/assets/placeholder-loading.png');
+        setImgSrc('/uploads/placeholder-loading.jpg');
       } else {
         // Caso não seja um formato reconhecido, tenta com o caminho /public/uploads/...
         const filename = imgSrc.split('/').pop();
@@ -60,7 +60,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
           console.log('Tentando caminho alternativo:', newSrc);
           setImgSrc(newSrc);
         } else {
-          setImgSrc('/assets/placeholder-error.png');
+          setImgSrc('/uploads/placeholder-error.jpg');
         }
       }
     } else if (errorCount === 1) {
@@ -83,7 +83,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
         console.log('Tentando caminho direto de uploads:', `/uploads/${filename}`);
         setImgSrc(`/uploads/${filename}`);
       } else {
-        setImgSrc('/assets/placeholder-error.png');
+        setImgSrc('/uploads/placeholder-error.jpg');
       }
     }
     
