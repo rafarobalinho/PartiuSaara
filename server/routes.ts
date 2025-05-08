@@ -453,7 +453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Fallback para uma imagem padrão se nenhuma imagem foi encontrada
-      return res.redirect('/uploads/default-store.jpg');
+      return res.redirect('/assets/default-store-image.jpg');
     } catch (error) {
       console.error('Erro ao buscar imagem principal da loja:', error);
       return res.status(500).json({ message: 'Erro ao buscar imagem' });
@@ -478,7 +478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Fallback para uma imagem padrão se nenhuma imagem foi encontrada
-      return res.redirect('/uploads/default-product.jpg');
+      return res.redirect('/assets/default-product-image.jpg');
     } catch (error) {
       console.error('Erro ao buscar imagem principal do produto:', error);
       return res.status(500).json({ message: 'Erro ao buscar imagem' });
@@ -488,6 +488,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Servir arquivos estáticos da pasta pública
   app.use('/uploads', express.static('public/uploads'));
   app.use('/uploads/thumbnails', express.static('public/uploads/thumbnails'));
+  app.use('/assets', express.static('public/assets'));
 
 
   // Rota específica para login administrativo
