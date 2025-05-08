@@ -30,7 +30,7 @@ export function setupCSP(app: Express) {
         "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
         
         // Imagens - configuração permissiva para ambiente de desenvolvimento
-        "img-src 'self' data: blob: * https://*.googleapis.com https://maps.gstatic.com https://placehold.co https://images.unsplash.com https://*.replit.app https://*.replit.dev",
+        "img-src 'self' data: blob: * https://*.googleapis.com https://maps.gstatic.com https://*.replit.app https://*.replit.dev",
         
         // Conectividade - configuração permissiva para ambiente de desenvolvimento
         "connect-src 'self' * https://*.googleapis.com https://maps.googleapis.com wss://*.replit.com https://*.replit.app https://*.replit.dev",

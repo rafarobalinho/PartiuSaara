@@ -26,9 +26,12 @@ export default function AppDownload() {
         </div>
         <div className="md:w-2/5 relative">
           <img 
-            src="https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=400&q=80" 
+            src="/assets/smartphone-app.jpg" 
             alt="Smartphone com app Partiu Saara"
             className="w-full md:h-64 object-cover"
+            onError={(e) => {
+              e.currentTarget.src = '/assets/image-unavailable.jpg';
+            }}
           />
         </div>
       </div>

@@ -171,7 +171,7 @@ export default function StoreProducts() {
               className="w-full h-full object-cover"
               onError={(e) => {
                 // Fallback para quando a imagem falha ao carregar
-                e.currentTarget.src = 'https://images.unsplash.com/photo-1606663889134-b1dedb5ed8b7';
+                e.currentTarget.src = '/assets/default-product-image.jpg';
               }}
             />
           ) : (
@@ -269,7 +269,7 @@ export default function StoreProducts() {
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   // Fallback para quando a imagem falha ao carregar
-                  e.currentTarget.src = 'https://images.unsplash.com/photo-1579202673506-ca3ce28943ef';
+                  e.currentTarget.src = '/assets/default-store-image.jpg';
                 }}
               />
             ) : (
