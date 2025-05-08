@@ -37,7 +37,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
     // Limitar tentativas de fallback
     if (errorCount >= 3) {
       console.error('Esgotadas as tentativas de carregamento, usando placeholder:', src);
-      setImgSrc('https://placehold.co/300x300/F2600C/FFFFFF?text=INDISPONÍVEL');
+      setImgSrc('/assets/placeholder-unavailable.png');
       return;
     }
     
@@ -51,7 +51,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
       } else if (imgSrc.startsWith('blob:')) {
         // Se for um blob URL, substitui por placeholder
         console.log('URL blob detectada, substituindo por placeholder');
-        setImgSrc('https://placehold.co/300x300/CCCCCC/666666?text=Processando...');
+        setImgSrc('/assets/placeholder-loading.png');
       } else {
         // Caso não seja um formato reconhecido, tenta com o caminho /public/uploads/...
         const filename = imgSrc.split('/').pop();
