@@ -6,7 +6,7 @@ import { Trash2, Upload, Image as ImageIcon } from 'lucide-react';
 import { Spinner } from "@/components/ui/spinner";
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import ImageWithFallback from './image-with-fallback';
+import { SafeImage } from './safe-image';
 
 interface ImageUploadProps {
   name: string;
@@ -433,11 +433,12 @@ const ImageUploadComponent = forwardRef(({
           {selectedImages.map((image, index) => (
             <div key={index} className="relative group rounded-md overflow-hidden border border-border">
               <div className="aspect-square w-full relative">
-                <ImageWithFallback 
+                <SafeImage 
                   src={getValidImage(image)} 
                   alt={`Imagem ${index + 1}`} 
                   className="object-cover w-full h-full"
                   onLoad={() => console.log(`Imagem ${index + 1} carregada com sucesso:`, getValidImage(image))}
+                  fallbackSrc="/assets/default-image.jpg"
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
                   <Button

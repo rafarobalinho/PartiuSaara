@@ -7,7 +7,7 @@ import { formatCurrency, calculateDiscountPercentage, getTimeRemaining, getProgr
 import { useAuth } from '@/context/auth-context';
 import { useUi } from '@/context/ui-context';
 import { useToast } from '@/hooks/use-toast';
-import ImageWithFallback from './image-with-fallback';
+import { SafeImage } from './safe-image';
 
 // Função que verifica se uma imagem deve ser usada
 function getValidImage(imageUrl: string | undefined, fallbackUrl: string): string {
@@ -250,15 +250,12 @@ export default function ProductCard({
             </div>
           )}
           
-          <ImageWithFallback 
-            src={product.images && product.images.length > 0 ? 
-              typeof product.images[0] === 'string' 
-                ? product.images[0] 
-                : ('image_url' in product.images[0] ? product.images[0].image_url : '/placeholder-image.jpg')
-              : '/placeholder-image.jpg'}
+          <SafeImage 
+            src={`/api/products/${product.id}/primary-image`}
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover object-center p-0"
             onLoad={() => console.log(`Imagem do produto ${product.id} carregada com sucesso`)}
+            fallbackSrc="/assets/default-product-image.jpg"
           />
         </div>
         
