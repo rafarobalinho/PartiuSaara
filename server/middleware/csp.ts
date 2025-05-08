@@ -29,11 +29,11 @@ export function setupCSP(app: Express) {
         // Fontes - Google Fonts e outros
         "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
         
-        // Imagens - configuração ampliada com mais origens
-        "img-src 'self' data: blob: https://*.googleapis.com https://maps.gstatic.com https://placehold.co https://images.unsplash.com https://*.replit.app https://*.replit.dev",
+        // Imagens - configuração permissiva para ambiente de desenvolvimento
+        "img-src 'self' data: blob: * https://*.googleapis.com https://maps.gstatic.com https://placehold.co https://images.unsplash.com https://*.replit.app https://*.replit.dev",
         
-        // Conectividade - APIs e serviços, com suporte expandido
-        "connect-src 'self' https://*.googleapis.com https://maps.googleapis.com wss://*.replit.com https://*.replit.app https://*.replit.dev",
+        // Conectividade - configuração permissiva para ambiente de desenvolvimento
+        "connect-src 'self' * https://*.googleapis.com https://maps.googleapis.com wss://*.replit.com https://*.replit.app https://*.replit.dev",
         
         // Frames - para widgets incorporados
         "frame-src 'self' https://*.google.com",
