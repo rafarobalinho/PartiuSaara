@@ -64,7 +64,7 @@ export default function SellerPromotions() {
               name: 'Smartphone XYZ',
               price: 1299.90,
               discountedPrice: 999.90,
-              images: ['https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=200']
+              images: ['/assets/product-electronics-1.jpg']
             }
           },
           {

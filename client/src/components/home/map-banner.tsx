@@ -5,7 +5,7 @@ export default function MapBanner() {
   return (
     <div className="relative rounded-lg overflow-hidden mb-8 shadow-md">
       <div className="h-48 md:h-64 bg-gray-200 relative">
-        <div className="w-full h-full bg-cover bg-center" style={{backgroundImage: "url('https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80')"}}>
+        <div className="w-full h-full bg-cover bg-center" style={{backgroundImage: "url('/assets/map-banner.jpg')"}}>
           <div className="absolute inset-0 bg-black/20"></div>
         </div>
         

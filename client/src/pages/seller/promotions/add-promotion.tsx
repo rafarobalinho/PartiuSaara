@@ -87,21 +87,21 @@ export default function AddPromotion() {
             name: 'Smartphone XYZ',
             price: 1299.90,
             category: 'Eletrônicos',
-            images: ['https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=200']
+            images: ['/assets/product-electronics-1.jpg']
           },
           {
             id: 2,
             name: 'Tênis Runner Pro',
             price: 299.90,
             category: 'Calçados',
-            images: ['https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?q=80&w=200']
+            images: ['/assets/product-shoes-1.jpg']
           },
           {
             id: 3,
             name: 'Bolsa Elite Fashion',
             price: 189.90,
             category: 'Acessórios',
-            images: ['https://images.unsplash.com/photo-1598532163257-ae3c6b2524b6?q=80&w=200']
+            images: ['/assets/product-accessory-1.jpg']
           }
         ] as Product[];
       } catch (error) {
