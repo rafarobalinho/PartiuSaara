@@ -1,0 +1,339 @@
+vejo que há dois problemas distintos relacionados às imagens:
+
+Problemas com caminhos de imagem inconsistentes:
+
+Algumas imagens estão sendo solicitadas em /api/stores/1/primary-image
+Outras estão sendo solicitadas em /uploads/TIMESTAMP-ID.jpg
+Algumas estão funcionando, outras não
+
+
+Problemas de Content Security Policy que continuam bloqueando scripts externos
+
+Solução para problema de caminhos de imagem
+O problema principal parece ser que o frontend está tentando carregar imagens de maneiras inconsistentes. Em alguns lugares, está tentando usar um endpoint de API (/api/stores/1/primary-image), enquanto em outros está tentando acessar diretamente o arquivo no diretório de uploads (/uploads/...).
+1. Criar um endpoint unificado para imagens
+javascript// routes/images.js
+const express = require('express');
+const router = express.Router();
+const path = require('path');
+const fs = require('fs');
+const { db } = require('../db');
+
+// Endpoint para imagem principal da loja
+router.get('/stores/:id/primary-image', async (req, res) => {
+  try {
+    const storeId = req.params.id;
+    
+    // Buscar a imagem principal da loja no banco de dados
+    const result = await db.query(`
+      SELECT si.image_url, si.thumbnail_url
+      FROM store_images si
+      WHERE si.store_id = $1 AND si.is_primary = true
+      ORDER BY si.id DESC
+      LIMIT 1
+    `, [storeId]);
+    
+    if (result.rows.length === 0) {
+      // Se não encontrar, enviar imagem padrão
+      return res.redirect('/assets/default-store-image.jpg');
+    }
+    
+    // Obter o caminho da imagem
+    const imagePath = result.rows[0].image_url;
+    
+    // Verificar se o caminho começa com /uploads/
+    if (imagePath.startsWith('/uploads/')) {
+      // Remover a barra inicial para obter o caminho relativo à pasta public
+      const relativePath = imagePath.substring(1);
+      const fullPath = path.join(__dirname, '../public', relativePath);
+      
+      if (fs.existsSync(fullPath)) {
+        // Servir o arquivo
+        return res.sendFile(fullPath);
+      } else {
+        console.error(`Arquivo não encontrado: ${fullPath}`);
+        return res.redirect('/assets/default-store-image.jpg');
+      }
+    } else {
+      // Se o caminho não começa com /uploads/, redirecionar para o caminho como está
+      return res.redirect(imagePath);
+    }
+  } catch (error) {
+    console.error('Erro ao buscar imagem da loja:', error);
+    return res.redirect('/assets/default-store-image.jpg');
+  }
+});
+
+// Endpoint para verificar e redirecionar imagens de upload
+router.get('/check-image/:timestamp/:id', async (req, res) => {
+  try {
+    const { timestamp, id } = req.params;
+    const filename = `${timestamp}-${id}.jpg`;
+    
+    // Verificar no diretório de uploads
+    const uploadPath = path.join(__dirname, '../public/uploads', filename);
+    
+    if (fs.existsSync(uploadPath)) {
+      // Servir o arquivo
+      return res.sendFile(uploadPath);
+    } else {
+      // Imagem não encontrada, enviar imagem padrão
+      return res.redirect('/assets/default-store-image.jpg');
+    }
+  } catch (error) {
+    console.error('Erro ao verificar imagem:', error);
+    return res.redirect('/assets/default-store-image.jpg');
+  }
+});
+
+module.exports = router;
+2. Criar componente React para exibição de imagens com tratamento de erros
+jsx// components/SafeImage.jsx
+import React, { useState, useEffect } from 'react';
+
+export function SafeImage({ src, alt, className, fallbackSrc = '/assets/image-unavailable.jpg' }) {
+  const [imgSrc, setImgSrc] = useState(null);
+  const [error, setError] = useState(false);
+  
+  useEffect(() => {
+    // Resetar estados quando a prop src mudar
+    setError(false);
+    
+    // Determinar a URL correta da imagem
+    if (!src) {
+      setImgSrc(fallbackSrc);
+      return;
+    }
+    
+    // Verificar o formato da URL
+    if (src.startsWith('blob:')) {
+      console.warn('URL blob detectada, usando fallback:', src);
+      setImgSrc(fallbackSrc);
+      return;
+    }
+    
+    // Se for URL de API para imagem principal de loja
+    if (src.match(/\/api\/stores\/\d+\/primary-image/)) {
+      setImgSrc(src);
+      return;
+    }
+    
+    // Se for caminho para upload direto
+    if (src.match(/\/uploads\/\d+-\d+\.jpg/)) {
+      // Extrair timestamp e ID
+      const match = src.match(/\/uploads\/(\d+)-(\d+)\.jpg/);
+      if (match) {
+        const timestamp = match[1];
+        const id = match[2];
+        // Usar endpoint de verificação de imagem
+        setImgSrc(`/api/check-image/${timestamp}/${id}`);
+      } else {
+        setImgSrc(src);
+      }
+      return;
+    }
+    
+    // Para outros tipos de URL
+    setImgSrc(src);
+  }, [src, fallbackSrc]);
+  
+  const handleError = () => {
+    console.error('Erro ao carregar imagem:', imgSrc);
+    if (!error) {
+      setError(true);
+      setImgSrc(fallbackSrc);
+    }
+  };
+  
+  if (!imgSrc) {
+    return null;
+  }
+  
+  return (
+    <img 
+      src={imgSrc} 
+      alt={alt || 'Imagem'} 
+      className={className || 'w-full h-full object-cover'} 
+      onError={handleError}
+    />
+  );
+}
+3. Substituir as tags de imagem pelo componente SafeImage
+No seu código frontend, substitua tags <img> por <SafeImage>:
+jsx// Antes
+<img src="/api/stores/1/primary-image" alt="Loja Balisun" className="w-full h-full object-cover" />
+
+// Depois
+<SafeImage src="/api/stores/1/primary-image" alt="Loja Balisun" className="w-full h-full object-cover" />
+4. Endpoint de Diagnóstico para Verificação de Arquivos
+Adicione este endpoint para verificar quais arquivos estão realmente disponíveis no servidor:
+javascript// Endpoint para diagnóstico de arquivos no diretório de uploads
+router.get('/admin/uploads-diagnostic', async (req, res) => {
+  try {
+    const uploadsDir = path.join(__dirname, '../public/uploads');
+    
+    // Verificar se o diretório existe
+    if (!fs.existsSync(uploadsDir)) {
+      return res.json({
+        success: false,
+        error: 'Diretório de uploads não encontrado',
+        path: uploadsDir
+      });
+    }
+    
+    // Listar arquivos
+    const files = fs.readdirSync(uploadsDir);
+    
+    // Agrupar arquivos por tipo
+    const jpgFiles = files.filter(f => f.endsWith('.jpg'));
+    const pngFiles = files.filter(f => f.endsWith('.png'));
+    const otherFiles = files.filter(f => !f.endsWith('.jpg') && !f.endsWith('.png'));
+    
+    // Verificar referências no banco de dados
+    const storeImagesResult = await db.query('SELECT id, store_id, image_url FROM store_images');
+    const productImagesResult = await db.query('SELECT id, product_id, image_url FROM product_images');
+    
+    // Mapear arquivos para registros no banco
+    const mappedStoreImages = storeImagesResult.rows.map(row => {
+      const filename = row.image_url.split('/').pop();
+      const exists = files.includes(filename);
+      return {
+        id: row.id,
+        store_id: row.store_id,
+        filename,
+        path: row.image_url,
+        exists
+      };
+    });
+    
+    const mappedProductImages = productImagesResult.rows.map(row => {
+      const filename = row.image_url.split('/').pop();
+      const exists = files.includes(filename);
+      return {
+        id: row.id,
+        product_id: row.product_id,
+        filename,
+        path: row.image_url,
+        exists
+      };
+    });
+    
+    // Verificar permissões
+    const stats = fs.statSync(uploadsDir);
+    
+    return res.json({
+      success: true,
+      directory: {
+        path: uploadsDir,
+        exists: true,
+        permissions: {
+          owner: stats.uid,
+          group: stats.gid,
+          mode: stats.mode.toString(8)
+        }
+      },
+      files: {
+        total: files.length,
+        jpg: jpgFiles.length,
+        png: pngFiles.length,
+        other: otherFiles.length,
+        samples: files.slice(0, 10)
+      },
+      database: {
+        storeImages: mappedStoreImages.length,
+        productImages: mappedProductImages.length,
+        storeImagesSamples: mappedStoreImages.slice(0, 5),
+        productImagesSamples: mappedProductImages.slice(0, 5),
+        missingStoreImages: mappedStoreImages.filter(img => !img.exists).length,
+        missingProductImages: mappedProductImages.filter(img => !img.exists).length
+      }
+    });
+  } catch (error) {
+    console.error('Erro no diagnóstico de uploads:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Erro ao realizar diagnóstico',
+      message: error.message
+    });
+  }
+});
+Solução para o problema de Content Security Policy
+Parece que a CSP ainda está bloqueando alguns recursos importantes. Vamos implementar uma solução mais ampla:
+javascript// middleware/csp.js
+module.exports = function setupCSP(app) {
+  app.use((req, res, next) => {
+    // Em ambiente de desenvolvimento, desabilitar CSP para facilitar o debug
+    if (process.env.NODE_ENV === 'development') {
+      next();
+      return;
+    }
+    
+    // Em produção, configurar uma CSP mais permissiva
+    res.setHeader(
+      'Content-Security-Policy',
+      [
+        // Política base - permitir do mesmo domínio
+        "default-src 'self'",
+        
+        // Scripts - incluir todas as fontes necessárias e permitir eval para algumas bibliotecas
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleapis.com https://*.google.com https://*.replit.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
+        
+        // Estilos - permitir inline e fontes externas
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
+        
+        // Fontes
+        "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
+        
+        // Imagens - permitir de várias fontes
+        "img-src 'self' data: blob: https://*.googleapis.com https://maps.gstatic.com https://placehold.co https://images.unsplash.com https://*.replit.app",
+        
+        // Conexões
+        "connect-src 'self' https://*.googleapis.com wss://*.replit.com https://*.replit.app",
+        
+        // Frames
+        "frame-src 'self' https://*.google.com",
+        
+        // Media
+        "media-src 'self'",
+        
+        // Object
+        "object-src 'none'",
+        
+        // Manifesto
+        "manifest-src 'self'"
+      ].join('; ')
+    );
+    
+    next();
+  });
+};
+Implementação no seu servidor
+javascript// index.js ou server.js
+const express = require('express');
+const path = require('path');
+const app = express();
+const setupCSP = require('./middleware/csp');
+
+// Configurar CSP
+setupCSP(app);
+
+// Servir arquivos estáticos
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Rotas da API
+app.use('/api', require('./routes/api'));
+
+// Rota específica para imagens
+app.use('/api', require('./routes/images'));
+
+// Rota para todas as outras requisições - enviar o index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Iniciar o servidor
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});
+Esta solução abrangente deve resolver os problemas de caminhos de imagem e de Content Security Policy que você está enfrentando. O componente SafeImage lida com diferentes formatos de URL e fornece fallbacks quando as imagens não podem ser carregadas, enquanto os endpoints de API garantem que as imagens sejam servidas corretamente independentemente de como estão referenciadas no frontend.
