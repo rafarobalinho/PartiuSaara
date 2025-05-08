@@ -80,7 +80,7 @@ export default function SellerPromotions() {
               name: 'Tênis Runner Pro',
               price: 299.90,
               discountedPrice: 224.90,
-              images: ['/assets/product-shoes-1.jpg']
+              images: ['/uploads/product-shoes-1.jpg']
             }
           },
           {
@@ -95,7 +95,7 @@ export default function SellerPromotions() {
               id: 3,
               name: 'Bolsa Elite Fashion',
               price: 189.90,
-              images: ['/assets/product-accessory-1.jpg']
+              images: ['/uploads/product-accessory-1.jpg']
             }
           }
         ] as Promotion[];
