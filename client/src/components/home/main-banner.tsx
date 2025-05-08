@@ -21,7 +21,7 @@ export default function MainBanner() {
       const defaultBanners: Banner[] = [
         {
           id: 1,
-          imageUrl: 'https://images.unsplash.com/photo-1607083206968-13611e3d76db?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80',
+          imageUrl: '/assets/banner-ofertas.jpg',
           title: 'Semana de Ofertas',
           description: 'Economize até 50% em produtos selecionados nas melhores lojas do Saara!',
           couponCode: 'PROMO50',
@@ -30,7 +30,7 @@ export default function MainBanner() {
         },
         {
           id: 2,
-          imageUrl: 'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80',
+          imageUrl: '/assets/banner-eletronicos.jpg',
           title: 'Desconto em Eletrônicos',
           description: 'Gadgets, acessórios e smartphones com descontos imperdíveis!',
           couponCode: 'TECH30',
@@ -39,7 +39,7 @@ export default function MainBanner() {
         },
         {
           id: 3,
-          imageUrl: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80',
+          imageUrl: '/assets/banner-moda.jpg',
           title: 'Moda Feminina',
           description: 'As melhores tendências da estação em promoção especial',
           couponCode: 'MODA25',
