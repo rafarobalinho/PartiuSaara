@@ -13,15 +13,15 @@ import { Express, Request, Response, NextFunction } from 'express';
  */
 export function setupCSP(app: Express) {
   app.use((req: Request, res: Response, next: NextFunction) => {
-    // Configuração da política de segurança de conteúdo abrangente
+    // Configuração da política de segurança de conteúdo abrangente para Replit
     res.setHeader(
       'Content-Security-Policy',
       [
         // Origens padrão - mesmo domínio e dados inline
         "default-src 'self'",
         
-        // Scripts - inclui Google Maps e avaliação inline para algumas bibliotecas
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://apis.google.com https://cdnjs.cloudflare.com https://*.replit.com",
+        // Scripts - configuração mais permissiva para Replit
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleapis.com https://*.google.com https://*.replit.com https://cdnjs.cloudflare.com",
         
         // Estilos - permite inline e fontes
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
@@ -29,11 +29,11 @@ export function setupCSP(app: Express) {
         // Fontes - Google Fonts e outros
         "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
         
-        // Imagens - permite várias fontes, incluindo dados inline e URLs blob
-        "img-src 'self' data: https://*.googleapis.com https://placehold.co https://images.unsplash.com https://*.replit.app blob: https://maps.gstatic.com",
+        // Imagens - configuração ampliada com mais origens
+        "img-src 'self' data: blob: https://*.googleapis.com https://maps.gstatic.com https://placehold.co https://images.unsplash.com https://*.replit.app https://*.replit.dev",
         
-        // Conectividade - APIs e serviços
-        "connect-src 'self' https://*.googleapis.com https://maps.googleapis.com wss://*.replit.com https://*.replit.app",
+        // Conectividade - APIs e serviços, com suporte expandido
+        "connect-src 'self' https://*.googleapis.com https://maps.googleapis.com wss://*.replit.com https://*.replit.app https://*.replit.dev",
         
         // Frames - para widgets incorporados
         "frame-src 'self' https://*.google.com",
