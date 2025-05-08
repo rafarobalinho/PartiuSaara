@@ -9,6 +9,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { setupAuthMiddleware } from "./setup-auth";
 import { initCustomTables } from "./db";
 import { setupCSP } from "./middleware/csp";
+import { checkUploadDirectories } from "./scripts/check-uploads-dir";
 
 // Configuração para obter __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url);
@@ -117,32 +118,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Verificar diretórios de uploads
+  // Verificar diretórios de uploads com o script aprimorado
   try {
-    // Verificar manualmente os diretórios de uploads
-    const uploadsDir = path.join(__dirname, '../public/uploads');
-    const thumbnailsDir = path.join(__dirname, '../public/uploads/thumbnails');
-    const originalsDir = path.join(__dirname, '../public/uploads/originals');
-    
-    console.log('🔍 Verificando diretórios de uploads...');
-    
-    // Verificar e criar diretórios se não existirem
-    if (!fs.existsSync(uploadsDir)) {
-      console.log(`❌ Diretório não existe, criando: ${uploadsDir}`);
-      fs.mkdirSync(uploadsDir, { recursive: true, mode: 0o755 });
-    }
-    
-    if (!fs.existsSync(thumbnailsDir)) {
-      console.log(`❌ Diretório não existe, criando: ${thumbnailsDir}`);
-      fs.mkdirSync(thumbnailsDir, { recursive: true, mode: 0o755 });
-    }
-    
-    if (!fs.existsSync(originalsDir)) {
-      console.log(`❌ Diretório não existe, criando: ${originalsDir}`);
-      fs.mkdirSync(originalsDir, { recursive: true, mode: 0o755 });
-    }
-    
-    console.log('✅ Todos os diretórios verificados e criados com sucesso');
+    checkUploadDirectories();
   } catch (error) {
     console.error('❌ Erro ao verificar diretórios de uploads:', error);
   }

@@ -1,0 +1,191 @@
+continua tendo problemas com as imagens de produtos, que estão tentando ser carregadas de um endpoint incorreto (/api/products/7/primary-image), e também está enfrentando problemas persistentes com a Content Security Policy.
+Para resolver este problema de forma específica, precisamos implementar uma solução mais direcionada:
+1. Configurações de Content Security Policy para Replit
+A configuração de CSP precisa ser mais permissiva para funcionar corretamente no Replit. Você pode adicionar um arquivo middleware/csp.js:
+javascript// middleware/csp.js
+module.exports = function(app) {
+  app.use((req, res, next) => {
+    // Configuração de CSP mais permissiva para o Replit
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleapis.com https://*.google.com https://*.replit.com https://cdnjs.cloudflare.com; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; " +
+      "img-src 'self' data: blob: https://*.googleapis.com https://maps.gstatic.com https://placehold.co https://images.unsplash.com https://*.replit.app; " +
+      "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com; " +
+      "connect-src 'self' https://*.googleapis.com wss://*.replit.com https://*.replit.app;"
+    );
+    
+    next();
+  });
+};
+E então importá-lo no seu arquivo principal:
+javascript// index.js ou server.js
+const setupCSP = require('./middleware/csp');
+setupCSP(app); // Adicione esta linha antes de outras configurações
+2. Criar endpoints específicos para imagens de produtos
+javascript// routes/imageRoutes.js
+const express = require('express');
+const router = express.Router();
+const path = require('path');
+const fs = require('fs');
+const { db } = require('../db');
+
+// Endpoint para imagem principal de produto
+router.get('/products/:id/primary-image', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    
+    // Buscar a imagem principal do produto
+    const result = await db.query(`
+      SELECT pi.image_url 
+      FROM product_images pi
+      WHERE pi.product_id = $1 AND pi.is_primary = true
+      ORDER BY pi.id DESC
+      LIMIT 1
+    `, [productId]);
+    
+    if (result.rows.length === 0) {
+      // Se não encontrar, enviar imagem padrão
+      return res.sendFile(path.join(__dirname, '../public/assets/default-product-image.jpg'));
+    }
+    
+    const imagePath = result.rows[0].image_url;
+    
+    // Se o caminho começa com /uploads/
+    if (imagePath.startsWith('/uploads/')) {
+      const fullPath = path.join(__dirname, '../public', imagePath);
+      
+      if (fs.existsSync(fullPath)) {
+        return res.sendFile(fullPath);
+      } else {
+        // Tentar sem a barra inicial
+        const alternatePath = path.join(__dirname, '../public', imagePath.substring(1));
+        
+        if (fs.existsSync(alternatePath)) {
+          return res.sendFile(alternatePath);
+        }
+        
+        // Se não encontrar, enviar imagem padrão
+        return res.sendFile(path.join(__dirname, '../public/assets/default-product-image.jpg'));
+      }
+    }
+    
+    // Se não começa com /uploads/, redirecionar
+    return res.redirect(imagePath);
+  } catch (error) {
+    console.error('Erro ao buscar imagem do produto:', error);
+    return res.sendFile(path.join(__dirname, '../public/assets/default-product-image.jpg'));
+  }
+});
+
+module.exports = router;
+E depois adicionar a rota no seu arquivo principal:
+javascript// index.js ou server.js
+app.use('/api', require('./routes/imageRoutes'));
+3. Garantir que o diretório de imagens padrão existe
+javascript// Adicionar ao código de inicialização
+const fs = require('fs');
+const path = require('path');
+
+// Garantir que diretórios necessários existem
+const ensureDirectoryExists = (directory) => {
+  if (!fs.existsSync(directory)) {
+    fs.mkdirSync(directory, { recursive: true });
+    console.log(`Diretório criado: ${directory}`);
+  }
+};
+
+// Diretórios importantes
+ensureDirectoryExists(path.join(__dirname, 'public/uploads'));
+ensureDirectoryExists(path.join(__dirname, 'public/assets'));
+
+// Criar imagens padrão se não existirem
+const defaultProductImage = path.join(__dirname, 'public/assets/default-product-image.jpg');
+const defaultStoreImage = path.join(__dirname, 'public/assets/default-store-image.jpg');
+
+if (!fs.existsSync(defaultProductImage)) {
+  // Criar uma imagem padrão básica ou copiar de outro lugar
+  fs.copyFileSync(
+    path.join(__dirname, 'public/assets/placeholder.jpg'), 
+    defaultProductImage
+  );
+}
+
+if (!fs.existsSync(defaultStoreImage)) {
+  // Criar uma imagem padrão básica ou copiar de outro lugar
+  fs.copyFileSync(
+    path.join(__dirname, 'public/assets/placeholder.jpg'), 
+    defaultStoreImage
+  );
+}
+4. Endpoint de Diagnóstico para Verificação
+javascript// routes/adminRoutes.js
+router.get('/admin/image-diagnostic', async (req, res) => {
+  try {
+    const uploadsDir = path.join(__dirname, '../public/uploads');
+    const publicDir = path.join(__dirname, '../public');
+    
+    // Verificar diretórios
+    const dirs = {
+      public: {
+        path: publicDir,
+        exists: fs.existsSync(publicDir),
+        readable: fs.existsSync(publicDir) ? fs.accessSync(publicDir, fs.constants.R_OK) : false
+      },
+      uploads: {
+        path: uploadsDir,
+        exists: fs.existsSync(uploadsDir),
+        readable: fs.existsSync(uploadsDir) ? fs.accessSync(uploadsDir, fs.constants.R_OK) : false
+      },
+      assets: {
+        path: path.join(publicDir, 'assets'),
+        exists: fs.existsSync(path.join(publicDir, 'assets')),
+        readable: fs.existsSync(path.join(publicDir, 'assets')) ? 
+          fs.accessSync(path.join(publicDir, 'assets'), fs.constants.R_OK) : false
+      }
+    };
+    
+    // Verificar banco de dados
+    const dbCheck = {
+      productImages: await db.query('SELECT COUNT(*) FROM product_images'),
+      storeImages: await db.query('SELECT COUNT(*) FROM store_images'),
+      products: await db.query('SELECT COUNT(*) FROM products'),
+      stores: await db.query('SELECT COUNT(*) FROM stores')
+    };
+    
+    // Verificar algumas imagens específicas
+    const sampleCheck = {
+      defaultProduct: fs.existsSync(path.join(publicDir, 'assets/default-product-image.jpg')),
+      defaultStore: fs.existsSync(path.join(publicDir, 'assets/default-store-image.jpg'))
+    };
+    
+    res.json({
+      success: true,
+      directories: dirs,
+      database: {
+        productImages: dbCheck.productImages.rows[0].count,
+        storeImages: dbCheck.storeImages.rows[0].count,
+        products: dbCheck.products.rows[0].count,
+        stores: dbCheck.stores.rows[0].count
+      },
+      samples: sampleCheck
+    });
+  } catch (error) {
+    console.error('Erro no diagnóstico:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+app.use('/api', require('./routes/adminRoutes'));
+Esta solução aborda especificamente:
+
+O problema de CSP que está bloqueando scripts necessários
+O problema com as imagens de produtos não sendo carregadas do endpoint correto
+Garante que os diretórios e arquivos padrão existem
+Fornece um endpoint de diagnóstico para você verificar a situação
+
+Depois de implementar estas mudanças, você deve ser capaz de ver as imagens corretamente, e os erros de CSP devem ser resolvidos.
