@@ -60,7 +60,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
           console.log('Tentando caminho alternativo:', newSrc);
           setImgSrc(newSrc);
         } else {
-          setImgSrc('https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO');
+          setImgSrc('/assets/placeholder-error.png');
         }
       }
     } else if (errorCount === 1) {
@@ -83,7 +83,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
         console.log('Tentando caminho direto de uploads:', `/uploads/${filename}`);
         setImgSrc(`/uploads/${filename}`);
       } else {
-        setImgSrc('https://placehold.co/300x300/F2600C/FFFFFF?text=ERRO');
+        setImgSrc('/assets/placeholder-error.png');
       }
     }
     
