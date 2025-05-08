@@ -255,7 +255,7 @@ export default function ProductCard({
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover object-center p-0"
             onLoad={() => console.log(`Imagem do produto ${product.id} carregada com sucesso`)}
-            fallbackSrc="/assets/default-product-image.jpg"
+            fallbackSrc="/uploads/default-product-image.jpg"
           />
         </div>
         

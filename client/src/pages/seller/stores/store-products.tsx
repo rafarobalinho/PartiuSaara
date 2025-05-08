@@ -171,7 +171,7 @@ export default function StoreProducts() {
               className="w-full h-full object-cover"
               onError={(e) => {
                 // Fallback para quando a imagem falha ao carregar
-                e.currentTarget.src = '/assets/default-product-image.jpg';
+                e.currentTarget.src = '/uploads/default-product-image.jpg';
               }}
             />
           ) : (
@@ -269,7 +269,7 @@ export default function StoreProducts() {
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   // Fallback para quando a imagem falha ao carregar
-                  e.currentTarget.src = '/assets/default-store-image.jpg';
+                  e.currentTarget.src = '/uploads/default-store-image.jpg';
                 }}
               />
             ) : (
