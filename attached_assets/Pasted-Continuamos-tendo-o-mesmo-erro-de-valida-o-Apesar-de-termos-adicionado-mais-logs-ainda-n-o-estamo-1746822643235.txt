@@ -1,0 +1,65 @@
+Continuamos tendo o mesmo erro de validação. Apesar de termos adicionado mais logs, ainda não estamos vendo a resposta detalhada da API que mostraria quais campos específicos estão falhando na validação.
+Vamos tentar um diagnóstico mais sistemático. Analisando os dados enviados:
+
+Os dados do formulário estão sendo transformados de:
+
+json{
+  "type": "normal",
+  "discountType": "percentage",
+  "discountValue": "20",
+  "productId": "1",
+  "startTime": "2025-05-09T20:27",
+  "endTime": "2025-05-16T18:00"
+}
+Para:
+json{
+  "type": "regular",
+  "discountPercentage": 20,
+  "productId": 1,
+  "startTime": "2025-05-09T23:27:00.000Z",
+  "endTime": "2025-05-16T21:00:00.000Z"
+}
+Aqui estão as discrepâncias principais:
+
+discountType e discountValue estão sendo transformados em um único campo discountPercentage
+Os nomes dos campos de data são startTime e endTime, não startDate e endDate
+O tipo "normal" está sendo mapeado para "regular"
+
+Vamos criar um prompt mais específico para ajudar a solucionar este problema:
+Estou tentando solucionar um erro de validação persistente ao criar uma promoção. A API está rejeitando os dados com um erro 400 (Bad Request) e a mensagem "Validation error", mas não estamos vendo os detalhes específicos do erro.
+
+Baseado nos logs, vejo que os dados do formulário:
+```json
+{
+  "type": "normal",
+  "discountType": "percentage",
+  "discountValue": "20",
+  "productId": "1",
+  "startTime": "2025-05-09T20:27",
+  "endTime": "2025-05-16T18:00"
+}
+Estão sendo transformados antes de serem enviados para:
+json{
+  "type": "regular",
+  "discountPercentage": 20,
+  "productId": 1,
+  "startTime": "2025-05-09T23:27:00.000Z",
+  "endTime": "2025-05-16T21:00:00.000Z"
+}
+Há uma discrepância significativa entre os campos originais e os campos transformados.
+Abordagem 1: Modificar o código de transformação
+Por favor, modifique o código que transforma os dados do formulário para a API para preservar os nomes originais dos campos:
+typescriptconst apiData = {
+  // Usar "normal" ou "flash", sem mapear para "regular"
+  type: data.type, 
+  
+  // Manter os campos originais em vez de criar discountPercentage
+  discountType: data.discountType,
+  discountValue: Number(data.discountValue),
+  
+  productId: Number(data.productId),
+  
+  // Manter os nomes originais dos campos de data
+  startTime: new Date(data.startTime).toISOString(),
+  endTime: new Date(data.endTime).toISOString()
+};

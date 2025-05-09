@@ -167,13 +167,21 @@ export default function AddPromotion() {
       // O backend espera "regular" em vez de "normal"
       const promotionType = data.type === 'normal' ? 'regular' : data.type;
       
-      // Criar objetos Date diretos em vez de strings ISO para campos de data
+      // Vamos preservar os campos originais do formulário conforme solicitado
       const apiData = {
-        type: promotionType,
-        discountPercentage: discountPercentage,
+        // Campo type precisa ser "regular" ou "flash", não "normal"
+        type: data.type === 'normal' ? 'regular' : data.type,
+        
+        // Campos de desconto conforme originais no formulário
+        discountType: data.discountType,
+        discountValue: Number(data.discountValue),
+        
+        // ID do produto
         productId: Number(data.productId),
-        startTime: new Date(data.startTime),  // Enviar como objeto Date, não como string
-        endTime: new Date(data.endTime),      // Enviar como objeto Date, não como string
+        
+        // Datas no formato original
+        startTime: data.startTime,
+        endTime: data.endTime
       };
       
       console.log("======= DADOS ENVIADOS PARA API =======");

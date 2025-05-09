@@ -49,8 +49,41 @@ export async function createPromotion(req: Request, res: Response) {
       console.log(JSON.stringify(insertPromotionSchema, null, 2));
       console.log("===================================");
       
-      // Validate promotion data
-      const validationResult = insertPromotionSchema.safeParse(req.body);
+      // Adaptação dos dados recebidos para o formato esperado pelo schema
+      // Se o cliente enviar os dados originais do formulário, convertemos para o formato do schema
+      let adaptedData = {...req.body};
+      
+      // Se temos discountType e discountValue, precisamos convertê-los para discountPercentage
+      if (req.body.discountType && req.body.discountValue) {
+        // Se o tipo for percentage, simplesmente usamos o valor
+        if (req.body.discountType === 'percentage') {
+          adaptedData.discountPercentage = Number(req.body.discountValue);
+        } else {
+          // Teria que calcular a percentagem com base no preço do produto
+          // mas não temos acesso direto a ele aqui, então vamos usar o valor direto
+          adaptedData.discountPercentage = Number(req.body.discountValue);
+        }
+        
+        // Remover campos não utilizados pelo schema
+        delete adaptedData.discountType;
+        delete adaptedData.discountValue;
+      }
+      
+      // Convertemos as strings de data para objetos Date
+      if (typeof adaptedData.startTime === 'string') {
+        adaptedData.startTime = new Date(adaptedData.startTime);
+      }
+      
+      if (typeof adaptedData.endTime === 'string') {
+        adaptedData.endTime = new Date(adaptedData.endTime);
+      }
+      
+      console.log("======= DADOS ADAPTADOS =======");
+      console.log(JSON.stringify(adaptedData, null, 2));
+      console.log("==============================");
+
+      // Validate promotion data com os dados adaptados
+      const validationResult = insertPromotionSchema.safeParse(adaptedData);
       if (!validationResult.success) {
         console.log("======= ERROS DE VALIDAÇÃO =======");
         console.log(JSON.stringify(validationResult.error.errors, null, 2));
