@@ -214,3 +214,52 @@ export async function updatePromotion(req: Request, res: Response) {
     res.status(500).json({ message: 'Internal server error' });
   }
 }
+
+// Delete a promotion (sellers only)
+export async function deletePromotion(req: Request, res: Response) {
+  try {
+    // Ensure user is a seller
+    sellerMiddleware(req, res, async () => {
+      const { id } = req.params;
+      const user = req.user!;
+      
+      // Log for debugging
+      console.log(`Tentando excluir promoção com ID: ${id}`);
+      
+      // Get the promotion
+      const promotion = await storage.getPromotion(Number(id));
+      if (!promotion) {
+        return res.status(404).json({ message: 'Promotion not found' });
+      }
+      
+      // Get the product
+      const product = await storage.getProduct(promotion.productId);
+      if (!product) {
+        return res.status(404).json({ message: 'Product not found' });
+      }
+      
+      // Verify the product belongs to the user's store
+      const store = await storage.getStore(product.storeId);
+      if (!store || store.userId !== user.id) {
+        return res.status(403).json({ message: 'Not authorized to delete this promotion' });
+      }
+      
+      // Delete the promotion
+      const success = await storage.deletePromotion(Number(id));
+      
+      if (success) {
+        console.log(`Promoção ${id} excluída com sucesso`);
+        res.json({ success: true, message: 'Promotion deleted successfully' });
+      } else {
+        console.error(`Falha ao excluir promoção ${id}`);
+        res.status(500).json({ message: 'Failed to delete promotion' });
+      }
+    });
+  } catch (error) {
+    console.error('Error deleting promotion:', error);
+    res.status(500).json({ 
+      message: 'Internal server error', 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
