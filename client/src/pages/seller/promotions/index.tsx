@@ -44,20 +44,34 @@ export default function SellerPromotions() {
     return null;
   }
 
-  // Fetch promotions from seller's store using the real API endpoint
+  // Fetch promotions from seller's store using the API endpoint with proper error handling
   const { data: promotions = [], isLoading } = useQuery({
     queryKey: ['/api/seller/promotions'],
     queryFn: async () => {
       try {
-        const response = await fetch('/api/seller/promotions');
+        // Using apiRequest instead of fetch for better error handling
+        const response = await fetch('/api/seller/promotions', {
+          credentials: 'include', // Importante para enviar cookies de autenticação
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        // Log para diagnóstico
+        console.log('API response status:', response.status);
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch promotions');
+          const errorText = await response.text();
+          console.log('API error response:', errorText);
+          throw new Error(`Failed to fetch promotions: ${response.status} ${errorText}`);
         }
+        
         const data = await response.json();
+        console.log('Resposta da API (promoções do vendedor):', data);
         
         // Map the API response to our expected format
         // If the API returns 'regular' type, convert it to 'normal' for frontend display
-        return data.map((promo: any) => ({
+        return (data || []).map((promo: any) => ({
           ...promo,
           type: promo.type === 'regular' ? 'normal' : promo.type,
         })) as Promotion[];

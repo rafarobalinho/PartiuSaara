@@ -1,0 +1,143 @@
+Preciso resolver dois problemas relacionados à exibição de promoções na minha aplicação e-commerce:
+
+### Problema 1: Promoções não aparecem na página do vendedor
+Na rota `/seller/promotions`, mesmo depois de criar promoções com sucesso, aparece a mensagem "Nenhuma promoção encontrada. Você ainda não criou nenhuma promoção."
+
+### Problema 2: Promoções aparecem na página pública, mas sem dados corretos
+Na rota `/promotions`, os produtos em promoção aparecem, mas não mostram o valor com desconto nem as informações de prazo da promoção.
+
+### Arquivos a verificar e corrigir:
+
+1. **Para o problema da página do vendedor**:
+   - Verifique o arquivo que gerencia a exibição de promoções na rota `/seller/promotions` (provavelmente em `pages/seller/promotions/index.tsx`)
+   - O problema pode ser:
+     - Uma chamada à API incorreta (endpoint errado)
+     - Falta de parâmetros na chamada (como o ID da loja)
+     - Dados estáticos/mock sendo usados em vez de dados reais
+   
+   Implemente esta correção:
+   ```typescript
+   // No componente responsável pela listagem de promoções do vendedor
+   const [promotions, setPromotions] = useState([]);
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState(null);
+   
+   useEffect(() => {
+     async function fetchSellerPromotions() {
+       try {
+         setLoading(true);
+         // Certifique-se que este endpoint existe e retorna as promoções do vendedor autenticado
+         const response = await apiRequest('/api/seller/promotions', {
+           method: 'GET'
+         });
+         console.log('Resposta da API (promoções do vendedor):', response);
+         setPromotions(response.promotions || []);
+       } catch (error) {
+         console.error('Erro ao buscar promoções do vendedor:', error);
+         setError('Não foi possível carregar suas promoções.');
+       } finally {
+         setLoading(false);
+       }
+     }
+     
+     fetchSellerPromotions();
+   }, []);
+
+Para o problema da página pública:
+
+Verifique o arquivo que gerencia a exibição de promoções na rota /promotions (provavelmente em pages/promotions/index.tsx)
+O problema pode ser:
+
+A API está retornando apenas dados básicos do produto, sem incluir os detalhes da promoção
+O frontend não está processando corretamente os dados da promoção
+
+
+
+Implemente esta correção para mostrar o preço com desconto:
+typescript// No componente que renderiza cada produto em promoção
+function ProductCard({ product }) {
+  // Certifique-se que estes dados estão sendo retornados pela API
+  const { id, name, imageUrl, originalPrice, discountedPrice, promotionEndsAt } = product;
+  
+  // Calcular o desconto (se a API não fornecer diretamente)
+  const discountPercentage = originalPrice && discountedPrice 
+    ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100) 
+    : 0;
+  
+  // Formatar a data de término (se disponível)
+  const formattedEndDate = promotionEndsAt 
+    ? new Date(promotionEndsAt).toLocaleDateString('pt-BR') 
+    : null;
+  
+  return (
+    <div className="product-card">
+      {discountPercentage > 0 && (
+        <div className="discount-badge">-{discountPercentage}%</div>
+      )}
+      <img src={imageUrl} alt={name} />
+      <h3>{name}</h3>
+      
+      <div className="price-container">
+        <span className="original-price">R$ {originalPrice.toFixed(2)}</span>
+        <span className="discounted-price">R$ {discountedPrice.toFixed(2)}</span>
+      </div>
+      
+      {formattedEndDate && (
+        <div className="promotion-ends">
+          Promoção válida até {formattedEndDate}
+        </div>
+      )}
+      
+      <button>Reservar</button>
+    </div>
+  );
+}
+
+Verificações no backend:
+
+Verifique se os endpoints da API estão retornando todos os dados necessários:
+
+/api/promotions para a página pública deve retornar produtos com informações de promoção
+/api/seller/promotions para a página do vendedor deve retornar as promoções criadas pelo vendedor autenticado
+
+
+
+No controller das promoções, certifique-se que os dados retornados incluem:
+typescript// Endpoint para listar promoções públicas
+async function getActivePromotions(req, res) {
+  try {
+    const promotions = await storage.getActivePromotions();
+    
+    // Transformar os dados para incluir informações de produto e preço com desconto
+    const promotionsWithDetails = await Promise.all(promotions.map(async (promotion) => {
+      const product = await storage.getProduct(promotion.productId);
+      if (!product) return null;
+      
+      // Calcular preço com desconto
+      let discountedPrice = product.price;
+      if (promotion.discountType === 'percentage') {
+        discountedPrice = product.price * (1 - (promotion.discountValue / 100));
+      } else if (promotion.discountType === 'amount') {
+        discountedPrice = product.price - promotion.discountValue;
+      }
+      
+      return {
+        ...product,
+        originalPrice: product.price,
+        discountedPrice,
+        discountType: promotion.discountType,
+        discountValue: promotion.discountValue,
+        promotionId: promotion.id,
+        promotionEndsAt: promotion.endTime || promotion.endDate
+      };
+    }));
+    
+    res.json({ promotions: promotionsWithDetails.filter(Boolean) });
+  } catch (error) {
+    console.error('Erro ao buscar promoções ativas:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+}
+
+
+Por favor, implemente estas correções e verifique se as promoções aparecem corretamente tanto na página do vendedor quanto na página pública.
