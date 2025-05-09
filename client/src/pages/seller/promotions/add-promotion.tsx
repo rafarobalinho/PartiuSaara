@@ -48,6 +48,11 @@ interface Product {
   price: number;
   category: string;
   images: string[];
+  store_id: number;
+  store?: {
+    id: number;
+    name: string;
+  };
 }
 
 export default function AddPromotion() {
@@ -76,35 +81,27 @@ export default function AddPromotion() {
     setSubscriptionPlan('freemium');
   }, []);
 
-  // Fetch seller's products
-  const { data: products = [] } = useQuery({
-    queryKey: ['/api/seller/products'],
+  // Fetch products from store with ID 1
+  const { data: products = [], isLoading: productsLoading } = useQuery({
+    queryKey: ['/api/products?store_id=1'],
     queryFn: async () => {
       try {
-        // Mock data for demonstration
-        return [
-          {
-            id: 1,
-            name: 'Smartphone XYZ',
-            price: 1299.90,
-            category: 'Eletrônicos',
-            images: ['/uploads/product-electronics-1.jpg']
-          },
-          {
-            id: 2,
-            name: 'Tênis Runner Pro',
-            price: 299.90,
-            category: 'Calçados',
-            images: ['/uploads/product-shoes-1.jpg']
-          },
-          {
-            id: 3,
-            name: 'Bolsa Elite Fashion',
-            price: 189.90,
-            category: 'Acessórios',
-            images: ['/uploads/product-accessory-1.jpg']
-          }
-        ] as Product[];
+        const response = await fetch('/api/products?store_id=1');
+        if (!response.ok) {
+          throw new Error('Failed to fetch products');
+        }
+        const data = await response.json();
+        
+        // Map the products to the format we need
+        return data.products.map((product: any) => ({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          category: product.category,
+          images: product.images || [],
+          store_id: product.store_id,
+          store: product.store
+        }));
       } catch (error) {
         console.error('Error fetching products:', error);
         return [];
@@ -137,7 +134,7 @@ export default function AddPromotion() {
   // Watch form values for conditional rendering
   const promotionType = form.watch('type');
   const productId = form.watch('productId');
-  const selectedProduct = products.find(p => p.id.toString() === productId);
+  const selectedProduct = products.find((p: Product) => p.id.toString() === productId);
 
   // Create promotion mutation
   const createPromotionMutation = useMutation({
@@ -297,16 +294,24 @@ export default function AddPromotion() {
                           defaultValue={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione um produto" />
+                            <SelectTrigger disabled={productsLoading}>
+                              <SelectValue placeholder={productsLoading ? "Carregando produtos..." : "Selecione um produto"} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {products.map((product) => (
-                              <SelectItem key={product.id} value={product.id.toString()}>
-                                {product.name} - R$ {product.price.toFixed(2)}
-                              </SelectItem>
-                            ))}
+                            {productsLoading ? (
+                              <div className="p-2 text-center text-sm text-gray-500">Carregando produtos...</div>
+                            ) : products.length === 0 ? (
+                              <div className="p-2 text-center text-sm text-gray-500">Nenhum produto encontrado</div>
+                            ) : (
+                              products
+                                .filter((product: Product) => product.store_id === 1) // Filtrar apenas produtos da loja 1
+                                .map((product: Product) => (
+                                  <SelectItem key={product.id} value={product.id.toString()}>
+                                    {product.name} - R$ {product.price.toFixed(2)}
+                                  </SelectItem>
+                                ))
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
