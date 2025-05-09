@@ -1,0 +1,62 @@
+Identifiquei o problema de validação ao enviar a promoção. Há uma discrepância entre os dados do formulário e o formato esperado pela API:
+
+### Dados do formulário:
+```json
+{
+  "type": "normal",
+  "discountType": "percentage",
+  "discountValue": "20",
+  "productId": "1",
+  "startTime": "2025-05-09T20:15",
+  "endTime": "2025-05-16T18:00"
+}
+Dados enviados para API (incorretamente transformados):
+json{
+  "type": "regular",
+  "discountPercentage": 20,
+  "productId": 1,
+  "startTime": "2025-05-09T23:15:00.000Z",
+  "endTime": "2025-05-16T21:00:00.000Z"
+}
+Possível esquema esperado (baseado no controller):
+O controller usa o insertPromotionSchema do Zod, que provavelmente espera algo como:
+json{
+  "type": "regular",
+  "discountType": "percentage",
+  "discountValue": 20,
+  "productId": 1,
+  "startDate": "2025-05-09T23:15:00.000Z",
+  "endDate": "2025-05-16T21:00:00.000Z"
+}
+Por favor, corrija a função que transforma os dados do formulário antes de enviá-los para a API. A implementação correta deve:
+
+Garantir que os nomes dos campos correspondam exatamente ao esperado pelo esquema
+Converter os tipos de dados corretamente (strings para números, etc.)
+Formatar as datas adequadamente
+Mapear os valores de enum (como "normal" para "regular") corretamente
+
+Aqui está um esboço da correção:
+typescriptfunction onSubmit(data: PromotionFormValues) {
+  console.log("======= DADOS DO FORMULÁRIO =======");
+  console.log(JSON.stringify(data, null, 2));
+  
+  // Mapeamento correto para o esquema esperado
+  const apiData = {
+    type: data.type === "normal" ? "regular" : data.type, // Mapear "normal" para "regular"
+    discountType: data.discountType, // Manter como está se o schema espera "discountType"
+    discountValue: Number(data.discountValue), // Converter para número
+    productId: Number(data.productId), // Converter para número
+    startDate: new Date(data.startTime).toISOString(), // Converter data e usar o nome de campo correto
+    endDate: new Date(data.endTime).toISOString() // Converter data e usar o nome de campo correto
+  };
+  
+  console.log("======= DADOS ENVIADOS PARA API =======");
+  console.log(JSON.stringify(apiData, null, 2));
+  
+  // Resto do código...
+}
+Ajuste os nomes dos campos e transformações conforme necessário com base no esquema real de validação. Você pode verificar o esquema exato olhando o arquivo @shared/schema.ts onde insertPromotionSchema é definido.
+
+Este prompt identifica claramente o problema (discrepâncias de nomes de campos e transformação de dados) e fornece uma solução específica para corrigir a função de envio. 
+
+A chave aqui é garantir que os dados transformados correspondam exatamente ao que o esquema de validação Zod espera. Assim que corrigirmos essa discrepância, a criação de promoção deve funcionar corretamente.
