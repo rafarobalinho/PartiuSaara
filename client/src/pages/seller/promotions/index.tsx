@@ -125,6 +125,20 @@ export default function SellerPromotions() {
     }
     return '';
   };
+  
+  // Calculate promotional price based on discount
+  const calculatePromotionalPrice = (product: any, promotion: Promotion) => {
+    if (!product || !promotion) return 'N/A';
+    
+    const originalPrice = product.price;
+    
+    if (promotion.discountPercentage) {
+      const discountedPrice = originalPrice * (1 - (promotion.discountPercentage / 100));
+      return formatCurrency(discountedPrice);
+    }
+    
+    return product.discountedPrice ? formatCurrency(product.discountedPrice) : 'N/A';
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -214,9 +228,7 @@ export default function SellerPromotions() {
                       <div className="text-sm">
                         <span className="font-medium text-gray-600">Preço promocional:</span> {' '}
                         <span className="text-primary font-medium">
-                          {promotion.product.discountedPrice 
-                            ? formatCurrency(promotion.product.discountedPrice) 
-                            : 'N/A'}
+                          {calculatePromotionalPrice(promotion.product, promotion)}
                         </span>
                       </div>
                     </div>

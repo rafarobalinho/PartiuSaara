@@ -1,0 +1,217 @@
+Preciso corrigir vários problemas relacionados à exibição e funcionalidade das promoções na minha aplicação de e-commerce:
+
+### Problema 1: Na página `/promotions` falta o prazo de encerramento
+Na exibição pública de promoções, o preço com desconto está correto, mas não está exibindo o prazo de encerramento da promoção.
+
+Correção:
+- Localize o componente que renderiza os cards de produto em promoção (provavelmente em `pages/promotions/index.tsx` ou um componente filho)
+- Adicione a exibição da data de encerramento:
+
+```jsx
+// No componente de card do produto em promoção
+<div className="product-card">
+  {/* Código existente */}
+  <div className="price-container">
+    <span className="original-price">R$ {originalPrice.toFixed(2)}</span>
+    <span className="discounted-price">R$ {discountedPrice.toFixed(2)}</span>
+  </div>
+  
+  {/* Adicionar esta parte para mostrar o prazo */}
+  {promotion && promotion.endTime && (
+    <div className="promotion-deadline">
+      <i className="fas fa-clock mr-1"></i>
+      Termina em: {new Date(promotion.endTime).toLocaleDateString('pt-BR')}
+    </div>
+  )}
+  
+  {/* Código existente */}
+</div>
+Problema 2: Na página /products, produtos incorretos aparecem na aba de Promoções Relâmpago
+Apenas os produtos marcados com tipo "flash" devem aparecer na aba de Promoções Relâmpago.
+Correção:
+
+Localize o código que filtra os produtos na página /products (provavelmente em pages/products/index.tsx)
+Modifique o filtro para verificar corretamente o tipo de promoção:
+
+jsx// No componente que gerencia as abas
+const [activeTab, setActiveTab] = useState('todas');
+const [products, setProducts] = useState([]);
+
+// Ao buscar os produtos
+useEffect(() => {
+  async function fetchProducts() {
+    try {
+      // Parâmetro type=flash apenas se estiver na aba de promoções relâmpago
+      const endpoint = activeTab === 'relampago' 
+        ? '/api/products?promotion=flash' 
+        : activeTab === 'regular'
+          ? '/api/products?promotion=regular'
+          : '/api/products?promotion=true';
+      
+      const response = await apiRequest(endpoint);
+      setProducts(response.products || []);
+    } catch (error) {
+      console.error('Erro ao buscar produtos:', error);
+    }
+  }
+  
+  fetchProducts();
+}, [activeTab]);
+
+// No backend, modifique a rota para filtrar corretamente
+// Em controllers/products.js ou similar
+async function getProducts(req, res) {
+  try {
+    const { promotion } = req.query;
+    
+    let products = [];
+    
+    if (promotion === 'flash') {
+      // Buscar apenas produtos com promoção tipo flash
+      products = await storage.getProductsWithPromotion('flash');
+    } else if (promotion === 'regular') {
+      // Buscar apenas produtos com promoção tipo regular
+      products = await storage.getProductsWithPromotion('regular');
+    } else if (promotion === 'true') {
+      // Buscar todos os produtos em promoção
+      products = await storage.getProductsWithAnyPromotion();
+    } else {
+      // Buscar todos os produtos
+      products = await storage.getAllProducts();
+    }
+    
+    res.json({ products });
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+}
+Problema 3: Na página /seller/promotions o preço promocional aparece como "N/A"
+Na lista de promoções do vendedor, o preço promocional está sendo exibido como "N/A" em vez do valor correto.
+Correção:
+
+Verifique o componente que renderiza a lista de promoções (pages/seller/promotions/index.tsx)
+Modifique para calcular e exibir o preço promocional corretamente:
+
+jsx// No componente que renderiza cada promoção
+function PromotionItem({ promotion, product }) {
+  // Calcular o preço promocional com base no tipo de desconto
+  const calculatePromotionalPrice = () => {
+    if (!product || !promotion) return 'N/A';
+    
+    const originalPrice = product.price;
+    
+    if (promotion.discountType === 'percentage') {
+      return (originalPrice - (originalPrice * promotion.discountValue / 100)).toFixed(2);
+    } else if (promotion.discountType === 'amount') {
+      return (originalPrice - promotion.discountValue).toFixed(2);
+    }
+    
+    return 'N/A';
+  };
+  
+  const promotionalPrice = calculatePromotionalPrice();
+  
+  return (
+    <div className="promotion-item">
+      {/* Código existente */}
+      <div>Preço original: R$ {product?.price.toFixed(2)}</div>
+      <div>Preço promocional: R$ {promotionalPrice}</div>
+      {/* Código existente */}
+    </div>
+  );
+}
+Problema 4: Na página /seller/promotions os botões de editar e excluir não funcionam
+Os botões de editar e excluir promoção não estão realizando as ações esperadas.
+Correção:
+
+Implemente as funções para editar e excluir promoções:
+
+jsx// No componente principal da página
+function SellerPromotions() {
+  // Código existente
+  
+  // Função para editar promoção
+  const handleEdit = (promotionId) => {
+    // Redirecionar para a página de edição
+    router.push(`/seller/promotions/edit/${promotionId}`);
+  };
+  
+  // Função para excluir promoção
+  const handleDelete = async (promotionId) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta promoção?')) {
+      return;
+    }
+    
+    try {
+      await apiRequest(`/api/promotions/${promotionId}`, {
+        method: 'DELETE'
+      });
+      
+      // Atualizar a lista de promoções após a exclusão
+      setPromotions(promotions.filter(p => p.id !== promotionId));
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Promoção excluída com sucesso.',
+        variant: 'success'
+      });
+    } catch (error) {
+      console.error('Erro ao excluir promoção:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível excluir a promoção. Tente novamente.',
+        variant: 'destructive'
+      });
+    }
+  };
+  
+  // No JSX, adicionar os handlers aos botões
+  return (
+    <div>
+      {/* Código existente */}
+      {promotions.map(promotion => (
+        <div key={promotion.id}>
+          {/* Código existente */}
+          <Button onClick={() => handleEdit(promotion.id)}>Editar</Button>
+          <Button variant="destructive" onClick={() => handleDelete(promotion.id)}>Excluir</Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Também é necessário implementar o endpoint da API para exclusão
+// Em controllers/promotions.js
+async function deletePromotion(req, res) {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    // Buscar a promoção
+    const promotion = await storage.getPromotion(Number(id));
+    if (!promotion) {
+      return res.status(404).json({ message: 'Promoção não encontrada' });
+    }
+    
+    // Verificar se o produto pertence à loja do usuário
+    const product = await storage.getProduct(promotion.productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Produto não encontrado' });
+    }
+    
+    const store = await storage.getStore(product.storeId);
+    if (!store || store.userId !== userId) {
+      return res.status(403).json({ message: 'Não autorizado a excluir esta promoção' });
+    }
+    
+    // Excluir a promoção
+    await storage.deletePromotion(Number(id));
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Erro ao excluir promoção:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+}
+Por favor, implemente estas correções nos respectivos arquivos. Se possível, também adicione logs para ajudar a diagnosticar quaisquer problemas que possam surgir durante a implementação.

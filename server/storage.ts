@@ -995,6 +995,25 @@ export class MemStorage implements IStorage {
       product
     };
   }
+  
+  async deletePromotion(id: number): Promise<boolean> {
+    const promotion = await this.getPromotion(id);
+    if (!promotion) return false;
+    
+    // Reset product's discounted price if the promotion is active
+    const product = await this.getProduct(promotion.productId);
+    if (product) {
+      const now = new Date();
+      const isActive = new Date(promotion.startTime) <= now && new Date(promotion.endTime) >= now;
+      
+      if (isActive) {
+        // Reset the discounted price
+        await this.updateProduct(product.id, { discountedPrice: null });
+      }
+    }
+    
+    return this.promotions.delete(id);
+  }
 
   // Coupon operations
   async getCoupon(id: number): Promise<Coupon | undefined> {

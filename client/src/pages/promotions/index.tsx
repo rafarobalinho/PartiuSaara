@@ -109,13 +109,19 @@ export default function PromotionsPage() {
                   </Badge>
                 </div>
               )}
-              <ProductCard
-                product={promotion.product}
-                isFlashPromotion={promotion.type === 'flash'}
-                discountPercentage={promotion.discountPercentage}
-                endTime={new Date(promotion.endTime)}
-                startTime={new Date(promotion.startTime)}
-              />
+              <div className="flex flex-col h-full">
+                <ProductCard
+                  product={promotion.product}
+                  isFlashPromotion={promotion.type === 'flash'}
+                  discountPercentage={promotion.discountPercentage}
+                  endTime={new Date(promotion.endTime)}
+                  startTime={new Date(promotion.startTime)}
+                />
+                <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded-md">
+                  <i className="fas fa-clock mr-1"></i>
+                  <span>Termina em: {new Date(promotion.endTime).toLocaleDateString('pt-BR')}</span>
+                </div>
+              </div>
             </div>
           ))}
         </div>
