@@ -449,6 +449,11 @@ export class MemStorage implements IStorage {
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }
+  
+  async getUserStores(userId: number): Promise<Store[]> {
+    // Alias para getStoresByUserId
+    return this.getStoresByUserId(userId);
+  }
 
   async createStore(storeData: InsertStore): Promise<Store> {
     const id = this.storeIdCounter++;
@@ -907,6 +912,25 @@ export class MemStorage implements IStorage {
     // Get promotions for these products
     const promotions = Array.from(this.promotions.values())
       .filter(promo => storeProductIds.includes(promo.productId));
+    
+    // Add product information to each promotion
+    return Promise.all(promotions.map(async promotion => {
+      const product = await this.getProduct(promotion.productId);
+      return {
+        ...promotion,
+        product
+      };
+    }));
+  }
+  
+  async getProductsPromotions(productIds: number[]): Promise<Promotion[]> {
+    if (!productIds || productIds.length === 0) {
+      return [];
+    }
+    
+    // Get promotions for these products
+    const promotions = Array.from(this.promotions.values())
+      .filter(promo => productIds.includes(promo.productId));
     
     // Add product information to each promotion
     return Promise.all(promotions.map(async promotion => {
