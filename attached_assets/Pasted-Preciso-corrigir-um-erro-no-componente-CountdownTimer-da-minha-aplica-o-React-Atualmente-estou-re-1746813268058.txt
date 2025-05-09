@@ -1,0 +1,58 @@
+Preciso corrigir um erro no componente CountdownTimer da minha aplicação React. Atualmente, estou recebendo o erro: "Objects are not valid as a React child (found: object with keys {days, hours, minutes, seconds})".
+
+O componente deve exibir uma contagem regressiva para promoções, com as seguintes especificações:
+
+1. Para promoções relâmpago (duração <= 72 horas): Exibir no formato "Xh Ym Zs"
+2. Para promoções regulares (duração > 72 horas): Exibir no formato "Xd Yh Zm"
+
+A função getTimeDifference retorna um objeto com {days, hours, minutes, seconds}.
+
+O problema atual é que o objeto está sendo renderizado diretamente em vez de seus valores formatados. Aqui está o componente atual:
+
+```tsx
+import { useState, useEffect } from 'react';
+import { getTimeDifference } from '@/lib/utils';
+
+interface CountdownTimerProps {
+  endTime: Date;
+  onComplete?: () => void;
+}
+
+export default function CountdownTimer({ endTime, onComplete }: CountdownTimerProps) {
+  const [timeLeft, setTimeLeft] = useState(getTimeDifference(endTime));
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newTimeLeft = getTimeDifference(endTime);
+      setTimeLeft(newTimeLeft);
+      if (newTimeLeft.hours === 0 && newTimeLeft.minutes === 0 && newTimeLeft.seconds === 0) {
+        clearInterval(interval);
+        if (onComplete) {
+          onComplete();
+        }
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [endTime, onComplete]);
+
+  const formatTime = (value: number) => value.toString().padStart(2, '0');
+
+  return (
+    <div className="flex items-center text-xs text-gray-500">
+      <i className="fas fa-clock mr-1"></i>
+      {timeLeft.hours > 0 || timeLeft.minutes > 0 || timeLeft.seconds > 0 ? (
+        <span>
+          Acaba em {timeLeft.hours}h{formatTime(timeLeft.minutes)}m{formatTime(timeLeft.seconds)}s
+        </span>
+      ) : (
+        <span>Acabou</span>
+      )}
+    </div>
+  );
+}
+Por favor, modifique este código para:
+
+Corrigir o erro de renderização do objeto
+Adicionar a lógica de exibição adaptativa baseada na duração (dias para promoções longas, horas para promoções curtas)
+Garantir que todos os valores sejam tratados como números
+Melhorar visualmente o contador para promoções relâmpago (pode usar classes de destaque)
