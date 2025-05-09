@@ -84,8 +84,9 @@ export default function ProductCard({
 
   const displayPrice = product.discountedPrice || product.price;
   const discount = calculateCurrentDiscount();
-  const progressWidth = startTime && endTime ? getProgressPercentage(startTime, endTime) : 0;
-  const timeRemaining = endTime ? getTimeRemaining(endTime) : '';
+  const progressWidth = startTime && endTime ? getProgressPercentage(startTime.toString(), endTime.toString()) : 0;
+  // Usamos {} para criar uma versão vazia do objeto de tempo quando não há endTime
+  const timeRemaining = endTime ? getTimeRemaining(endTime.toString()) : { days: 0, hours: 0, minutes: 0, seconds: 0 };
 
   const toggleWishlistMutation = useMutation({
     mutationFn: async () => {
@@ -296,9 +297,12 @@ export default function ProductCard({
             </Button>
           ) : (
             <div className="flex justify-between items-center mt-2">
-              {isFlashPromotion && timeRemaining && (
+              {isFlashPromotion && (
                 <div className="text-xs text-gray-500">
-                  <i className="fas fa-clock"></i> {timeRemaining}
+                  <i className="fas fa-clock"></i> 
+                  {timeRemaining.days > 0 ? 
+                    `${timeRemaining.days}d ${timeRemaining.hours}h` : 
+                    `${timeRemaining.hours}h ${timeRemaining.minutes}m`}
                 </div>
               )}
               
