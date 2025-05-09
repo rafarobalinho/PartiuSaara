@@ -1,0 +1,47 @@
+Preciso corrigir o erro de validação ao criar uma promoção. O código do controlador de promoções usa o esquema `insertPromotionSchema` do Zod para validar os dados enviados. 
+
+De acordo com o controller:
+```typescript
+// Validate promotion data
+const validationResult = insertPromotionSchema.safeParse(req.body);
+if (!validationResult.success) {
+  return res.status(400).json({ 
+    message: 'Validation error', 
+    errors: validationResult.error.errors 
+  });
+}
+Preciso garantir que o frontend envie dados que correspondam exatamente ao que o backend espera.
+
+Verifique o arquivo onde insertPromotionSchema é definido (provavelmente em @shared/schema) para entender o formato exato que o backend espera.
+Modifique a função que envia os dados para a API para garantir que todos os campos obrigatórios estejam presentes e no formato correto:
+
+typescript// Função exemplo para salvar promoção
+async function savePromotion(formData) {
+  // Transforme os dados do formulário para o formato esperado pelo backend
+  const promotionData = {
+    productId: Number(formData.productId), // Certifique-se de que é um número
+    type: formData.promotionType, // Verifique se deve ser 'regular' ou 'flash'
+    discountType: formData.discountType, // Verifique se deve ser 'percentage' ou 'fixed'
+    discountValue: Number(formData.discountValue), // Certifique-se de que é um número
+    startDate: new Date(formData.startDate).toISOString(), // Formato ISO
+    endDate: new Date(formData.endDate).toISOString(), // Formato ISO
+    // Outros campos necessários
+  };
+  
+  console.log('Dados enviados para API:', promotionData);
+  
+  try {
+    const response = await apiRequest('/api/promotions', {
+      method: 'POST',
+      data: promotionData
+    });
+    return response;
+  } catch (error) {
+    console.error('Erro completo:', error);
+    if (error.response && error.response.data) {
+      console.error('Detalhes do erro:', error.response.data);
+    }
+    throw error;
+  }
+}
+Por favor, verifique o esquema de validação e corrija a função que envia os dados para garantir que correspondam ao esquema esperado.

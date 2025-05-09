@@ -28,6 +28,8 @@ const promotionSchema = z.object({
   discountType: z.enum(['percentage', 'amount']),
   discountValue: z.string().min(1, {
     message: 'Valor do desconto é obrigatório',
+  }).refine(val => !isNaN(Number(val)), {
+    message: 'O valor do desconto deve ser um número válido',
   }),
   productId: z.string().min(1, {
     message: 'Selecione um produto',
@@ -38,6 +40,14 @@ const promotionSchema = z.object({
   endTime: z.string().min(1, {
     message: 'Data de término é obrigatória',
   }),
+}).refine(data => {
+  // Valida datas
+  const start = new Date(data.startTime);
+  const end = new Date(data.endTime);
+  return !isNaN(start.getTime()) && !isNaN(end.getTime()) && end > start;
+}, {
+  message: 'A data de término deve ser posterior à data de início',
+  path: ['endTime'], // Mostra o erro no campo endTime
 });
 
 type PromotionFormValues = z.infer<typeof promotionSchema>;
@@ -139,17 +149,33 @@ export default function AddPromotion() {
   // Create promotion mutation
   const createPromotionMutation = useMutation({
     mutationFn: async (data: PromotionFormValues) => {
-      // Transform the data for API
+      // Transform the data for API - garantir que corresponda exatamente ao schema esperado
+      let discountPercentage = 0;
+      
+      if (data.discountType === 'percentage') {
+        discountPercentage = Number(data.discountValue);
+      } else {
+        // Se for do tipo 'amount', precisamos converter para percentagem
+        // Primeiro encontramos o produto selecionado
+        const selectedProd = products.find((p: Product) => p.id.toString() === data.productId);
+        if (selectedProd) {
+          // Calculamos a percentagem com base no valor de desconto e no preço do produto
+          discountPercentage = Math.round((Number(data.discountValue) / selectedProd.price) * 100);
+        }
+      }
+      
+      // O backend espera "regular" em vez de "normal"
+      const promotionType = data.type === 'normal' ? 'regular' : data.type;
+      
       const apiData = {
-        type: data.type,
-        ...(data.discountType === 'percentage' 
-          ? { discountPercentage: Number(data.discountValue) } 
-          : { discountAmount: Number(data.discountValue) }),
+        type: promotionType,
+        discountPercentage: discountPercentage,
         productId: Number(data.productId),
         startTime: new Date(data.startTime).toISOString(),
         endTime: new Date(data.endTime).toISOString(),
       };
       
+      console.log('Enviando dados para API:', apiData);
       return apiRequest('POST', '/api/promotions', apiData);
     },
     onSuccess: () => {
@@ -169,13 +195,29 @@ export default function AddPromotion() {
           variant: "destructive",
         });
       } else {
+        // Tentar extrair detalhes do erro de validação
+        let errorMessage = 'Ocorreu um erro ao criar a promoção. Tente novamente.';
+        
+        if (error.response && error.response.data) {
+          if (error.response.data.message === 'Validation error' && error.response.data.errors) {
+            errorMessage = `Erro de validação: ${error.response.data.errors.map((e: any) => e.message).join(', ')}`;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+        }
+        
         toast({
           title: 'Erro',
-          description: 'Ocorreu um erro ao criar a promoção. Tente novamente.',
+          description: errorMessage,
           variant: "destructive",
         });
       }
       console.error('Error creating promotion:', error);
+      
+      // Log detalhes adicionais para ajudar no debug
+      if (error.response) {
+        console.error('Detalhes do erro de resposta:', error.response.data);
+      }
     }
   });
 
@@ -189,6 +231,32 @@ export default function AddPromotion() {
         variant: "destructive",
       });
       return;
+    }
+    
+    // Verificar se o valor de desconto em reais não é maior que o preço do produto
+    if (data.discountType === 'amount' && selectedProduct) {
+      const discountValue = Number(data.discountValue);
+      if (discountValue >= selectedProduct.price) {
+        toast({
+          title: 'Erro de validação',
+          description: 'O valor do desconto não pode ser maior ou igual ao preço do produto.',
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
+    // Verificar se a percentagem de desconto não é 100% ou maior
+    if (data.discountType === 'percentage') {
+      const discountValue = Number(data.discountValue);
+      if (discountValue >= 100) {
+        toast({
+          title: 'Erro de validação',
+          description: 'A percentagem de desconto não pode ser 100% ou maior.',
+          variant: "destructive",
+        });
+        return;
+      }
     }
     
     createPromotionMutation.mutate(data);
