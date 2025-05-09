@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
 import { useLocation, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatCurrency } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { queryClient } from '@/lib/queryClient';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Promotion {
   id: number;
@@ -30,6 +42,8 @@ export default function SellerPromotions() {
   const { isAuthenticated, isSeller } = useAuth();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState('all');
+  const [promotionToDelete, setPromotionToDelete] = useState<Promotion | null>(null);
+  const { toast } = useToast();
 
   // If not authenticated or not a seller, redirect
   useEffect(() => {
@@ -140,6 +154,54 @@ export default function SellerPromotions() {
     return product.discountedPrice ? formatCurrency(product.discountedPrice) : 'N/A';
   };
 
+  // Add delete promotion mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/promotions/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to delete promotion: ${response.status} ${errorText}`);
+      }
+      
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Promoção excluída",
+        description: "A promoção foi excluída com sucesso.",
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/seller/promotions'] });
+      setPromotionToDelete(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao excluir promoção",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao excluir a promoção.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle delete promotion
+  const handleDeletePromotion = (promotion: Promotion) => {
+    setPromotionToDelete(promotion);
+  };
+
+  // Confirm delete promotion
+  const confirmDeletePromotion = () => {
+    if (promotionToDelete) {
+      deleteMutation.mutate(promotionToDelete.id);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
@@ -154,6 +216,47 @@ export default function SellerPromotions() {
           </Link>
         </Button>
       </div>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!promotionToDelete} onOpenChange={(open) => !open && setPromotionToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Promoção</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta promoção?
+              {promotionToDelete && (
+                <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200">
+                  <div className="font-medium">{promotionToDelete.product.name}</div>
+                  <div className="text-sm text-gray-500">
+                    Desconto: {promotionToDelete.discountPercentage}%
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Período: {formatPromotionDate(promotionToDelete.startTime)} até {formatPromotionDate(promotionToDelete.endTime)}
+                  </div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeletePromotion}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <span className="mr-2">
+                    <i className="fas fa-spinner fa-spin"></i>
+                  </span>
+                  Excluindo...
+                </>
+              ) : (
+                'Excluir'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Card className="mb-6">
         <CardContent className="p-4">
@@ -269,6 +372,7 @@ export default function SellerPromotions() {
                           variant="outline" 
                           className="border-red-500 text-red-500 hover:bg-red-50"
                           disabled={isEnded}
+                          onClick={() => handleDeletePromotion(promotion)}
                         >
                           <i className="fas fa-trash-alt mr-1"></i> Excluir
                         </Button>
