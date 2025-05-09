@@ -20,10 +20,8 @@ export default function CouponsBanner() {
             className="bg-white text-primary font-semibold px-4 py-2 rounded-lg shadow-lg hover:bg-gray-100 flex items-center"
           >
             <Link href="/products?type=coupons">
-              <a>
-                <i className="fas fa-ticket-alt mr-2"></i>
-                Ver cupons disponíveis
-              </a>
+              <i className="fas fa-ticket-alt mr-2"></i>
+              Ver cupons disponíveis
             </Link>
           </Button>
         </div>
