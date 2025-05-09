@@ -40,9 +40,22 @@ export async function createPromotion(req: Request, res: Response) {
     sellerMiddleware(req, res, async () => {
       const user = req.user!;
       
+      // Logs para debug
+      console.log("======= CORPO DA REQUISIÇÃO RECEBIDO =======");
+      console.log(JSON.stringify(req.body, null, 2));
+      console.log("============================================");
+      
+      console.log("======= SCHEMA DE VALIDAÇÃO =======");
+      console.log(JSON.stringify(insertPromotionSchema, null, 2));
+      console.log("===================================");
+      
       // Validate promotion data
       const validationResult = insertPromotionSchema.safeParse(req.body);
       if (!validationResult.success) {
+        console.log("======= ERROS DE VALIDAÇÃO =======");
+        console.log(JSON.stringify(validationResult.error.errors, null, 2));
+        console.log("==================================");
+        
         return res.status(400).json({ 
           message: 'Validation error', 
           errors: validationResult.error.errors 

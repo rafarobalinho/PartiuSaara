@@ -175,7 +175,10 @@ export default function AddPromotion() {
         endTime: new Date(data.endTime).toISOString(),
       };
       
-      console.log('Enviando dados para API:', apiData);
+      console.log("======= DADOS ENVIADOS PARA API =======");
+      console.log(JSON.stringify(apiData, null, 2));
+      console.log("=======================================");
+      
       return apiRequest('POST', '/api/promotions', apiData);
     },
     onSuccess: () => {
@@ -212,17 +215,26 @@ export default function AddPromotion() {
           variant: "destructive",
         });
       }
-      console.error('Error creating promotion:', error);
+      console.error("======= ERRO COMPLETO =======");
+      console.error(error);
       
-      // Log detalhes adicionais para ajudar no debug
       if (error.response) {
-        console.error('Detalhes do erro de resposta:', error.response.data);
+        console.error("Status:", error.response.status);
+        console.error("Dados:", JSON.stringify(error.response.data, null, 2));
+        console.error("Headers:", JSON.stringify(error.response.headers, null, 2));
       }
+      
+      console.error("=============================");
     }
   });
 
   // Submit handler
   function onSubmit(data: PromotionFormValues) {
+    // Adicionar log detalhado ANTES de qualquer validação ou transformação
+    console.log("======= DADOS DO FORMULÁRIO =======");
+    console.log(JSON.stringify(data, null, 2));
+    console.log("===================================");
+    
     // Check if trying to create flash promotion with freemium plan
     if (data.type === 'flash' && subscriptionPlan === 'freemium') {
       toast({
