@@ -1,0 +1,67 @@
+Resolvemos o problema de criar uma promoção com sucesso, mas agora temos um novo desafio: as promoções criadas não estão aparecendo na lista de promoções da loja.
+
+Este problema é similar ao que tínhamos antes com a lista suspensa de produtos na página de criação de promoções, onde o sistema mostrava produtos de exemplo em vez dos produtos reais do banco de dados.
+
+### Problema a resolver:
+A lista de promoções não está exibindo as promoções reais que foram criadas e salvas no banco de dados.
+
+### Passos para investigar e corrigir:
+
+1. Verifique o código que busca as promoções na lista:
+   - Procure arquivos como `promotions-list.tsx`, `seller/promotions/index.tsx` ou similar
+   - Verifique se há uma chamada à API correta para buscar promoções da loja
+
+2. Exemplo de como o código deve ser:
+```typescript
+// Antes (código problemático - usando dados de exemplo)
+const promotions = [
+  { id: 1, name: "Desconto de 15%", /* outros dados de exemplo */ },
+  { id: 2, name: "Desconto de 25%", /* outros dados de exemplo */ },
+  // ...mais dados de exemplo
+];
+
+// Depois (código correto - buscando do banco de dados)
+function PromotionsList() {
+  const [promotions, setPromotions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  useEffect(() => {
+    // Buscar promoções da API
+    async function fetchPromotions() {
+      try {
+        setLoading(true);
+        const response = await apiRequest('/api/seller/promotions', {
+          method: 'GET'
+        });
+        setPromotions(response.promotions || []);
+      } catch (error) {
+        console.error('Erro ao buscar promoções:', error);
+        setError('Não foi possível carregar as promoções. Tente novamente.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchPromotions();
+  }, []);
+  
+  // Renderização com dados reais
+  // ...
+}
+
+Verifique também se existe a rota de API correspondente no backend:
+
+Verifique se /api/seller/promotions (ou rota similar) existe no backend
+Confirme que a rota retorna as promoções específicas da loja do vendedor autenticado
+
+
+Adicione logs detalhados:
+
+Adicione console.log para verificar se a requisição está sendo feita
+Verifique a resposta da API nos logs
+Confirme se os dados estão sendo renderizados corretamente
+
+
+
+Por favor, implemente estas correções para garantir que as promoções reais sejam exibidas na lista de promoções da loja.
