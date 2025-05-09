@@ -380,45 +380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/promotions/:id', PromotionController.getPromotion);
   app.post('/api/promotions', authMiddleware, verifyProductOwnership, PromotionController.createPromotion);
   app.put('/api/promotions/:id', authMiddleware, verifyProductOwnership, PromotionController.updatePromotion);
-  app.delete('/api/promotions/:id', authMiddleware, async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.id;
-      
-      if (!userId) {
-        return res.status(401).json({ message: 'Unauthorized' });
-      }
-      
-      // Buscar a promoção
-      const promotion = await storage.getPromotion(Number(id));
-      if (!promotion) {
-        return res.status(404).json({ message: 'Promotion not found' });
-      }
-      
-      // Verificar se o produto pertence à loja do usuário
-      const product = await storage.getProduct(promotion.productId);
-      if (!product) {
-        return res.status(404).json({ message: 'Product not found' });
-      }
-      
-      const store = await storage.getStore(product.storeId);
-      if (!store || store.userId !== userId) {
-        return res.status(403).json({ message: 'Not authorized to delete this promotion' });
-      }
-      
-      // Excluir a promoção
-      const success = await storage.deletePromotion(Number(id));
-      
-      if (success) {
-        res.json({ success: true });
-      } else {
-        res.status(500).json({ message: 'Failed to delete promotion' });
-      }
-    } catch (error) {
-      console.error('Error deleting promotion:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
+  app.delete('/api/promotions/:id', authMiddleware, PromotionController.deletePromotion);
 
   // Coupon routes
   app.get('/api/coupons', async (req: Request, res: Response) => {

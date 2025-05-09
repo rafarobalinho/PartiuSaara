@@ -1,0 +1,131 @@
+Preciso corrigir dois problemas específicos nos botões de ação na página `/seller/promotions`:
+
+### Problema 1: Botão Excluir não está funcionando corretamente
+Quando clico em "Excluir", aparece o erro "Failed to delete promotion: 500 {"message":"Internal server error"}". O botão faz a requisição, mas não está funcionando no backend.
+
+Correções necessárias:
+1. Verificar o endpoint de API para exclusão (`/api/promotions/:id` com método DELETE)
+2. Adicionar tratamento de erro mais detalhado no backend
+3. Garantir que, após uma exclusão bem-sucedida, a promoção seja removida da lista
+
+```typescript
+// No controlador de promoções (backend)
+// controllers/promotions.js ou similar
+export async function deletePromotion(req, res) {
+  try {
+    const { id } = req.params;
+    
+    // Log para debug
+    console.log(`Tentando excluir promoção com ID: ${id}`);
+    
+    // Verificar se a promoção existe
+    const promotion = await storage.getPromotion(Number(id));
+    if (!promotion) {
+      return res.status(404).json({ message: 'Promoção não encontrada' });
+    }
+    
+    // Verificar permissões do usuário
+    const user = req.user;
+    const product = await storage.getProduct(promotion.productId);
+    const store = product ? await storage.getStore(product.storeId) : null;
+    
+    if (!product || !store || store.userId !== user.id) {
+      return res.status(403).json({ message: 'Não autorizado a excluir esta promoção' });
+    }
+    
+    // Excluir a promoção
+    await storage.deletePromotion(Number(id));
+    
+    // Log de sucesso
+    console.log(`Promoção ${id} excluída com sucesso`);
+    
+    return res.status(200).json({ success: true, message: 'Promoção excluída com sucesso' });
+  } catch (error) {
+    // Log detalhado do erro
+    console.error('Erro ao excluir promoção:', error);
+    return res.status(500).json({ message: 'Erro interno do servidor', error: error.message });
+  }
+}
+
+// No frontend: Adicionar lógica para remover o item da lista após a exclusão
+const handleDelete = async (promotionId) => {
+  if (!window.confirm("Tem certeza que deseja excluir esta promoção?")) {
+    return;
+  }
+  
+  try {
+    const response = await apiRequest(`/api/promotions/${promotionId}`, {
+      method: 'DELETE'
+    });
+    
+    if (response.success) {
+      // Remover o item da lista local após exclusão bem-sucedida
+      setPromotions(current => current.filter(promo => promo.id !== promotionId));
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Promoção excluída com sucesso',
+        variant: 'success'
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao excluir promoção:', error);
+    
+    toast({
+      title: 'Erro ao excluir promoção',
+      description: error.response?.data?.message || 'Erro interno do servidor',
+      variant: 'destructive'
+    });
+  }
+};
+Problema 2: Botão Editar não está redirecionando corretamente
+O botão editar não está direcionando para a página de edição /seller/promotions/edit/:id.
+Correção:
+typescript// No componente da página de listagem de promoções
+import { useRouter } from 'next/router'; // ou 'next/navigation' dependendo da versão
+
+function PromotionsList() {
+  const router = useRouter();
+  
+  // Função para redirecionar para a página de edição
+  const handleEdit = (promotionId) => {
+    router.push(`/seller/promotions/edit/${promotionId}`);
+  };
+  
+  return (
+    <div>
+      {/* Lista de promoções */}
+      {promotions.map(promotion => (
+        <div key={promotion.id} className="promotion-item">
+          {/* Detalhes da promoção */}
+          
+          {/* Botões de ação */}
+          <div className="promotion-actions">
+            <Button 
+              onClick={() => handleEdit(promotion.id)} 
+              variant="outline"
+            >
+              <PencilIcon className="h-4 w-4 mr-1" />
+              Editar
+            </Button>
+            
+            <Button 
+              onClick={() => handleDelete(promotion.id)} 
+              variant="destructive"
+            >
+              <TrashIcon className="h-4 w-4 mr-1" />
+              Excluir
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+Certifique-se também de que:
+
+A página /seller/promotions/edit/[id].tsx existe
+A rota está configurada corretamente no seu sistema de rotas (next.js ou similar)
+Os parâmetros são passados corretamente
+
+Por favor, implemente estas correções e verifique se os botões funcionam conforme esperado.
