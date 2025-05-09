@@ -109,7 +109,10 @@ export const insertPromotionSchema = createInsertSchema(promotions).omit({
   id: true,
   createdAt: true,
   updatedAt: true
-});
+})
+
+// Log do schema para debug
+console.log("Schema de validação de promoção:", insertPromotionSchema);;
 
 // Coupons schema
 export const coupons = pgTable("coupons", {

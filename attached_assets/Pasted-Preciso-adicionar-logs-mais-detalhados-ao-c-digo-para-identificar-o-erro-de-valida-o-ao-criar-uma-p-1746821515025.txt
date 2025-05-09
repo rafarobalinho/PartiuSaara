@@ -1,0 +1,76 @@
+Preciso adicionar logs mais detalhados ao código para identificar o erro de validação ao criar uma promoção. 
+
+Vejo que o código já tem tratamento de erro, mas ainda não estamos vendo quais campos específicos estão falhando na validação.
+
+Por favor, adicione estas modificações:
+
+1. No arquivo `add-promotion.tsx`, na função `onSubmit`, adicione um log detalhado dos dados sendo enviados:
+
+```typescript
+function onSubmit(data: PromotionFormValues) {
+  // Adicionar log detalhado ANTES de qualquer validação ou transformação
+  console.log("======= DADOS DO FORMULÁRIO =======");
+  console.log(JSON.stringify(data, null, 2));
+  console.log("===================================");
+  
+  // Código existente...
+  
+  // Antes de chamar a API, faça outro log dos dados transformados sendo enviados
+  const apiData = {
+    // Mapeie os dados do formulário para o formato esperado pela API
+    productId: Number(data.productId),
+    type: data.type, // 'regular' ou 'flash'
+    discountType: data.discountType, // 'percentage' ou 'amount'
+    discountValue: Number(data.discountValue),
+    startDate: new Date(data.startDate).toISOString(),
+    endDate: new Date(data.endDate).toISOString()
+  };
+  
+  console.log("======= DADOS ENVIADOS PARA API =======");
+  console.log(JSON.stringify(apiData, null, 2));
+  console.log("=======================================");
+  
+  // Chamada para a API
+  createPromotion(apiData)
+    .then(() => {
+      // ...
+    })
+    .catch((error) => {
+      // Log COMPLETO do erro
+      console.error("======= ERRO COMPLETO =======");
+      console.error(error);
+      
+      if (error.response) {
+        console.error("Status:", error.response.status);
+        console.error("Dados:", JSON.stringify(error.response.data, null, 2));
+        console.error("Headers:", JSON.stringify(error.response.headers, null, 2));
+      }
+      
+      console.error("=============================");
+      
+      // Resto do tratamento de erro...
+    });
+}
+
+No arquivo que define o esquema de validação (provavelmente @shared/schema.ts), adicione um console.log do esquema para que possamos ver exatamente quais campos são esperados:
+
+typescript// Adicionado ao final do arquivo para não interferir na lógica
+console.log("Schema de validação de promoção:", insertPromotionSchema);
+
+No backend, na função createPromotion do controller, adicione mais logs:
+
+typescript// No início da função
+console.log("Corpo da requisição recebido:", req.body);
+
+// Antes da validação
+console.log("Validando dados com schema:", insertPromotionSchema);
+
+// Após a validação, se falhar
+if (!validationResult.success) {
+  console.log("Erros de validação:", JSON.stringify(validationResult.error.errors, null, 2));
+  return res.status(400).json({ 
+    message: 'Validation error', 
+    errors: validationResult.error.errors 
+  });
+}
+Após implementar essas mudanças, tente criar uma promoção novamente e observe todos os logs para identificar o problema específico de validação.
