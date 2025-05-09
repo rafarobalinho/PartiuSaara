@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { storage } from '../storage';
 import { z } from 'zod';
 import { insertPromotionSchema } from '@shared/schema';
-import { sellerMiddleware } from '../middleware/auth';
+import { sellerMiddleware, authMiddleware } from '../middleware/auth';
 
 // Get flash promotions
 export async function getFlashPromotions(req: Request, res: Response) {
@@ -123,6 +123,58 @@ export async function createPromotion(req: Request, res: Response) {
     });
   } catch (error) {
     console.error('Error creating promotion:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+// Get seller's promotions
+export async function getSellerPromotions(req: Request, res: Response) {
+  try {
+    // Ensure user is authenticated and is a seller
+    sellerMiddleware(req, res, async () => {
+      const user = req.user!;
+      
+      // Log para debug
+      console.log(`[GET SELLER PROMOTIONS] Buscando promoções do vendedor ${user.id}`);
+      
+      // Obter todas as lojas do vendedor
+      const stores = await storage.getUserStores(user.id);
+      
+      if (!stores || stores.length === 0) {
+        return res.json([]);
+      }
+      
+      const storeIds = stores.map(store => store.id);
+      console.log(`[GET SELLER PROMOTIONS] IDs de lojas encontradas: ${storeIds.join(', ')}`);
+      
+      // Obter todos os produtos dessas lojas
+      const products = await storage.getStoresProducts(storeIds);
+      
+      if (!products || products.length === 0) {
+        return res.json([]);
+      }
+      
+      const productIds = products.map(product => product.id);
+      console.log(`[GET SELLER PROMOTIONS] IDs de produtos encontrados: ${productIds.join(', ')}`);
+      
+      // Obter promoções para esses produtos
+      const promotions = await storage.getProductsPromotions(productIds);
+      console.log(`[GET SELLER PROMOTIONS] ${promotions.length} promoções encontradas`);
+      
+      // Enriquecer as promoções com dados dos produtos
+      const enrichedPromotions = await Promise.all(promotions.map(async (promo) => {
+        const product = products.find(p => p.id === promo.productId);
+        
+        return {
+          ...promo,
+          product: product
+        };
+      }));
+      
+      res.json(enrichedPromotions);
+    });
+  } catch (error) {
+    console.error('Error getting seller promotions:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }
