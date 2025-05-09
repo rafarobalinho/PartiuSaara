@@ -349,6 +349,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   app.get('/api/promotions/flash', PromotionController.getFlashPromotions);
+  // Rota específica para obter promoções do vendedor atual - deve vir antes da rota parametrizada (:id)
+  app.get('/api/seller/promotions', authMiddleware, PromotionController.getSellerPromotions);
   app.get('/api/promotions/:id', PromotionController.getPromotion);
   app.post('/api/promotions', authMiddleware, verifyProductOwnership, PromotionController.createPromotion);
   app.put('/api/promotions/:id', authMiddleware, verifyProductOwnership, PromotionController.updatePromotion);

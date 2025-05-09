@@ -44,61 +44,23 @@ export default function SellerPromotions() {
     return null;
   }
 
-  // Fetch promotions from seller's store
+  // Fetch promotions from seller's store using the real API endpoint
   const { data: promotions = [], isLoading } = useQuery({
     queryKey: ['/api/seller/promotions'],
     queryFn: async () => {
       try {
-        // In a real app, this would be an actual API endpoint
-        return [
-          {
-            id: 1,
-            type: 'normal',
-            discountPercentage: 15,
-            startTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-            endTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-            productId: 1,
-            createdAt: new Date().toISOString(),
-            product: {
-              id: 1,
-              name: 'Smartphone XYZ',
-              price: 1299.90,
-              discountedPrice: 999.90,
-              images: ['/uploads/product-electronics-1.jpg']
-            }
-          },
-          {
-            id: 2,
-            type: 'flash',
-            discountPercentage: 25,
-            startTime: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            endTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
-            productId: 2,
-            createdAt: new Date().toISOString(),
-            product: {
-              id: 2,
-              name: 'Tênis Runner Pro',
-              price: 299.90,
-              discountedPrice: 224.90,
-              images: ['/uploads/product-shoes-1.jpg']
-            }
-          },
-          {
-            id: 3,
-            type: 'normal',
-            discountAmount: 40,
-            startTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            endTime: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            productId: 3,
-            createdAt: new Date().toISOString(),
-            product: {
-              id: 3,
-              name: 'Bolsa Elite Fashion',
-              price: 189.90,
-              images: ['/uploads/product-accessory-1.jpg']
-            }
-          }
-        ] as Promotion[];
+        const response = await fetch('/api/seller/promotions');
+        if (!response.ok) {
+          throw new Error('Failed to fetch promotions');
+        }
+        const data = await response.json();
+        
+        // Map the API response to our expected format
+        // If the API returns 'regular' type, convert it to 'normal' for frontend display
+        return data.map((promo: any) => ({
+          ...promo,
+          type: promo.type === 'regular' ? 'normal' : promo.type,
+        })) as Promotion[];
       } catch (error) {
         console.error('Error fetching promotions:', error);
         return [];
