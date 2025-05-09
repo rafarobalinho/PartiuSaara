@@ -334,15 +334,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const promotions = await storage.getPromotions();
       
-      // Para cada promoção, obter os detalhes do produto
+      // Para cada promoção, obter os detalhes do produto e calcular preço com desconto
       const promotionsWithProducts = await Promise.all(
         promotions.map(async (promotion) => {
           const product = await storage.getProduct(promotion.productId);
-          return { ...promotion, product };
+          
+          if (!product) {
+            return null;
+          }
+          
+          // Calcular preço com desconto
+          let discountedPrice = product.price;
+          if (promotion.discountPercentage) {
+            discountedPrice = product.price * (1 - (promotion.discountPercentage / 100));
+            // Arredondar para duas casas decimais
+            discountedPrice = Math.round(discountedPrice * 100) / 100;
+          }
+          
+          // Adicionar o preço com desconto ao produto
+          const productWithDiscount = {
+            ...product,
+            discountedPrice: discountedPrice
+          };
+          
+          return { 
+            ...promotion, 
+            product: productWithDiscount,
+            promotionEndsAt: promotion.endTime
+          };
         })
       );
       
-      res.json(promotionsWithProducts);
+      // Filtrar promoções sem produtos
+      const validPromotions = promotionsWithProducts.filter(promo => promo !== null);
+      
+      res.json(validPromotions);
     } catch (error) {
       console.error('Error fetching promotions:', error);
       res.status(500).json({ message: 'Internal server error' });
