@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
 import ProductCard from '@/components/ui/product-card';
+import CountdownTimer from '@/components/ui/countdown-timer';
 
 interface Promotion {
   id: number;
@@ -14,6 +15,7 @@ interface Promotion {
   startTime: string;
   endTime: string;
   productId: number;
+  promotionEndsAt?: string;
   product: {
     id: number;
     name: string;
@@ -35,11 +37,21 @@ export default function PromotionsPage() {
     queryKey: ['/api/promotions'],
     queryFn: async () => {
       try {
+        console.log('Buscando promoções públicas...');
         const res = await fetch('/api/promotions');
         if (!res.ok) {
           throw new Error('Falha ao carregar promoções');
         }
-        return await res.json();
+        const data = await res.json();
+        console.log('Promoções recebidas:', data);
+        
+        // Converter tipos 'regular' para 'normal' para compatibilidade com a interface do frontend
+        return (data || []).map((promo: any) => ({
+          ...promo,
+          type: promo.type === 'regular' ? 'normal' : promo.type,
+          // Garantir que promotionEndsAt está definido corretamente
+          promotionEndsAt: promo.promotionEndsAt || promo.endTime
+        })) as Promotion[];
       } catch (error) {
         console.error('Erro ao buscar promoções:', error);
         return [];
