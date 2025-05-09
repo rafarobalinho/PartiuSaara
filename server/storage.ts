@@ -12,6 +12,7 @@ import {
   storeImpressions, type StoreImpression, type InsertStoreImpression
 } from "@shared/schema";
 import bcrypt from 'bcryptjs';
+import { eq, and, or, sql, like, desc, gte, lte, inArray } from "drizzle-orm";
 
 // Interface for all storage operations
 export interface IStorage {
@@ -24,6 +25,7 @@ export interface IStorage {
   getStore(id: number): Promise<Store | undefined>;
   getStores(options?: { category?: string, search?: string, limit?: number }): Promise<Store[]>;
   getStoresByUserId(userId: number): Promise<Store[]>;
+  getUserStores(userId: number): Promise<Store[]>; // Alias para getStoresByUserId
   getNearbyStores(lat: number, lng: number, radius?: number): Promise<Store[]>;
   createStore(store: InsertStore): Promise<Store>;
   updateStore(id: number, store: Partial<Store>): Promise<Store | undefined>;
@@ -48,6 +50,7 @@ export interface IStorage {
     limit?: number
   }): Promise<Product[]>;
   getProductsByStore(storeId: number): Promise<Product[]>;
+  getStoresProducts(storeIds: number[]): Promise<Product[]>; // Adicionado: Obter produtos de várias lojas
   getRelatedProducts(productId: number, limit?: number): Promise<Product[]>;
   getFeaturedProducts(limit?: number): Promise<Product[]>;
   createProduct(product: InsertProduct): Promise<Product>;
@@ -57,6 +60,7 @@ export interface IStorage {
   getPromotion(id: number): Promise<Promotion | undefined>;
   getPromotions(type?: string, limit?: number): Promise<Promotion[]>;
   getPromotionsByStore(storeId: number): Promise<Promotion[]>;
+  getProductsPromotions(productIds: number[]): Promise<Promotion[]>; // Adicionado: Obter promoções de vários produtos
   createPromotion(promotion: InsertPromotion): Promise<Promotion>;
   updatePromotion(id: number, promotion: Partial<Promotion>): Promise<Promotion | undefined>;
   
@@ -743,6 +747,24 @@ export class MemStorage implements IStorage {
       store: store ? { id: store.id, name: store.name } : undefined
     }));
   }
+  
+  async getStoresProducts(storeIds: number[]): Promise<Product[]> {
+    if (!storeIds || storeIds.length === 0) {
+      return [];
+    }
+    
+    const products = Array.from(this.products.values())
+      .filter(product => storeIds.includes(product.storeId));
+      
+    // Add store information to each product
+    return products.map(product => {
+      const store = this.stores.get(product.storeId);
+      return {
+        ...product,
+        store: store ? { id: store.id, name: store.name } : undefined
+      };
+    });
+  }
 
   async getRelatedProducts(productId: number, limit: number = 4): Promise<Product[]> {
     const product = this.products.get(productId);
@@ -1427,6 +1449,46 @@ export class DatabaseStorage implements IStorage {
       pool, 
       createTableIfMissing: true 
     });
+  }
+  
+  // Implementação dos métodos adicionados à interface
+  
+  async getUserStores(userId: number): Promise<Store[]> {
+    return this.getStoresByUserId(userId);
+  }
+  
+  async getStoresProducts(storeIds: number[]): Promise<Product[]> {
+    if (!storeIds || storeIds.length === 0) {
+      return [];
+    }
+    
+    try {
+      const result = await db.select()
+        .from(products)
+        .where(inArray(products.storeId, storeIds));
+      
+      return result;
+    } catch (error) {
+      console.error('Erro ao buscar produtos das lojas:', error);
+      return [];
+    }
+  }
+  
+  async getProductsPromotions(productIds: number[]): Promise<Promotion[]> {
+    if (!productIds || productIds.length === 0) {
+      return [];
+    }
+    
+    try {
+      const result = await db.select()
+        .from(promotions)
+        .where(inArray(promotions.productId, productIds));
+      
+      return result;
+    } catch (error) {
+      console.error('Erro ao buscar promoções dos produtos:', error);
+      return [];
+    }
   }
 
   // User operations
