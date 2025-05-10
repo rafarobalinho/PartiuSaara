@@ -1,0 +1,275 @@
+Estamos enfrentando um erro persistente 502 (Bad Gateway) na página de edição de promoções. Este tipo de erro geralmente indica problemas no servidor ou na comunicação entre servidores. Vamos tentar uma abordagem mais pragmática.
+
+### Solução 1: Criar uma página alternativa para edição
+Em vez de tentar fazer a página `/seller/promotions/[id]/edit` funcionar, vamos criar uma solução alternativa:
+
+1. Crie uma nova página em `/pages/seller/edit-promotion.tsx` (sem rota dinâmica)
+2. Esta página receberá o ID da promoção como parâmetro de query
+3. Modifique o botão "Editar" para redirecionar para esta nova página
+
+**Passo 1: Crie a nova página**
+```tsx
+// Em /pages/seller/edit-promotion.tsx
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { apiRequest } from '@/lib/apiClient';
+import { toast } from '@/components/ui/toast';
+import { PageHeader } from '@/components/page-header';
+
+export default function EditPromotion() {
+  const router = useRouter();
+  const { id } = router.query; // Recebe o ID como parâmetro de query
+  
+  const [loading, setLoading] = useState(true);
+  const [promotion, setPromotion] = useState(null);
+  const [formData, setFormData] = useState({
+    type: 'regular',
+    discountType: 'percentage',
+    discountValue: '',
+    startTime: '',
+    endTime: ''
+  });
+  
+  // Carregar dados da promoção quando o ID estiver disponível
+  useEffect(() => {
+    if (id) {
+      fetchPromotionData();
+    }
+  }, [id]);
+  
+  async function fetchPromotionData() {
+    try {
+      console.log(`Carregando promoção com ID: ${id}`);
+      setLoading(true);
+      
+      const response = await apiRequest(`/api/promotions/${id}`);
+      console.log('Dados da promoção recebidos:', response);
+      
+      setPromotion(response);
+      
+      // Converter datas para o formato de input datetime-local
+      const startDate = response.startTime ? new Date(response.startTime) : new Date();
+      const endDate = response.endTime ? new Date(response.endTime) : new Date();
+      
+      // Formatar para YYYY-MM-DDTHH:MM
+      const formatDateForInput = (date) => {
+        return date.toISOString().slice(0, 16);
+      };
+      
+      setFormData({
+        type: response.type || 'regular',
+        discountType: response.discountType || 'percentage',
+        discountValue: String(response.discountValue || ''),
+        startTime: formatDateForInput(startDate),
+        endTime: formatDateForInput(endDate)
+      });
+    } catch (error) {
+      console.error('Erro ao carregar dados da promoção:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados da promoção.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }
+  
+  async function handleSubmit(e) {
+    e.preventDefault();
+    
+    try {
+      console.log('Enviando dados para atualizar promoção:', formData);
+      
+      // Transformar dados para o formato da API
+      const apiData = {
+        type: formData.type,
+        discountType: formData.discountType,
+        discountValue: Number(formData.discountValue),
+        startTime: new Date(formData.startTime).toISOString(),
+        endTime: new Date(formData.endTime).toISOString()
+      };
+      
+      console.log('Dados formatados para API:', apiData);
+      
+      const response = await apiRequest(`/api/promotions/${id}`, {
+        method: 'PUT',
+        data: apiData
+      });
+      
+      console.log('Resposta da atualização:', response);
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Promoção atualizada com sucesso.',
+        variant: 'success'
+      });
+      
+      // Redirecionar para a lista de promoções
+      router.push('/seller/promotions');
+    } catch (error) {
+      console.error('Erro ao atualizar promoção:', error);
+      
+      let errorMessage = 'Não foi possível atualizar a promoção.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      toast({
+        title: 'Erro',
+        description: errorMessage,
+        variant: 'destructive'
+      });
+    }
+  }
+  
+  return (
+    <div className="container py-8">
+      <PageHeader
+        title="Editar Promoção"
+        description="Altere as informações da promoção"
+        backLink="/seller/promotions"
+      />
+      
+      {loading ? (
+        <div className="mt-8">Carregando...</div>
+      ) : (
+        <form onSubmit={handleSubmit} className="mt-8 space-y-6 max-w-xl">
+          <div>
+            <label className="block text-sm font-medium mb-1">Tipo de Promoção</label>
+            <div className="space-y-2">
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="type-regular"
+                  name="type"
+                  value="regular"
+                  checked={formData.type === 'regular'}
+                  onChange={handleChange}
+                  className="mr-2"
+                />
+                <label htmlFor="type-regular">Promoção Regular</label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="type-flash"
+                  name="type"
+                  value="flash"
+                  checked={formData.type === 'flash'}
+                  onChange={handleChange}
+                  className="mr-2"
+                />
+                <label htmlFor="type-flash">Promoção Relâmpago</label>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Tipo de Desconto</label>
+            <div className="space-y-2">
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="discount-percentage"
+                  name="discountType"
+                  value="percentage"
+                  checked={formData.discountType === 'percentage'}
+                  onChange={handleChange}
+                  className="mr-2"
+                />
+                <label htmlFor="discount-percentage">Porcentagem (%)</label>
+              </div>
+              
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="discount-amount"
+                  name="discountType"
+                  value="amount"
+                  checked={formData.discountType === 'amount'}
+                  onChange={handleChange}
+                  className="mr-2"
+                />
+                <label htmlFor="discount-amount">Valor Fixo (R$)</label>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <label htmlFor="discountValue" className="block text-sm font-medium mb-1">
+              Valor do Desconto
+            </label>
+            <input
+              type="number"
+              id="discountValue"
+              name="discountValue"
+              value={formData.discountValue}
+              onChange={handleChange}
+              min="0"
+              step={formData.discountType === 'percentage' ? '1' : '0.01'}
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="startTime" className="block text-sm font-medium mb-1">
+              Data e Hora de Início
+            </label>
+            <input
+              type="datetime-local"
+              id="startTime"
+              name="startTime"
+              value={formData.startTime}
+              onChange={handleChange}
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="endTime" className="block text-sm font-medium mb-1">
+              Data e Hora de Término
+            </label>
+            <input
+              type="datetime-local"
+              id="endTime"
+              name="endTime"
+              value={formData.endTime}
+              onChange={handleChange}
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          
+          <div className="pt-4">
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Salvar Alterações
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => router.push('/seller/promotions')}
+              className="ml-2 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
