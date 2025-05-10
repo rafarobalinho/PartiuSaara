@@ -1,39 +1,32 @@
+Solução para o erro de exportação
+O problema está na forma como o componente está sendo exportado. Vamos modificar o arquivo safe-image.tsx para garantir que ele exporte o componente corretamente.
+Correção do arquivo safe-image.tsx
+tsx// client/src/components/ui/safe-image.tsx
+
 import React, { useState } from 'react';
 
-// Interface exportada para reutilização
-export interface SafeImageProps {
+// É importante exportar o componente corretamente
+export const SafeImage: React.FC<{
   productId?: number;
-  storeId?: number;
   promotionId?: number;
   imageId?: number;
   alt?: string;
   className?: string;
   onError?: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void;
   placeholderImage?: string;
-  width?: number | string;
-  height?: number | string;
-}
-
-/**
- * Componente seguro para exibição de imagens
- * Sempre usa APIs seguras em vez de caminhos diretos de arquivo
- */
-export const SafeImage: React.FC<SafeImageProps> = ({ 
+}> = ({ 
   productId, 
-  storeId,
   promotionId,
   imageId,
   alt = '', 
   className = "w-full h-full object-cover",
   onError = null,
-  placeholderImage = "/placeholder-image.jpg",
-  width,
-  height
+  placeholderImage = "/placeholder-image.jpg"
 }) => {
   const [error, setError] = useState(false);
 
-  // Determinar a URL da imagem com base nos parâmetros fornecidos
-  let src: string;
+  // Determinar a URL da imagem com base nos parâmetros
+  let src;
   
   if (promotionId) {
     // Imagem de promoção
@@ -46,9 +39,6 @@ export const SafeImage: React.FC<SafeImageProps> = ({
       // Imagem principal do produto
       src = `/api/products/${productId}/primary-image`;
     }
-  } else if (storeId) {
-    // Imagem de loja
-    src = `/api/stores/${storeId}/primary-image`;
   } else {
     // Sem parâmetros válidos, usar placeholder
     src = placeholderImage;
@@ -73,10 +63,22 @@ export const SafeImage: React.FC<SafeImageProps> = ({
       alt={alt}
       className={className}
       onError={handleError}
-      width={width}
-      height={height}
     />
   );
 };
 
+// É importante incluir uma exportação padrão também para maior compatibilidade
 export default SafeImage;
+Correção para como o componente é importado
+Se você está usando o componente em outros arquivos, certifique-se de importá-lo corretamente:
+tsx// Opção 1: Importação padrão (recomendada)
+import SafeImage from '../../components/ui/safe-image';
+
+// OU
+
+// Opção 2: Importação nomeada
+import { SafeImage } from '../../components/ui/safe-image';
+Verificação adicional
+Também verifique se o caminho do arquivo está correto. O erro indica que o sistema está procurando o arquivo em:
+/src/components/ui/safe-image.tsx
+Se a estrutura do seu projeto for diferente, pode ser necessário ajustar o caminho de importação.
