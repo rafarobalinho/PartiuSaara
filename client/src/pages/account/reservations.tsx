@@ -25,6 +25,17 @@ interface Reservation {
   product_name: string;
   product_price: number;
   product_image: string;
+  // Novas propriedades para preservar formato visual original
+  imageUrl?: string;
+  promotion?: {
+    id: number;
+    type: string; // 'regular' ou 'flash'
+    discountPercentage?: number;
+    discountAmount?: number;
+    priceOverride?: number;
+    startsAt?: string;
+    endsAt?: string;
+  } | null;
   // Objeto completo do produto (pode ser undefined)
   product?: {
     id: number;
@@ -224,7 +235,7 @@ export default function Reservations() {
                       <div key={reservation.id} className="bg-white rounded-lg shadow-sm p-4 border flex flex-col sm:flex-row">
                         <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 sm:mr-4">
                           <SafeImage 
-                            src={`/api/reservations/${reservation.id}/image`}
+                            src={reservation.imageUrl || `/api/reservations/${reservation.id}/image`}
                             alt={reservation.product_name || 'Produto'} 
                             className="w-full h-full object-cover"
                             fallbackSrc="/placeholder-image.jpg"
