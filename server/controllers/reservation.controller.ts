@@ -68,7 +68,7 @@ export async function getReservations(req: Request, res: Response) {
           product_id: row.p_id,
           product_name: row.p_name,
           product_price: row.p_price,
-          product_image: row.pi_is_primary ? row.pi_image_url : null,
+          product_image: null, // será preenchido apenas com imagens validadas
           // Objeto aninhado product
           product: {
             id: row.p_id,
@@ -89,23 +89,37 @@ export async function getReservations(req: Request, res: Response) {
       if (row.pi_id) {
         const reservation = reservationsMap.get(reservationId);
         
-        // Verificar se a imagem pertence ao produto correto
-        if (row.pi_product_id === row.p_id) {
-          console.log(`Validando imagem: product_id=${row.p_id}, image.product_id=${row.pi_product_id}, store_id=${row.p_store_id}`);
+        // Validação rigorosa: a imagem deve pertencer ao produto E ser do produto da reserva específica
+        if (row.pi_product_id === row.p_id && row.p_id === reservation.productId) {
+          console.log(`Validando imagem: product_id=${row.p_id}, image.product_id=${row.pi_product_id}, store_id=${row.p_store_id}, reservation.productId=${reservation.productId}`);
           
           // Verifique se esta imagem já foi adicionada
           const imageExists = reservation.product.images.some((img: any) => img.id === row.pi_id);
           
           if (!imageExists) {
+            // Gerar caminho seguro baseado na estrutura: /uploads/[id do timestamp]-[id aleatório].jpg
+            // Se a URL original já tiver o formato esperado com store_id, usá-la diretamente
+            let fileName = '';
+            
+            if (row.pi_image_url.includes('/')) {
+              fileName = row.pi_image_url.split('/').pop() || '';
+            } else {
+              fileName = row.pi_image_url;
+            }
+            
             // Construir caminho de imagem seguro com isolamento de loja
-            const secureImagePath = row.pi_image_url.startsWith('/uploads/stores/') 
-              ? row.pi_image_url 
-              : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/${row.pi_image_url.split('/').pop()}`;
-              
-            const secureThumbnailPath = row.pi_thumbnail_url.startsWith('/uploads/stores/')
-              ? row.pi_thumbnail_url
-              : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/thumb-${row.pi_thumbnail_url.split('/').pop()}`;
-              
+            const secureImagePath = `/uploads/${fileName}`;
+            
+            // Thumbnail também usa o nome do arquivo original mas com prefixo "thumb-"
+            let thumbFileName = '';
+            if (row.pi_thumbnail_url.includes('/')) {
+              thumbFileName = row.pi_thumbnail_url.split('/').pop() || '';
+            } else {
+              thumbFileName = row.pi_thumbnail_url;
+            }
+            
+            const secureThumbnailPath = `/uploads/thumbnails/${thumbFileName}`;
+            
             // Adicionar imagem ao produto com caminhos seguros
             reservation.product.images.push({
               id: row.pi_id,
@@ -123,14 +137,14 @@ export async function getReservations(req: Request, res: Response) {
               return 0;
             });
 
-            // Se esta é a imagem principal e ainda não temos uma imagem plana definida
-            if (row.pi_is_primary && !reservation.product_image) {
+            // Se esta é a imagem principal, definir a imagem plana com o caminho seguro
+            if (row.pi_is_primary) {
               reservation.product_image = secureImagePath;
               reservation.store_id = row.p_store_id; // Adicionar store_id para referência
             }
           }
         } else {
-          console.error(`Imagem com ID ${row.pi_id} não pertence ao produto ${row.p_id} (pertence a ${row.pi_product_id})`);
+          console.error(`Validação falhou: Imagem ID ${row.pi_id} não pertence ao produto ${row.p_id} (pertence a ${row.pi_product_id}) ou não corresponde à reserva do produto ${reservation.productId}`);
         }
       }
     });
