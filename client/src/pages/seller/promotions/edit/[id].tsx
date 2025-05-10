@@ -70,6 +70,7 @@ export default function EditPromotion() {
     queryKey: ['/api/promotions', promotionId],
     queryFn: async () => {
       try {
+        console.log(`Tentando carregar promoção para edição, ID: "${promotionId}"`);
         const response = await fetch(`/api/promotions/${promotionId}`, {
           credentials: 'include',
         });
@@ -79,6 +80,7 @@ export default function EditPromotion() {
         }
         
         const data = await response.json();
+        console.log("Dados da promoção recebidos:", data);
         
         // Convert from backend format to form format
         return {
@@ -228,6 +230,7 @@ export default function EditPromotion() {
         endTime: new Date(data.endTime),
       };
       
+      console.log("Enviando dados para atualização:", apiData);
       const response = await apiRequest('PUT', `/api/promotions/${promotionId}`, apiData);
       return await response.json();
     },

@@ -154,23 +154,46 @@ export default function SellerPromotions() {
     return product.discountedPrice ? formatCurrency(product.discountedPrice) : 'N/A';
   };
 
-  // Add delete promotion mutation
+  // Add delete promotion mutation with improved error handling
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await fetch(`/api/promotions/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
+      try {
+        console.log(`Iniciando exclusão da promoção ${id}`);
+        
+        // Check if id is valid
+        if (!id || isNaN(id)) {
+          throw new Error('ID da promoção inválido');
         }
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to delete promotion: ${response.status} ${errorText}`);
+        
+        const response = await fetch(`/api/promotions/${id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        // Log for debugging
+        console.log(`Resposta da exclusão: status ${response.status}`);
+        
+        if (!response.ok) {
+          let errorText = '';
+          try {
+            const errorData = await response.json();
+            errorText = errorData.message || 'Erro desconhecido';
+          } catch {
+            errorText = await response.text();
+          }
+          throw new Error(`Failed to delete promotion: ${response.status} ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('Resultado da exclusão:', result);
+        return result;
+      } catch (error) {
+        console.error('Erro durante exclusão da promoção:', error);
+        throw error; // Re-throw for onError handler
       }
-      
-      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -182,11 +205,14 @@ export default function SellerPromotions() {
       setPromotionToDelete(null);
     },
     onError: (error) => {
+      console.error('Erro capturado no handler onError:', error);
       toast({
         title: "Erro ao excluir promoção",
         description: error instanceof Error ? error.message : "Ocorreu um erro ao excluir a promoção.",
         variant: "destructive",
       });
+      // Ensure the dialog is closed even if there's an error
+      setPromotionToDelete(null);
     },
   });
 
