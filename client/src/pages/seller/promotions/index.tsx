@@ -390,7 +390,7 @@ export default function SellerPromotions() {
                           variant="outline" 
                           className="border-primary text-primary hover:bg-primary/5"
                           disabled={isEnded}
-                          onClick={() => navigate(`/seller/promotions/edit/${promotion.id}`)}
+                          onClick={() => navigate(`/seller/promotions/${promotion.id}/edit`)}
                         >
                           <i className="fas fa-pencil-alt mr-1"></i> Editar
                         </Button>

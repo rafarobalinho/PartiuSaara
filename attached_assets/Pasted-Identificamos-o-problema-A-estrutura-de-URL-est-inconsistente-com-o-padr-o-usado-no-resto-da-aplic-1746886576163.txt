@@ -1,0 +1,89 @@
+Identificamos o problema! A estrutura de URL está inconsistente com o padrão usado no resto da aplicação.
+
+### Padrão atual:
+- Produtos: `/seller/products/[id]/edit`
+- Promoções (tentativa atual): `/seller/promotions/edit/[id]`
+
+### Solução:
+Vamos criar a página seguindo o mesmo padrão dos produtos:
+- Promoções (corrigido): `/seller/promotions/[id]/edit`
+
+### Passo 1: Crie a estrutura de diretórios correta
+```bash
+mkdir -p pages/seller/promotions/[id]
+Passo 2: Crie o arquivo /pages/seller/promotions/[id]/edit.tsx
+tsximport { useRouter } from 'next/router';
+import { useState, useEffect } from 'react';
+import { PageHeader } from '@/components/page-header';
+
+export default function EditPromotion() {
+  const router = useRouter();
+  const { id } = router.query;
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    if (id) {
+      console.log('Página de edição carregada com ID:', id);
+      setLoading(false);
+    }
+  }, [id]);
+  
+  if (loading) {
+    return <div className="container py-8">Carregando...</div>;
+  }
+  
+  return (
+    <div className="container py-8">
+      <PageHeader
+        title="Editar Promoção"
+        description={`Editar promoção ID: ${id}`}
+        backLink="/seller/promotions"
+      />
+      
+      <div className="mt-8">
+        <p>Esta é uma página de edição básica para verificar se a rota está funcionando.</p>
+        <p>ID da promoção: {id}</p>
+        
+        <div className="mt-4">
+          <button 
+            onClick={() => router.push('/seller/promotions')}
+            className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300"
+          >
+            Voltar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+Passo 3: Modifique o botão de editar na listagem de promoções
+Para que o botão editar direcione para o URL correto, modifique a função handleEdit no arquivo de listagem de promoções (/pages/seller/promotions/index.tsx):
+typescriptconst handleEdit = (promotionId) => {
+  // Corrija o URL para seguir o mesmo padrão dos produtos
+  router.push(`/seller/promotions/${promotionId}/edit`);
+};
+Passo 4: Verifique se esta estrutura corresponde a outras páginas de edição
+Você mencionou que o padrão para produtos é /seller/products/[id]/edit. Verifique se esse arquivo existe e como ele está estruturado para garantir consistência:
+
+Verifique o arquivo /pages/seller/products/[id]/edit.tsx
+Compare sua estrutura e adapte a página de edição de promoções de forma semelhante
+
+Passo 5: Se necessário, redirecione o URL antigo para o novo
+Como já tínhamos direcionado para /seller/promotions/edit/[id], podemos adicionar um redirecionamento para manter a compatibilidade:
+tsx// Em /pages/seller/promotions/edit/[id].tsx (se esse arquivo foi criado anteriormente)
+import { useRouter } from 'next/router';
+import { useEffect } from 'react';
+
+export default function RedirectToNewEditPage() {
+  const router = useRouter();
+  const { id } = router.query;
+  
+  useEffect(() => {
+    if (id) {
+      router.replace(`/seller/promotions/${id}/edit`);
+    }
+  }, [id, router]);
+  
+  return <div>Redirecionando...</div>;
+}
+Esta abordagem garantirá que nosso sistema siga um padrão consistente de URLs, o que é importante tanto para a experiência do usuário quanto para a manutenção do código.
