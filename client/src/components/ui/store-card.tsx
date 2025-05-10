@@ -142,7 +142,9 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
             alt={`Loja ${store.name}`}
             className="w-full h-full object-cover"
             onLoad={() => console.log(`Imagem da loja ${store.id} carregada com sucesso`)}
-            fallbackSrc="/uploads/default-store-image.jpg"
+            fallbackSrc="/placeholder-image.jpg"
+            storeId={store.id}
+            type="store"
           />
           <div className="w-full h-full bg-gray-200 flex items-center justify-center hidden">
             <i className="fas fa-store text-gray-400 text-4xl"></i>
