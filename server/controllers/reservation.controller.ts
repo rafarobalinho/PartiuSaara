@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { storage } from '../storage';
 import { pool } from '../db';
 import { z } from 'zod';
-import { generateSecureImagePaths, validateImageOwnership } from '../utils/secureImagePaths';
 
 // Get user reservations
 export async function getReservations(req: Request, res: Response) {
@@ -69,7 +68,7 @@ export async function getReservations(req: Request, res: Response) {
           product_id: row.p_id,
           product_name: row.p_name,
           product_price: row.p_price,
-          product_image: null, // será preenchido apenas com imagens validadas
+          product_image: row.pi_is_primary ? row.pi_image_url : null,
           // Objeto aninhado product
           product: {
             id: row.p_id,
@@ -90,28 +89,23 @@ export async function getReservations(req: Request, res: Response) {
       if (row.pi_id) {
         const reservation = reservationsMap.get(reservationId);
         
-        // Validação rigorosa usando o utilitário de segurança para garantir isolamento de dados
-        if (validateImageOwnership(row.pi_product_id, row.p_id, row.pi_image_url, row.p_store_id) && 
-            row.p_id === reservation.productId) {
-          
-          console.log(`Validando imagem com utilitário de segurança: product_id=${row.p_id}, image.product_id=${row.pi_product_id}, store_id=${row.p_store_id}, reservation.productId=${reservation.productId}`);
+        // Verificar se a imagem pertence ao produto correto
+        if (row.pi_product_id === row.p_id) {
+          console.log(`Validando imagem: product_id=${row.p_id}, image.product_id=${row.pi_product_id}, store_id=${row.p_store_id}`);
           
           // Verifique se esta imagem já foi adicionada
-          const imageExists = reservation.product.images.some((img: any) => img.id === row.pi_id);
+          const imageExists = reservation.product.images.some(img => img.id === row.pi_id);
           
           if (!imageExists) {
-            // Usar o utilitário para gerar caminhos seguros isolados por loja/produto
-            const securePaths = generateSecureImagePaths(
-              row.pi_image_url,
-              row.pi_thumbnail_url,
-              row.p_store_id,
-              row.p_id
-            );
-            
-            // Extrair os caminhos seguros
-            const secureImagePath = securePaths.imageUrl;
-            const secureThumbnailPath = securePaths.thumbnailUrl;
-            
+            // Construir caminho de imagem seguro com isolamento de loja
+            const secureImagePath = row.pi_image_url.startsWith('/uploads/stores/') 
+              ? row.pi_image_url 
+              : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/${row.pi_image_url.split('/').pop()}`;
+              
+            const secureThumbnailPath = row.pi_thumbnail_url.startsWith('/uploads/stores/')
+              ? row.pi_thumbnail_url
+              : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/thumb-${row.pi_thumbnail_url.split('/').pop()}`;
+              
             // Adicionar imagem ao produto com caminhos seguros
             reservation.product.images.push({
               id: row.pi_id,
@@ -123,20 +117,20 @@ export async function getReservations(req: Request, res: Response) {
             });
             
             // Ordene as imagens para que a imagem principal apareça primeiro
-            reservation.product.images.sort((a: any, b: any) => {
+            reservation.product.images.sort((a, b) => {
               if (a.is_primary && !b.is_primary) return -1;
               if (!a.is_primary && b.is_primary) return 1;
               return 0;
             });
 
-            // Se esta é a imagem principal, definir a imagem plana com o caminho seguro
-            if (row.pi_is_primary) {
+            // Se esta é a imagem principal e ainda não temos uma imagem plana definida
+            if (row.pi_is_primary && !reservation.product_image) {
               reservation.product_image = secureImagePath;
               reservation.store_id = row.p_store_id; // Adicionar store_id para referência
             }
           }
         } else {
-          console.error(`Validação falhou: Imagem ID ${row.pi_id} não pertence ao produto ${row.p_id} (pertence a ${row.pi_product_id}) ou não corresponde à reserva do produto ${reservation.productId}`);
+          console.error(`Imagem com ID ${row.pi_id} não pertence ao produto ${row.p_id} (pertence a ${row.pi_product_id})`);
         }
       }
     });
@@ -199,11 +193,11 @@ export async function createReservation(req: Request, res: Response) {
     }
     
     // Check if product is in stock
-    if (product.stock !== undefined && product.stock !== null && product.stock <= 0) {
+    if (product.stock !== undefined && product.stock <= 0) {
       return res.status(400).json({ message: 'Product is out of stock' });
     }
     
-    if (quantity && product.stock !== undefined && product.stock !== null && quantity > product.stock) {
+    if (quantity && product.stock !== undefined && quantity > product.stock) {
       return res.status(400).json({ message: 'Not enough stock available' });
     }
     
@@ -246,34 +240,19 @@ export async function createReservation(req: Request, res: Response) {
       return res.status(201).json(reservation);
     }
 
-    // Prepare o objeto de reserva enriquecido com validação de segurança
+    // Prepare o objeto de reserva enriquecido
     const productInfo = result.rows[0];
     const images = result.rows
-      .filter(row => row.pi_id && row.pi_product_id === row.p_id)
-      .map(row => {
-        // Construir caminhos de imagem seguros com isolamento de loja
-        const secureImagePath = row.pi_image_url.startsWith('/uploads/stores/') 
-          ? row.pi_image_url 
-          : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/${row.pi_image_url.split('/').pop()}`;
-          
-        const secureThumbnailPath = row.pi_thumbnail_url.startsWith('/uploads/stores/')
-          ? row.pi_thumbnail_url
-          : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/thumb-${row.pi_thumbnail_url.split('/').pop()}`;
-        
-        console.log(`Validando imagem em createReservation: product_id=${row.p_id}, image.product_id=${row.pi_product_id}, store_id=${row.p_store_id}`);
-        
-        return {
-          id: row.pi_id,
-          image_url: secureImagePath,
-          thumbnail_url: secureThumbnailPath,
-          is_primary: row.pi_is_primary,
-          store_id: row.p_store_id,
-          product_id: row.p_id
-        };
-      });
+      .filter(row => row.pi_id)
+      .map(row => ({
+        id: row.pi_id,
+        image_url: row.pi_image_url,
+        thumbnail_url: row.pi_thumbnail_url,
+        is_primary: row.pi_is_primary
+      }));
       
     // Ordene as imagens para que a principal venha primeiro
-    images.sort((a: any, b: any) => {
+    images.sort((a, b) => {
       if (a.is_primary && !b.is_primary) return -1;
       if (!a.is_primary && b.is_primary) return 1;
       return 0;
@@ -287,7 +266,6 @@ export async function createReservation(req: Request, res: Response) {
       product_name: productInfo.p_name,
       product_price: productInfo.p_price,
       product_image: images.length > 0 && images[0].is_primary ? images[0].image_url : null,
-      store_id: productInfo.p_store_id,
       // Objeto aninhado
       product: {
         id: productInfo.p_id,
@@ -355,11 +333,8 @@ export async function updateReservationStatus(req: Request, res: Response) {
     
     // Update the reservation status
     const updatedReservation = await storage.updateReservationStatus(Number(id), status);
-    if (!updatedReservation) {
-      return res.status(500).json({ message: 'Failed to update reservation status' });
-    }
     
-    // Obter informações do produto para enriquecer a resposta com controle de segurança
+    // Obter informações do produto para enriquecer a resposta
     const query = `
       SELECT 
         p.id AS p_id,
@@ -369,17 +344,12 @@ export async function updateReservationStatus(req: Request, res: Response) {
         p.price AS p_price,
         p.discounted_price AS p_discounted_price,
         p.stock AS p_stock,
-        p.store_id AS p_store_id,
-        s.name AS store_name,
         pi.id AS pi_id,
         pi.image_url AS pi_image_url,
         pi.thumbnail_url AS pi_thumbnail_url,
-        pi.is_primary AS pi_is_primary,
-        pi.product_id AS pi_product_id
+        pi.is_primary AS pi_is_primary
       FROM 
         products p
-      LEFT JOIN 
-        stores s ON p.store_id = s.id
       LEFT JOIN 
         product_images pi ON p.id = pi.product_id
       WHERE 
@@ -395,34 +365,19 @@ export async function updateReservationStatus(req: Request, res: Response) {
       return res.json(updatedReservation);
     }
 
-    // Prepare o objeto de reserva enriquecido com validação de segurança
+    // Prepare o objeto de reserva enriquecido
     const productInfo = result.rows[0];
     const images = result.rows
-      .filter(row => row.pi_id && row.pi_product_id === row.p_id)
-      .map(row => {
-        // Construir caminhos de imagem seguros com isolamento de loja
-        const secureImagePath = row.pi_image_url.startsWith('/uploads/stores/') 
-          ? row.pi_image_url 
-          : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/${row.pi_image_url.split('/').pop()}`;
-          
-        const secureThumbnailPath = row.pi_thumbnail_url.startsWith('/uploads/stores/')
-          ? row.pi_thumbnail_url
-          : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/thumb-${row.pi_thumbnail_url.split('/').pop()}`;
-        
-        console.log(`Validando imagem em updateReservation: product_id=${row.p_id}, image.product_id=${row.pi_product_id}, store_id=${row.p_store_id}`);
-        
-        return {
-          id: row.pi_id,
-          image_url: secureImagePath,
-          thumbnail_url: secureThumbnailPath,
-          is_primary: row.pi_is_primary,
-          store_id: row.p_store_id,
-          product_id: row.p_id
-        };
-      });
+      .filter(row => row.pi_id)
+      .map(row => ({
+        id: row.pi_id,
+        image_url: row.pi_image_url,
+        thumbnail_url: row.pi_thumbnail_url,
+        is_primary: row.pi_is_primary
+      }));
       
     // Ordene as imagens para que a principal venha primeiro
-    images.sort((a: any, b: any) => {
+    images.sort((a, b) => {
       if (a.is_primary && !b.is_primary) return -1;
       if (!a.is_primary && b.is_primary) return 1;
       return 0;
@@ -436,7 +391,6 @@ export async function updateReservationStatus(req: Request, res: Response) {
       product_name: productInfo.p_name,
       product_price: productInfo.p_price,
       product_image: images.length > 0 && images[0].is_primary ? images[0].image_url : null,
-      store_id: productInfo.p_store_id,
       // Objeto aninhado
       product: {
         id: productInfo.p_id,
