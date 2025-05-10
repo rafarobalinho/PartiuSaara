@@ -13,6 +13,16 @@ interface ProductImage {
   product_id?: number;
 }
 
+interface Promotion {
+  id: number;
+  type: string;
+  discountPercentage: number | null;
+  discountAmount: number | null;
+  priceOverride: number | null;
+  startsAt: Date | null;
+  endsAt: Date | null;
+}
+
 // Get user reservations
 export async function getReservations(req: Request, res: Response) {
   try {

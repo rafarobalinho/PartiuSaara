@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { formatCurrency } from '@/lib/utils';
+import SafeImage from '@/components/ui/safe-image';
 
 interface ProductImage {
   id: number;
@@ -20,6 +21,17 @@ interface WishlistItem {
   userId: number;
   productId: number;
   createdAt?: string;
+  // Novas propriedades para preservar formato visual original
+  imageUrl?: string;
+  promotion?: {
+    id: number;
+    type: string; // 'regular' ou 'flash'
+    discountPercentage?: number;
+    discountAmount?: number;
+    priceOverride?: number;
+    startsAt?: string;
+    endsAt?: string;
+  } | null;
   product: {
     id: number;
     name: string;
