@@ -1,0 +1,117 @@
+O problema fundamental parece ser que os arquivos de imagem não existem nos locais esperados, e o sistema não está conseguindo localizá-los mesmo tentando várias abordagens diferentes.
+Solução Passo a Passo
+Vamos criar um plano de ação para resolver este problema:
+1. Verificar e Criar Estrutura de Diretórios
+Primeiro, precisamos garantir que a estrutura de diretórios esperada existe:
+javascript// Crie um arquivo check-and-fix-directories.js
+const fs = require('fs');
+const path = require('path');
+
+// Diretórios essenciais que precisam existir
+const baseDirectories = [
+  './public/uploads',
+  './public/uploads/thumbnails',
+  './public/uploads/originals'
+];
+
+// Diretórios para cada loja (com base nos erros)
+const storeDirectories = [1, 2, 3, 4, 5].map(id => `./public/uploads/stores/${id}`);
+
+// Combinar todos os diretórios a serem verificados
+const allDirectories = [...baseDirectories, ...storeDirectories];
+
+// Verificar e criar diretórios
+function createDirectories() {
+  console.log('Verificando e criando diretórios necessários...');
+  
+  allDirectories.forEach(dir => {
+    const fullPath = path.resolve(__dirname, dir);
+    
+    if (!fs.existsSync(fullPath)) {
+      console.log(`Criando diretório: ${fullPath}`);
+      try {
+        fs.mkdirSync(fullPath, { recursive: true });
+        console.log(`✅ Diretório criado com sucesso: ${fullPath}`);
+      } catch (error) {
+        console.error(`❌ Erro ao criar diretório ${fullPath}:`, error);
+      }
+    } else {
+      console.log(`✅ Diretório já existe: ${fullPath}`);
+    }
+  });
+  
+  console.log('Verificação de diretórios concluída!');
+}
+
+// Criar arquivos de placeholder
+function createPlaceholders() {
+  console.log('Criando arquivos de placeholder...');
+  
+  // Verificar se já existe um placeholder
+  const placeholderPath = path.resolve(__dirname, './public/placeholder-image.jpg');
+  const placeholderDestination = path.resolve(__dirname, './public/placeholder-unavailable.jpg');
+  
+  // Se não existir placeholder, criar um arquivo básico
+  if (!fs.existsSync(placeholderPath)) {
+    console.log('Criando arquivo de placeholder básico...');
+    
+    // Conteúdo básico de uma imagem JPEG vazia (1x1 pixel preto)
+    const emptyJpegBytes = Buffer.from([
+      0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48,
+      0x00, 0x48, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08,
+      0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D, 0x0C, 0x0B, 0x0B, 0x0C, 0x19, 0x12,
+      0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F, 0x1E, 0x1D, 0x1A, 0x1C, 0x1C, 0x20, 0x24, 0x2E, 0x27, 0x20,
+      0x22, 0x2C, 0x23, 0x1C, 0x1C, 0x28, 0x37, 0x29, 0x2C, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1F, 0x27,
+      0x39, 0x3D, 0x38, 0x32, 0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x00, 0x01,
+      0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xC4, 0x00, 0x14,
+      0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00, 0x00, 0x00, 0x00, 0xFF,
+      0xD9
+    ]);
+
+    try {
+      fs.writeFileSync(placeholderPath, emptyJpegBytes);
+      console.log(`✅ Arquivo de placeholder criado: ${placeholderPath}`);
+      
+      // Copiar também para o nome alternativo
+      fs.copyFileSync(placeholderPath, placeholderDestination);
+      console.log(`✅ Arquivo de placeholder copiado para: ${placeholderDestination}`);
+    } catch (error) {
+      console.error('❌ Erro ao criar arquivo de placeholder:', error);
+    }
+  } else {
+    console.log(`✅ Arquivo de placeholder já existe: ${placeholderPath}`);
+    
+    // Copiar para nome alternativo se ainda não existir
+    if (!fs.existsSync(placeholderDestination)) {
+      fs.copyFileSync(placeholderPath, placeholderDestination);
+      console.log(`✅ Arquivo de placeholder copiado para: ${placeholderDestination}`);
+    }
+  }
+  
+  // Criar logo básico para cada loja
+  storeDirectories.forEach(dir => {
+    const logoPath = path.resolve(__dirname, `${dir}/logo.jpg`);
+    
+    if (!fs.existsSync(logoPath)) {
+      try {
+        // Copiar o placeholder para o local do logo
+        fs.copyFileSync(placeholderPath, logoPath);
+        console.log(`✅ Logo criado para: ${logoPath}`);
+      } catch (error) {
+        console.error(`❌ Erro ao criar logo para ${logoPath}:`, error);
+      }
+    } else {
+      console.log(`✅ Logo já existe: ${logoPath}`);
+    }
+  });
+  
+  console.log('Criação de placeholders concluída!');
+}
+
+// Executar funções
+createDirectories();
+createPlaceholders();
+
+console.log('Script concluído com sucesso!');

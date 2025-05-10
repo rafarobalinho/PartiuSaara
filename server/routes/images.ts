@@ -4,6 +4,9 @@ import imageController from '../controllers/image.controller';
 
 const router = express.Router();
 
+// Rota para placeholder-image
+router.get('/placeholder-image.jpg', imageController.getPlaceholderImage);
+
 // Rotas para imagens de produtos
 router.get('/products/:id/primary-image', imageController.getProductPrimaryImage);
 router.get('/products/:id/thumbnail', imageController.getProductThumbnail);
