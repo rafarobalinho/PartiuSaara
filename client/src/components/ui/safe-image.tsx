@@ -17,7 +17,7 @@ interface SafeImageProps {
  * Componente seguro para exibição de imagens
  * Sempre usa APIs seguras em vez de caminhos diretos de arquivo
  */
-export const SafeImage: React.FC<SafeImageProps> = ({ 
+const SafeImage: React.FC<SafeImageProps> = ({ 
   productId, 
   storeId,
   promotionId,
