@@ -10,6 +10,7 @@ export async function getReservations(req: Request, res: Response) {
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
 
     // Consulta SQL personalizada para obter reservas com produtos e imagens
+    // Adicionando store_id como parte da consulta para isolamento de dados
     const query = `
       SELECT 
         r.*,
@@ -20,14 +21,19 @@ export async function getReservations(req: Request, res: Response) {
         p.price AS p_price,
         p.discounted_price AS p_discounted_price,
         p.stock AS p_stock,
+        p.store_id AS p_store_id,
+        s.name AS store_name,
         pi.id AS pi_id,
         pi.image_url AS pi_image_url,
         pi.thumbnail_url AS pi_thumbnail_url,
-        pi.is_primary AS pi_is_primary
+        pi.is_primary AS pi_is_primary,
+        pi.product_id AS pi_product_id
       FROM 
         reservations r
       LEFT JOIN 
         products p ON r.product_id = p.id
+      LEFT JOIN 
+        stores s ON p.store_id = s.id
       LEFT JOIN 
         product_images pi ON p.id = pi.product_id
       WHERE 
@@ -83,28 +89,48 @@ export async function getReservations(req: Request, res: Response) {
       if (row.pi_id) {
         const reservation = reservationsMap.get(reservationId);
         
-        // Verifique se esta imagem já foi adicionada
-        const imageExists = reservation.product.images.some(img => img.id === row.pi_id);
-        
-        if (!imageExists) {
-          reservation.product.images.push({
-            id: row.pi_id,
-            image_url: row.pi_image_url,
-            thumbnail_url: row.pi_thumbnail_url,
-            is_primary: row.pi_is_primary
-          });
+        // Verificar se a imagem pertence ao produto correto
+        if (row.pi_product_id === row.p_id) {
+          console.log(`Validando imagem: product_id=${row.p_id}, image.product_id=${row.pi_product_id}, store_id=${row.p_store_id}`);
           
-          // Ordene as imagens para que a imagem principal apareça primeiro
-          reservation.product.images.sort((a, b) => {
-            if (a.is_primary && !b.is_primary) return -1;
-            if (!a.is_primary && b.is_primary) return 1;
-            return 0;
-          });
+          // Verifique se esta imagem já foi adicionada
+          const imageExists = reservation.product.images.some(img => img.id === row.pi_id);
+          
+          if (!imageExists) {
+            // Construir caminho de imagem seguro com isolamento de loja
+            const secureImagePath = row.pi_image_url.startsWith('/uploads/stores/') 
+              ? row.pi_image_url 
+              : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/${row.pi_image_url.split('/').pop()}`;
+              
+            const secureThumbnailPath = row.pi_thumbnail_url.startsWith('/uploads/stores/')
+              ? row.pi_thumbnail_url
+              : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/thumb-${row.pi_thumbnail_url.split('/').pop()}`;
+              
+            // Adicionar imagem ao produto com caminhos seguros
+            reservation.product.images.push({
+              id: row.pi_id,
+              image_url: secureImagePath,
+              thumbnail_url: secureThumbnailPath,
+              is_primary: row.pi_is_primary,
+              store_id: row.p_store_id,
+              product_id: row.p_id
+            });
+            
+            // Ordene as imagens para que a imagem principal apareça primeiro
+            reservation.product.images.sort((a, b) => {
+              if (a.is_primary && !b.is_primary) return -1;
+              if (!a.is_primary && b.is_primary) return 1;
+              return 0;
+            });
 
-          // Se esta é a imagem principal e ainda não temos uma imagem plana definida
-          if (row.pi_is_primary && !reservation.product_image) {
-            reservation.product_image = row.pi_image_url;
+            // Se esta é a imagem principal e ainda não temos uma imagem plana definida
+            if (row.pi_is_primary && !reservation.product_image) {
+              reservation.product_image = secureImagePath;
+              reservation.store_id = row.p_store_id; // Adicionar store_id para referência
+            }
           }
+        } else {
+          console.error(`Imagem com ID ${row.pi_id} não pertence ao produto ${row.p_id} (pertence a ${row.pi_product_id})`);
         }
       }
     });
@@ -178,7 +204,7 @@ export async function createReservation(req: Request, res: Response) {
     // Create the reservation
     const reservation = await storage.createReservation(user.id, productId, quantity);
 
-    // Obter informações do produto para enriquecer a resposta
+    // Obter informações do produto para enriquecer a resposta com controle de segurança
     const query = `
       SELECT 
         p.id AS p_id,
@@ -188,12 +214,17 @@ export async function createReservation(req: Request, res: Response) {
         p.price AS p_price,
         p.discounted_price AS p_discounted_price,
         p.stock AS p_stock,
+        p.store_id AS p_store_id,
+        s.name AS store_name,
         pi.id AS pi_id,
         pi.image_url AS pi_image_url,
         pi.thumbnail_url AS pi_thumbnail_url,
-        pi.is_primary AS pi_is_primary
+        pi.is_primary AS pi_is_primary,
+        pi.product_id AS pi_product_id
       FROM 
         products p
+      LEFT JOIN 
+        stores s ON p.store_id = s.id
       LEFT JOIN 
         product_images pi ON p.id = pi.product_id
       WHERE 
