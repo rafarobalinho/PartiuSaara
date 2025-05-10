@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
+import { useEffect } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
@@ -36,6 +37,7 @@ import AddProduct from "@/pages/seller/products/add-product";
 import EditProduct from "@/pages/seller/products/edit-product";
 import SellerPromotions from "@/pages/seller/promotions/index";
 import AddPromotion from "@/pages/seller/promotions/add-promotion";
+import EditPromotion from "@/pages/seller/promotions/[id]/edit";
 import SellerAnalytics from "@/pages/seller/analytics";
 import SellerSubscription from "@/pages/seller/subscription";
 import SellerStores from "@/pages/seller/stores/index";
@@ -70,6 +72,22 @@ function Router() {
           <Route path="/seller/products/:id/edit" component={EditProduct} />
           <Route path="/seller/promotions" component={SellerPromotions} />
           <Route path="/seller/promotions/add" component={AddPromotion} />
+          <Route path="/seller/promotions/:id/edit" component={EditPromotion} />
+          <Route path="/seller/promotions/edit/:id">
+            {(params) => {
+              // Redirect from old path to new path
+              const [, navigate] = useLocation();
+              useEffect(() => {
+                navigate(`/seller/promotions/${params.id}/edit`);
+              }, [params.id, navigate]);
+              return <div className="container py-8 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin h-8 w-8 mx-auto border-4 border-primary border-t-transparent rounded-full mb-4"></div>
+                  <div className="text-lg">Redirecionando...</div>
+                </div>
+              </div>;
+            }}
+          </Route>
           <Route path="/seller/stores" component={SellerStores} />
           <Route path="/seller/stores/add-store" component={AddStore} />
           <Route path="/seller/stores/:id" component={StoreDetail} />
