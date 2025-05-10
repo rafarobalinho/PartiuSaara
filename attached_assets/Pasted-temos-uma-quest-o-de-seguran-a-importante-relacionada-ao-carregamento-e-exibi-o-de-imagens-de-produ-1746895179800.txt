@@ -1,0 +1,160 @@
+temos uma questão de segurança importante relacionada ao carregamento e exibição de imagens de produtos em reservas, onde imagens de diferentes lojas estão sendo misturadas.
+Vou abordar este problema com uma solução completa, baseando-me nas tabelas fornecidas e no código do controlador.
+Problema identificado
+
+Na página /account/reservations, as imagens dos produtos reservados estão sendo buscadas do diretório incorreto
+Imagens de uma loja (Óticas do Bem) estão aparecendo para produtos de outra loja (Balisun)
+O caminho da imagem está sendo renderizado como /uploads/1746468335165-257916333.jpg sem qualquer segregação por loja
+
+Este é efetivamente um problema de segurança e isolamento de dados entre diferentes lojistas na plataforma.
+Análise da causa-raiz
+Analisando o código do reservation.controller.ts, vejo que o controlador busca os dados de reservas junto com produtos e imagens, mas não está implementando nenhuma verificação para garantir que as imagens pertencem corretamente ao produto/loja em questão.
+O problema provavelmente está na função getReservations, onde a consulta SQL junta as tabelas reservations, products e product_images, mas não está garantindo que as imagens correspondam aos produtos corretos.
+Solução proposta
+Vou propor uma solução completa em etapas:
+1. Corrigir a consulta SQL no controller
+A consulta deve garantir que as imagens pertencem ao produto correto e são da loja correta.
+javascript// Modificação na consulta SQL
+const query = `
+  SELECT 
+    r.*,
+    p.id AS p_id,
+    p.name AS p_name,
+    p.description AS p_description,
+    p.category AS p_category,
+    p.price AS p_price,
+    p.discounted_price AS p_discounted_price,
+    p.stock AS p_stock,
+    p.store_id AS p_store_id,
+    pi.id AS pi_id,
+    pi.image_url AS pi_image_url,
+    pi.thumbnail_url AS pi_thumbnail_url,
+    pi.is_primary AS pi_is_primary
+  FROM 
+    reservations r
+  LEFT JOIN 
+    products p ON r.product_id = p.id
+  LEFT JOIN 
+    product_images pi ON p.id = pi.product_id
+  WHERE 
+    r.user_id = $1
+  ORDER BY 
+    r.created_at DESC, pi.is_primary DESC
+  ${limit ? `LIMIT ${limit}` : ''}
+`;
+2. Implementar isolamento de imagens por loja
+Reestruturar a lógica de upload de imagens para:
+
+Armazenar imagens em diretórios por loja: /uploads/stores/{store_id}/products/{product_id}/
+Modificar os caminhos de URL para refletir essa estrutura
+
+3. Modificar a lógica de construção do objeto de reserva
+Atualizar o código para garantir que as imagens são corretamente associadas ao produto e loja:
+javascript// Dentro do loop que processa cada linha retornada do banco
+if (row.pi_id) {
+  const reservation = reservationsMap.get(reservationId);
+  
+  // Verificar se a imagem pertence ao produto correto
+  if (row.pi_product_id === row.p_id) {
+    // Verificar se esta imagem já foi adicionada
+    const imageExists = reservation.product.images.some(img => img.id === row.pi_id);
+    
+    if (!imageExists) {
+      reservation.product.images.push({
+        id: row.pi_id,
+        image_url: row.pi_image_url,
+        thumbnail_url: row.pi_thumbnail_url,
+        is_primary: row.pi_is_primary
+      });
+      
+      // Ordene as imagens para que a imagem principal apareça primeiro
+      reservation.product.images.sort((a, b) => {
+        if (a.is_primary && !b.is_primary) return -1;
+        if (!a.is_primary && b.is_primary) return 1;
+        return 0;
+      });
+
+      // Se esta é a imagem principal e ainda não temos uma imagem plana definida
+      if (row.pi_is_primary && !reservation.product_image) {
+        reservation.product_image = row.pi_image_url;
+      }
+    }
+  }
+}
+4. Implementar uma função de upload de imagens segura
+Vamos criar uma função de upload que garanta a separação das imagens por loja:
+javascriptasync function secureImageUpload(file, storeId, productId, isPrimary = false) {
+  // Criar diretório se não existir
+  const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'stores', String(storeId), 'products', String(productId));
+  await fs.promises.mkdir(uploadDir, { recursive: true });
+  
+  // Gerar nome de arquivo único
+  const fileName = `${Date.now()}-${Math.floor(Math.random() * 1000000000)}.jpg`;
+  const filePath = path.join(uploadDir, fileName);
+  
+  // Processar e otimizar a imagem
+  // ...processamento de imagem...
+  
+  // Salvar imagem
+  await fs.promises.writeFile(filePath, processedImageBuffer);
+  
+  // Criar thumbnail
+  // ...processamento de thumbnail...
+  
+  // Retornar caminhos relativos para armazenamento no banco
+  const imagePath = `/uploads/stores/${storeId}/products/${productId}/${fileName}`;
+  const thumbnailPath = `/uploads/stores/${storeId}/products/${productId}/thumb-${fileName}`;
+  
+  return {
+    imagePath,
+    thumbnailPath
+  };
+}
+5. Atualizar o frontend para o caminho correto de imagens
+No componente React da página de reservas, garantir que as imagens são exibidas corretamente:
+jsx{reservation.product.images && reservation.product.images.length > 0 ? (
+  <img 
+    src={reservation.product.images[0].image_url} 
+    alt={reservation.product.name}
+    className="w-full h-full object-cover" 
+  />
+) : (
+  <div className="flex items-center justify-center bg-gray-200 w-full h-full">
+    <span>Sem imagem</span>
+  </div>
+)}
+Implementação
+Aqui está o prompt para o agente do Replit com as instruções específicas para implementar esta solução:
+Por favor, corrija o problema crítico de segurança na exibição de imagens de produtos reservados. Estamos enfrentando uma situação onde imagens de uma loja (Óticas do Bem) estão sendo exibidas para produtos de outra loja (Balisun).
+
+Tarefas a serem implementadas:
+
+1. Modifique a função getReservations em reservation.controller.ts para garantir que as imagens correspondam corretamente aos produtos:
+   - Certifique-se de que a consulta SQL recupere apenas imagens associadas ao produto correto
+   - Adicione verificações adicionais no processamento dos resultados para evitar a mistura de imagens
+
+2. Implemente uma estrutura de diretórios por loja para armazenamento de imagens:
+   - Crie a função secureImageUpload que armazena imagens em /uploads/stores/{store_id}/products/{product_id}/
+   - Atualize todas as referências para usarem esse novo padrão
+
+3. Atualize o frontend para exibir imagens corretamente:
+   - Garanta que a página /account/reservations use os caminhos corretos para imagens
+   - Implemente tratamento de erro para imagens não encontradas
+
+4. Migre as imagens existentes para a nova estrutura:
+   - Crie um script para identificar e reorganizar imagens existentes para os diretórios corretos
+   - Atualize os registros no banco de dados para refletirem os novos caminhos
+
+5. Adicione validação adicional:
+   - Verificar a propriedade do recurso (loja) antes de exibir imagens
+   - Limitar o acesso a imagens com base na propriedade da loja
+
+Este problema é crítico para a segurança e isolamento de dados entre lojistas diferentes.
+Passos adicionais recomendados
+Além da solução imediata, recomendo:
+
+Auditoria de segurança: Revisar outros controladores para identificar problemas similares
+Middleware de autorização: Implementar um middleware que verifique automaticamente se o usuário tem acesso aos recursos (incluindo imagens)
+Caminhos de URL assinados: Considerar a implementação de URLs assinadas para imagens, garantindo que apenas usuários com autorização possam acessá-las
+
+Esta solução completa garantirá que as imagens dos produtos sejam exibidas corretamente e com segurança, mantendo o isolamento entre as diferentes lojas na plataforma.
