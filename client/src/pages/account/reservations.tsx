@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { formatCurrency } from '@/lib/utils';
-import { SafeImage } from '@/components/ui/safe-image';
+import SafeImage from '@/components/ui/safe-image';
 
 interface Reservation {
   id: number;
@@ -223,15 +223,15 @@ export default function Reservations() {
                     {filteredReservations.map((reservation) => (
                       <div key={reservation.id} className="bg-white rounded-lg shadow-sm p-4 border flex flex-col sm:flex-row">
                         <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 sm:mr-4">
-                          {/* Usar img direta para simplicidade */}
-                          <img 
-                            src={reservation.product_image || '/placeholder-image.jpg'} 
-                            alt={reservation.product_name || 'Produto'} 
+                          {/* Usar SafeImage para carregamento seguro de imagens */}
+                          <SafeImage
+                            productId={reservation.productId}
+                            alt={reservation.product_name || 'Produto'}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              console.log(`Erro ao carregar imagem: ${reservation.product_name}`, reservation.product_image);
-                              e.currentTarget.src = '/placeholder-image.jpg';
+                              console.log(`Erro ao carregar imagem para produto ID: ${reservation.productId}`);
                             }}
+                            placeholderImage="/placeholder-image.jpg"
                           />
                         </div>
                         <div className="flex-1">
