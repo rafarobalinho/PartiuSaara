@@ -1899,12 +1899,95 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updatePromotion(id: number, promotionData: Partial<Promotion>): Promise<Promotion | undefined> {
-    const [updatedPromotion] = await db
-      .update(promotions)
-      .set(promotionData)
-      .where(eq(promotions.id, id))
-      .returning();
-    return updatedPromotion;
+    try {
+      console.log(`[Storage] Atualizando promoção ${id} com dados:`, promotionData);
+      
+      // Create a new object to avoid modifying the original
+      const dataToUpdate: any = { ...promotionData };
+      
+      // Process Date objects properly
+      if (dataToUpdate.startTime) {
+        if (typeof dataToUpdate.startTime === 'string') {
+          // Already a string, make sure it's in the right format
+          try {
+            const date = new Date(dataToUpdate.startTime);
+            if (isNaN(date.getTime())) {
+              throw new Error('Invalid startTime date format');
+            }
+            // Keep as string in ISO format
+          } catch (e) {
+            console.error('Error parsing startTime:', e);
+            throw e;
+          }
+        } else if (dataToUpdate.startTime instanceof Date) {
+          // Convert Date object to ISO string
+          dataToUpdate.startTime = dataToUpdate.startTime.toISOString();
+        }
+      }
+      
+      if (dataToUpdate.endTime) {
+        if (typeof dataToUpdate.endTime === 'string') {
+          // Already a string, make sure it's in the right format
+          try {
+            const date = new Date(dataToUpdate.endTime);
+            if (isNaN(date.getTime())) {
+              throw new Error('Invalid endTime date format');
+            }
+            // Keep as string in ISO format
+          } catch (e) {
+            console.error('Error parsing endTime:', e);
+            throw e;
+          }
+        } else if (dataToUpdate.endTime instanceof Date) {
+          // Convert Date object to ISO string
+          dataToUpdate.endTime = dataToUpdate.endTime.toISOString();
+        }
+      }
+      
+      // Execute raw SQL to have more control and avoid problems with ORM
+      const query = `
+        UPDATE promotions 
+        SET 
+          ${dataToUpdate.type ? `type = '${dataToUpdate.type}',` : ''}
+          ${dataToUpdate.discountPercentage !== undefined ? `"discountPercentage" = ${dataToUpdate.discountPercentage},` : ''}
+          ${dataToUpdate.discountAmount !== undefined ? `"discountAmount" = ${dataToUpdate.discountAmount},` : ''}
+          ${dataToUpdate.startTime ? `"startTime" = '${dataToUpdate.startTime}',` : ''}
+          ${dataToUpdate.endTime ? `"endTime" = '${dataToUpdate.endTime}',` : ''}
+          "updatedAt" = NOW()
+        WHERE id = ${id}
+        RETURNING *;
+      `;
+      
+      console.log('[Storage] Update query:', query);
+      
+      // Use raw query execution
+      const result = await db.execute(query);
+      console.log('[Storage] Update result:', result);
+      
+      if (!result.rows || result.rows.length === 0) {
+        return undefined;
+      }
+      
+      // Return the first row as the updated promotion
+      const updatedPromotion = result.rows[0] as Promotion;
+      return updatedPromotion;
+    } catch (error) {
+      console.error('[Storage] Error updating promotion:', error);
+      throw error;
+    }
+  }
+  
+  // Delete promotion
+  async deletePromotion(id: number): Promise<boolean> {
+    try {
+      console.log(`[Storage] Deleting promotion with ID: ${id}`);
+      const result = await db.delete(promotions).where(eq(promotions.id, id)).returning();
+      console.log(`[Storage] Delete result:`, result);
+      return result.length > 0;
+    } catch (error) {
+      console.error(`[Storage] Error deleting promotion:`, error);
+      return false;
+    }
   }
   
   // Coupon operations
