@@ -1,0 +1,327 @@
+Estamos enfrentando dois problemas na página de edição de promoções:
+
+### Problema 1: Falha ao carregar produtos na página de edição
+A página está carregando visualmente, mas está falhando ao buscar produtos com erro 404 para `/api/stores/products`.
+
+Solução:
+1. Verifique o endpoint correto para buscar produtos. O erro sugere que a rota `/api/stores/products` não existe.
+2. Corrija o endpoint na chamada de API:
+
+```typescript
+// Em edit.tsx na função que busca produtos
+// Localizar o código que faz a chamada para `/api/stores/products`
+// E substituir pelo endpoint correto, provavelmente:
+
+async function fetchProducts() {
+  try {
+    // Endpoint correto deve ser provavelmente:
+    const response = await apiRequest('/api/products');
+    // ou
+    // const response = await apiRequest('/api/seller/products');
+    
+    setProducts(response.products || []);
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    toast({
+      title: 'Erro',
+      description: 'Não foi possível carregar a lista de produtos.',
+      variant: 'destructive'
+    });
+  }
+}
+Problema 2: Erro crítico ao clicar em "Salvar alterações"
+Assim como o botão "Excluir", o botão "Salvar alterações" está causando um erro crítico que fecha o aplicativo.
+Solução:
+
+Implemente tratamento de erro robusto no manipulador do botão:
+
+typescript// No manipulador do botão "Salvar alterações"
+async function handleSave(formData) {
+  try {
+    // Validações básicas antes de enviar
+    if (!formData.productId) {
+      toast({
+        title: 'Erro',
+        description: 'Por favor, selecione um produto.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    console.log('Dados a serem enviados:', formData);
+    
+    // Transformar os dados para o formato esperado pela API
+    const apiData = {
+      type: formData.type,
+      discountType: formData.discountType,
+      discountValue: Number(formData.discountValue),
+      productId: Number(formData.productId),
+      startTime: new Date(formData.startTime).toISOString(),
+      endTime: new Date(formData.endTime).toISOString()
+    };
+    
+    try {
+      // Chamada à API com tratamento de erro interno
+      const response = await apiRequest(`/api/promotions/${id}`, {
+        method: 'PUT',
+        data: apiData
+      });
+      
+      console.log('Resposta da API:', response);
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Promoção atualizada com sucesso.',
+        variant: 'success'
+      });
+      
+      // Redirecionar após sucesso
+      router.push('/seller/promotions');
+    } catch (apiError) {
+      console.error('Erro na chamada à API:', apiError);
+      
+      let errorMessage = 'Não foi possível atualizar a promoção.';
+      if (apiError.response && apiError.response.data && apiError.response.data.message) {
+        errorMessage = apiError.response.data.message;
+      }
+      
+      toast({
+        title: 'Erro',
+        description: errorMessage,
+        variant: 'destructive'
+      });
+    }
+  } catch (outerError) {
+    // Captura erros inesperados que podem ocorrer antes ou depois da chamada à API
+    console.error('Erro inesperado:', outerError);
+    
+    toast({
+      title: 'Erro inesperado',
+      description: 'Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.',
+      variant: 'destructive'
+    });
+  }
+}
+Problema 3: Implemente uma solução completa para a página de edição
+Baseado nos logs que vemos (que mostram que a página está carregando), vamos implementar uma versão simplificada mas funcional da página:
+typescript// Em pages/seller/promotions/[id]/edit.tsx
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { apiRequest } from '@/lib/apiClient';
+import { toast } from '@/components/ui/toast';
+
+export default function EditPromotion() {
+  const router = useRouter();
+  const { id } = router.query;
+  
+  const [loading, setLoading] = useState(true);
+  const [promotion, setPromotion] = useState(null);
+  const [formData, setFormData] = useState({
+    type: 'regular',
+    discountType: 'percentage',
+    discountValue: '',
+    startTime: '',
+    endTime: ''
+  });
+  
+  // Carregar dados da promoção
+  useEffect(() => {
+    if (id) {
+      fetchPromotionData();
+    }
+  }, [id]);
+  
+  async function fetchPromotionData() {
+    try {
+      console.log(`Carregando promoção com ID: ${id}`);
+      setLoading(true);
+      
+      const response = await apiRequest(`/api/promotions/${id}`);
+      console.log('Dados da promoção recebidos:', response);
+      
+      setPromotion(response);
+      setFormData({
+        type: response.type || 'regular',
+        discountType: response.discountType || 'percentage',
+        discountValue: response.discountValue?.toString() || '',
+        startTime: response.startTime 
+          ? new Date(response.startTime).toISOString().slice(0, 16) 
+          : '',
+        endTime: response.endTime 
+          ? new Date(response.endTime).toISOString().slice(0, 16) 
+          : ''
+      });
+    } catch (error) {
+      console.error('Erro ao carregar dados da promoção:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados da promoção.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }
+  
+  async function handleSubmit(e) {
+    e.preventDefault();
+    
+    try {
+      console.log('Enviando dados para atualizar promoção:', formData);
+      
+      // Transformar dados para o formato da API
+      const apiData = {
+        type: formData.type,
+        discountType: formData.discountType,
+        discountValue: Number(formData.discountValue),
+        startTime: new Date(formData.startTime).toISOString(),
+        endTime: new Date(formData.endTime).toISOString()
+      };
+      
+      try {
+        const response = await apiRequest(`/api/promotions/${id}`, {
+          method: 'PUT',
+          data: apiData
+        });
+        
+        console.log('Resposta da atualização:', response);
+        
+        toast({
+          title: 'Sucesso',
+          description: 'Promoção atualizada com sucesso.',
+          variant: 'success'
+        });
+        
+        router.push('/seller/promotions');
+      } catch (apiError) {
+        console.error('Erro na chamada à API:', apiError);
+        
+        let errorMessage = 'Não foi possível atualizar a promoção.';
+        if (apiError.response?.data?.message) {
+          errorMessage = apiError.response.data.message;
+        }
+        
+        toast({
+          title: 'Erro',
+          description: errorMessage,
+          variant: 'destructive'
+        });
+      }
+    } catch (outerError) {
+      console.error('Erro inesperado ao processar o formulário:', outerError);
+      
+      toast({
+        title: 'Erro inesperado',
+        description: 'Ocorreu um erro ao processar sua solicitação.',
+        variant: 'destructive'
+      });
+    }
+  }
+  
+  if (loading) {
+    return <div className="container py-8">Carregando...</div>;
+  }
+  
+  return (
+    <div className="container py-8">
+      <h1 className="text-2xl font-bold mb-4">Editar Promoção</h1>
+      <button 
+        className="mb-4 px-4 py-2 bg-gray-200 rounded"
+        onClick={() => router.push('/seller/promotions')}
+      >
+        Voltar
+      </button>
+      
+      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <div>
+          <label className="block mb-1">Tipo de Promoção</label>
+          <select 
+            name="type"
+            value={formData.type}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+          >
+            <option value="regular">Regular</option>
+            <option value="flash">Relâmpago</option>
+          </select>
+        </div>
+        
+        <div>
+          <label className="block mb-1">Tipo de Desconto</label>
+          <select 
+            name="discountType"
+            value={formData.discountType}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+          >
+            <option value="percentage">Porcentagem (%)</option>
+            <option value="amount">Valor (R$)</option>
+          </select>
+        </div>
+        
+        <div>
+          <label className="block mb-1">Valor do Desconto</label>
+          <input 
+            type="number"
+            name="discountValue"
+            value={formData.discountValue}
+            onChange={handleChange}
+            min="0"
+            step="0.01"
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+        
+        <div>
+          <label className="block mb-1">Data e Hora de Início</label>
+          <input 
+            type="datetime-local"
+            name="startTime"
+            value={formData.startTime}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+        
+        <div>
+          <label className="block mb-1">Data e Hora de Término</label>
+          <input 
+            type="datetime-local"
+            name="endTime"
+            value={formData.endTime}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+        
+        <div>
+          <button 
+            type="submit"
+            className="px-4 py-2 bg-blue-500 text-white rounded"
+            disabled={loading}
+          >
+            {loading ? 'Salvando...' : 'Salvar Alterações'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+Esta solução:
+
+Corrige o problema de busca de produtos usando o endpoint correto
+Adiciona tratamento de erro robusto para evitar que o aplicativo feche
+Implementa uma versão simplificada mas funcional da página de edição
+
+Por favor, implemente estas correções e teste novamente a página de edição.

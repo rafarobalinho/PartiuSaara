@@ -67,44 +67,86 @@ export default function EditPromotion() {
 
   console.log("Página de edição de promoção carregada com ID:", promotionId);
 
-  // Fetch promotion details
+  // Fetch promotion details with improved error handling
   const { data: promotionData, isLoading: isLoadingPromotion } = useQuery({
     queryKey: ['/api/promotions', promotionId],
     queryFn: async () => {
       try {
         console.log(`Tentando carregar promoção para edição, ID: "${promotionId}"`);
+        
+        if (!promotionId) {
+          throw new Error('ID da promoção não especificado');
+        }
+        
         const response = await fetch(`/api/promotions/${promotionId}`, {
           credentials: 'include',
+          headers: {
+            'Accept': 'application/json'
+          }
         });
         
+        console.log(`Resposta da API de promoção: status ${response.status}`);
+        
         if (!response.ok) {
-          throw new Error(`Failed to fetch promotion: ${response.status}`);
+          let errorMessage = `Failed to fetch promotion: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch (parseError) {
+            const textError = await response.text();
+            console.error('Resposta de erro bruta:', textError);
+          }
+          throw new Error(errorMessage);
         }
         
         const data = await response.json();
         console.log("Dados da promoção recebidos:", data);
+        
+        // Validate received data
+        if (!data || typeof data !== 'object') {
+          throw new Error('Formato de dados inválido recebido do servidor');
+        }
+        
+        if (!data.productId) {
+          throw new Error('Dados da promoção incompletos: productId ausente');
+        }
+        
+        // Convert dates and ensure they're valid
+        let startTimeFormatted;
+        let endTimeFormatted;
+        
+        try {
+          startTimeFormatted = new Date(data.startTime).toISOString().slice(0, 16);
+          endTimeFormatted = new Date(data.endTime).toISOString().slice(0, 16);
+        } catch (dateError) {
+          console.error('Erro ao formatar datas:', dateError);
+          throw new Error('Datas da promoção são inválidas');
+        }
         
         // Convert from backend format to form format
         return {
           ...data,
           type: data.type === 'regular' ? 'normal' : data.type,
           discountType: 'percentage', // Assume percentage as default
-          discountValue: data.discountPercentage.toString(),
+          discountValue: data.discountPercentage ? data.discountPercentage.toString() : "0",
           productId: data.productId.toString(),
-          startTime: new Date(data.startTime).toISOString().slice(0, 16), // Format for datetime-local
-          endTime: new Date(data.endTime).toISOString().slice(0, 16), // Format for datetime-local
+          startTime: startTimeFormatted,
+          endTime: endTimeFormatted,
         };
       } catch (error) {
-        console.error('Error fetching promotion:', error);
+        console.error('Error detalhado ao buscar promoção:', error);
         toast({
           title: 'Erro',
-          description: 'Não foi possível carregar os dados da promoção.',
+          description: error instanceof Error 
+            ? `Não foi possível carregar os dados da promoção: ${error.message}` 
+            : 'Não foi possível carregar os dados da promoção.',
           variant: 'destructive',
         });
-        return null;
+        throw error;
       }
     },
     enabled: !!promotionId && isAuthenticated,
+    retry: 1, // Limit retries to avoid excessive failed requests
   });
 
   // Fetch user's stores
@@ -164,15 +206,36 @@ export default function EditPromotion() {
   // Fetch products when store changes
   const fetchProductsByStore = async (storeId: number | string) => {
     try {
-      const response = await fetch(`/api/stores/${storeId}/products`, {
+      console.log(`Buscando produtos da loja ID: ${storeId}`);
+      
+      if (!storeId) {
+        console.error('Tentativa de buscar produtos com ID de loja inválido');
+        setProducts([]);
+        return;
+      }
+      
+      // Garantir que temos um ID de loja válido
+      const validStoreId = Number(storeId);
+      if (isNaN(validStoreId)) {
+        console.error(`ID de loja inválido: ${storeId}`);
+        setProducts([]);
+        return;
+      }
+      
+      const response = await fetch(`/api/stores/${validStoreId}/products`, {
         credentials: 'include',
       });
       
+      console.log(`Resposta da API de produtos: status ${response.status}`);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Erro ao buscar produtos: ${response.status} - ${errorText}`);
         throw new Error(`Failed to fetch products: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log(`Produtos carregados da loja ${validStoreId}:`, data);
       setProducts(data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -181,6 +244,7 @@ export default function EditPromotion() {
         description: 'Não foi possível carregar os produtos da loja.',
         variant: 'destructive',
       });
+      setProducts([]);
     }
   };
 
@@ -219,24 +283,73 @@ export default function EditPromotion() {
     }
   }, [promotionData, form]);
 
-  // Update promotion mutation
+  // Update promotion mutation with improved error handling
   const updateMutation = useMutation({
     mutationFn: async (data: PromotionFormValues) => {
-      // Convert to backend format
-      const apiData = {
-        type: data.type === 'normal' ? 'regular' : data.type,
-        discountPercentage: data.discountType === 'percentage' ? Number(data.discountValue) : undefined,
-        discountAmount: data.discountType === 'amount' ? Number(data.discountValue) : undefined,
-        productId: Number(data.productId),
-        startTime: new Date(data.startTime),
-        endTime: new Date(data.endTime),
-      };
-      
-      console.log("Enviando dados para atualização:", apiData);
-      const response = await apiRequest('PUT', `/api/promotions/${promotionId}`, apiData);
-      return await response.json();
+      try {
+        // Validate data
+        if (!data.productId) {
+          throw new Error('É necessário selecionar um produto');
+        }
+        
+        // Convert to backend format
+        const apiData = {
+          type: data.type === 'normal' ? 'regular' : data.type,
+          discountPercentage: data.discountType === 'percentage' ? Number(data.discountValue) : undefined,
+          discountAmount: data.discountType === 'amount' ? Number(data.discountValue) : undefined,
+          productId: Number(data.productId),
+          startTime: new Date(data.startTime),
+          endTime: new Date(data.endTime),
+        };
+        
+        console.log(`Atualizando promoção ${promotionId} com dados:`, apiData);
+        
+        // Verify dates are valid
+        if (isNaN(apiData.startTime.getTime()) || isNaN(apiData.endTime.getTime())) {
+          throw new Error('Datas inválidas');
+        }
+        
+        // Verify end time is after start time
+        if (apiData.endTime <= apiData.startTime) {
+          throw new Error('A data de término deve ser posterior à data de início');
+        }
+        
+        // Check discount values
+        if ((apiData.discountPercentage && isNaN(apiData.discountPercentage)) || 
+            (apiData.discountAmount && isNaN(apiData.discountAmount))) {
+          throw new Error('Valor de desconto inválido');
+        }
+        
+        const response = await fetch(`/api/promotions/${promotionId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify(apiData)
+        });
+        
+        console.log(`Resposta do servidor: status ${response.status}`);
+        
+        if (!response.ok) {
+          let errorMessage = 'Erro ao atualizar promoção';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch (parseError) {
+            console.error('Não foi possível analisar o erro:', parseError);
+          }
+          throw new Error(errorMessage);
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('Erro detalhado na atualização da promoção:', error);
+        throw error; // Re-throw for onError handler
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Promoção atualizada com sucesso:', data);
       toast({
         title: 'Sucesso',
         description: 'Promoção atualizada com sucesso!',
@@ -250,7 +363,7 @@ export default function EditPromotion() {
       console.error('Error updating promotion:', error);
       toast({
         title: 'Erro',
-        description: 'Não foi possível atualizar a promoção. Tente novamente.',
+        description: error instanceof Error ? error.message : 'Não foi possível atualizar a promoção. Tente novamente.',
         variant: 'destructive',
       });
     },
@@ -259,10 +372,66 @@ export default function EditPromotion() {
     },
   });
 
-  // Form submission
+  // Form submission with additional validation
   const onSubmit = (values: PromotionFormValues) => {
-    setIsSubmitting(true);
-    updateMutation.mutate(values);
+    try {
+      // Double-check values client-side before submission
+      console.log('Valores do formulário para submissão:', values);
+      
+      // Validate product selection
+      if (!values.productId) {
+        toast({
+          title: 'Formulário incompleto',
+          description: 'Por favor, selecione um produto.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Validate discount value
+      const discountValue = Number(values.discountValue);
+      if (isNaN(discountValue) || discountValue <= 0) {
+        toast({
+          title: 'Valor inválido',
+          description: 'O valor do desconto deve ser um número positivo.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Validate dates
+      const startTime = new Date(values.startTime);
+      const endTime = new Date(values.endTime);
+      
+      if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+        toast({
+          title: 'Datas inválidas',
+          description: 'Por favor, verifique as datas de início e término.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      if (endTime <= startTime) {
+        toast({
+          title: 'Datas inválidas',
+          description: 'A data de término deve ser posterior à data de início.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // All validations passed
+      setIsSubmitting(true);
+      updateMutation.mutate(values);
+    } catch (error) {
+      console.error('Erro na submissão do formulário:', error);
+      toast({
+        title: 'Erro',
+        description: 'Ocorreu um erro ao processar o formulário. Verifique os dados e tente novamente.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Redirect if not authenticated or not a seller
