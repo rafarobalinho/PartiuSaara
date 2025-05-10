@@ -38,6 +38,7 @@ import SellerPromotions from "@/pages/seller/promotions/index";
 import AddPromotion from "@/pages/seller/promotions/add-promotion";
 import EditPromotion from "@/pages/seller/promotions/[id]/edit";
 import RedirectEditPromotion from "@/pages/seller/promotions/edit/[id]";
+import SimpleEditPromotion from "@/pages/seller/edit-promotion";
 import SellerAnalytics from "@/pages/seller/analytics";
 import SellerSubscription from "@/pages/seller/subscription";
 import SellerStores from "@/pages/seller/stores/index";
@@ -75,6 +76,8 @@ function Router() {
           <Route path="/seller/promotions/:id/edit" component={EditPromotion} />
           {/* Redirect from the old path structure to the new one */}
           <Route path="/seller/promotions/edit/:id" component={RedirectEditPromotion} />
+          {/* Alternative simple edit page that doesn't use dynamic routing */}
+          <Route path="/seller/edit-promotion" component={SimpleEditPromotion} />
           <Route path="/seller/stores" component={SellerStores} />
           <Route path="/seller/stores/add-store" component={AddStore} />
           <Route path="/seller/stores/:id" component={StoreDetail} />
