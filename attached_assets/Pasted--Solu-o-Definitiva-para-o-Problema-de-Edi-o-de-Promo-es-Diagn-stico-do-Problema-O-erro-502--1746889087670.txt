@@ -1,0 +1,514 @@
+# Solução Definitiva para o Problema de Edição de Promoções
+
+## Diagnóstico do Problema
+
+O erro 502 Bad Gateway indica um problema de comunicação entre servidores. Isso pode ser causado por:
+
+1. Configuração incorreta das rotas dinâmicas no Next.js
+2. Problemas com a infraestrutura do Replit
+3. Erros na implementação do servidor API
+
+## Solução Completa
+
+### Parte 1: Corrigir a estrutura de rotas
+
+O padrão de rotas no Next.js para páginas dinâmicas deve ser consistente. Se a página `/seller/products/[id]/edit` funciona, mas a página `/seller/promotions/[id]/edit` não, precisamos garantir que a estrutura de ambas seja idêntica.
+
+1. Primeiro, vamos verificar e corrigir a estrutura de diretórios:
+
+```bash
+mkdir -p pages/seller/promotions/[id]
+
+Criar o arquivo pages/seller/promotions/[id]/edit.tsx com um componente básico:
+
+tsximport { useRouter } from 'next/router';
+import { useState, useEffect } from 'react';
+
+export default function EditPromotion() {
+  const router = useRouter();
+  const { id } = router.query;
+  
+  return (
+    <div>
+      <h1>Editar Promoção {id}</h1>
+      <button onClick={() => router.back()}>Voltar</button>
+    </div>
+  );
+}
+
+Verificar se a página básica carrega. Se não, isso sugere um problema mais profundo.
+
+Parte 2: Corrigir a configuração do Next.js
+Se a página básica não carregar, há um problema de configuração no Next.js. Vamos verificar e modificar o arquivo next.config.js:
+javascript// next.config.js
+module.exports = {
+  // Adicionar configuração de roteamento explícita
+  rewrites: async () => {
+    return [
+      {
+        source: '/seller/promotions/:id/edit',
+        destination: '/seller/promotions/[id]/edit'
+      }
+    ];
+  },
+  
+  // Adicionar configuração para lidar com erros de timeout
+  serverRuntimeConfig: {
+    // Aumentar timeout para requisições
+    apiTimeout: 60000 // 60 segundos
+  },
+  
+  // Adicionar configuração para desativar cache de páginas dinâmicas
+  // pode ajudar com problemas de roteamento dinâmico
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2
+  },
+  
+  // Desativar otimizações específicas que podem estar causando problemas
+  swcMinify: false
+};
+Parte 3: Implementar manipulador de erros global
+Adicionar manipulador de erros para capturar e diagnosticar problemas:
+javascript// Em pages/_app.js
+import Error from 'next/error';
+
+class MyApp extends App {
+  static async getInitialProps({ Component, ctx }) {
+    let pageProps = {};
+
+    try {
+      if (Component.getInitialProps) {
+        pageProps = await Component.getInitialProps(ctx);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar página:', error);
+      
+      // Registrar informações detalhadas para diagnóstico
+      const diagnosticInfo = {
+        path: ctx.asPath,
+        query: ctx.query,
+        error: error.message,
+        stack: error.stack
+      };
+      
+      console.error('Informações de diagnóstico:', diagnosticInfo);
+      
+      // Definir código de erro para página de erro
+      ctx.res.statusCode = 500;
+      return { pageProps: { statusCode: 500, diagnosticInfo } };
+    }
+
+    return { pageProps };
+  }
+
+  render() {
+    const { Component, pageProps } = this.props;
+    
+    // Se houver um código de status de erro, renderizar página de erro
+    if (pageProps.statusCode && pageProps.statusCode !== 200) {
+      return <Error statusCode={pageProps.statusCode} />;
+    }
+    
+    return <Component {...pageProps} />;
+  }
+}
+
+export default MyApp;
+Parte 4: Implementar página de edição com tratamento de erro robusto
+Criar um componente de edição completo com tratamento de erro aprimorado:
+tsx// Em pages/seller/promotions/[id]/edit.tsx
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { PageHeader } from '@/components/page-header';
+import { toast } from '@/components/ui/toast';
+import { apiRequest } from '@/lib/apiClient';
+
+export default function EditPromotion() {
+  const router = useRouter();
+  const { id } = router.query;
+  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [promotion, setPromotion] = useState(null);
+  const [formData, setFormData] = useState({
+    type: 'regular',
+    discountType: 'percentage',
+    discountValue: '',
+    startTime: '',
+    endTime: ''
+  });
+  
+  // Função para lidar com erros de forma robusta
+  const handleError = (error, context) => {
+    console.error(`Erro em ${context}:`, error);
+    
+    // Registrar informações detalhadas
+    const diagnosticInfo = {
+      path: router.asPath,
+      id: id,
+      context: context,
+      error: error.message,
+      stack: error.stack
+    };
+    
+    console.error('Informações de diagnóstico:', diagnosticInfo);
+    
+    // Definir estado de erro para exibição ao usuário
+    setError(`Erro ao ${context}: ${error.message}`);
+    setLoading(false);
+    
+    toast({
+      title: 'Erro',
+      description: `Ocorreu um erro ao ${context}. Por favor, tente novamente.`,
+      variant: 'destructive'
+    });
+  };
+  
+  // Carregar dados da promoção de forma robusta
+  useEffect(() => {
+    if (!id) return;
+    
+    const fetchPromotion = async () => {
+      try {
+        setLoading(true);
+        console.log(`Buscando promoção com ID: ${id}`);
+        
+        // Adicionar timeout para evitar problemas de rede
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const response = await apiRequest(`/api/promotions/${id}`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response) {
+          throw new Error('Resposta vazia da API');
+        }
+        
+        console.log('Dados da promoção recebidos:', response);
+        
+        // Atualizar estados
+        setPromotion(response);
+        setFormData({
+          type: response.type || 'regular',
+          discountType: response.discountType || 'percentage',
+          discountValue: response.discountValue?.toString() || '',
+          startTime: response.startTime 
+            ? new Date(response.startTime).toISOString().slice(0, 16) 
+            : '',
+          endTime: response.endTime 
+            ? new Date(response.endTime).toISOString().slice(0, 16) 
+            : ''
+        });
+        
+        setLoading(false);
+      } catch (error) {
+        handleError(error, 'carregar dados da promoção');
+      }
+    };
+    
+    fetchPromotion();
+  }, [id, router.asPath]);
+  
+  // Função para atualizar campos do formulário
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  // Função para enviar formulário com tratamento de erro robusto
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      console.log('Enviando dados para atualizar promoção:', formData);
+      
+      // Validar dados do formulário
+      if (!formData.discountValue || isNaN(Number(formData.discountValue))) {
+        throw new Error('Valor de desconto inválido');
+      }
+      
+      if (!formData.startTime || !formData.endTime) {
+        throw new Error('Datas de início e término são obrigatórias');
+      }
+      
+      // Transformar dados para o formato da API
+      const apiData = {
+        type: formData.type,
+        discountType: formData.discountType,
+        discountValue: Number(formData.discountValue),
+        startTime: new Date(formData.startTime).toISOString(),
+        endTime: new Date(formData.endTime).toISOString()
+      };
+      
+      console.log('Dados formatados para API:', apiData);
+      
+      // Adicionar timeout para evitar problemas de rede
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await apiRequest(`/api/promotions/${id}`, {
+        method: 'PUT',
+        data: apiData,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log('Resposta da atualização:', response);
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Promoção atualizada com sucesso.',
+        variant: 'success'
+      });
+      
+      // Redirecionar para a lista de promoções
+      router.push('/seller/promotions');
+    } catch (error) {
+      handleError(error, 'atualizar promoção');
+    }
+  };
+  
+  // Função para navegação segura
+  const safeNavigate = (path) => {
+    try {
+      router.push(path);
+    } catch (error) {
+      console.error('Erro na navegação:', error);
+      // Fallback para navegação básica se o router falhar
+      window.location.href = path;
+    }
+  };
+  
+  // Exibir estado de carregamento
+  if (loading) {
+    return (
+      <div className="container py-8">
+        <h1 className="text-2xl font-bold mb-4">Carregando...</h1>
+        <p>Aguarde enquanto carregamos os dados da promoção.</p>
+      </div>
+    );
+  }
+  
+  // Exibir estado de erro
+  if (error) {
+    return (
+      <div className="container py-8">
+        <h1 className="text-2xl font-bold mb-4">Erro</h1>
+        <p className="text-red-500">{error}</p>
+        <button 
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+          onClick={() => safeNavigate('/seller/promotions')}
+        >
+          Voltar para Lista de Promoções
+        </button>
+      </div>
+    );
+  }
+  
+  // Renderizar formulário
+  return (
+    <div className="container py-8">
+      <PageHeader
+        title="Editar Promoção"
+        description="Altere as informações da promoção"
+        backLink="/seller/promotions"
+      />
+      
+      <form onSubmit={handleSubmit} className="mt-8 space-y-6 max-w-xl">
+        {/* Campos do formulário */}
+        <div>
+          <label className="block text-sm font-medium mb-1">Tipo de Promoção</label>
+          <div className="space-y-2">
+            <div className="flex items-center">
+              <input
+                type="radio"
+                id="type-regular"
+                name="type"
+                value="regular"
+                checked={formData.type === 'regular'}
+                onChange={handleChange}
+                className="mr-2"
+              />
+              <label htmlFor="type-regular">Promoção Regular</label>
+            </div>
+            
+            <div className="flex items-center">
+              <input
+                type="radio"
+                id="type-flash"
+                name="type"
+                value="flash"
+                checked={formData.type === 'flash'}
+                onChange={handleChange}
+                className="mr-2"
+              />
+              <label htmlFor="type-flash">Promoção Relâmpago</label>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium mb-1">Tipo de Desconto</label>
+          <div className="space-y-2">
+            <div className="flex items-center">
+              <input
+                type="radio"
+                id="discount-percentage"
+                name="discountType"
+                value="percentage"
+                checked={formData.discountType === 'percentage'}
+                onChange={handleChange}
+                className="mr-2"
+              />
+              <label htmlFor="discount-percentage">Porcentagem (%)</label>
+            </div>
+            
+            <div className="flex items-center">
+              <input
+                type="radio"
+                id="discount-amount"
+                name="discountType"
+                value="amount"
+                checked={formData.discountType === 'amount'}
+                onChange={handleChange}
+                className="mr-2"
+              />
+              <label htmlFor="discount-amount">Valor Fixo (R$)</label>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <label htmlFor="discountValue" className="block text-sm font-medium mb-1">
+            Valor do Desconto
+          </label>
+          <input
+            type="number"
+            id="discountValue"
+            name="discountValue"
+            value={formData.discountValue}
+            onChange={handleChange}
+            min="0"
+            step={formData.discountType === 'percentage' ? '1' : '0.01'}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+        
+        <div>
+          <label htmlFor="startTime" className="block text-sm font-medium mb-1">
+            Data e Hora de Início
+          </label>
+          <input
+            type="datetime-local"
+            id="startTime"
+            name="startTime"
+            value={formData.startTime}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+        
+        <div>
+          <label htmlFor="endTime" className="block text-sm font-medium mb-1">
+            Data e Hora de Término
+          </label>
+          <input
+            type="datetime-local"
+            id="endTime"
+            name="endTime"
+            value={formData.endTime}
+            onChange={handleChange}
+            className="w-full p-2 border rounded"
+            required
+          />
+        </div>
+        
+        <div className="pt-4">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Salvar Alterações
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => safeNavigate('/seller/promotions')}
+            className="ml-2 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+Parte 5: Adicionar uma página de fallback
+Para garantir a resiliência da aplicação, adicione uma página de fallback que será usada se a página dinâmica falhar:
+tsx// Em pages/seller/promotions/edit-fallback.tsx
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { PageHeader } from '@/components/page-header';
+import { toast } from '@/components/ui/toast';
+import { apiRequest } from '@/lib/apiClient';
+
+export default function EditPromotionFallback() {
+  const router = useRouter();
+  const { id } = router.query;
+  
+  // Mesmo código da página de edição principal
+  // ...
+  
+  return (
+    <div className="container py-8">
+      <PageHeader
+        title="Editar Promoção (Página Alternativa)"
+        description="Altere as informações da promoção"
+        backLink="/seller/promotions"
+      />
+      
+      {/* Resto do código igual à página principal */}
+    </div>
+  );
+}
+Parte 6: Modificar o botão Editar para usar um sistema de fallback
+tsx// No arquivo de listagem de promoções
+const handleEdit = (promotionId) => {
+  try {
+    // Tentar rota primária
+    router.push(`/seller/promotions/${promotionId}/edit`);
+    
+    // Adicionar sistema de fallback
+    const fallbackTimeout = setTimeout(() => {
+      // Se a página não carregar em 3 segundos, redirecionar para fallback
+      console.log('Timeout na navegação, redirecionando para fallback');
+      router.replace(`/seller/promotions/edit-fallback?id=${promotionId}`);
+    }, 3000);
+    
+    // Limpar timeout se a página carregar corretamente
+    router.events.on('routeChangeComplete', () => {
+      clearTimeout(fallbackTimeout);
+    });
+  } catch (error) {
+    console.error('Erro na navegação:', error);
+    // Fallback imediato em caso de erro
+    router.push(`/seller/promotions/edit-fallback?id=${promotionId}`);
+  }
+};
+Esta abordagem completa e robusta fornece:
+
+Estrutura de arquivos correta para rotas dinâmicas
+Configuração otimizada do Next.js
+Tratamento de erro abrangente
+Timeouts para evitar problemas de rede
+Sistema de fallback para garantir resiliência
