@@ -187,6 +187,9 @@ export async function updatePromotion(req: Request, res: Response) {
       const { id } = req.params;
       const user = req.user!;
       
+      console.log(`Tentando atualizar promoção ID: ${id}`);
+      console.log("Dados recebidos:", JSON.stringify(req.body, null, 2));
+      
       // Get the promotion
       const promotion = await storage.getPromotion(Number(id));
       if (!promotion) {
@@ -205,13 +208,80 @@ export async function updatePromotion(req: Request, res: Response) {
         return res.status(403).json({ message: 'Not authorized to modify this promotion' });
       }
       
-      // Update the promotion
-      const updatedPromotion = await storage.updatePromotion(Number(id), req.body);
-      res.json(updatedPromotion);
+      // Process the incoming data
+      let processedData = {...req.body};
+      
+      // Handle discount type conversion (from frontend to database format)
+      if (req.body.type === 'normal') {
+        processedData.type = 'regular';
+      }
+      
+      if (req.body.discountType && req.body.discountValue) {
+        if (req.body.discountType === 'percentage') {
+          processedData.discountPercentage = Number(req.body.discountValue);
+          delete processedData.discountAmount;
+        } else if (req.body.discountType === 'amount') {
+          processedData.discountAmount = Number(req.body.discountValue);
+          delete processedData.discountPercentage;
+        }
+        
+        // Remove fields not in the schema
+        delete processedData.discountType;
+        delete processedData.discountValue;
+      }
+      
+      // Ensure dates are proper Date objects or strings in ISO format
+      if (processedData.startTime) {
+        if (typeof processedData.startTime === 'string') {
+          try {
+            // Convert to ISO string to ensure proper format
+            processedData.startTime = new Date(processedData.startTime).toISOString();
+          } catch (e) {
+            console.error("Error converting startTime:", e);
+            return res.status(400).json({ 
+              message: 'Invalid startTime format',
+              error: e instanceof Error ? e.message : 'Unknown error'
+            });
+          }
+        }
+      }
+      
+      if (processedData.endTime) {
+        if (typeof processedData.endTime === 'string') {
+          try {
+            // Convert to ISO string to ensure proper format
+            processedData.endTime = new Date(processedData.endTime).toISOString();
+          } catch (e) {
+            console.error("Error converting endTime:", e);
+            return res.status(400).json({ 
+              message: 'Invalid endTime format',
+              error: e instanceof Error ? e.message : 'Unknown error'
+            });
+          }
+        }
+      }
+      
+      console.log("Dados processados para atualização:", JSON.stringify(processedData, null, 2));
+      
+      try {
+        // Update the promotion with processed data
+        const updatedPromotion = await storage.updatePromotion(Number(id), processedData);
+        console.log("Promoção atualizada com sucesso:", updatedPromotion);
+        res.json(updatedPromotion);
+      } catch (updateError) {
+        console.error("Erro durante a atualização da promoção:", updateError);
+        return res.status(500).json({ 
+          message: 'Failed to update promotion', 
+          error: updateError instanceof Error ? updateError.message : 'Unknown error'
+        });
+      }
     });
   } catch (error) {
     console.error('Error updating promotion:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ 
+      message: 'Internal server error', 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 }
 
