@@ -1,0 +1,335 @@
+Entendi. Temos dois problemas críticos para resolver:
+
+A página de edição de promoção /seller/promotions/edit/1 não existe (Page Not Found)
+O botão Excluir está causando um erro crítico que fecha toda a aplicação
+
+Vamos abordar esses problemas:
+Preciso resolver dois problemas críticos na aplicação de e-commerce:
+
+### Problema 1: Página de edição de promoção não existe
+Ao clicar no botão "Editar" na página `/seller/promotions`, o usuário é redirecionado para `/seller/promotions/edit/1`, mas essa página não existe, resultando em "Page Not Found".
+
+Solução:
+1. Criar a página de edição de promoção em `/pages/seller/promotions/edit/[id].tsx`
+2. A página deve ser similar à página de criação de promoção, mas pré-preenchida com os dados da promoção existente
+
+Código para a nova página:
+```tsx
+// /pages/seller/promotions/edit/[id].tsx
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { useForm } from 'react-hook-form';
+import { toast } from '@/components/ui/toast';
+import { Button } from '@/components/ui/button';
+import { apiRequest } from '@/lib/apiClient';
+import { PageHeader } from '@/components/page-header';
+import { PromotionForm } from '@/components/seller/promotion-form'; // Componente de formulário reutilizável
+
+export default function EditPromotion() {
+  const router = useRouter();
+  const { id } = router.query;
+  const [loading, setLoading] = useState(true);
+  const [promotion, setPromotion] = useState(null);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  
+  const form = useForm({
+    defaultValues: {
+      type: 'regular',
+      discountType: 'percentage',
+      discountValue: '',
+      productId: '',
+      startTime: '',
+      endTime: ''
+    }
+  });
+  
+  // Buscar dados da promoção existente
+  useEffect(() => {
+    if (id) {
+      fetchPromotionData();
+    }
+  }, [id]);
+  
+  async function fetchPromotionData() {
+    try {
+      setLoading(true);
+      const response = await apiRequest(`/api/promotions/${id}`);
+      setPromotion(response);
+      
+      // Preencher o formulário com dados existentes
+      form.reset({
+        type: response.type,
+        discountType: response.discountType,
+        discountValue: response.discountValue.toString(),
+        productId: response.productId.toString(),
+        startTime: new Date(response.startTime).toISOString().slice(0, 16),
+        endTime: new Date(response.endTime).toISOString().slice(0, 16)
+      });
+    } catch (error) {
+      console.error('Erro ao buscar dados da promoção:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados da promoção.',
+        variant: 'destructive',
+      });
+      // Redirecionar de volta à listagem em caso de erro
+      router.push('/seller/promotions');
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  async function onSubmit(data) {
+    try {
+      setSubmitLoading(true);
+      
+      // Transformar dados para o formato esperado pela API
+      const apiData = {
+        type: data.type,
+        discountType: data.discountType,
+        discountValue: Number(data.discountValue),
+        productId: Number(data.productId),
+        startTime: new Date(data.startTime).toISOString(),
+        endTime: new Date(data.endTime).toISOString()
+      };
+      
+      // Atualizar promoção existente
+      await apiRequest(`/api/promotions/${id}`, {
+        method: 'PUT',
+        data: apiData
+      });
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Promoção atualizada com sucesso',
+        variant: 'success',
+      });
+      
+      // Redirecionar de volta à listagem
+      router.push('/seller/promotions');
+    } catch (error) {
+      console.error('Erro ao atualizar promoção:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível atualizar a promoção.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitLoading(false);
+    }
+  }
+  
+  if (loading) {
+    return <div className="container py-8">Carregando...</div>;
+  }
+  
+  return (
+    <div className="container py-8">
+      <PageHeader
+        title="Editar Promoção"
+        description="Altere os detalhes da promoção para seu produto"
+        backLink="/seller/promotions"
+      />
+      
+      <div className="mt-8">
+        <PromotionForm 
+          form={form} 
+          onSubmit={onSubmit} 
+          loading={submitLoading} 
+          isEditing={true}
+        />
+      </div>
+    </div>
+  );
+}
+
+Verifique se o endpoint da API existe:
+
+typescript// Em controllers/promotions.js
+// Adicionar função para obter promoção por ID
+export async function getPromotionById(req, res) {
+  try {
+    const { id } = req.params;
+    const promotion = await storage.getPromotion(Number(id));
+    
+    if (!promotion) {
+      return res.status(404).json({ message: 'Promoção não encontrada' });
+    }
+    
+    // Verificar permissões
+    const user = req.user;
+    const product = await storage.getProduct(promotion.productId);
+    const store = product ? await storage.getStore(product.storeId) : null;
+    
+    if (!product || !store || store.userId !== user.id) {
+      return res.status(403).json({ message: 'Não autorizado a acessar esta promoção' });
+    }
+    
+    res.json(promotion);
+  } catch (error) {
+    console.error('Erro ao buscar promoção:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+}
+
+// Adicionar função para atualizar promoção
+export async function updatePromotion(req, res) {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+    
+    // Validar dados com Zod
+    const validationResult = updatePromotionSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        errors: validationResult.error.errors 
+      });
+    }
+    
+    const promotionData = validationResult.data;
+    
+    // Verificar se a promoção existe
+    const existingPromotion = await storage.getPromotion(Number(id));
+    if (!existingPromotion) {
+      return res.status(404).json({ message: 'Promoção não encontrada' });
+    }
+    
+    // Verificar permissões
+    const product = await storage.getProduct(existingPromotion.productId);
+    const store = product ? await storage.getStore(product.storeId) : null;
+    
+    if (!product || !store || store.userId !== user.id) {
+      return res.status(403).json({ message: 'Não autorizado a editar esta promoção' });
+    }
+    
+    // Atualizar a promoção
+    const updatedPromotion = await storage.updatePromotion(Number(id), promotionData);
+    
+    res.json(updatedPromotion);
+  } catch (error) {
+    console.error('Erro ao atualizar promoção:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+}
+Problema 2: Botão Excluir causa erro crítico que fecha a aplicação
+O botão "Excluir" está causando um erro crítico que fecha toda a aplicação após a confirmação.
+Solução:
+
+Implementar tratamento de erro mais robusto na função de exclusão
+Usar try/catch para capturar erros e evitar que a aplicação feche
+
+typescript// Na página /seller/promotions/index.tsx
+const handleDelete = async (promotionId) => {
+  try {
+    // Confirmar antes de excluir
+    if (!window.confirm('Tem certeza que deseja excluir esta promoção?')) {
+      return;
+    }
+    
+    // Adicionar log para debug
+    console.log(`Iniciando exclusão da promoção ${promotionId}`);
+    
+    // Adicionar verificação adicional para evitar erro crítico
+    if (!promotionId) {
+      console.error('ID da promoção inválido');
+      toast({
+        title: 'Erro',
+        description: 'ID da promoção inválido',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    // Fazer a requisição com tratamento de erro detalhado
+    try {
+      const response = await apiRequest(`/api/promotions/${promotionId}`, {
+        method: 'DELETE'
+      });
+      
+      console.log('Resposta da exclusão:', response);
+      
+      // Atualizar a interface apenas se a exclusão for bem-sucedida
+      setPromotions(current => current.filter(p => p.id !== promotionId));
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Promoção excluída com sucesso',
+        variant: 'success'
+      });
+    } catch (error) {
+      // Tratamento específico do erro de requisição
+      console.error('Erro na requisição de exclusão:', error);
+      
+      const errorMessage = error.response?.data?.message || 'Erro ao excluir a promoção';
+      toast({
+        title: 'Erro',
+        description: errorMessage,
+        variant: 'destructive'
+      });
+    }
+  } catch (outerError) {
+    // Captura qualquer outro erro inesperado
+    console.error('Erro inesperado durante o processo de exclusão:', outerError);
+    toast({
+      title: 'Erro inesperado',
+      description: 'Ocorreu um erro inesperado. Por favor, tente novamente.',
+      variant: 'destructive'
+    });
+  }
+};
+
+No backend, melhorar o tratamento de erros:
+
+typescript// Em controllers/promotions.js
+export async function deletePromotion(req, res) {
+  try {
+    const { id } = req.params;
+    
+    // Validar ID
+    if (!id || isNaN(Number(id))) {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
+    
+    console.log(`Tentando excluir promoção ${id}`);
+    
+    // Verificar se a promoção existe
+    const promotion = await storage.getPromotion(Number(id));
+    if (!promotion) {
+      return res.status(404).json({ message: 'Promoção não encontrada' });
+    }
+    
+    // Verificar permissões
+    const user = req.user;
+    
+    console.log(`Verificando permissões do usuário ${user.id} para excluir promoção ${id}`);
+    
+    try {
+      const product = await storage.getProduct(promotion.productId);
+      const store = product ? await storage.getStore(product.storeId) : null;
+      
+      if (!product || !store || store.userId !== user.id) {
+        return res.status(403).json({ message: 'Não autorizado a excluir esta promoção' });
+      }
+      
+      // Excluir a promoção com tratamento de erro
+      await storage.deletePromotion(Number(id));
+      
+      console.log(`Promoção ${id} excluída com sucesso`);
+      return res.json({ success: true });
+    } catch (innerError) {
+      console.error(`Erro ao processar exclusão da promoção ${id}:`, innerError);
+      return res.status(500).json({ 
+        message: 'Erro ao processar a exclusão', 
+        error: innerError.message 
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao excluir promoção:', error);
+    return res.status(500).json({ 
+      message: 'Erro interno do servidor', 
+      error: error.message 
+    });
+  }
+}
+Por favor, implemente estas correções e verifique se resolvem os problemas com os botões de editar e excluir.
