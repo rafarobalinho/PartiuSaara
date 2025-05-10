@@ -357,7 +357,10 @@ export default function EditPromotion() {
       });
       
       queryClient.invalidateQueries({ queryKey: ['/api/seller/promotions'] });
-      navigate('/seller/promotions');
+      
+      // Usar window.location para forçar um recarregamento completo
+      // Isso garante que a página de listagem busque os dados atualizados
+      window.location.href = '/seller/promotions';
     },
     onError: (error) => {
       console.error('Error updating promotion:', error);
