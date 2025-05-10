@@ -63,7 +63,7 @@ export async function getWishlistItems(req: Request, res: Response) {
         product_images pi ON p.id = pi.product_id
       LEFT JOIN
         promotions prom ON p.id = prom.product_id AND 
-        (prom.ends_at IS NULL OR prom.ends_at > NOW())
+        (prom.end_time IS NULL OR prom.end_time > NOW())
       WHERE 
         w.user_id = $1
       ORDER BY 

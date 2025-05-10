@@ -47,7 +47,15 @@ export async function getReservations(req: Request, res: Response) {
         pi.image_url AS pi_image_url,
         pi.thumbnail_url AS pi_thumbnail_url,
         pi.is_primary AS pi_is_primary,
-        pi.product_id AS pi_product_id
+        pi.product_id AS pi_product_id,
+        -- Dados de promoção para preservar o formato
+        prom.id as promotion_id,
+        prom.type as promotion_type,
+        prom.discount_percentage,
+        CAST(NULL AS INTEGER) as discount_amount,
+        CAST(NULL AS INTEGER) as price_override,
+        prom.start_time as promotion_starts_at,
+        prom.end_time as promotion_ends_at
       FROM 
         reservations r
       LEFT JOIN 
@@ -56,6 +64,9 @@ export async function getReservations(req: Request, res: Response) {
         stores s ON p.store_id = s.id
       LEFT JOIN 
         product_images pi ON p.id = pi.product_id
+      LEFT JOIN
+        promotions prom ON p.id = prom.product_id AND 
+        (prom.end_time IS NULL OR prom.end_time > NOW())
       WHERE 
         r.user_id = $1
       ORDER BY 
