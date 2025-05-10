@@ -1,0 +1,255 @@
+# Correção para o erro de atualização de promoções
+
+O problema está ocorrendo quando tentamos atualizar a promoção no backend. Vamos modificar o controlador de promoções e a função de atualização para corrigir este problema.
+
+## Parte 1: Melhorar o tratamento de erros no frontend
+
+Primeiro, vamos melhorar o tratamento de erros no frontend para exibir mensagens mais específicas:
+
+```tsx
+// Em edit-promotion.tsx
+// Função de envio do formulário
+async function handleSubmit(event) {
+  event.preventDefault();
+  
+  try {
+    // Mostrar estado de carregamento
+    setIsSubmitting(true);
+    
+    // Formatar dados para API
+    const apiData = {
+      type: formData.type,
+      discountType: formData.discountType,
+      discountValue: Number(formData.discountValue),
+      // Não enviar productId na atualização, já que não pode ser alterado
+      startTime: new Date(formData.startTime).toISOString(),
+      endTime: new Date(formData.endTime).toISOString()
+    };
+    
+    console.log('Dados formatados para API:', apiData);
+    
+    // Realizar requisição PUT com tratamento de erro mais detalhado
+    try {
+      const response = await apiRequest(`/api/promotions/${id}`, {
+        method: 'PUT',
+        data: apiData
+      });
+      
+      console.log('Resposta da atualização:', response);
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Promoção atualizada com sucesso.',
+        variant: 'success'
+      });
+      
+      // Redirecionar após sucesso
+      router.push('/seller/promotions');
+    } catch (apiError) {
+      console.error('Erro na requisição API:', apiError);
+      
+      let errorMessage = 'Não foi possível atualizar a promoção.';
+      if (apiError.response?.data?.message) {
+        errorMessage = apiError.response.data.message;
+      }
+      
+      toast({
+        title: 'Erro',
+        description: errorMessage,
+        variant: 'destructive'
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao processar formulário:', error);
+    
+    toast({
+      title: 'Erro',
+      description: 'Ocorreu um erro ao processar o formulário.',
+      variant: 'destructive'
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+}
+Parte 2: Corrigir o controlador de promoções no backend
+O erro 500 indica um problema no servidor. Vamos corrigir o controlador de promoções:
+javascript// Em controllers/promotions.js ou similar
+// Função de atualização de promoção
+
+export async function updatePromotion(req, res) {
+  try {
+    const { id } = req.params;
+    
+    console.log(`Atualizando promoção ${id} com dados:`, req.body);
+    
+    // Verificar se a promoção existe
+    const existingPromotion = await storage.getPromotion(Number(id));
+    if (!existingPromotion) {
+      return res.status(404).json({ message: 'Promoção não encontrada' });
+    }
+    
+    // Verificar permissões do usuário
+    const user = req.user;
+    const product = await storage.getProduct(existingPromotion.productId);
+    const store = product ? await storage.getStore(product.storeId) : null;
+    
+    if (!product || !store || store.userId !== user.id) {
+      return res.status(403).json({ message: 'Não autorizado a editar esta promoção' });
+    }
+    
+    // IMPORTANTE: Manter o productId original, não permitindo sua alteração
+    const updateData = {
+      ...req.body,
+      productId: existingPromotion.productId // Garantir que productId não seja alterado
+    };
+    
+    console.log('Dados para atualização após verificações:', updateData);
+    
+    // Validar dados minimamente antes de passar para o storage
+    if (!updateData.type || !updateData.discountType || !updateData.discountValue) {
+      return res.status(400).json({ message: 'Dados incompletos para atualização' });
+    }
+    
+    // Garantir que os valores numéricos são números
+    updateData.discountValue = Number(updateData.discountValue);
+    
+    // Verificar se as datas são válidas
+    try {
+      new Date(updateData.startTime);
+      new Date(updateData.endTime);
+    } catch (error) {
+      return res.status(400).json({ message: 'Datas inválidas' });
+    }
+    
+    // Usar try/catch específico para a operação de atualização
+    try {
+      const updatedPromotion = await storage.updatePromotion(Number(id), updateData);
+      console.log(`Promoção ${id} atualizada com sucesso:`, updatedPromotion);
+      
+      return res.json(updatedPromotion);
+    } catch (updateError) {
+      console.error(`Erro ao atualizar promoção ${id}:`, updateError);
+      return res.status(500).json({ 
+        message: 'Erro ao atualizar promoção no banco de dados',
+        error: updateError.message
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao processar atualização de promoção:', error);
+    return res.status(500).json({ message: 'Erro interno do servidor', error: error.message });
+  }
+}
+Parte 3: Verificar a implementação do método updatePromotion no storage
+O erro pode estar na implementação da função de atualização no storage. Vamos verificar e corrigir:
+javascript// Em storage.js ou similar
+// Método de atualização de promoção
+
+async function updatePromotion(id, data) {
+  try {
+    console.log(`[Storage] Atualizando promoção ${id} com dados:`, data);
+    
+    // Verificar se a promoção existe
+    const existingPromotion = await getPromotion(id);
+    if (!existingPromotion) {
+      throw new Error('Promoção não encontrada');
+    }
+    
+    // Criar objeto de atualização com apenas os campos permitidos
+    const updateData = {
+      type: data.type || existingPromotion.type,
+      discountType: data.discountType || existingPromotion.discountType,
+      discountValue: data.discountValue !== undefined ? data.discountValue : existingPromotion.discountValue,
+      startTime: data.startTime || existingPromotion.startTime,
+      endTime: data.endTime || existingPromotion.endTime,
+      // Manter o productId inalterado
+      productId: existingPromotion.productId
+    };
+    
+    // Atualizar no banco de dados
+    // Se estiver usando um banco SQL
+    await db.query(
+      `UPDATE promotions 
+       SET type = ?, discount_type = ?, discount_value = ?, start_time = ?, end_time = ? 
+       WHERE id = ?`,
+      [
+        updateData.type,
+        updateData.discountType,
+        updateData.discountValue,
+        updateData.startTime,
+        updateData.endTime,
+        id
+      ]
+    );
+    
+    // Se estiver usando outro tipo de armazenamento, adapte conforme necessário
+    
+    // Buscar a promoção atualizada
+    const updatedPromotion = await getPromotion(id);
+    console.log(`[Storage] Promoção ${id} atualizada com sucesso:`, updatedPromotion);
+    
+    return updatedPromotion;
+  } catch (error) {
+    console.error(`[Storage] Erro ao atualizar promoção ${id}:`, error);
+    throw error; // Repassar erro para o controlador
+  }
+}
+Parte 4: Implementar tratamento de fallback no frontend
+Se ainda houver problemas, vamos implementar um fallback para garantir que o usuário não fique preso:
+tsx// Em edit-promotion.tsx
+// Adicionar função de fallback
+
+const updatePromotionWithFallback = async (promotionId, data) => {
+  try {
+    // Tentar método PUT padrão
+    return await apiRequest(`/api/promotions/${promotionId}`, {
+      method: 'PUT',
+      data
+    });
+  } catch (error) {
+    console.error('Erro no método PUT, tentando fallback:', error);
+    
+    // Se falhar, tentar abordagem alternativa:
+    // 1. Excluir a promoção existente
+    // 2. Criar uma nova com os mesmos dados
+    
+    try {
+      // Obter todos os dados da promoção existente
+      const existingPromotion = await apiRequest(`/api/promotions/${promotionId}`);
+      
+      // Criar objeto com dados completos
+      const completeData = {
+        ...existingPromotion,
+        ...data,
+        productId: existingPromotion.productId // Manter o produto original
+      };
+      
+      // Excluir promoção existente
+      await apiRequest(`/api/promotions/${promotionId}`, {
+        method: 'DELETE'
+      });
+      
+      // Criar nova promoção
+      const newPromotion = await apiRequest('/api/promotions', {
+        method: 'POST',
+        data: completeData
+      });
+      
+      console.log('Promoção recriada com sucesso:', newPromotion);
+      return newPromotion;
+    } catch (fallbackError) {
+      console.error('Erro no fallback:', fallbackError);
+      throw new Error('Falha ao atualizar promoção (método alternativo)');
+    }
+  }
+};
+
+// Usar esta função no handleSubmit
+const response = await updatePromotionWithFallback(id, apiData);
+Estas modificações abordam as possíveis causas do erro 500 durante a atualização:
+
+Melhor tratamento de erros no frontend
+Validação robusta no controlador no backend
+Implementação cuidadosa da função de atualização no storage
+Método de fallback para situações onde a atualização direta falha
+
+Essa abordagem completa deve resolver o problema de erro 500 na atualização de promoções.

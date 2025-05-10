@@ -1902,67 +1902,69 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`[Storage] Atualizando promoção ${id} com dados:`, promotionData);
       
-      // Create a new object to avoid modifying the original
-      const dataToUpdate: any = { ...promotionData };
-      
-      // Process Date objects properly
-      if (dataToUpdate.startTime) {
-        if (typeof dataToUpdate.startTime === 'string') {
-          // Already a string, make sure it's in the right format
-          try {
-            const date = new Date(dataToUpdate.startTime);
-            if (isNaN(date.getTime())) {
-              throw new Error('Invalid startTime date format');
-            }
-            // Keep as string in ISO format
-          } catch (e) {
-            console.error('Error parsing startTime:', e);
-            throw e;
-          }
-        } else if (dataToUpdate.startTime instanceof Date) {
-          // Convert Date object to ISO string
-          dataToUpdate.startTime = dataToUpdate.startTime.toISOString();
-        }
+      // First, get the existing promotion to keep unchanged data
+      const existingPromotion = await this.getPromotion(id);
+      if (!existingPromotion) {
+        throw new Error('Promotion not found');
       }
       
-      if (dataToUpdate.endTime) {
-        if (typeof dataToUpdate.endTime === 'string') {
-          // Already a string, make sure it's in the right format
-          try {
-            const date = new Date(dataToUpdate.endTime);
-            if (isNaN(date.getTime())) {
-              throw new Error('Invalid endTime date format');
-            }
-            // Keep as string in ISO format
-          } catch (e) {
-            console.error('Error parsing endTime:', e);
-            throw e;
-          }
-        } else if (dataToUpdate.endTime instanceof Date) {
-          // Convert Date object to ISO string
-          dataToUpdate.endTime = dataToUpdate.endTime.toISOString();
-        }
-      }
+      // Prepare update data
+      let type = promotionData.type || existingPromotion.type;
+      let discountPercentage = promotionData.discountPercentage !== undefined 
+        ? promotionData.discountPercentage 
+        : existingPromotion.discountPercentage;
+      let discountAmount = promotionData.discountAmount !== undefined 
+        ? promotionData.discountAmount 
+        : existingPromotion.discountAmount;
+      let productId = existingPromotion.productId; // Always keep original productId
       
-      // Execute raw SQL to have more control and avoid problems with ORM
+      // Format dates as strings
+      let startTime = promotionData.startTime 
+        ? typeof promotionData.startTime === 'string' 
+          ? promotionData.startTime 
+          : new Date(promotionData.startTime).toISOString()
+        : existingPromotion.startTime;
+        
+      let endTime = promotionData.endTime 
+        ? typeof promotionData.endTime === 'string' 
+          ? promotionData.endTime 
+          : new Date(promotionData.endTime).toISOString()
+        : existingPromotion.endTime;
+      
+      // Use direct pool query to completely bypass ORM
+      const { pool } = await import('./db');
+      
+      // Construct safe parameterized query
       const query = `
         UPDATE promotions 
         SET 
-          ${dataToUpdate.type ? `type = '${dataToUpdate.type}',` : ''}
-          ${dataToUpdate.discountPercentage !== undefined ? `"discountPercentage" = ${dataToUpdate.discountPercentage},` : ''}
-          ${dataToUpdate.discountAmount !== undefined ? `"discountAmount" = ${dataToUpdate.discountAmount},` : ''}
-          ${dataToUpdate.startTime ? `"startTime" = '${dataToUpdate.startTime}',` : ''}
-          ${dataToUpdate.endTime ? `"endTime" = '${dataToUpdate.endTime}',` : ''}
+          type = $1,
+          "discountPercentage" = $2,
+          "discountAmount" = $3,
+          "startTime" = $4::timestamp,
+          "endTime" = $5::timestamp,
           "updatedAt" = NOW()
-        WHERE id = ${id}
+        WHERE id = $6
         RETURNING *;
       `;
       
-      console.log('[Storage] Update query:', query);
+      const values = [
+        type,
+        discountPercentage,
+        discountAmount,
+        startTime,
+        endTime,
+        id
+      ];
       
-      // Use raw query execution
-      const result = await db.execute(query);
-      console.log('[Storage] Update result:', result);
+      console.log('[Storage] Executing query with values:', {
+        query,
+        values
+      });
+      
+      // Execute query directly via pool
+      const result = await pool.query(query, values);
+      console.log('[Storage] Update result rows:', result.rows);
       
       if (!result.rows || result.rows.length === 0) {
         return undefined;
