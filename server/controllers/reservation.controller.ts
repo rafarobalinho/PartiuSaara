@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { storage } from '../storage';
 import { pool } from '../db';
 import { z } from 'zod';
+import { generateSecureImagePaths, validateImageOwnership } from '../utils/secureImagePaths';
 
 // Get user reservations
 export async function getReservations(req: Request, res: Response) {
@@ -89,44 +90,27 @@ export async function getReservations(req: Request, res: Response) {
       if (row.pi_id) {
         const reservation = reservationsMap.get(reservationId);
         
-        // Validação rigorosa: a imagem deve pertencer ao produto E ser do produto da reserva específica
-        if (row.pi_product_id === row.p_id && row.p_id === reservation.productId) {
-          console.log(`Validando imagem: product_id=${row.p_id}, image.product_id=${row.pi_product_id}, store_id=${row.p_store_id}, reservation.productId=${reservation.productId}`);
+        // Validação rigorosa usando o utilitário de segurança para garantir isolamento de dados
+        if (validateImageOwnership(row.pi_product_id, row.p_id, row.pi_image_url, row.p_store_id) && 
+            row.p_id === reservation.productId) {
+          
+          console.log(`Validando imagem com utilitário de segurança: product_id=${row.p_id}, image.product_id=${row.pi_product_id}, store_id=${row.p_store_id}, reservation.productId=${reservation.productId}`);
           
           // Verifique se esta imagem já foi adicionada
           const imageExists = reservation.product.images.some((img: any) => img.id === row.pi_id);
           
           if (!imageExists) {
-            // Determinar o caminho seguro baseado na estrutura de diretórios isolados por loja/produto
-            let secureImagePath, secureThumbnailPath;
+            // Usar o utilitário para gerar caminhos seguros isolados por loja/produto
+            const securePaths = generateSecureImagePaths(
+              row.pi_image_url,
+              row.pi_thumbnail_url,
+              row.p_store_id,
+              row.p_id
+            );
             
-            // Verifica se a imagem já está usando o formato seguro com isolamento de loja
-            if (row.pi_image_url.includes(`/uploads/stores/${row.p_store_id}/products/${row.p_id}/`)) {
-              // Já está no formato seguro, usar diretamente
-              secureImagePath = row.pi_image_url;
-              secureThumbnailPath = row.pi_thumbnail_url;
-            } else {
-              // Extrair o nome do arquivo para criar o caminho seguro
-              let fileName = '';
-              if (row.pi_image_url.includes('/')) {
-                fileName = row.pi_image_url.split('/').pop() || '';
-              } else {
-                fileName = row.pi_image_url;
-              }
-              
-              // Gerar caminho seguro no novo formato isolado por loja/produto
-              secureImagePath = `/uploads/stores/${row.p_store_id}/products/${row.p_id}/${fileName}`;
-              
-              // Thumbnail também precisa ser seguro
-              let thumbFileName = '';
-              if (row.pi_thumbnail_url.includes('/')) {
-                thumbFileName = row.pi_thumbnail_url.split('/').pop() || '';
-              } else {
-                thumbFileName = row.pi_thumbnail_url;
-              }
-              
-              secureThumbnailPath = `/uploads/stores/${row.p_store_id}/products/${row.p_id}/thumb-${thumbFileName}`;
-            }
+            // Extrair os caminhos seguros
+            const secureImagePath = securePaths.imageUrl;
+            const secureThumbnailPath = securePaths.thumbnailUrl;
             
             // Adicionar imagem ao produto com caminhos seguros
             reservation.product.images.push({
