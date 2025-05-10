@@ -1,0 +1,283 @@
+Em vez de uma reformulação completa, vamos focar em ajustes específicos ao image.controller existente para garantir a segurança sem quebrar o que já funciona:
+javascript// Ajustes ao image.controller.js existente
+// Adicionando validação rigorosa de relacionamentos
+
+/**
+ * Middleware de validação para garantir segurança entre lojas e produtos
+ */
+const validateEntityRelationship = async (req, res, next) => {
+  try {
+    const productId = req.params.id ? parseInt(req.params.id) : null;
+    const imageId = req.params.imageId ? parseInt(req.params.imageId) : null;
+    
+    // Se não temos ID de produto, não há como validar
+    if (!productId) {
+      return next();
+    }
+    
+    // Buscar informações do produto incluindo a loja
+    const productQuery = `
+      SELECT p.id, p.store_id, s.name as store_name
+      FROM products p
+      JOIN stores s ON p.store_id = s.id
+      WHERE p.id = $1
+    `;
+    
+    const productResult = await pool.query(productQuery, [productId]);
+    
+    if (productResult.rows.length === 0) {
+      console.error(`Produto não encontrado: ${productId}`);
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    const product = productResult.rows[0];
+    
+    // Se temos um ID de imagem, verificar se pertence a este produto
+    if (imageId) {
+      const imageQuery = `
+        SELECT id, product_id 
+        FROM product_images 
+        WHERE id = $1
+      `;
+      
+      const imageResult = await pool.query(imageQuery, [imageId]);
+      
+      // VALIDAÇÃO CRÍTICA: Verificar se a imagem pertence ao produto correto
+      if (imageResult.rows.length === 0 || imageResult.rows[0].product_id !== productId) {
+        console.error(`⚠️ VIOLAÇÃO DE SEGURANÇA: Imagem ${imageId} não pertence ao produto ${productId}`);
+        return res.redirect('/placeholder-image.jpg');
+      }
+    }
+    
+    // Armazenar as informações do produto/loja no request para uso posterior
+    req.validatedEntity = {
+      productId: product.id,
+      storeId: product.store_id,
+      storeName: product.store_name
+    };
+    
+    next();
+  } catch (error) {
+    console.error('Erro na validação de relacionamento:', error);
+    return res.redirect('/placeholder-image.jpg');
+  }
+};
+
+// Adicionar o middleware às rotas existentes:
+
+// Modificar a função getProductPrimaryImage
+exports.getProductPrimaryImage = [validateEntityRelationship, async (req, res) => {
+  // Código original, mas usando req.validatedEntity para garantir segurança
+  try {
+    const productId = parseInt(req.params.id);
+    
+    if (isNaN(productId)) {
+      return res.status(400).redirect('/placeholder-image.jpg');
+    }
+    
+    // Usar os dados validados pelo middleware
+    const { storeId } = req.validatedEntity || { storeId: null };
+    
+    if (!storeId) {
+      return res.status(404).redirect('/placeholder-image.jpg');
+    }
+    
+    // Buscar a imagem principal do produto
+    const imageQuery = `
+      SELECT pi.image_url, pi.thumbnail_url
+      FROM product_images pi
+      WHERE pi.product_id = $1 AND pi.is_primary = true
+      ORDER BY pi.display_order ASC, pi.id DESC
+      LIMIT 1
+    `;
+    
+    const imageResult = await pool.query(imageQuery, [productId]);
+    
+    // Resto do código original...
+    
+    // Adicionar verificação de segurança ao construir o caminho da imagem
+    const imageUrl = imageResult.rows[0].image_url;
+    
+    // VALIDAÇÃO ADICIONAL: Verificar se o caminho da imagem inclui o store_id correto
+    const expectedPathPattern = `/uploads/stores/${storeId}/products/${productId}/`;
+    
+    // Se o caminho não estiver no formato seguro, reconstruí-lo ou rejeitar
+    if (!imageUrl.includes(expectedPathPattern)) {
+      console.warn(`⚠️ Caminho de imagem suspeito detectado: ${imageUrl}`);
+      console.warn(`⚠️ Era esperado um caminho contendo: ${expectedPathPattern}`);
+      
+      // Opção 1: Reconstruir o caminho (menos seguro, mas mantém funcionando)
+      const fileName = imageUrl.split('/').pop();
+      const secureImageUrl = `${expectedPathPattern}${fileName}`;
+      
+      // Verificar se o arquivo existe no caminho seguro
+      const securePhysicalPath = path.join(__dirname, '../public', secureImageUrl);
+      
+      if (fs.existsSync(securePhysicalPath)) {
+        return res.redirect(secureImageUrl);
+      }
+      
+      // Se o arquivo não existir no caminho seguro, usar placeholder
+      return res.redirect('/placeholder-image.jpg');
+      
+      // Opção 2: Simplesmente rejeitar (mais seguro, mas pode quebrar funcionalidades)
+      // return res.status(403).redirect('/placeholder-image.jpg');
+    }
+    
+    // Se chegou aqui, o caminho é seguro, servir a imagem normalmente
+    return res.redirect(imageUrl);
+  } catch (error) {
+    console.error('Erro ao servir imagem do produto:', error);
+    return res.redirect('/placeholder-image.jpg');
+  }
+}];
+
+// Aplicar o mesmo padrão às outras funções do controller...
+Modificações no Reservation Controller
+Agora, vamos modificar o reservation.controller.ts para garantir que use apenas imagens do produto correto:
+javascript// Modificação mínima para reservation.controller.ts
+export async function getReservations(req: Request, res: Response) {
+  try {
+    const user = req.user!;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+
+    // Consulta SQL melhorada para garantir relacionamentos corretos
+    const query = `
+      SELECT 
+        r.*,
+        p.id AS p_id,
+        p.name AS p_name,
+        p.description AS p_description,
+        p.category AS p_category,
+        p.price AS p_price,
+        p.discounted_price AS p_discounted_price,
+        p.stock AS p_stock,
+        p.store_id AS p_store_id,
+        s.name AS store_name
+      FROM 
+        reservations r
+      JOIN 
+        products p ON r.product_id = p.id
+      JOIN 
+        stores s ON p.store_id = s.id
+      WHERE 
+        r.user_id = $1
+      ORDER BY 
+        r.created_at DESC
+      ${limit ? `LIMIT ${limit}` : ''}
+    `;
+
+    const result = await pool.query(query, [user.id]);
+    
+    // Inicialize um Map para agrupar imagens por reserva
+    const reservationsMap = new Map();
+
+    // Processe cada linha retornada do banco
+    result.rows.forEach(row => {
+      const reservationId = row.id;
+      
+      // Se esta reserva ainda não foi processada, inicialize-a
+      if (!reservationsMap.has(reservationId)) {
+        // Crie o objeto base da reserva
+        const reservation = {
+          id: row.id,
+          userId: row.user_id,
+          productId: row.product_id,
+          quantity: row.quantity,
+          status: row.status,
+          expiresAt: row.expires_at,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+          // Campos planos para uso direto no front-end
+          product_id: row.p_id,
+          product_name: row.p_name,
+          product_price: row.p_price,
+          // URL de imagem do produto - definida por API segura
+          product_image: `/api/products/${row.p_id}/primary-image`,
+          store_id: row.p_store_id,
+          store_name: row.store_name,
+          // Objeto aninhado product
+          product: {
+            id: row.p_id,
+            name: row.p_name,
+            description: row.p_description,
+            category: row.p_category,
+            price: row.p_price,
+            discountedPrice: row.p_discounted_price,
+            stock: row.p_stock,
+            storeId: row.p_store_id,
+            images: []
+          }
+        };
+        
+        reservationsMap.set(reservationId, reservation);
+      }
+    });
+    
+    // Converter o Map em array
+    const reservations = Array.from(reservationsMap.values());
+    
+    // Para cada reserva, buscar as imagens separadamente para garantir segurança
+    for (const reservation of reservations) {
+      // Buscar imagens diretamente do produto, garantindo o relacionamento correto
+      const imagesQuery = `
+        SELECT id, image_url, thumbnail_url, is_primary
+        FROM product_images
+        WHERE product_id = $1
+        ORDER BY is_primary DESC, display_order ASC, id ASC
+        LIMIT 5
+      `;
+      
+      const imagesResult = await pool.query(imagesQuery, [reservation.product_id]);
+      
+      // Processar imagens
+      const images = imagesResult.rows.map(img => {
+        // SEGURANÇA: Verificar se o caminho da imagem está correto
+        let imageUrl = img.image_url;
+        let thumbnailUrl = img.thumbnail_url;
+        
+        // Padrão de caminho seguro esperado
+        const expectedPathPattern = `/uploads/stores/${reservation.store_id}/products/${reservation.product_id}/`;
+        
+        // Se o caminho não seguir o padrão seguro, reconstruir
+        if (!imageUrl.includes(expectedPathPattern)) {
+          const fileName = imageUrl.split('/').pop();
+          imageUrl = `${expectedPathPattern}${fileName}`;
+          
+          const thumbFileName = thumbnailUrl.split('/').pop();
+          thumbnailUrl = `${expectedPathPattern}thumb-${thumbFileName.replace('thumb-', '')}`;
+        }
+        
+        return {
+          id: img.id,
+          image_url: imageUrl,
+          thumbnail_url: thumbnailUrl,
+          is_primary: img.is_primary
+        };
+      });
+      
+      // Atribuir imagens ao produto
+      reservation.product.images = images;
+      
+      // Definir imagem principal para o campo plano
+      if (images.length > 0) {
+        const primaryImage = images.find(img => img.is_primary) || images[0];
+        reservation.product_image = primaryImage.image_url;
+      } else {
+        // Se não houver imagens, usar placeholder
+        reservation.product_image = '/placeholder-image.jpg';
+        reservation.product.images = [{
+          id: 0,
+          image_url: '/placeholder-image.jpg',
+          thumbnail_url: '/placeholder-image.jpg',
+          is_primary: true
+        }];
+      }
+    }
+
+    res.json(reservations);
+  } catch (error) {
+    console.error('Error getting reservations:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
