@@ -1,0 +1,92 @@
+Estamos enfrentando um problema persistente com a página de edição de promoções que continua retornando "Page Not Found", mesmo sem erros no console. Precisamos investigar mais a fundo o sistema de arquivos e roteamento.
+
+### Etapa 1: Verificar a estrutura de arquivos atual
+Vamos primeiro verificar quais arquivos existem atualmente no projeto. Execute no terminal:
+
+```bash
+find ./pages -type f | grep -v node_modules | sort
+Isso nos mostrará todos os arquivos nas pastas de páginas, o que nos ajudará a entender a estrutura atual.
+Etapa 2: Verificar onde estão os arquivos de edição de produtos
+Você mencionou que o padrão para produtos é /seller/products/[id]/edit. Vamos verificar exatamente onde está esse arquivo:
+bashfind ./pages -name "*.tsx" | grep -i product | grep -i edit
+Isso nos mostrará o caminho exato do arquivo de edição de produtos, o que nos dará um modelo a seguir.
+Etapa 3: Criar o arquivo de edição de promoções no local correto
+Baseado nos resultados acima, vamos criar o arquivo no local correto. Se, por exemplo, o arquivo de edição de produtos estiver em ./pages/seller/products/[id]/edit.tsx, então:
+bash# Criar a pasta necessária (se ainda não existir)
+mkdir -p ./pages/seller/promotions/[id]
+
+# Criar o arquivo de edição
+cat > ./pages/seller/promotions/[id]/edit.tsx << 'EOL'
+import { useRouter } from 'next/router';
+import { useState, useEffect } from 'react';
+
+export default function EditPromotion() {
+  const router = useRouter();
+  const { id } = router.query;
+  
+  useEffect(() => {
+    console.log('Edit promotion page loaded with ID:', id);
+  }, [id]);
+  
+  return (
+    <div className="container py-8">
+      <h1 className="text-2xl font-bold">Editar Promoção</h1>
+      <p>ID: {id}</p>
+      <button 
+        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+        onClick={() => router.back()}
+      >
+        Voltar
+      </button>
+    </div>
+  );
+}
+EOL
+Etapa 4: Verificar o sistema de roteamento do Next.js
+Verifique o arquivo next.config.js na raiz do projeto para ver se há configurações especiais de roteamento:
+bashcat next.config.js
+Se houver configurações personalizadas de rotas, pode ser necessário ajustar isso.
+Etapa 5: Verifique se o servidor está recarregando os arquivos
+Às vezes, o servidor de desenvolvimento do Next.js não detecta novos arquivos. Tente reiniciar o servidor:
+bash# Se estiver usando npm
+npm run dev -- --no-cache
+
+# Se estiver usando yarn
+yarn dev --no-cache
+Etapa 6: Implementar uma solução alternativa - Redirecionamento universal
+Se mesmo após essas etapas o problema persistir, podemos implementar uma solução alternativa usando o sistema de redirecionamento do Next.js. Crie ou modifique o arquivo next.config.js:
+javascriptmodule.exports = {
+  async redirects() {
+    return [
+      {
+        source: '/seller/promotions/:id/edit',
+        destination: '/seller/promotions-edit?id=:id',
+        permanent: false,
+      },
+    ]
+  },
+}
+E então crie uma página em ./pages/seller/promotions-edit.js:
+jsximport { useRouter } from 'next/router';
+import { useState, useEffect } from 'react';
+
+export default function EditPromotionAlternative() {
+  const router = useRouter();
+  const { id } = router.query;
+  
+  // Resto da implementação da página de edição
+  
+  return (
+    <div className="container py-8">
+      <h1 className="text-2xl font-bold">Editar Promoção (Alternativo)</h1>
+      <p>ID: {id}</p>
+      <button 
+        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+        onClick={() => router.push('/seller/promotions')}
+      >
+        Voltar
+      </button>
+    </div>
+  );
+}
+Por favor, execute estas etapas para investigar e resolver o problema de "Page Not Found".
