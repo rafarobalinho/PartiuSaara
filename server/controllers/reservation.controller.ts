@@ -85,6 +85,9 @@ export async function getReservations(req: Request, res: Response) {
       
       // Se esta reserva ainda não foi processada, inicialize-a
       if (!reservationsMap.has(reservationId)) {
+        // Verificar se o produto tem uma promoção ativa
+        const hasPromotion = row.promotion_id ? true : false;
+        
         // Crie o objeto base da reserva
         const reservation = {
           id: row.id,
@@ -100,6 +103,22 @@ export async function getReservations(req: Request, res: Response) {
           product_name: row.p_name,
           product_price: row.p_price,
           product_image: row.pi_is_primary ? row.pi_image_url : null,
+          // Informações sobre promoção para formatação visual correta
+          promotion: hasPromotion ? {
+            id: row.promotion_id,
+            type: row.promotion_type, // 'regular' ou 'flash'
+            discountPercentage: row.discount_percentage,
+            discountAmount: row.discount_amount,
+            priceOverride: row.price_override,
+            startsAt: row.promotion_starts_at,
+            endsAt: row.promotion_ends_at
+          } : null,
+          // URL da imagem com o formato de visualização correto baseado no tipo
+          imageUrl: hasPromotion ? 
+            (row.promotion_type === 'flash' ? 
+              `/api/promotions/${row.promotion_id}/flash-image` : 
+              `/api/promotions/${row.promotion_id}/image`) :
+            `/api/products/${row.product_id}/primary-image`,
           // Objeto aninhado product
           product: {
             id: row.p_id,
