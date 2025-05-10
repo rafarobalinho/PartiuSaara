@@ -230,34 +230,55 @@ export async function updatePromotion(req: Request, res: Response) {
         delete processedData.discountValue;
       }
       
-      // Ensure dates are proper Date objects or strings in ISO format
+      // CRITICAL: Proper date handling to fix toISOString errors
+      // Handle dates as strings explicitly in formats Postgres will accept
       if (processedData.startTime) {
-        if (typeof processedData.startTime === 'string') {
-          try {
-            // Convert to ISO string to ensure proper format
-            processedData.startTime = new Date(processedData.startTime).toISOString();
-          } catch (e) {
-            console.error("Error converting startTime:", e);
-            return res.status(400).json({ 
-              message: 'Invalid startTime format',
-              error: e instanceof Error ? e.message : 'Unknown error'
-            });
+        try {
+          // Convert to string format that Postgres will accept directly
+          if (processedData.startTime instanceof Date) {
+            processedData.startTime = processedData.startTime.toISOString();
+          } else if (typeof processedData.startTime === 'string') {
+            // Make sure it's a valid date and convert to ISO format
+            const dateObj = new Date(processedData.startTime);
+            if (isNaN(dateObj.getTime())) {
+              throw new Error('Invalid date format');
+            }
+            processedData.startTime = dateObj.toISOString();
+          } else {
+            throw new Error(`Unsupported startTime type: ${typeof processedData.startTime}`);
           }
+          console.log(`Converted startTime to: ${processedData.startTime} (${typeof processedData.startTime})`);
+        } catch (e) {
+          console.error("Error processing startTime:", e);
+          return res.status(400).json({ 
+            message: 'Invalid startTime format or value',
+            error: e instanceof Error ? e.message : 'Unknown error'
+          });
         }
       }
       
       if (processedData.endTime) {
-        if (typeof processedData.endTime === 'string') {
-          try {
-            // Convert to ISO string to ensure proper format
-            processedData.endTime = new Date(processedData.endTime).toISOString();
-          } catch (e) {
-            console.error("Error converting endTime:", e);
-            return res.status(400).json({ 
-              message: 'Invalid endTime format',
-              error: e instanceof Error ? e.message : 'Unknown error'
-            });
+        try {
+          // Convert to string format that Postgres will accept directly
+          if (processedData.endTime instanceof Date) {
+            processedData.endTime = processedData.endTime.toISOString();
+          } else if (typeof processedData.endTime === 'string') {
+            // Make sure it's a valid date and convert to ISO format
+            const dateObj = new Date(processedData.endTime);
+            if (isNaN(dateObj.getTime())) {
+              throw new Error('Invalid date format');
+            }
+            processedData.endTime = dateObj.toISOString();
+          } else {
+            throw new Error(`Unsupported endTime type: ${typeof processedData.endTime}`);
           }
+          console.log(`Converted endTime to: ${processedData.endTime} (${typeof processedData.endTime})`);
+        } catch (e) {
+          console.error("Error processing endTime:", e);
+          return res.status(400).json({ 
+            message: 'Invalid endTime format or value',
+            error: e instanceof Error ? e.message : 'Unknown error'
+          });
         }
       }
       
