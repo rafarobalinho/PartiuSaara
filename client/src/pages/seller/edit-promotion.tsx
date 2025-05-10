@@ -215,8 +215,9 @@ export default function EditPromotion() {
       
       console.log('Dados formatados para API:', apiData);
       
-      const response = await fetch(`/api/promotions/${id}`, {
-        method: 'PUT',
+      // Using the new simplified endpoint instead of the standard PUT endpoint
+      const response = await fetch(`/api/promotions/${id}/simple-update`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
