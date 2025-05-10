@@ -97,28 +97,36 @@ export async function getReservations(req: Request, res: Response) {
           const imageExists = reservation.product.images.some((img: any) => img.id === row.pi_id);
           
           if (!imageExists) {
-            // Gerar caminho seguro baseado na estrutura: /uploads/[id do timestamp]-[id aleatório].jpg
-            // Se a URL original já tiver o formato esperado com store_id, usá-la diretamente
-            let fileName = '';
+            // Determinar o caminho seguro baseado na estrutura de diretórios isolados por loja/produto
+            let secureImagePath, secureThumbnailPath;
             
-            if (row.pi_image_url.includes('/')) {
-              fileName = row.pi_image_url.split('/').pop() || '';
+            // Verifica se a imagem já está usando o formato seguro com isolamento de loja
+            if (row.pi_image_url.includes(`/uploads/stores/${row.p_store_id}/products/${row.p_id}/`)) {
+              // Já está no formato seguro, usar diretamente
+              secureImagePath = row.pi_image_url;
+              secureThumbnailPath = row.pi_thumbnail_url;
             } else {
-              fileName = row.pi_image_url;
+              // Extrair o nome do arquivo para criar o caminho seguro
+              let fileName = '';
+              if (row.pi_image_url.includes('/')) {
+                fileName = row.pi_image_url.split('/').pop() || '';
+              } else {
+                fileName = row.pi_image_url;
+              }
+              
+              // Gerar caminho seguro no novo formato isolado por loja/produto
+              secureImagePath = `/uploads/stores/${row.p_store_id}/products/${row.p_id}/${fileName}`;
+              
+              // Thumbnail também precisa ser seguro
+              let thumbFileName = '';
+              if (row.pi_thumbnail_url.includes('/')) {
+                thumbFileName = row.pi_thumbnail_url.split('/').pop() || '';
+              } else {
+                thumbFileName = row.pi_thumbnail_url;
+              }
+              
+              secureThumbnailPath = `/uploads/stores/${row.p_store_id}/products/${row.p_id}/thumb-${thumbFileName}`;
             }
-            
-            // Construir caminho de imagem seguro com isolamento de loja
-            const secureImagePath = `/uploads/${fileName}`;
-            
-            // Thumbnail também usa o nome do arquivo original mas com prefixo "thumb-"
-            let thumbFileName = '';
-            if (row.pi_thumbnail_url.includes('/')) {
-              thumbFileName = row.pi_thumbnail_url.split('/').pop() || '';
-            } else {
-              thumbFileName = row.pi_thumbnail_url;
-            }
-            
-            const secureThumbnailPath = `/uploads/thumbnails/${thumbFileName}`;
             
             // Adicionar imagem ao produto com caminhos seguros
             reservation.product.images.push({
