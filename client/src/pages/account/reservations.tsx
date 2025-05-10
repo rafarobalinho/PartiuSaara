@@ -223,18 +223,21 @@ export default function Reservations() {
                     {filteredReservations.map((reservation) => (
                       <div key={reservation.id} className="bg-white rounded-lg shadow-sm p-4 border flex flex-col sm:flex-row">
                         <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 sm:mr-4">
-                          <img 
-                            src={reservation.product_image || '/placeholder-image.jpg'} 
+                          <SafeImage 
+                            src={`/api/reservations/${reservation.id}/image`}
                             alt={reservation.product_name || 'Produto'} 
                             className="w-full h-full object-cover"
+                            fallbackSrc="/placeholder-image.jpg"
+                            reservationId={reservation.id}
+                            type="reservation"
+                            productId={reservation.productId}
                           />
                         </div>
                         <div className="flex-1">
                           <div className="flex flex-wrap justify-between mb-2">
-                            <Link href={`/products/${reservation.product_id || 0}`}>
-                              <a className="font-medium hover:text-primary hover:underline">
+                            <Link href={`/products/${reservation.product_id || 0}`} 
+                              className="font-medium hover:text-primary hover:underline">
                                 {reservation.product_name || 'Produto indisponível'}
-                              </a>
                             </Link>
                             <Badge className={getStatusColor(reservation.status)}>
                               {formatStatus(reservation.status)}
