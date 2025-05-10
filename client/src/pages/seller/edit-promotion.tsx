@@ -249,8 +249,9 @@ export default function EditPromotion() {
         variant: 'default',
       });
       
-      // Redirect back to promotions list
-      navigate('/seller/promotions');
+      // Usar window.location para forçar um recarregamento completo
+      // Isso garante que a página de listagem busque os dados atualizados
+      window.location.href = '/seller/promotions';
       
     } catch (error) {
       console.error('Error updating promotion:', error);

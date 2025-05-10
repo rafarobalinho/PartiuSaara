@@ -60,11 +60,13 @@ export default function SellerPromotions() {
 
   // Fetch promotions from seller's store using the API endpoint with proper error handling
   const { data: promotions = [], isLoading } = useQuery({
-    queryKey: ['/api/seller/promotions'],
+    // Adicionando window.location.href como parte da chave para forçar recarregamento após navegação
+    queryKey: ['/api/seller/promotions', window.location.href],
     queryFn: async () => {
       try {
-        // Using apiRequest instead of fetch for better error handling
-        const response = await fetch('/api/seller/promotions', {
+        // Adicionar um parâmetro de timestamp para evitar cache
+        const timestamp = new Date().getTime();
+        const response = await fetch(`/api/seller/promotions?t=${timestamp}`, {
           credentials: 'include', // Importante para enviar cookies de autenticação
           headers: {
             'Content-Type': 'application/json'
@@ -93,7 +95,12 @@ export default function SellerPromotions() {
         console.error('Error fetching promotions:', error);
         return [];
       }
-    }
+    },
+    // Configurações adicionais para garantir atualização
+    enabled: isAuthenticated && isSeller,
+    staleTime: 0, // Sempre considerar dados obsoletos para forçar nova busca
+    refetchOnWindowFocus: true, // Atualizar quando a janela receber foco
+    refetchOnMount: true // Atualizar quando o componente for montado
   });
 
   // Filter promotions based on selected tab

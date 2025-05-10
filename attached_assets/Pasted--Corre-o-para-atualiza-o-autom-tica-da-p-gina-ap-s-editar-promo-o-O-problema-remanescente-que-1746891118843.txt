@@ -1,0 +1,152 @@
+# Correção para atualização automática da página após editar promoção
+
+O problema remanescente é que, após editar uma promoção com sucesso, os dados atualizados só aparecem quando forçamos o recarregamento da página. Isso ocorre porque o Next.js/React está usando dados em cache ou não está redirecionando corretamente para recarregar os dados.
+
+## Solução: Implementar recarregamento adequado após atualização
+
+### Parte 1: Melhorar o redirecionamento no frontend
+
+```javascript
+// Em edit-promotion.tsx
+// Na função handleSubmit, após sucesso
+
+// Substituir:
+router.push('/seller/promotions');
+
+// Por:
+// Forçar recarregamento completo após redirecionar
+router.push('/seller/promotions').then(() => {
+  // Usar setTimeout para garantir que a navegação seja concluída primeiro
+  setTimeout(() => {
+    window.location.reload();
+  }, 100);
+});
+Parte 2: Alternativa usando window.location
+Se a abordagem acima não funcionar, podemos usar uma abordagem mais direta:
+javascript// Em edit-promotion.tsx
+// Na função handleSubmit, após sucesso
+
+toast({
+  title: 'Sucesso',
+  description: 'Promoção atualizada com sucesso.',
+  variant: 'success'
+});
+
+// Usar window.location para forçar um recarregamento completo
+window.location.href = '/seller/promotions';
+Parte 3: Modificar a página de listagem para garantir dados atualizados
+javascript// Em pages/seller/promotions/index.tsx
+// No useEffect para carregar promoções
+
+useEffect(() => {
+  async function fetchPromotions() {
+    try {
+      setLoading(true);
+      
+      // Adicionar um parâmetro de timestamp para evitar cache
+      const timestamp = new Date().getTime();
+      const response = await apiRequest(`/api/promotions?t=${timestamp}`);
+      
+      console.log('Promoções carregadas:', response);
+      setPromotions(response || []);
+    } catch (error) {
+      console.error('Erro ao carregar promoções:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar suas promoções.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  fetchPromotions();
+  
+  // Adicionar key instável para forçar reexecução ao navegar de volta para a página
+}, [router.asPath]);
+Parte 4: Implementar evento de atualização
+javascript// Em um arquivo shared como utils.js ou hooks.js
+// Criar um sistema de eventos para atualização
+
+// Classe simples de gerenciamento de eventos
+export class EventBus {
+  static listeners = {};
+  
+  static on(event, callback) {
+    if (!this.listeners[event]) {
+      this.listeners[event] = [];
+    }
+    this.listeners[event].push(callback);
+    
+    // Retornar função para remover o listener
+    return () => {
+      this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+    };
+  }
+  
+  static emit(event, data) {
+    if (this.listeners[event]) {
+      this.listeners[event].forEach(callback => callback(data));
+    }
+  }
+}
+
+// Em edit-promotion.tsx
+// Na função handleSubmit, após sucesso
+import { EventBus } from '@/lib/utils';
+
+// Após o sucesso
+EventBus.emit('promotion-updated', { id: promotionId });
+
+// Na rota
+router.push('/seller/promotions');
+
+// Em pages/seller/promotions/index.tsx
+// No componente de listagem
+import { EventBus } from '@/lib/utils';
+
+useEffect(() => {
+  // Carregar promoções inicialmente
+  fetchPromotions();
+  
+  // Adicionar listener para eventos de atualização
+  const unsubscribe = EventBus.on('promotion-updated', () => {
+    console.log('Evento de atualização de promoção recebido, recarregando dados...');
+    fetchPromotions();
+  });
+  
+  // Limpar listener ao desmontar
+  return () => unsubscribe();
+}, []);
+Parte 5: Abordagem usando armazenamento local (localStorage)
+javascript// Em edit-promotion.tsx
+// Na função handleSubmit, após sucesso
+
+// Definir flag no localStorage
+localStorage.setItem('promotionUpdated', 'true');
+
+// Na rota
+router.push('/seller/promotions');
+
+// Em pages/seller/promotions/index.tsx
+// No componente de listagem
+
+useEffect(() => {
+  // Verificar se há flag de atualização
+  const wasUpdated = localStorage.getItem('promotionUpdated') === 'true';
+  
+  if (wasUpdated) {
+    // Limpar flag
+    localStorage.removeItem('promotionUpdated');
+    
+    // Recarregar dados
+    console.log('Promoção foi atualizada, recarregando dados...');
+    fetchPromotions();
+  } else {
+    // Carregamento normal
+    fetchPromotions();
+  }
+}, []);
+Qualquer uma dessas abordagens deve resolver o problema de atualização, garantindo que a lista de promoções seja atualizada automaticamente após a edição, sem necessidade de forçar o recarregamento da página.
+A mais simples e eficaz para implementar imediatamente é a Parte 2 (usando window.location.href), que garante que a página seja completamente recarregada e mostre os dados atualizados.
