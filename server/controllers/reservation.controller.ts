@@ -370,6 +370,14 @@ export async function updateReservationStatus(req: Request, res: Response) {
     // Update the reservation status
     const updatedReservation = await storage.updateReservationStatus(Number(id), status);
     
+    // Se não conseguimos atualizar a reserva, retorna erro
+    if (!updatedReservation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reserva não encontrada ou não atualizada'
+      });
+    }
+    
     // Obter informações do produto para enriquecer a resposta com melhoria de segurança
     const query = `
       SELECT 
@@ -399,7 +407,8 @@ export async function updateReservationStatus(req: Request, res: Response) {
         pi.is_primary DESC
     `;
 
-    const result = await pool.query(query, [updatedReservation.productId]);
+    const productId = updatedReservation?.productId || Number(req.params.id);
+    const result = await pool.query(query, [productId]);
     
     // Se não temos resultados, retorne apenas a reserva
     if (result.rows.length === 0) {
