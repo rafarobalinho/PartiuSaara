@@ -3,6 +3,16 @@ import { storage } from '../storage';
 import { pool } from '../db';
 import { z } from 'zod';
 
+// Definir interfaces para melhorar o TypeScript
+interface ProductImage {
+  id: number;
+  image_url: string;
+  thumbnail_url: string;
+  is_primary: boolean;
+  store_id?: number;
+  product_id?: number;
+}
+
 // Get user reservations
 export async function getReservations(req: Request, res: Response) {
   try {
@@ -94,7 +104,7 @@ export async function getReservations(req: Request, res: Response) {
           console.log(`Validando imagem: product_id=${row.p_id}, image.product_id=${row.pi_product_id}, store_id=${row.p_store_id}`);
           
           // Verifique se esta imagem já foi adicionada
-          const imageExists = reservation.product.images.some((img: any) => img.id === row.pi_id);
+          const imageExists = reservation.product.images.some((img: ProductImage) => img.id === row.pi_id);
           
           if (!imageExists) {
             // Construir caminho de imagem seguro com isolamento de loja
@@ -117,7 +127,7 @@ export async function getReservations(req: Request, res: Response) {
             });
             
             // Ordene as imagens para que a imagem principal apareça primeiro
-            reservation.product.images.sort((a: any, b: any) => {
+            reservation.product.images.sort((a: ProductImage, b: ProductImage) => {
               if (a.is_primary && !b.is_primary) return -1;
               if (!a.is_primary && b.is_primary) return 1;
               return 0;
@@ -193,11 +203,13 @@ export async function createReservation(req: Request, res: Response) {
     }
     
     // Check if product is in stock
-    if (product.stock !== undefined && product.stock <= 0) {
+    const productStock = product.stock || 0;
+    
+    if (productStock <= 0) {
       return res.status(400).json({ message: 'Product is out of stock' });
     }
     
-    if (quantity && product.stock !== undefined && quantity > product.stock) {
+    if (quantity && quantity > productStock) {
       return res.status(400).json({ message: 'Not enough stock available' });
     }
     
@@ -434,9 +446,20 @@ export async function updateReservationStatus(req: Request, res: Response) {
     const primaryImage = images.length > 0 && images[0].is_primary ? images[0].image_url : 
                         (images.length > 0 ? images[0].image_url : null);
                         
-    // Crie o objeto enriquecido
+    // Crie o objeto enriquecido com verificação de nulo
+    const baseReservation = updatedReservation || {
+      id: Number(id),
+      userId: user.id,
+      productId: Number(productInfo.p_id),
+      quantity: 1,
+      status: 'pending',
+      expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
     const enrichedReservation = {
-      ...(updatedReservation || {}),
+      ...baseReservation,
       // Campos planos
       product_id: productInfo.p_id,
       product_name: productInfo.p_name,
