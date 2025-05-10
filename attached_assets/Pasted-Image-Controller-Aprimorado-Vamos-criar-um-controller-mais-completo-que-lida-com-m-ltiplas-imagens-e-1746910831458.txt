@@ -1,0 +1,677 @@
+Image Controller Aprimorado
+Vamos criar um controller mais completo que lida com múltiplas imagens e verifica corretamente as tabelas:
+javascript// image.controller.js
+const fs = require('fs');
+const path = require('path');
+const { pool } = require('../db'); // Ajuste o caminho conforme necessário
+
+/**
+ * @route GET /api/stores/:id/primary-image
+ * @desc Retorna a imagem principal de uma loja
+ * @access Público
+ */
+exports.getStorePrimaryImage = async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.id);
+    
+    if (isNaN(storeId)) {
+      console.error(`ID de loja inválido: ${req.params.id}`);
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    // Verificar se a loja existe
+    const storeQuery = `SELECT id FROM stores WHERE id = $1`;
+    const storeResult = await pool.query(storeQuery, [storeId]);
+    
+    if (storeResult.rows.length === 0) {
+      console.error(`Loja não encontrada: ${storeId}`);
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    // Buscar a imagem principal da loja
+    const imageQuery = `
+      SELECT image_url, thumbnail_url
+      FROM store_images
+      WHERE store_id = $1 AND is_primary = true
+      ORDER BY display_order ASC, id DESC
+      LIMIT 1
+    `;
+    
+    const imageResult = await pool.query(imageQuery, [storeId]);
+    
+    if (imageResult.rows.length === 0) {
+      // Se não houver imagem principal, buscar qualquer imagem
+      const fallbackQuery = `
+        SELECT image_url, thumbnail_url
+        FROM store_images
+        WHERE store_id = $1
+        ORDER BY display_order ASC, id DESC
+        LIMIT 1
+      `;
+      
+      const fallbackResult = await pool.query(fallbackQuery, [storeId]);
+      
+      if (fallbackResult.rows.length === 0) {
+        // Se não houver nenhuma imagem, verificar se existe um arquivo físico padrão
+        const defaultPath = path.join(__dirname, `../public/uploads/stores/${storeId}/logo.jpg`);
+        
+        if (fs.existsSync(defaultPath)) {
+          return res.sendFile(defaultPath);
+        }
+        
+        // Se tudo falhar, usar o placeholder
+        return res.redirect('/placeholder-image.jpg');
+      }
+      
+      // Usar a imagem encontrada
+      const imageUrl = fallbackResult.rows[0].image_url;
+      
+      // Verificar se o arquivo existe fisicamente
+      const imagePath = path.join(__dirname, `../public${imageUrl}`);
+      
+      if (fs.existsSync(imagePath)) {
+        return res.sendFile(imagePath);
+      }
+      
+      // Se o arquivo não existir, tentar o caminho correto baseado no ID da loja
+      const specificPath = path.join(__dirname, `../public/uploads/stores/${storeId}/logo.jpg`);
+      
+      if (fs.existsSync(specificPath)) {
+        return res.sendFile(specificPath);
+      }
+      
+      // Se tudo falhar, usar o placeholder
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    // Usar a imagem principal encontrada
+    const imageUrl = imageResult.rows[0].image_url;
+    
+    // Verificar se o arquivo existe fisicamente
+    const imagePath = path.join(__dirname, `../public${imageUrl}`);
+    
+    if (fs.existsSync(imagePath)) {
+      return res.sendFile(imagePath);
+    }
+    
+    // Se o arquivo não existir, tentar o caminho correto baseado no ID da loja
+    const specificPath = path.join(__dirname, `../public/uploads/stores/${storeId}/logo.jpg`);
+    
+    if (fs.existsSync(specificPath)) {
+      return res.sendFile(specificPath);
+    }
+    
+    // Se tudo falhar, usar o placeholder
+    return res.redirect('/placeholder-image.jpg');
+  } catch (error) {
+    console.error('Erro ao servir imagem da loja:', error);
+    return res.redirect('/placeholder-image.jpg');
+  }
+};
+
+/**
+ * @route GET /api/stores/:id/images
+ * @desc Retorna todas as imagens de uma loja
+ * @access Público
+ */
+exports.getStoreImages = async (req, res) => {
+  try {
+    const storeId = parseInt(req.params.id);
+    
+    if (isNaN(storeId)) {
+      return res.status(400).json({ success: false, message: 'ID de loja inválido' });
+    }
+    
+    // Buscar todas as imagens da loja
+    const imagesQuery = `
+      SELECT id, image_url, thumbnail_url, is_primary, display_order
+      FROM store_images
+      WHERE store_id = $1
+      ORDER BY is_primary DESC, display_order ASC, id ASC
+    `;
+    
+    const imagesResult = await pool.query(imagesQuery, [storeId]);
+    
+    // Se não houver imagens, retornar um array vazio
+    if (imagesResult.rows.length === 0) {
+      return res.json({
+        success: true,
+        storeId,
+        images: [],
+        message: 'Nenhuma imagem encontrada para esta loja'
+      });
+    }
+    
+    // Processar as URLs das imagens para garantir que sejam válidas
+    const images = imagesResult.rows.map(img => {
+      return {
+        ...img,
+        // URLs seguras pela API
+        secure_image_url: `/api/stores/${storeId}/image/${img.id}`,
+        secure_thumbnail_url: `/api/stores/${storeId}/thumbnail/${img.id}`
+      };
+    });
+    
+    return res.json({
+      success: true,
+      storeId,
+      images,
+      primaryImage: images.find(img => img.is_primary) || images[0]
+    });
+  } catch (error) {
+    console.error('Erro ao buscar imagens da loja:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao buscar imagens da loja' 
+    });
+  }
+};
+
+/**
+ * @route GET /api/products/:id/primary-image
+ * @desc Retorna a imagem principal de um produto
+ * @access Público
+ */
+exports.getProductPrimaryImage = async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    
+    if (isNaN(productId)) {
+      console.error(`ID de produto inválido: ${req.params.id}`);
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    // Buscar informações do produto para verificação
+    const productQuery = `SELECT id, store_id FROM products WHERE id = $1`;
+    const productResult = await pool.query(productQuery, [productId]);
+    
+    if (productResult.rows.length === 0) {
+      console.error(`Produto não encontrado: ${productId}`);
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    const storeId = productResult.rows[0].store_id;
+    
+    // Buscar a imagem principal do produto
+    const imageQuery = `
+      SELECT image_url, thumbnail_url
+      FROM product_images
+      WHERE product_id = $1 AND is_primary = true
+      ORDER BY display_order ASC, id DESC
+      LIMIT 1
+    `;
+    
+    const imageResult = await pool.query(imageQuery, [productId]);
+    
+    if (imageResult.rows.length === 0) {
+      // Se não houver imagem principal, buscar qualquer imagem
+      const fallbackQuery = `
+        SELECT image_url, thumbnail_url
+        FROM product_images
+        WHERE product_id = $1
+        ORDER BY display_order ASC, id DESC
+        LIMIT 1
+      `;
+      
+      const fallbackResult = await pool.query(fallbackQuery, [productId]);
+      
+      if (fallbackResult.rows.length === 0) {
+        // Se não houver nenhuma imagem, verificar um caminho padrão
+        const defaultPath = path.join(__dirname, `../public/uploads/stores/${storeId}/products/${productId}/main.jpg`);
+        
+        if (fs.existsSync(defaultPath)) {
+          return res.sendFile(defaultPath);
+        }
+        
+        // Se tudo falhar, usar o placeholder
+        return res.redirect('/placeholder-image.jpg');
+      }
+      
+      // Usar a imagem encontrada
+      const imageUrl = fallbackResult.rows[0].image_url;
+      
+      // Verificar se o arquivo existe fisicamente
+      const imagePath = path.join(__dirname, `../public${imageUrl}`);
+      
+      if (fs.existsSync(imagePath)) {
+        return res.sendFile(imagePath);
+      }
+      
+      // Tentar um caminho padronizado baseado no produto e loja
+      const specificPath = path.join(__dirname, `../public/uploads/stores/${storeId}/products/${productId}/main.jpg`);
+      
+      if (fs.existsSync(specificPath)) {
+        return res.sendFile(specificPath);
+      }
+      
+      // Se tudo falhar, usar o placeholder
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    // Usar a imagem principal encontrada
+    const imageUrl = imageResult.rows[0].image_url;
+    
+    // Verificar se o arquivo existe fisicamente
+    const imagePath = path.join(__dirname, `../public${imageUrl}`);
+    
+    if (fs.existsSync(imagePath)) {
+      return res.sendFile(imagePath);
+    }
+    
+    // Se o arquivo não existir, tentar o caminho correto baseado no ID do produto
+    const specificPath = path.join(__dirname, `../public/uploads/stores/${storeId}/products/${productId}/main.jpg`);
+    
+    if (fs.existsSync(specificPath)) {
+      return res.sendFile(specificPath);
+    }
+    
+    // Se tudo falhar, usar o placeholder
+    return res.redirect('/placeholder-image.jpg');
+  } catch (error) {
+    console.error('Erro ao servir imagem do produto:', error);
+    return res.redirect('/placeholder-image.jpg');
+  }
+};
+
+/**
+ * @route GET /api/products/:id/images
+ * @desc Retorna todas as imagens de um produto (até 5)
+ * @access Público
+ */
+exports.getProductImages = async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    
+    if (isNaN(productId)) {
+      return res.status(400).json({ success: false, message: 'ID de produto inválido' });
+    }
+    
+    // Buscar informações do produto para verificação
+    const productQuery = `SELECT id, name, store_id FROM products WHERE id = $1`;
+    const productResult = await pool.query(productQuery, [productId]);
+    
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Produto não encontrado'
+      });
+    }
+    
+    const storeId = productResult.rows[0].store_id;
+    
+    // Buscar todas as imagens do produto, ordenadas por prioridade (limitado a 5)
+    const imagesQuery = `
+      SELECT 
+        id, image_url, thumbnail_url, is_primary, display_order
+      FROM 
+        product_images
+      WHERE 
+        product_id = $1
+      ORDER BY 
+        is_primary DESC, display_order ASC, id ASC
+      LIMIT 5
+    `;
+    
+    const imagesResult = await pool.query(imagesQuery, [productId]);
+    
+    // Processar as URLs das imagens para garantir que sejam válidas
+    const images = imagesResult.rows.map(img => {
+      return {
+        ...img,
+        // URLs seguras pela API
+        secure_image_url: `/api/products/${productId}/image/${img.id}`,
+        secure_thumbnail_url: `/api/products/${productId}/thumbnail/${img.id}`
+      };
+    });
+    
+    return res.json({
+      success: true,
+      product: {
+        id: productId,
+        name: productResult.rows[0].name,
+        store_id: storeId
+      },
+      images: images,
+      count: images.length
+    });
+  } catch (error) {
+    console.error('Erro ao buscar imagens do produto:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar imagens do produto'
+    });
+  }
+};
+
+/**
+ * @route GET /api/products/:id/image/:imageId
+ * @desc Retorna uma imagem específica de um produto
+ * @access Público
+ */
+exports.getProductImage = async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const imageId = parseInt(req.params.imageId);
+    
+    if (isNaN(productId) || isNaN(imageId)) {
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    // Buscar informações do produto
+    const productQuery = `SELECT id, store_id FROM products WHERE id = $1`;
+    const productResult = await pool.query(productQuery, [productId]);
+    
+    if (productResult.rows.length === 0) {
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    const storeId = productResult.rows[0].store_id;
+    
+    // Buscar a imagem específica
+    const imageQuery = `
+      SELECT image_url, thumbnail_url
+      FROM product_images
+      WHERE product_id = $1 AND id = $2
+    `;
+    
+    const imageResult = await pool.query(imageQuery, [productId, imageId]);
+    
+    if (imageResult.rows.length === 0) {
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    const imageUrl = imageResult.rows[0].image_url;
+    
+    // Verificar se o arquivo existe fisicamente
+    const imagePath = path.join(__dirname, `../public${imageUrl}`);
+    
+    if (fs.existsSync(imagePath)) {
+      return res.sendFile(imagePath);
+    }
+    
+    // Se não existir, usar o placeholder
+    return res.redirect('/placeholder-image.jpg');
+  } catch (error) {
+    console.error('Erro ao servir imagem específica do produto:', error);
+    return res.redirect('/placeholder-image.jpg');
+  }
+};
+
+/**
+ * @route GET /api/placeholder-image.jpg
+ * @desc Retorna uma imagem de placeholder
+ * @access Público
+ */
+exports.getPlaceholderImage = (req, res) => {
+  try {
+    const placeholderPath = path.join(__dirname, '../public/placeholder-image.jpg');
+    
+    if (fs.existsSync(placeholderPath)) {
+      return res.sendFile(placeholderPath);
+    }
+    
+    // Se o placeholder não existir, retornar um erro 404
+    return res.status(404).send('Imagem não encontrada');
+  } catch (error) {
+    console.error('Erro ao servir imagem de placeholder:', error);
+    return res.status(500).send('Erro interno do servidor');
+  }
+};
+
+// Exportar todas as funções do controller
+module.exports = {
+  getStorePrimaryImage,
+  getStoreImages,
+  getProductPrimaryImage,
+  getProductImages,
+  getProductImage,
+  getPlaceholderImage
+};
+Rotas Completas para o Image Controller
+javascript// Em routes/api.js ou similar
+const imageController = require('../controllers/image.controller');
+
+// Rotas para imagens de lojas
+router.get('/api/stores/:id/primary-image', imageController.getStorePrimaryImage);
+router.get('/api/stores/:id/images', imageController.getStoreImages);
+
+// Rotas para imagens de produtos
+router.get('/api/products/:id/primary-image', imageController.getProductPrimaryImage);
+router.get('/api/products/:id/images', imageController.getProductImages);
+router.get('/api/products/:id/image/:imageId', imageController.getProductImage);
+
+// Rota para placeholder
+router.get('/api/placeholder-image.jpg', imageController.getPlaceholderImage);
+Script para Verificar e Corrigir Estrutura de Diretórios
+javascript// check-and-fix-image-structure.js
+const fs = require('fs');
+const path = require('path');
+const { pool } = require('./db'); // Ajuste o caminho conforme necessário
+
+async function checkAndFixImageStructure() {
+  try {
+    console.log('Iniciando verificação da estrutura de imagens...');
+    
+    // 1. Verificar e criar diretórios base
+    const baseDirectories = [
+      './public/uploads',
+      './public/uploads/thumbnails',
+      './public/uploads/originals'
+    ];
+    
+    baseDirectories.forEach(dir => {
+      const fullPath = path.resolve(__dirname, dir);
+      
+      if (!fs.existsSync(fullPath)) {
+        console.log(`Criando diretório base: ${fullPath}`);
+        fs.mkdirSync(fullPath, { recursive: true });
+      }
+    });
+    
+    // 2. Buscar todas as lojas
+    const storesResult = await pool.query('SELECT id, name FROM stores');
+    
+    console.log(`Encontradas ${storesResult.rows.length} lojas para verificação...`);
+    
+    // 3. Para cada loja, verificar e criar a estrutura
+    for (const store of storesResult.rows) {
+      const storeId = store.id;
+      
+      // Diretório da loja
+      const storeDir = path.resolve(__dirname, `./public/uploads/stores/${storeId}`);
+      
+      if (!fs.existsSync(storeDir)) {
+        console.log(`Criando diretório da loja ${store.name} (ID: ${storeId}): ${storeDir}`);
+        fs.mkdirSync(storeDir, { recursive: true });
+      }
+      
+      // Buscar produtos desta loja
+      const productsResult = await pool.query('SELECT id, name FROM products WHERE store_id = $1', [storeId]);
+      
+      console.log(`Loja ${store.name} (ID: ${storeId}) tem ${productsResult.rows.length} produtos`);
+      
+      // Para cada produto, criar o diretório correspondente
+      for (const product of productsResult.rows) {
+        const productId = product.id;
+        const productDir = path.resolve(__dirname, `./public/uploads/stores/${storeId}/products/${productId}`);
+        
+        if (!fs.existsSync(productDir)) {
+          console.log(`Criando diretório do produto ${product.name} (ID: ${productId}): ${productDir}`);
+          fs.mkdirSync(productDir, { recursive: true });
+        }
+      }
+    }
+    
+    // 4. Criar arquivo de placeholder
+    createPlaceholderImage();
+    
+    console.log('Verificação da estrutura de imagens concluída!');
+  } catch (error) {
+    console.error('Erro ao verificar a estrutura de imagens:', error);
+  }
+}
+
+function createPlaceholderImage() {
+  const placeholderPath = path.resolve(__dirname, './public/placeholder-image.jpg');
+  
+  if (fs.existsSync(placeholderPath)) {
+    console.log('Arquivo de placeholder já existe.');
+    return;
+  }
+  
+  console.log('Criando arquivo de placeholder...');
+  
+  // Conteúdo binário mínimo de um JPEG (1x1 pixel preto)
+  const minimalJpeg = Buffer.from([
+    0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48,
+    0x00, 0x48, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08,
+    0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D, 0x0C, 0x0B, 0x0B, 0x0C, 0x19, 0x12,
+    0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F, 0x1E, 0x1D, 0x1A, 0x1C, 0x1C, 0x20, 0x24, 0x2E, 0x27, 0x20,
+    0x22, 0x2C, 0x23, 0x1C, 0x1C, 0x28, 0x37, 0x29, 0x2C, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1F, 0x27,
+    0x39, 0x3D, 0x38, 0x32, 0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x00, 0x01,
+    0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xC4, 0x00, 0x14,
+    0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00, 0x00, 0x00, 0x00, 0xFF,
+    0xD9
+  ]);
+  
+  try {
+    fs.writeFileSync(placeholderPath, minimalJpeg);
+    console.log(`Arquivo de placeholder criado: ${placeholderPath}`);
+  } catch (error) {
+    console.error('Erro ao criar arquivo de placeholder:', error);
+  }
+}
+
+// Executar o script
+checkAndFixImageStructure()
+  .then(() => console.log('Script finalizado com sucesso.'))
+  .catch(error => console.error('Erro durante execução do script:', error));
+Modificações no Reservation Controller
+Para garantir que as imagens sejam exibidas corretamente na página de reservas, vamos modificar o controller:
+javascript// Em reservation.controller.ts - Modificação
+export async function getReservations(req: Request, res: Response) {
+  try {
+    const user = req.user!;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+
+    // Consulta SQL básica para obter reservas com produtos
+    const query = `
+      SELECT 
+        r.*,
+        p.id AS p_id,
+        p.name AS p_name,
+        p.description AS p_description,
+        p.category AS p_category,
+        p.price AS p_price,
+        p.discounted_price AS p_discounted_price,
+        p.stock AS p_stock,
+        p.store_id AS p_store_id,
+        s.name AS store_name
+      FROM 
+        reservations r
+      JOIN 
+        products p ON r.product_id = p.id
+      JOIN 
+        stores s ON p.store_id = s.id
+      WHERE 
+        r.user_id = $1
+      ORDER BY 
+        r.created_at DESC
+      ${limit ? `LIMIT ${limit}` : ''}
+    `;
+
+    const result = await pool.query(query, [user.id]);
+    
+    // Processar cada reserva
+    const reservations = [];
+    
+    for (const row of result.rows) {
+      // Construir a reserva básica
+      const reservation = {
+        id: row.id,
+        userId: row.user_id,
+        productId: row.product_id,
+        quantity: row.quantity,
+        status: row.status,
+        expiresAt: row.expires_at,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        // Campos planos para uso direto no front-end
+        product_id: row.p_id,
+        product_name: row.p_name,
+        product_price: row.p_price,
+        store_id: row.p_store_id,
+        store_name: row.store_name,
+        // URLs da API para imagens
+        product_image: `/api/products/${row.p_id}/primary-image`,
+        product_thumbnail: `/api/products/${row.p_id}/primary-image`,
+        // Objeto aninhado product
+        product: {
+          id: row.p_id,
+          name: row.p_name,
+          description: row.p_description,
+          category: row.p_category,
+          price: row.p_price,
+          discountedPrice: row.p_discounted_price,
+          stock: row.p_stock,
+          storeId: row.p_store_id,
+          images: []
+        }
+      };
+      
+      // Buscar imagens do produto
+      const imagesQuery = `
+        SELECT id, image_url, thumbnail_url, is_primary, display_order
+        FROM product_images
+        WHERE product_id = $1
+        ORDER BY is_primary DESC, display_order ASC, id ASC
+        LIMIT 5
+      `;
+      
+      const imagesResult = await pool.query(imagesQuery, [row.p_id]);
+      
+      if (imagesResult.rows.length > 0) {
+        // Adicionar imagens ao produto
+        reservation.product.images = imagesResult.rows.map(img => ({
+          id: img.id,
+          image_url: `/api/products/${row.p_id}/image/${img.id}`, // URL segura pela API
+          thumbnail_url: `/api/products/${row.p_id}/image/${img.id}`, // URL segura pela API
+          is_primary: img.is_primary
+        }));
+      } else {
+        // Se não houver imagens, adicionar um placeholder
+        reservation.product.images = [{
+          id: 0,
+          image_url: '/placeholder-image.jpg',
+          thumbnail_url: '/placeholder-image.jpg',
+          is_primary: true
+        }];
+      }
+      
+      reservations.push(reservation);
+    }
+
+    res.json(reservations);
+  } catch (error) {
+    console.error('Error getting reservations:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+Passos para Implementação
+
+Execute o script check-and-fix-image-structure.js para garantir que todos os diretórios necessários sejam criados corretamente
+Crie o arquivo image.controller.js com o código completo fornecido, adaptado à sua estrutura de dados
+Adicione as rotas para o Image Controller no seu arquivo de rotas
+Modifique o reservation.controller.ts para usar as APIs do Image Controller
+Atualize o front-end para usar as novas URLs de API para imagens
+
+Após implementar essas alterações, você terá um sistema robusto para gerenciar imagens de lojas e produtos, que lidará adequadamente com casos onde as imagens não estão disponíveis e oferecerá fallbacks apropriados.
+Quanto à sua pergunta sobre a necessidade de fazer upload novamente das imagens, a resposta é provavelmente sim. No entanto, esta implementação vai:
+
+Criar uma estrutura correta para as imagens
+Fornecer placeholders quando as imagens reais não estão disponíveis
+Facilitar o upload futuro de imagens, garantindo que sejam armazenadas e recuperadas corretamente
+
+Desta forma, você pode continuar desenvolvendo e testando o sistema enquanto gradualmente faz o upload das imagens reais.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas. 3.7 Sonnet
