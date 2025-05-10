@@ -380,6 +380,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/promotions/:id', PromotionController.getPromotion);
   app.post('/api/promotions', authMiddleware, verifyProductOwnership, PromotionController.createPromotion);
   app.put('/api/promotions/:id', authMiddleware, verifyProductOwnership, PromotionController.updatePromotion);
+  // New simplified endpoint for updating promotions
+  app.post('/api/promotions/:id/simple-update', authMiddleware, PromotionController.simpleUpdatePromotion);
   app.delete('/api/promotions/:id', authMiddleware, PromotionController.deletePromotion);
 
   // Coupon routes

@@ -1,0 +1,249 @@
+# Correção para o erro 500 ao atualizar promoção
+
+Analisando os logs, vemos que o erro ocorre após o backend receber os dados formatados para a API. O problema parece estar no processamento desses dados pelo servidor, resultando em um erro 500.
+
+## Solução: Implementar um endpoint simplificado de atualização
+
+Vamos criar um novo endpoint simplificado que atualiza apenas os campos que precisamos, usando uma abordagem mais direta:
+
+1. Adicione uma nova rota no backend:
+
+```javascript
+// Em routes/promotions.js ou similar
+// Adicionar uma nova rota para atualização simplificada
+router.post('/api/promotions/:id/simple-update', sellerMiddleware, promotionsController.simpleUpdatePromotion);
+
+Implemente o controlador simplificado:
+
+javascript// Em controllers/promotions.js
+// Nova função para atualização simplificada
+
+export async function simpleUpdatePromotion(req, res) {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+    
+    console.log(`[SimpleUpdate] Atualizando promoção ${id} com dados:`, req.body);
+    
+    // Verificar se a promoção existe
+    const existingPromotion = await storage.getPromotion(Number(id));
+    if (!existingPromotion) {
+      return res.status(404).json({ message: 'Promoção não encontrada' });
+    }
+    
+    // Verificar permissões do usuário
+    const product = await storage.getProduct(existingPromotion.productId);
+    const store = product ? await storage.getStore(product.storeId) : null;
+    
+    if (!product || !store || store.userId !== user.id) {
+      return res.status(403).json({ message: 'Não autorizado a editar esta promoção' });
+    }
+    
+    // Extrair apenas os campos que queremos atualizar
+    const { type, discountType, discountValue, startTime, endTime } = req.body;
+    
+    // Criar objeto de atualização com apenas os campos necessários
+    const updateData = {
+      type: type || existingPromotion.type,
+      discountType: discountType || existingPromotion.discountType,
+      discountValue: discountValue !== undefined ? Number(discountValue) : existingPromotion.discountValue,
+      startTime: startTime || existingPromotion.startTime,
+      endTime: endTime || existingPromotion.endTime,
+      // Manter o productId inalterado
+      productId: existingPromotion.productId
+    };
+    
+    console.log('[SimpleUpdate] Dados simplificados para atualização:', updateData);
+    
+    // Tentar atualização direto no banco de dados
+    const query = `
+      UPDATE promotions 
+      SET type = ?, 
+          discount_type = ?, 
+          discount_value = ?, 
+          start_time = ?, 
+          end_time = ? 
+      WHERE id = ?
+    `;
+    
+    const params = [
+      updateData.type,
+      updateData.discountType,
+      updateData.discountValue,
+      updateData.startTime,
+      updateData.endTime,
+      Number(id)
+    ];
+    
+    await db.query(query, params);
+    
+    console.log(`[SimpleUpdate] Promoção ${id} atualizada com sucesso`);
+    
+    // Responder com sucesso sem tentar buscar a promoção atualizada
+    return res.json({ 
+      id: Number(id),
+      message: 'Promoção atualizada com sucesso',
+      success: true
+    });
+  } catch (error) {
+    console.error('[SimpleUpdate] Erro ao atualizar promoção:', error);
+    return res.status(500).json({ 
+      message: 'Erro ao atualizar promoção', 
+      error: error.message 
+    });
+  }
+}
+
+Modifique o frontend para usar este novo endpoint:
+
+javascript// Em edit-promotion.tsx
+// Função de envio do formulário
+
+async function handleSubmit(event) {
+  event.preventDefault();
+  
+  try {
+    setIsSubmitting(true);
+    
+    // Formatar dados para API
+    const apiData = {
+      type: formData.type,
+      discountType: formData.discountType,
+      discountValue: Number(formData.discountValue),
+      startTime: new Date(formData.startTime).toISOString(),
+      endTime: new Date(formData.endTime).toISOString()
+    };
+    
+    console.log('Dados formatados para API:', apiData);
+    
+    // Usar o endpoint simplificado em vez do padrão
+    const response = await apiRequest(`/api/promotions/${id}/simple-update`, {
+      method: 'POST', // Usando POST em vez de PUT
+      data: apiData
+    });
+    
+    console.log('Resposta da atualização:', response);
+    
+    toast({
+      title: 'Sucesso',
+      description: 'Promoção atualizada com sucesso.',
+      variant: 'success'
+    });
+    
+    // Redirecionar após sucesso
+    router.push('/seller/promotions');
+  } catch (error) {
+    console.error('Erro ao atualizar promoção:', error);
+    
+    toast({
+      title: 'Erro',
+      description: 'Não foi possível atualizar a promoção. Tente novamente.',
+      variant: 'destructive'
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+}
+Alternativa: Implementar uma solução de fallback no frontend
+Se não for possível modificar o backend, podemos implementar uma solução de fallback completa no frontend:
+javascript// Em edit-promotion.tsx
+// Função de fallback para atualização
+
+async function handleSubmitWithFallback(event) {
+  event.preventDefault();
+  
+  try {
+    setIsSubmitting(true);
+    
+    // Formatar dados para API
+    const apiData = {
+      type: formData.type,
+      discountType: formData.discountType,
+      discountValue: Number(formData.discountValue),
+      startTime: new Date(formData.startTime).toISOString(),
+      endTime: new Date(formData.endTime).toISOString()
+    };
+    
+    console.log('Tentando atualizar promoção com método padrão...');
+    
+    try {
+      // Tentar método padrão primeiro
+      const response = await apiRequest(`/api/promotions/${id}`, {
+        method: 'PUT',
+        data: apiData
+      });
+      
+      console.log('Atualização bem-sucedida:', response);
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Promoção atualizada com sucesso.',
+        variant: 'success'
+      });
+      
+      // Redirecionar após sucesso
+      router.push('/seller/promotions');
+      return;
+    } catch (error) {
+      console.error('Falha no método padrão, tentando fallback:', error);
+      
+      // Se falhar, usar abordagem de excluir e recriar
+      console.log('Iniciando fallback: excluir e recriar...');
+      
+      // 1. Obter dados completos da promoção
+      const existingPromotion = await apiRequest(`/api/promotions/${id}`);
+      
+      // 2. Criar objeto de dados completo
+      const completeData = {
+        productId: existingPromotion.productId, // Manter o produto original
+        type: formData.type,
+        discountType: formData.discountType,
+        discountValue: Number(formData.discountValue),
+        startTime: new Date(formData.startTime).toISOString(),
+        endTime: new Date(formData.endTime).toISOString()
+      };
+      
+      console.log('Dados para recriar promoção:', completeData);
+      
+      // 3. Excluir promoção existente
+      await apiRequest(`/api/promotions/${id}`, {
+        method: 'DELETE'
+      });
+      
+      console.log('Promoção excluída com sucesso, recriando...');
+      
+      // 4. Criar nova promoção
+      const newPromotion = await apiRequest('/api/promotions', {
+        method: 'POST',
+        data: completeData
+      });
+      
+      console.log('Promoção recriada com sucesso:', newPromotion);
+      
+      toast({
+        title: 'Sucesso',
+        description: 'Promoção atualizada com sucesso (método alternativo).',
+        variant: 'success'
+      });
+      
+      // Redirecionar após sucesso
+      router.push('/seller/promotions');
+    }
+  } catch (error) {
+    console.error('Erro em todo o processo de atualização:', error);
+    
+    toast({
+      title: 'Erro',
+      description: 'Não foi possível atualizar a promoção. Tente novamente mais tarde.',
+      variant: 'destructive'
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+}
+Esta abordagem tem duas opções:
+
+Solução ideal: Criar um novo endpoint simplificado no backend que faz a atualização de forma mais direta e robusta.
+Alternativa: Se não for possível modificar o backend, implementar uma solução de fallback no frontend que exclui a promoção existente e cria uma nova com os dados atualizados.
+
+Ambas as abordagens devem resolver o problema de erro 500 ao atualizar a promoção.

@@ -306,7 +306,118 @@ export async function updatePromotion(req: Request, res: Response) {
   }
 }
 
-// Delete a promotion (sellers only)
+// New simplified method for promotion update
+export async function simpleUpdatePromotion(req: Request, res: Response) {
+  try {
+    // Ensure user is a seller
+    sellerMiddleware(req, res, async () => {
+      const { id } = req.params;
+      const user = req.user!;
+      
+      console.log(`[SimpleUpdate] Atualizando promoção ${id} com dados:`, req.body);
+      
+      // Get the promotion
+      const promotion = await storage.getPromotion(Number(id));
+      if (!promotion) {
+        return res.status(404).json({ message: 'Promotion not found' });
+      }
+      
+      // Get the product
+      const product = await storage.getProduct(promotion.productId);
+      if (!product) {
+        return res.status(404).json({ message: 'Product not found' });
+      }
+      
+      // Verify the product belongs to the user's store
+      const store = await storage.getStore(product.storeId);
+      if (!store || store.userId !== user.id) {
+        return res.status(403).json({ message: 'Not authorized to modify this promotion' });
+      }
+      
+      // Extract fields from request body
+      const { 
+        type,
+        discountType, 
+        discountValue,
+        startTime, 
+        endTime 
+      } = req.body;
+      
+      // Process discount fields - convert from frontend format to DB format
+      let discountPercentage = promotion.discountPercentage;
+      
+      if (discountType && discountValue) {
+        if (discountType === 'percentage') {
+          discountPercentage = Number(discountValue);
+        }
+      }
+      
+      // Format dates as needed
+      let formattedStartTime = startTime ? new Date(startTime).toISOString() : promotion.startTime;
+      let formattedEndTime = endTime ? new Date(endTime).toISOString() : promotion.endTime;
+      
+      // Using direct database query with snake_case column names
+      const { pool } = await import('../db');
+      
+      const query = `
+        UPDATE promotions 
+        SET 
+          type = $1,
+          discount_percentage = $2,
+          start_time = $3::timestamp,
+          end_time = $4::timestamp,
+          updated_at = NOW()
+        WHERE id = $5
+        RETURNING *;
+      `;
+      
+      const values = [
+        type || promotion.type,
+        discountPercentage,
+        formattedStartTime,
+        formattedEndTime,
+        Number(id)
+      ];
+      
+      console.log('[SimpleUpdate] Executing query with values:', {
+        query,
+        values
+      });
+      
+      const result = await pool.query(query, values);
+      console.log('[SimpleUpdate] Update result rows:', result.rows);
+      
+      if (!result.rows || result.rows.length === 0) {
+        return res.status(500).json({ message: 'Failed to update promotion' });
+      }
+      
+      const updatedPromotion = result.rows[0];
+      
+      // Transform snake_case back to camelCase for the response
+      const formattedPromotion = {
+        id: updatedPromotion.id,
+        productId: updatedPromotion.product_id,
+        type: updatedPromotion.type,
+        discountPercentage: updatedPromotion.discount_percentage,
+        startTime: updatedPromotion.start_time,
+        endTime: updatedPromotion.end_time,
+        createdAt: updatedPromotion.created_at,
+        updatedAt: updatedPromotion.updated_at
+      };
+      
+      console.log('[SimpleUpdate] Formatted promotion:', formattedPromotion);
+      
+      return res.json(formattedPromotion);
+    });
+  } catch (error) {
+    console.error('[SimpleUpdate] Error:', error);
+    res.status(500).json({ 
+      message: 'Internal server error', 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
 export async function deletePromotion(req: Request, res: Response) {
   try {
     // Ensure user is a seller
