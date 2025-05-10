@@ -2,12 +2,31 @@ import { Request, Response } from 'express';
 import { storage } from '../storage';
 import { pool } from '../db';
 
+// Interfaces para ajudar com tipagem
+interface ProductImage {
+  id: number;
+  image_url: string;
+  thumbnail_url: string;
+  is_primary: boolean;
+}
+
+interface Promotion {
+  id: number;
+  type: string;
+  discountPercentage: number | null;
+  discountAmount: number | null;
+  priceOverride: number | null;
+  startsAt: Date | null;
+  endsAt: Date | null;
+}
+
 // Get user wishlist
 export async function getWishlistItems(req: Request, res: Response) {
   try {
     const user = req.user!;
 
-    // Consulta SQL personalizada para obter itens da lista de desejos com produtos e imagens
+    // Consulta SQL personalizada para obter itens da lista de desejos com produtos, 
+    // imagens e informações de promoção para preservar o formato de exibição
     const query = `
       SELECT 
         w.*,
@@ -25,7 +44,15 @@ export async function getWishlistItems(req: Request, res: Response) {
         pi.id AS pi_id,
         pi.image_url AS pi_image_url,
         pi.thumbnail_url AS pi_thumbnail_url,
-        pi.is_primary AS pi_is_primary
+        pi.is_primary AS pi_is_primary,
+        -- Dados de promoção para preservar o formato
+        prom.id as promotion_id,
+        prom.type as promotion_type,
+        prom.discount_percentage,
+        prom.discount_amount,
+        prom.price_override,
+        prom.starts_at as promotion_starts_at,
+        prom.ends_at as promotion_ends_at
       FROM 
         wishlists w
       LEFT JOIN 
@@ -34,10 +61,16 @@ export async function getWishlistItems(req: Request, res: Response) {
         stores s ON p.store_id = s.id
       LEFT JOIN 
         product_images pi ON p.id = pi.product_id
+      LEFT JOIN
+        promotions prom ON p.id = prom.product_id AND 
+        (prom.ends_at IS NULL OR prom.ends_at > NOW())
       WHERE 
         w.user_id = $1
       ORDER BY 
-        w.created_at DESC, pi.is_primary DESC
+        w.created_at DESC, 
+        prom.type = 'flash' DESC,  -- Prioriza promoções relâmpago
+        prom.id DESC,              -- Promoção mais recente
+        pi.is_primary DESC         -- Depois imagem principal
     `;
 
     const result = await pool.query(query, [user.id]);
@@ -51,12 +84,31 @@ export async function getWishlistItems(req: Request, res: Response) {
       
       // Se este item ainda não foi processado, inicialize-o
       if (!wishlistMap.has(wishlistId)) {
+        // Verifique se o produto tem uma promoção ativa
+        const hasPromotion = row.promotion_id ? true : false;
+        
         // Crie o objeto base do item da wishlist
         const wishlistItem = {
           id: row.id,
           userId: row.user_id,
           productId: row.product_id,
           createdAt: row.created_at,
+          // Informações sobre promoção para formatação visual correta
+          promotion: hasPromotion ? {
+            id: row.promotion_id,
+            type: row.promotion_type, // 'regular' ou 'flash'
+            discountPercentage: row.discount_percentage,
+            discountAmount: row.discount_amount,
+            priceOverride: row.price_override,
+            startsAt: row.promotion_starts_at,
+            endsAt: row.promotion_ends_at
+          } : null,
+          // URL da imagem com o formato de visualização correto baseado no tipo
+          imageUrl: hasPromotion ? 
+            (row.promotion_type === 'flash' ? 
+              `/api/promotions/${row.promotion_id}/flash-image` : 
+              `/api/promotions/${row.promotion_id}/image`) :
+            `/api/products/${row.product_id}/primary-image`,
           // Objeto aninhado product
           product: {
             id: row.p_id,
@@ -86,7 +138,7 @@ export async function getWishlistItems(req: Request, res: Response) {
         
         // Verifique se esta imagem já foi adicionada
         const imageExists = wishlistItem.product.images.some(
-          (img) => img.id === row.pi_id
+          (img: ProductImage) => img.id === row.pi_id
         );
         
         if (!imageExists) {
@@ -123,7 +175,7 @@ export async function getWishlistItems(req: Request, res: Response) {
 
     // Ordene as imagens para que a principal venha primeiro em cada produto
     validWishlistItems.forEach(item => {
-      item.product.images.sort((a, b) => {
+      item.product.images.sort((a: ProductImage, b: ProductImage) => {
         if (a.is_primary && !b.is_primary) return -1;
         if (!a.is_primary && b.is_primary) return 1;
         return 0;

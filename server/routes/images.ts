@@ -17,6 +17,10 @@ router.get('/products/:id/image/:imageId', imageController.getProductImage);
 router.get('/stores/:id/primary-image', imageController.getStorePrimaryImage);
 router.get('/stores/:id/images', imageController.getStoreImages);
 
+// Rotas para imagens de promoções (mantém padrão visual específico)
+router.get('/promotions/:id/image', imageController.getPromotionImage);
+router.get('/promotions/:id/flash-image', imageController.getFlashPromotionImage);
+
 // Rotas para imagens de reservas (protegidas por autenticação)
 router.get('/reservations/:id/image', authMiddleware, imageController.getReservationImage);
 
