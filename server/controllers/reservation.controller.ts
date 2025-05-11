@@ -23,6 +23,38 @@ interface Promotion {
   endsAt: Date | null;
 }
 
+// Limpar todas as reservas canceladas do usuário
+export async function clearCancelledReservations(req: Request, res: Response) {
+  try {
+    const user = req.user!;
+    
+    console.log(`Limpando reservas canceladas para o usuário ${user.id}`);
+    
+    // Executar query para excluir todas as reservas canceladas do usuário
+    const result = await pool.query(
+      `DELETE FROM reservations 
+       WHERE user_id = $1 AND status = 'cancelled'
+       RETURNING id`,
+      [user.id]
+    );
+    
+    const deletedCount = result.rowCount;
+    console.log(`${deletedCount} reservas canceladas foram removidas`);
+    
+    return res.status(200).json({
+      success: true,
+      message: `${deletedCount} reservas canceladas foram removidas`,
+      count: deletedCount
+    });
+  } catch (error) {
+    console.error('Erro ao limpar reservas canceladas:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro ao limpar reservas canceladas'
+    });
+  }
+}
+
 // Get user reservations
 export async function getReservations(req: Request, res: Response) {
   try {
