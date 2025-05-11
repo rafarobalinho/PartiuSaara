@@ -446,6 +446,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/subscriptions/purchase', authMiddleware, SubscriptionController.purchaseSubscription);
   app.get('/api/subscriptions/my-plan', authMiddleware, SubscriptionController.getMySubscription);
 
+  // Rota de estatísticas para o painel do vendedor
+  app.get('/api/seller/stats', authMiddleware, async (req: Request, res: Response) => {
+    const user = req.user;
+    if (!user) return res.status(401).json({ message: 'Unauthorized' });
+    
+    try {
+      // Buscar a loja do vendedor
+      const stores = await storage.getStoresByUserId(user.id);
+      if (!stores.length) {
+        return res.status(404).json({ message: 'Nenhuma loja encontrada' });
+      }
+      
+      const storeId = stores[0].id;
+      
+      // Buscar estatísticas
+      // Número total de produtos
+      const products = await pool.query(
+        `SELECT COUNT(*) as total FROM products WHERE store_id = $1`,
+        [storeId]
+      );
+      
+      // Número total de reservas (excluindo as canceladas)
+      const reservations = await pool.query(
+        `SELECT COUNT(*) as total FROM reservations r
+         JOIN products p ON r.product_id = p.id
+         WHERE p.store_id = $1 
+         AND r.status != 'cancelled'`,
+        [storeId]
+      );
+      
+      // Número de reservas pendentes
+      const pendingReservations = await pool.query(
+        `SELECT COUNT(*) as total FROM reservations r
+         JOIN products p ON r.product_id = p.id
+         WHERE p.store_id = $1 AND r.status = 'pending'`,
+        [storeId]
+      );
+      
+      // Número total de cupons/promoções
+      const coupons = await pool.query(
+        `SELECT COUNT(*) as total FROM promotions WHERE store_id = $1`,
+        [storeId]
+      );
+      
+      res.json({
+        totalProducts: parseInt(products.rows[0].total) || 0,
+        totalReservations: parseInt(reservations.rows[0].total) || 0,
+        pendingReservations: parseInt(pendingReservations.rows[0].total) || 0,
+        totalCoupons: parseInt(coupons.rows[0].total) || 0
+      });
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas do vendedor:', error);
+      res.status(500).json({ message: 'Erro ao buscar estatísticas' });
+    }
+  });
+
   // Store analytics routes
   app.get('/api/stores/:id/analytics', authMiddleware, verifyStoreOwnership, async (req: Request, res: Response) => {
     const user = req.user;
