@@ -20,6 +20,8 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
+  verifyUserPassword(id: number, password: string): Promise<boolean>;
   
   // Store operations
   getStore(id: number): Promise<Store | undefined>;
@@ -1495,6 +1497,50 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Implementação dos métodos adicionados à interface
+  
+  async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
+    try {
+      // Remover o campo de senha se estiver vazio
+      if (userData.password === '') {
+        delete userData.password;
+      }
+      
+      // Se for atualizar a senha, hashear a nova senha
+      if (userData.password) {
+        const salt = await bcrypt.genSalt(10);
+        userData.password = await bcrypt.hash(userData.password, salt);
+      }
+      
+      // Atualizar a data de modificação
+      userData.updatedAt = new Date();
+      
+      // Executar a atualização
+      const [updatedUser] = await db
+        .update(users)
+        .set(userData)
+        .where(eq(users.id, id))
+        .returning();
+      
+      return updatedUser;
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      return undefined;
+    }
+  }
+  
+  async verifyUserPassword(id: number, password: string): Promise<boolean> {
+    try {
+      // Obter o usuário pelo ID
+      const user = await this.getUser(id);
+      if (!user) return false;
+      
+      // Verificar a senha usando bcrypt
+      return await bcrypt.compare(password, user.password);
+    } catch (error) {
+      console.error('Erro ao verificar senha:', error);
+      return false;
+    }
+  }
   
   async getUserStores(userId: number): Promise<Store[]> {
     return this.getStoresByUserId(userId);
