@@ -63,16 +63,7 @@ export default function Account() {
   });
   const [passwordFieldsEnabled, setPasswordFieldsEnabled] = useState(false);
   
-  // Ao receber os dados do usuário, preencher o formulário
-  useEffect(() => {
-    if (userData) {
-      setProfileForm(prev => ({
-        ...prev,
-        name: userData.name || '',
-        email: userData.email || ''
-      }));
-    }
-  }, [userData]);
+  // Dados do usuário são obtidos na useQuery abaixo
 
   // Função para lidar com as mudanças nos campos do formulário
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,7 +162,7 @@ export default function Account() {
         // Fechar o modal e atualizar os dados
         setIsEditProfileOpen(false);
         // Invalidar a query para recarregar os dados do usuário
-        queryClient.invalidateQueries(['/api/users/me']);
+        queryClient.invalidateQueries({ queryKey: ['/api/users/me'] });
         
         toast({
           title: "Perfil atualizado",

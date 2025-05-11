@@ -6,6 +6,7 @@ import fs from "fs";
 import { storage } from "./storage";
 import { authMiddleware, adminMiddleware } from "./middleware/auth";
 import * as AuthController from "./controllers/auth.controller";
+import * as UserController from "./controllers/user.controller";
 import * as ProductController from "./controllers/product.controller";
 import * as StoreController from "./controllers/store.controller";
 import * as PromotionController from "./controllers/promotion.controller";
@@ -37,21 +38,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/me', authMiddleware, AuthController.getCurrentUser);
 
   // User routes
-  app.get('/api/users/me', authMiddleware, async (req: Request, res: Response) => {
-    const user = req.user;
-    if (!user) return res.status(401).json({ message: 'Unauthorized' });
-    
-    const userData = await storage.getUser(user.id);
-    if (!userData) return res.status(404).json({ message: 'User not found' });
-    
-    // Get user stats
-    const stats = await storage.getUserStats(user.id);
-    
-    // Remove password from response
-    const { password, ...userWithoutPassword } = userData;
-    
-    res.json({ ...userWithoutPassword, stats });
-  });
+  app.get('/api/users/me', authMiddleware, UserController.getCurrentUser);
+  app.post('/api/users/verify-password', authMiddleware, UserController.verifyPassword);
+  app.put('/api/users/update', authMiddleware, UserController.updateUser);
 
   // Category routes
   app.get('/api/categories', async (req: Request, res: Response) => {
