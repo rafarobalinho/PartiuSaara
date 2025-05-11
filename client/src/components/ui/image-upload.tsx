@@ -343,7 +343,8 @@ const ImageUploadComponent = forwardRef(({
         } else {
           // Temos um ID, tenta excluir
           console.log(`Removendo imagem (método alternativo): tipo=${type}, id=${imageId}`);
-          await apiRequest('DELETE', `/api/upload/images/${imageId}?type=${type}`, {});
+          // Usar a nova rota de exclusão de imagens
+          await apiRequest('DELETE', `/api/images/${imageId}?type=${type}`, {});
         }
       } else {
         // Formato reconhecido, extrai o ID diretamente
@@ -351,7 +352,8 @@ const ImageUploadComponent = forwardRef(({
         const imageId = filename.split('.')[0]; // Remove extensão se houver
         
         console.log(`Removendo imagem: tipo=${type}, id=${imageId}, URL=${imageToRemove}`);
-        const response = await apiRequest('DELETE', `/api/upload/images/${imageId}?type=${type}`, {});
+        // Usar a nova rota de exclusão de imagens
+        const response = await apiRequest('DELETE', `/api/images/${imageId}?type=${type}`, {});
         
         if (!response.ok) {
           const errorData = await response.json();

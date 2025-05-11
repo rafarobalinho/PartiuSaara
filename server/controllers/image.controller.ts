@@ -3,7 +3,7 @@ import { pool } from '../db';
 import fs from 'fs';
 import path from 'path';
 
-// Estender a interface Request para incluir validatedEntity
+// Estender a interface Request para incluir validatedEntity e user
 declare global {
   namespace Express {
     interface Request {
@@ -11,6 +11,12 @@ declare global {
         productId: number;
         storeId: number;
         storeName: string;
+      };
+      user?: {
+        id: number;
+        email: string;
+        name?: string;
+        role?: string;
       };
     }
   }
@@ -998,6 +1004,14 @@ export const deleteImage = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { type } = req.query;
+    
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Não autorizado. Faça login para continuar.' 
+      });
+    }
+    
     const userId = req.user.id;
 
     if (!id || !type) {
