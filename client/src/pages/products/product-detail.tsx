@@ -11,6 +11,7 @@ import { apiRequest } from '@/lib/queryClient';
 import ProductCard from '@/components/ui/product-card';
 import CountdownTimer from '@/components/ui/countdown-timer';
 import { Loader2 } from 'lucide-react';
+import { ImageComponent } from '@/components/ui/image-component';
 
 // Função que verifica se uma imagem deve ser usada
 function getValidImage(imageUrl: string | undefined, fallbackUrl: string): string {
@@ -35,6 +36,7 @@ interface Product {
   discountedPrice?: number;
   category: string;
   stock: number;
+  storeId: number; // ID da loja adicionado para uso com ImageComponent
   images: any[]; // Alterado para aceitar strings ou objetos
   store?: {
     id: number;
@@ -106,7 +108,7 @@ export default function ProductDetail() {
           discountedPrice: typeof data.product.discountedPrice === 'number' ? data.product.discountedPrice : null,
           stock: typeof data.product.stock === 'number' ? data.product.stock : 0,
           category: data.product.category || 'Sem categoria',
-          storeId: data.product.storeId,
+          storeId: data.product.storeId || data.product.store_id || 0, // Garantir que temos o ID da loja
           images: []
         };
         
@@ -301,12 +303,14 @@ export default function ProductDetail() {
           {/* Imagem principal do produto */}
           <div className="relative pt-[56.25%] bg-gray-100">
             {productData && productData.images && productData.images.length > 0 ? (
-              <img 
+              <ImageComponent 
                 src={typeof productData.images[activeImage] === 'string' 
                   ? productData.images[activeImage] 
                   : productData.images[activeImage].image_url || '/placeholder-image.jpg'} 
                 alt={productData.name} 
-                className="absolute top-0 left-0 w-full h-full object-contain p-4" 
+                className="absolute top-0 left-0 w-full h-full object-contain p-4"
+                productId={productData.id}
+                storeId={productData.storeId}
               />
             ) : (
               <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
@@ -331,12 +335,14 @@ export default function ProductDetail() {
                     className={`w-20 h-20 flex-shrink-0 rounded-md overflow-hidden border-2 cursor-pointer ${activeImage === index ? 'border-primary' : 'border-gray-200'}`}
                     onClick={() => setActiveImage(index)}
                   >
-                    <img 
+                    <ImageComponent 
                       src={typeof image === 'string' 
                         ? image 
                         : (image.thumbnail_url || image.image_url || '/placeholder-image.jpg')} 
                       alt={`${productData.name} - imagem ${index + 1}`} 
-                      className="w-full h-full object-cover" 
+                      className="w-full h-full object-cover"
+                      productId={productData.id}
+                      storeId={productData.storeId}
                     />
                   </div>
                 ))
