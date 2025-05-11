@@ -384,10 +384,35 @@ export default function SellerProducts() {
                             size="sm" 
                             variant="ghost" 
                             className="text-gray-600 hover:text-red-600"
-                            onClick={() => {
+                            onClick={async () => {
                               if (window.confirm(`Tem certeza que deseja excluir o produto "${product.name}"?`)) {
-                                // Aqui você chamaria a API para excluir o produto
-                                alert('Funcionalidade de exclusão a ser implementada');
+                                try {
+                                  const response = await fetch(`/api/products/${product.id}`, {
+                                    method: 'DELETE',
+                                    credentials: 'include'
+                                  });
+                                  
+                                  const result = await response.json();
+                                  
+                                  if (result.success) {
+                                    // Atualizar a lista de produtos após exclusão
+                                    refetch();
+                                    toast({
+                                      title: "Produto excluído",
+                                      description: result.message || "Produto excluído com sucesso",
+                                      variant: "default",
+                                    });
+                                  } else {
+                                    throw new Error(result.message || 'Erro ao excluir produto');
+                                  }
+                                } catch (error) {
+                                  console.error('Erro ao excluir produto:', error);
+                                  toast({
+                                    title: "Erro",
+                                    description: error instanceof Error ? error.message : 'Erro ao excluir produto',
+                                    variant: "destructive",
+                                  });
+                                }
                               }
                             }}
                             title="Excluir produto"
