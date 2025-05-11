@@ -123,7 +123,8 @@ export default function Reservations() {
   // Mutation para limpar todas as reservas canceladas
   const clearCancelledMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('DELETE', `/api/reservations/cancelled`);
+      const response = await apiRequest('DELETE', `/api/reservations/cancelled`);
+      return response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/reservations'] });
@@ -243,6 +244,31 @@ export default function Reservations() {
               </TabsList>
 
               <TabsContent value={activeTab} className="space-y-4">
+                {/* Botão para limpar reservas canceladas - somente aparece na aba de canceladas */}
+                {activeTab === 'cancelled' && filteredReservations.length > 0 && (
+                  <div className="flex justify-end mb-4">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="border-red-500 text-red-500 hover:bg-red-50"
+                      onClick={handleClearCancelledReservations}
+                      disabled={clearCancelledMutation.isPending}
+                    >
+                      {clearCancelledMutation.isPending ? (
+                        <>
+                          <i className="fas fa-spinner fa-spin mr-2"></i>
+                          Limpando...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-trash mr-2"></i>
+                          Limpar reservas canceladas
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+
                 {isLoading ? (
                   <div className="space-y-4">
                     {[1, 2, 3].map((_, index) => (
