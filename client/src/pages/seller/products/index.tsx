@@ -280,12 +280,14 @@ export default function SellerProducts() {
                         size="sm" 
                         variant="outline"
                         className="flex-1 py-1 text-xs border-gray-300 rounded"
+                        onClick={() => navigate(`/seller/products/${product.id}/edit`)}
                       >
                         <i className="fas fa-pencil-alt mr-1"></i> Editar
                       </Button>
                       <Button 
                         size="sm"
                         className="flex-1 py-1 text-xs bg-primary hover:bg-primary/90 rounded text-white"
+                        onClick={() => navigate(`/products/${product.id}`)}
                       >
                         <i className="fas fa-eye mr-1"></i> Ver
                       </Button>
@@ -373,6 +375,8 @@ export default function SellerProducts() {
                             size="sm" 
                             variant="ghost" 
                             className="text-gray-600 hover:text-primary"
+                            onClick={() => navigate(`/seller/products/${product.id}/edit`)}
+                            title="Editar produto"
                           >
                             <i className="fas fa-pencil-alt"></i>
                           </Button>
@@ -380,6 +384,13 @@ export default function SellerProducts() {
                             size="sm" 
                             variant="ghost" 
                             className="text-gray-600 hover:text-red-600"
+                            onClick={() => {
+                              if (window.confirm(`Tem certeza que deseja excluir o produto "${product.name}"?`)) {
+                                // Aqui você chamaria a API para excluir o produto
+                                alert('Funcionalidade de exclusão a ser implementada');
+                              }
+                            }}
+                            title="Excluir produto"
                           >
                             <i className="fas fa-trash"></i>
                           </Button>
