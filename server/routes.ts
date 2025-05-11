@@ -171,6 +171,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/products', authMiddleware, ProductController.createProduct);
   app.put('/api/products/:id', authMiddleware, verifyProductOwnership, ProductController.updateProduct);
   
+  // Rota para excluir um produto
+  app.delete('/api/products/:id', authMiddleware, verifyProductOwnership, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const productId = parseInt(id);
+      
+      if (isNaN(productId)) {
+        return res.status(400).json({ message: 'ID de produto inválido' });
+      }
+      
+      console.log(`Solicitação para excluir produto ID: ${productId}`);
+      
+      // 1. Verificar se o produto existe
+      const product = await db.query.products.findFirst({
+        where: eq(products.id, productId),
+      });
+      
+      if (!product) {
+        return res.status(404).json({ message: 'Produto não encontrado' });
+      }
+      
+      // 2. Excluir imagens do produto
+      await db.delete(productImages)
+        .where(eq(productImages.productId, productId));
+      
+      // 3. Excluir reservas do produto
+      await db.delete(reservations)
+        .where(eq(reservations.productId, productId));
+      
+      // 4. Excluir promoções do produto
+      await db.delete(promotions)
+        .where(eq(promotions.productId, productId));
+      
+      // 5. Excluir o produto
+      await db.delete(products)
+        .where(eq(products.id, productId));
+      
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Produto excluído com sucesso' 
+      });
+    } catch (error) {
+      console.error('Erro ao excluir produto:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao excluir produto' 
+      });
+    }
+  });
+  
   // Rota para ativar/desativar um produto
   app.put('/api/products/:id/toggle-status', authMiddleware, verifyProductOwnership, async (req: Request, res: Response) => {
     try {
