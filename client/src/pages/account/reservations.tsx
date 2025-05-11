@@ -119,6 +119,37 @@ export default function Reservations() {
   const handleCompleteReservation = (id: number) => {
     updateStatusMutation.mutate({ id, status: 'completed' });
   };
+  
+  // Mutation para limpar todas as reservas canceladas
+  const clearCancelledMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('DELETE', `/api/reservations/cancelled`);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/reservations'] });
+      
+      toast({
+        title: 'Reservas canceladas removidas',
+        description: data.message || 'Todas as reservas canceladas foram removidas com sucesso.',
+        variant: "default",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro',
+        description: 'Ocorreu um erro ao limpar as reservas canceladas.',
+        variant: "destructive",
+      });
+      console.error('Error clearing cancelled reservations:', error);
+    }
+  });
+  
+  // Função para limpar todas as reservas canceladas
+  const handleClearCancelledReservations = () => {
+    if (confirm('Tem certeza que deseja remover todas as reservas canceladas? Esta ação não pode ser desfeita.')) {
+      clearCancelledMutation.mutate();
+    }
+  };
 
   const filteredReservations = reservations.filter((reservation) => {
     if (activeTab === 'all') return true;

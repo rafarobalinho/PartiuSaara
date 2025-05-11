@@ -439,6 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/reservations', authMiddleware, ReservationController.getReservations);
   app.post('/api/reservations', authMiddleware, ReservationController.createReservation);
   app.put('/api/reservations/:id/status', authMiddleware, ReservationController.updateReservationStatus);
+  app.delete('/api/reservations/cancelled', authMiddleware, ReservationController.clearCancelledReservations);
 
   // Subscription routes (for sellers)
   app.get('/api/subscriptions/plans', SubscriptionController.getSubscriptionPlans);
