@@ -24,4 +24,7 @@ router.get('/promotions/:id/flash-image', imageController.getFlashPromotionImage
 // Rotas para imagens de reservas (protegidas por autenticação)
 router.get('/reservations/:id/image', authMiddleware, imageController.getReservationImage);
 
+// Rota para exclusão de imagens (protegida por autenticação)
+router.delete('/:id', authMiddleware, imageController.deleteImage);
+
 export default router;

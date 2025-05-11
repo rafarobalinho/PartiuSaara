@@ -989,6 +989,198 @@ export const getFlashPromotionImage = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * @route DELETE /api/images/:id
+ * @desc Exclui uma imagem do produto ou loja
+ * @access Privado
+ */
+export const deleteImage = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type } = req.query;
+    const userId = req.user.id;
+
+    if (!id || !type) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Parâmetros obrigatórios não fornecidos: id e type (store ou product)' 
+      });
+    }
+
+    // Verificar se o tipo é válido
+    if (type !== 'store' && type !== 'product') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Tipo inválido. Deve ser "store" ou "product"' 
+      });
+    }
+
+    if (type === 'product') {
+      // Verificar se a imagem pertence a um produto do usuário
+      const ownershipQuery = `
+        SELECT pi.id, pi.product_id, pi.image_url, pi.thumbnail_url, pi.is_primary,
+               p.store_id
+        FROM product_images pi
+        JOIN products p ON pi.product_id = p.id
+        JOIN stores s ON p.store_id = s.id
+        WHERE pi.id = $1 AND s.user_id = $2
+      `;
+      
+      const ownershipResult = await pool.query(ownershipQuery, [id, userId]);
+      
+      if (ownershipResult.rows.length === 0) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Você não tem permissão para excluir esta imagem' 
+        });
+      }
+      
+      const image = ownershipResult.rows[0];
+      const productId = image.product_id;
+      const storeId = image.store_id;
+      
+      // Excluir a imagem do banco de dados
+      await pool.query('DELETE FROM product_images WHERE id = $1', [id]);
+      
+      // Se era a imagem principal, definir outra como principal
+      if (image.is_primary) {
+        const updateQuery = `
+          UPDATE product_images 
+          SET is_primary = true 
+          WHERE product_id = $1 
+          ORDER BY display_order ASC, id ASC 
+          LIMIT 1
+        `;
+        
+        await pool.query(updateQuery, [productId]);
+      }
+      
+      // Tentar excluir os arquivos físicos
+      try {
+        const secureImagePath = image.image_url.includes(`/uploads/stores/${storeId}/products/${productId}/`) 
+          ? image.image_url 
+          : `/uploads/stores/${storeId}/products/${productId}/${image.image_url.split('/').pop()}`;
+          
+        const secureThumbnailPath = image.thumbnail_url.includes(`/uploads/stores/${storeId}/products/${productId}/`) 
+          ? image.thumbnail_url 
+          : `/uploads/stores/${storeId}/products/${productId}/thumb-${image.thumbnail_url.split('/').pop().replace('thumb-', '')}`;
+        
+        const imagePath = path.join(process.cwd(), 'public', secureImagePath);
+        const thumbnailPath = path.join(process.cwd(), 'public', secureThumbnailPath);
+        
+        // Também tentar o caminho original
+        const originalImagePath = path.join(process.cwd(), 'public', image.image_url);
+        const originalThumbnailPath = path.join(process.cwd(), 'public', image.thumbnail_url);
+        
+        const deleteFileIfExists = (filePath: string) => {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            return true;
+          }
+          return false;
+        };
+        
+        // Tentar excluir em ambos os caminhos possíveis
+        const imageDeleted = deleteFileIfExists(imagePath) || deleteFileIfExists(originalImagePath);
+        const thumbnailDeleted = deleteFileIfExists(thumbnailPath) || deleteFileIfExists(originalThumbnailPath);
+        
+        console.log(`Arquivos físicos excluídos: imagem=${imageDeleted}, thumbnail=${thumbnailDeleted}`);
+      } catch (fileError) {
+        console.error('Erro ao excluir arquivos físicos:', fileError);
+        // Continuar mesmo com erro ao excluir arquivos
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: 'Imagem excluída com sucesso' 
+      });
+    } else if (type === 'store') {
+      // Verificar se a imagem pertence a uma loja do usuário
+      const ownershipQuery = `
+        SELECT si.id, si.store_id, si.image_url, si.thumbnail_url, si.is_primary
+        FROM store_images si
+        JOIN stores s ON si.store_id = s.id
+        WHERE si.id = $1 AND s.user_id = $2
+      `;
+      
+      const ownershipResult = await pool.query(ownershipQuery, [id, userId]);
+      
+      if (ownershipResult.rows.length === 0) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Você não tem permissão para excluir esta imagem' 
+        });
+      }
+      
+      const image = ownershipResult.rows[0];
+      const storeId = image.store_id;
+      
+      // Excluir a imagem do banco de dados
+      await pool.query('DELETE FROM store_images WHERE id = $1', [id]);
+      
+      // Se era a imagem principal, definir outra como principal
+      if (image.is_primary) {
+        const updateQuery = `
+          UPDATE store_images 
+          SET is_primary = true 
+          WHERE store_id = $1 
+          ORDER BY display_order ASC, id ASC 
+          LIMIT 1
+        `;
+        
+        await pool.query(updateQuery, [storeId]);
+      }
+      
+      // Tentar excluir os arquivos físicos
+      try {
+        const secureImagePath = image.image_url.includes(`/uploads/stores/${storeId}/`) 
+          ? image.image_url 
+          : `/uploads/stores/${storeId}/${image.image_url.split('/').pop()}`;
+          
+        const secureThumbnailPath = image.thumbnail_url.includes(`/uploads/stores/${storeId}/`) 
+          ? image.thumbnail_url 
+          : `/uploads/stores/${storeId}/thumb-${image.thumbnail_url.split('/').pop().replace('thumb-', '')}`;
+        
+        const imagePath = path.join(process.cwd(), 'public', secureImagePath);
+        const thumbnailPath = path.join(process.cwd(), 'public', secureThumbnailPath);
+        
+        // Também tentar o caminho original
+        const originalImagePath = path.join(process.cwd(), 'public', image.image_url);
+        const originalThumbnailPath = path.join(process.cwd(), 'public', image.thumbnail_url);
+        
+        const deleteFileIfExists = (filePath: string) => {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            return true;
+          }
+          return false;
+        };
+        
+        // Tentar excluir em ambos os caminhos possíveis
+        const imageDeleted = deleteFileIfExists(imagePath) || deleteFileIfExists(originalImagePath);
+        const thumbnailDeleted = deleteFileIfExists(thumbnailPath) || deleteFileIfExists(originalThumbnailPath);
+        
+        console.log(`Arquivos físicos excluídos: imagem=${imageDeleted}, thumbnail=${thumbnailDeleted}`);
+      } catch (fileError) {
+        console.error('Erro ao excluir arquivos físicos:', fileError);
+        // Continuar mesmo com erro ao excluir arquivos
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: 'Imagem excluída com sucesso' 
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao excluir imagem:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao excluir imagem',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
+};
+
 export default {
   getProductPrimaryImage,
   getProductThumbnail,
@@ -999,5 +1191,6 @@ export default {
   getReservationImage,
   getPlaceholderImage,
   getPromotionImage,
-  getFlashPromotionImage
+  getFlashPromotionImage,
+  deleteImage
 };
