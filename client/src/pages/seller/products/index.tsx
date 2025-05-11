@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ImageComponent } from '@/components/ui/image-component';
+import { useToast } from '@/hooks/use-toast';
 
 // Interfaces para tipagem
 interface Store {
@@ -37,6 +38,7 @@ export default function SellerProducts() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [isLoadingImages, setIsLoadingImages] = useState(false);
+  const { toast } = useToast();
   const [productsWithImages, setProductsWithImages] = useState<Product[]>([]);
 
   // Redirect if not authenticated or not a seller

@@ -19,7 +19,7 @@ import * as PlaceDetailsController from "./controllers/place_details.controller"
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db, pool } from "./db";
 import { and, eq } from "drizzle-orm";
-import { storeImages, productImages, products, stores, users } from "@shared/schema";
+import { storeImages, productImages, products, stores, users, reservations, promotions } from "@shared/schema";
 import imagesRoutes from "./routes/images";
 import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
 import { comparePasswords } from './utils/auth';
