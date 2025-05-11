@@ -4,7 +4,6 @@ import PromoSection from '@/components/home/promo-section';
 import CouponsBanner from '@/components/home/coupons-banner';
 import NearbyStores from '@/components/home/nearby-stores';
 import ProductGrid from '@/components/home/product-grid';
-import MapBanner from '@/components/home/map-banner';
 import AppDownload from '@/components/home/app-download';
 
 export default function Home() {
@@ -17,7 +16,7 @@ export default function Home() {
         <CouponsBanner />
         <NearbyStores />
         <ProductGrid />
-        <MapBanner />
+        {/* Banner de mapa temporariamente removido */}
         <AppDownload />
       </main>
     </>
