@@ -1,0 +1,280 @@
+Analisando os problemas que você está enfrentando com as imagens, vejo que existem questões de carregamento incorreto de imagens no seu aplicativo. As imagens estão sendo buscadas nos locais errados ou exibindo imagens de produtos diferentes.
+
+Vou apresentar uma solução passo a passo para corrigir esses problemas:
+
+Solução para correção do carregamento de imagens
+Primeiro, vamos criar um componente de imagem que trata adequadamente casos de erro e usa placeholders quando necessário:
+
+javascript
+// ImageComponent.jsx
+import React, { useState, useEffect } from 'react';
+
+const ImageComponent = ({ src, alt, className, productId, storeId }) => {
+  const [imageSrc, setImageSrc] = useState(src);
+  const [hasError, setHasError] = useState(false);
+  
+  // Reconstruir um caminho seguro para a imagem quando necessário
+  useEffect(() => {
+    if (src && productId && storeId) {
+      // Verificar se o caminho já está no formato correto
+      const expectedPathPattern = `/uploads/stores/${storeId}/products/${productId}/`;
+      
+      if (!src.includes(expectedPathPattern) && !src.includes('/api/products/')) {
+        try {
+          // Extrair o nome do arquivo da URL original
+          const fileName = src.split('/').pop();
+          // Construir um caminho seguro
+          const securePath = `${expectedPathPattern}${fileName}`;
+          setImageSrc(securePath);
+        } catch (e) {
+          console.error("Erro ao processar caminho de imagem:", e);
+        }
+      }
+    }
+  }, [src, productId, storeId]);
+  
+  // Handler para tratar erros de carregamento de imagem
+  const handleError = () => {
+    if (!hasError) {
+      setHasError(true);
+      // Se estiver usando API, usar a URL da API como fallback
+      if (productId && !imageSrc.includes('/api/products/')) {
+        setImageSrc(`/api/products/${productId}/primary-image`);
+      } else {
+        // Último fallback é o placeholder
+        setImageSrc('/placeholder-image.jpg');
+      }
+    }
+  };
+  
+  return (
+    <img 
+      src={imageSrc} 
+      alt={alt} 
+      className={className} 
+      onError={handleError}
+    />
+  );
+};
+
+export default ImageComponent;
+Agora, vamos modificar a página /seller/products para usar esse componente:
+
+javascript
+// seller/products/index.tsx
+// Importe o novo componente
+import ImageComponent from '../../components/ImageComponent';
+
+// Na parte onde você renderiza a lista de produtos, substitua o <img>
+{products.map((product) => (
+  <tr key={product.id}>
+    <td>
+      <div className="flex items-center">
+        <ImageComponent 
+          src={product.image_url || `/api/products/${product.id}/primary-image`}
+          alt={product.name}
+          className="h-10 w-10 object-cover"
+          productId={product.id}
+          storeId={product.store_id}
+        />
+        <div className="ml-3">
+          <p className="font-medium">{product.name}</p>
+          <p className="text-xs text-gray-500">ID: #{product.id}</p>
+        </div>
+      </div>
+    </td>
+    {/* Restante das colunas */}
+  </tr>
+))}
+Para corrigir o controlador de imagens no backend, vamos implementar uma função que valida o relacionamento entre produto e loja:
+
+javascript
+// server/controllers/image.controller.js
+// Adicione esta função ao seu controlador
+
+// Middleware para validar relacionamentos de imagens
+const validateImageRelationship = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    
+    if (!productId) {
+      return next();
+    }
+    
+    // Verificar se o produto existe e a que loja pertence
+    const productQuery = `
+      SELECT p.id, p.store_id 
+      FROM products p
+      WHERE p.id = $1
+    `;
+    
+    const productResult = await pool.query(productQuery, [productId]);
+    
+    if (productResult.rows.length === 0) {
+      console.error(`Produto não encontrado: ${productId}`);
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    const storeId = productResult.rows[0].store_id;
+    
+    // Adicionar informações validadas ao request para uso nas próximas funções
+    req.validatedProduct = {
+      id: parseInt(productId),
+      storeId: storeId
+    };
+    
+    next();
+  } catch (error) {
+    console.error('Erro na validação de relacionamento:', error);
+    return res.redirect('/placeholder-image.jpg');
+  }
+};
+
+// Modificar a função getProductPrimaryImage para usar a validação
+exports.getProductPrimaryImage = [validateImageRelationship, async (req, res) => {
+  try {
+    const productId = req.validatedProduct?.id;
+    const storeId = req.validatedProduct?.storeId;
+    
+    if (!productId || !storeId) {
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    // Buscar a imagem principal do produto
+    const imageQuery = `
+      SELECT pi.id, pi.image_url, pi.thumbnail_url, pi.is_primary
+      FROM product_images pi
+      WHERE pi.product_id = $1
+      ORDER BY pi.is_primary DESC, pi.display_order ASC, pi.id ASC
+      LIMIT 1
+    `;
+    
+    const imageResult = await pool.query(imageQuery, [productId]);
+    
+    if (!imageResult.rows.length) {
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    const image = imageResult.rows[0];
+    
+    // Verificar se o caminho da imagem está no formato correto
+    const expectedPathPattern = `/uploads/stores/${storeId}/products/${productId}/`;
+    let imageUrl = image.image_url;
+    
+    if (!imageUrl.includes(expectedPathPattern)) {
+      const fileName = imageUrl.split('/').pop();
+      imageUrl = `${expectedPathPattern}${fileName}`;
+    }
+    
+    return res.redirect(imageUrl);
+  } catch (error) {
+    console.error('Erro ao buscar imagem:', error);
+    return res.redirect('/placeholder-image.jpg');
+  }
+}];
+Para a página de produtos pública, adicione uma função similar que garanta que apenas sejam mostradas imagens do produto correto:
+
+javascript
+// Modifique a função getProducts no product.controller.js
+exports.getProducts = async (req, res) => {
+  try {
+    // Parâmetros de filtro existentes
+    
+    // Consulta SQL modificada para garantir relacionamentos corretos
+    const query = `
+      SELECT 
+        p.id, p.name, p.description, p.price, p.discounted_price,
+        p.category, p.store_id, s.name AS store_name,
+        pi.id AS image_id, pi.image_url, pi.is_primary
+      FROM 
+        products p
+      JOIN 
+        stores s ON p.store_id = s.id
+      LEFT JOIN 
+        product_images pi ON p.id = pi.product_id AND pi.is_primary = true
+      WHERE 
+        p.is_active = true
+        ${/* filtros existentes */}
+      ORDER BY 
+        ${/* ordenação existente */}
+    `;
+    
+    const { rows } = await pool.query(query, params);
+    
+    // Processar as imagens para garantir caminhos seguros
+    const products = rows.map(product => {
+      // Garantir caminho seguro para a imagem
+      let imageUrl = '/placeholder-image.jpg';
+      
+      if (product.image_url) {
+        const expectedPathPattern = `/uploads/stores/${product.store_id}/products/${product.id}/`;
+        
+        if (product.image_url.includes(expectedPathPattern)) {
+          imageUrl = product.image_url;
+        } else {
+          // Reconstruir caminho seguro
+          try {
+            const fileName = product.image_url.split('/').pop();
+            imageUrl = `${expectedPathPattern}${fileName}`;
+          } catch (e) {
+            console.error(`Erro ao processar caminho da imagem: ${e}`);
+            imageUrl = `/api/products/${product.id}/primary-image`;
+          }
+        }
+      }
+      
+      return {
+        ...product,
+        image_url: imageUrl
+      };
+    });
+    
+    return res.json({ products });
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    return res.status(500).json({ 
+      products: [],
+      error: 'Erro ao buscar produtos' 
+    });
+  }
+};
+Por fim, atualize os componentes de exibição de produtos no frontend para usar o tratamento de erro corretamente:
+
+jsx
+// ProductCard.jsx ou componente similar
+import React from 'react';
+import ImageComponent from './ImageComponent';
+
+const ProductCard = ({ product }) => {
+  return (
+    <div className="product-card">
+      <ImageComponent 
+        src={product.image_url || `/api/products/${product.id}/primary-image`}
+        alt={product.name}
+        className="product-image"
+        productId={product.id}
+        storeId={product.store_id}
+      />
+      <div className="product-details">
+        <h3>{product.name}</h3>
+        <p className="price">R$ {product.price.toFixed(2)}</p>
+        {/* Outros detalhes */}
+      </div>
+    </div>
+  );
+};
+
+export default ProductCard;
+Estas alterações devem resolver os problemas identificados:
+
+Imagens sendo buscadas do local errado (usando ImageComponent com fallback)
+Imagens mostrando produtos incorretos (garantindo relação correta entre produto e imagem)
+Erros de carregamento de imagens (tratamento adequado de erros de carregamento)
+A solução respeita a estrutura existente do seu aplicativo e adiciona as validações necessárias para garantir que as imagens sejam exibidas corretamente.
+
+
+
+
+
+
+

@@ -113,52 +113,30 @@ export default function SellerProducts() {
     enabled: !!selectedStoreId
   });
 
-  // Fetch images for each product
+  // Fetch and prepare products with image URLs
   useEffect(() => {
-    const fetchProductImages = async () => {
-      if (!products || !Array.isArray(products) || products.length === 0) return;
-      
-      setIsLoadingImages(true);
-      
-      try {
-        const productsWithImagePromises = products.map(async (product: Product) => {
-          try {
-            const response = await fetch(`/api/products/${product.id}/primary-image`);
-            
-            if (response.ok) {
-              const imageUrl = response.url;
-              return {
-                ...product,
-                images: [imageUrl],
-                thumbnailUrl: imageUrl
-              };
-            } 
-            
-            return {
-              ...product,
-              images: [],
-              thumbnailUrl: ''
-            };
-          } catch (error) {
-            console.error(`Erro ao buscar imagem para o produto ${product.id}:`, error);
-            return {
-              ...product,
-              images: [],
-              thumbnailUrl: ''
-            };
-          }
-        });
-        
-        const productsWithImageResults = await Promise.all(productsWithImagePromises);
-        setProductsWithImages(productsWithImageResults);
-      } catch (error) {
-        console.error('Erro ao processar imagens dos produtos:', error);
-      } finally {
-        setIsLoadingImages(false);
-      }
-    };
+    if (!products || !Array.isArray(products) || products.length === 0) return;
     
-    fetchProductImages();
+    setIsLoadingImages(true);
+    
+    // Simply prepare product data with proper API URL structure
+    // Actual image loading will be handled by the ImageComponent
+    try {
+      const enhancedProducts = products.map((product: Product) => {
+        // For each product, prepare secure API URLs for images
+        return {
+          ...product,
+          images: [`/api/products/${product.id}/primary-image`],
+          thumbnailUrl: `/api/products/${product.id}/primary-image`
+        };
+      });
+      
+      setProductsWithImages(enhancedProducts);
+    } catch (error) {
+      console.error('Erro ao processar dados dos produtos:', error);
+    } finally {
+      setIsLoadingImages(false);
+    }
   }, [products]);
 
   const isLoading = isLoadingStores || isLoadingProducts || isLoadingImages;
