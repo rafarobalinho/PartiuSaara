@@ -195,19 +195,19 @@ export default function Account() {
 
   const { data: userData, isLoading: isUserDataLoading } = useQuery({
     queryKey: ['/api/users/me'],
-    queryFn: async () => {
-      try {
-        const response = await fetch('/api/users/me');
-        if (!response.ok) {
-          throw new Error('Failed to fetch user data');
-        }
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-        return null;
-      }
-    }
+    retry: false
   });
+  
+  // Ao receber os dados do usuário, preencher o formulário
+  useEffect(() => {
+    if (userData) {
+      setProfileForm(prev => ({
+        ...prev,
+        name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+        email: userData.email || ''
+      }));
+    }
+  }, [userData]);
 
   const { data: recentReservations = [], isLoading: isReservationsLoading } = useQuery({
     queryKey: ['/api/reservations?limit=3'],
@@ -288,7 +288,7 @@ export default function Account() {
                 </div>
                 
                 <div className="flex-1">
-                  <h2 className="text-xl font-bold">{userData?.name || user?.username}</h2>
+                  <h2 className="text-xl font-bold">{userData ? `${userData.firstName} ${userData.lastName}` : user?.email}</h2>
                   <p className="text-gray-500">{userData?.email || user?.email}</p>
                   
                   <div className="flex items-center mt-2">
