@@ -1,9 +1,15 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/auth-context';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
 
 interface UserData {
   id: number;
@@ -42,6 +48,153 @@ interface Reservation {
 export default function Account() {
   const { user, isAuthenticated, isSeller, logout } = useAuth();
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  // Estados para o modal de edição de perfil
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    email: '',
+    avatar: '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordFieldsEnabled, setPasswordFieldsEnabled] = useState(false);
+  
+  // Ao receber os dados do usuário, preencher o formulário
+  useEffect(() => {
+    if (userData) {
+      setProfileForm(prev => ({
+        ...prev,
+        name: userData.name || '',
+        email: userData.email || ''
+      }));
+    }
+  }, [userData]);
+
+  // Função para lidar com as mudanças nos campos do formulário
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setProfileForm({
+      ...profileForm,
+      [name]: value
+    });
+  };
+
+  // Função para verificar a senha atual e habilitar os campos de nova senha
+  const verifyCurrentPassword = async () => {
+    try {
+      const response = await fetch('/api/users/verify-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ password: profileForm.currentPassword })
+      });
+
+      if (response.ok) {
+        setPasswordFieldsEnabled(true);
+        toast({
+          title: "Senha verificada",
+          description: "Agora você pode definir uma nova senha",
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Senha incorreta",
+          description: "A senha atual não está correta",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao verificar senha:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível verificar a senha",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Função para salvar as alterações do perfil
+  const saveProfileChanges = async () => {
+    try {
+      // Validar os campos
+      if (!profileForm.name || !profileForm.email) {
+        toast({
+          title: "Erro",
+          description: "Nome e email são obrigatórios",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Validar a senha se estiver tentando alterá-la
+      if (passwordFieldsEnabled) {
+        if (profileForm.newPassword !== profileForm.confirmPassword) {
+          toast({
+            title: "Erro",
+            description: "As senhas não coincidem",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+
+      // Preparar os dados para enviar
+      const updateData: {
+        name: string;
+        email: string;
+        password?: string;
+      } = {
+        name: profileForm.name,
+        email: profileForm.email
+      };
+
+      // Adicionar senha se estiver alterando
+      if (passwordFieldsEnabled && profileForm.newPassword) {
+        updateData.password = profileForm.newPassword;
+      }
+
+      // Enviar requisição para atualizar o perfil
+      const response = await fetch('/api/users/update', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      if (response.ok) {
+        // Fechar o modal e atualizar os dados
+        setIsEditProfileOpen(false);
+        // Invalidar a query para recarregar os dados do usuário
+        queryClient.invalidateQueries(['/api/users/me']);
+        
+        toast({
+          title: "Perfil atualizado",
+          description: "Suas informações foram atualizadas com sucesso",
+          variant: "default"
+        });
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Erro",
+          description: errorData.message || "Não foi possível atualizar o perfil",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao atualizar o perfil",
+        variant: "destructive"
+      });
+    }
+  };
 
   // If not authenticated, redirect to login
   if (!isAuthenticated) {
@@ -159,7 +312,11 @@ export default function Account() {
                   </div>
                 </div>
                 
-                <Button variant="outline" className="flex-shrink-0">
+                <Button 
+                  variant="outline" 
+                  className="flex-shrink-0"
+                  onClick={() => setIsEditProfileOpen(true)}
+                >
                   <i className="fas fa-edit mr-2"></i> Editar Perfil
                 </Button>
               </div>
@@ -308,6 +465,124 @@ export default function Account() {
           </Card>
         </div>
       </div>
+
+      {/* Modal de Edição de Perfil */}
+      <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Perfil</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="mb-4 flex flex-col items-center">
+              <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
+                <i className="fas fa-user text-3xl"></i>
+              </div>
+              <Button variant="outline" size="sm">
+                <i className="fas fa-camera mr-2"></i> Alterar foto
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Nome
+              </Label>
+              <Input
+                id="name"
+                name="name"
+                value={profileForm.name}
+                onChange={handleProfileChange}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="email" className="text-right">
+                Email
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={profileForm.email}
+                onChange={handleProfileChange}
+                className="col-span-3"
+              />
+            </div>
+            
+            <Separator className="my-2" />
+            
+            <h3 className="font-medium text-lg">Segurança da Conta</h3>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="currentPassword" className="text-right">
+                Senha Atual
+              </Label>
+              <div className="col-span-3 flex gap-2">
+                <Input
+                  id="currentPassword"
+                  name="currentPassword"
+                  type="password"
+                  value={profileForm.currentPassword}
+                  onChange={handleProfileChange}
+                  className="flex-1"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={verifyCurrentPassword}
+                  disabled={!profileForm.currentPassword}
+                >
+                  Verificar
+                </Button>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="newPassword" className="text-right">
+                Nova Senha
+              </Label>
+              <Input
+                id="newPassword"
+                name="newPassword"
+                type="password"
+                disabled={!passwordFieldsEnabled}
+                value={profileForm.newPassword}
+                onChange={handleProfileChange}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="confirmPassword" className="text-right">
+                Confirmar
+              </Label>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                disabled={!passwordFieldsEnabled}
+                value={profileForm.confirmPassword}
+                onChange={handleProfileChange}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsEditProfileOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={saveProfileChanges}>
+              Salvar Alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
