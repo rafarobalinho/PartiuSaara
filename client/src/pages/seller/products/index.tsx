@@ -95,7 +95,8 @@ export default function SellerProducts() {
   // Fetch products for the selected store
   const { 
     data: products = [], 
-    isLoading: isLoadingProducts
+    isLoading: isLoadingProducts,
+    refetch
   } = useQuery({
     queryKey: ['/api/stores', selectedStoreId, 'products'],
     queryFn: async () => {
