@@ -81,13 +81,11 @@ export default function SellerDashboard() {
     queryKey: ['/api/seller/stats'],
     queryFn: async () => {
       try {
-        // In a real app, this would be an actual API endpoint
-        return {
-          totalProducts: 32,
-          totalReservations: 47,
-          totalCoupons: 8,
-          pendingReservations: 5
-        } as Stats;
+        const response = await fetch('/api/seller/stats');
+        if (!response.ok) {
+          throw new Error('Falha ao carregar estatísticas');
+        }
+        return await response.json() as Stats;
       } catch (error) {
         console.error('Error fetching stats:', error);
         return {
