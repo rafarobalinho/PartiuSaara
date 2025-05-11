@@ -1,0 +1,510 @@
+Problemas Identificados
+
+Botão de excluir imagem não funciona na página /seller/products/7/edit
+Carregamento incorreto de imagens na página /seller/products
+Falha crítica de segurança na página /seller/stores mostrando todas as lojas em vez de apenas as do lojista logado
+Mistura de imagens entre produtos na página /products
+
+Soluções Detalhadas
+1. Corrigir Função de Exclusão de Imagens
+javascript// controllers/image.controller.js - Adicionar ou corrigir a função deleteImage
+exports.deleteImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { type } = req.query;
+    const userId = req.user.id;
+
+    if (!id || !type) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Parâmetros obrigatórios não fornecidos: id e type (store ou product)' 
+      });
+    }
+
+    // Verificar permissões e relacionamentos antes de excluir
+    if (type === 'product') {
+      // Verificar se a imagem pertence a um produto do usuário
+      const ownershipQuery = `
+        SELECT pi.id 
+        FROM product_images pi
+        JOIN products p ON pi.product_id = p.id
+        JOIN stores s ON p.store_id = s.id
+        WHERE pi.id = $1 AND s.user_id = $2
+      `;
+      
+      const ownershipResult = await pool.query(ownershipQuery, [id, userId]);
+      
+      if (ownershipResult.rows.length === 0) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Você não tem permissão para excluir esta imagem' 
+        });
+      }
+      
+      // Buscar informações da imagem
+      const imageQuery = `
+        SELECT product_id, image_url, thumbnail_url, is_primary 
+        FROM product_images 
+        WHERE id = $1
+      `;
+      
+      const imageResult = await pool.query(imageQuery, [id]);
+      
+      if (imageResult.rows.length === 0) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Imagem não encontrada' 
+        });
+      }
+      
+      const image = imageResult.rows[0];
+      
+      // Excluir a imagem do banco de dados
+      await pool.query('DELETE FROM product_images WHERE id = $1', [id]);
+      
+      // Se era a imagem principal, definir outra como principal
+      if (image.is_primary) {
+        const updateQuery = `
+          UPDATE product_images 
+          SET is_primary = true 
+          WHERE product_id = $1 
+          ORDER BY display_order ASC, id ASC 
+          LIMIT 1
+        `;
+        
+        await pool.query(updateQuery, [image.product_id]);
+      }
+      
+      // Tentar excluir os arquivos físicos
+      try {
+        const imagePath = path.join(__dirname, '../public', image.image_url);
+        const thumbnailPath = path.join(__dirname, '../public', image.thumbnail_url);
+        
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+        
+        if (fs.existsSync(thumbnailPath)) {
+          fs.unlinkSync(thumbnailPath);
+        }
+      } catch (fileError) {
+        console.error('Erro ao excluir arquivos físicos:', fileError);
+        // Continuar mesmo com erro ao excluir arquivos
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: 'Imagem excluída com sucesso' 
+      });
+    } else if (type === 'store') {
+      // Lógica similar para imagens de loja
+      // ...
+    } else {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Tipo inválido. Deve ser "store" ou "product"' 
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao excluir imagem:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao excluir imagem',
+      error: error.message
+    });
+  }
+};
+2. Corrigir Exibição de Imagens na Lista de Produtos
+javascript// controllers/product.controller.js - Corrigir a função getSellerProducts
+exports.getSellerProducts = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Buscar apenas produtos das lojas do usuário logado
+    const query = `
+      SELECT 
+        p.id, p.name, p.description, p.price, p.discounted_price,
+        p.category, p.store_id, p.created_at, p.updated_at,
+        s.name AS store_name,
+        MAX(CASE WHEN pi.is_primary = true THEN pi.id ELSE NULL END) AS primary_image_id,
+        MAX(CASE WHEN pi.is_primary = true THEN pi.image_url ELSE NULL END) AS primary_image_url
+      FROM 
+        products p
+      JOIN 
+        stores s ON p.store_id = s.id
+      LEFT JOIN 
+        product_images pi ON p.id = pi.product_id
+      WHERE 
+        s.user_id = $1
+      GROUP BY 
+        p.id, p.name, p.description, p.price, p.discounted_price,
+        p.category, p.store_id, p.created_at, p.updated_at, s.name
+      ORDER BY 
+        p.created_at DESC
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    
+    // Para cada produto, usar o caminho seguro para a imagem
+    const products = result.rows.map(product => {
+      let imageUrl = '/placeholder-image.jpg';
+      
+      if (product.primary_image_url) {
+        // Garantir caminho seguro com store_id correto
+        const expectedPathPattern = `/uploads/stores/${product.store_id}/products/${product.id}/`;
+        
+        if (product.primary_image_url.includes(expectedPathPattern)) {
+          imageUrl = product.primary_image_url;
+        } else {
+          // Reconstruir caminho seguro
+          const fileName = product.primary_image_url.split('/').pop();
+          imageUrl = `${expectedPathPattern}${fileName}`;
+        }
+      }
+      
+      return {
+        ...product,
+        image_url: imageUrl,
+        // Garantir formato consistente para todos os campos
+        price: parseFloat(product.price),
+        discounted_price: product.discounted_price ? parseFloat(product.discounted_price) : null,
+        created_at: new Date(product.created_at).toISOString(),
+        updated_at: new Date(product.updated_at).toISOString()
+      };
+    });
+    
+    return res.json({ products });
+  } catch (error) {
+    console.error('Erro ao buscar produtos do lojista:', error);
+    return res.status(500).json({ 
+      error: 'Erro ao buscar produtos',
+      message: error.message
+    });
+  }
+};
+3. Corrigir Segurança da Página de Lojas
+Este é um problema crítico de segurança que precisa ser corrigido imediatamente.
+javascript// controllers/store.controller.js - Corrigir a função getSellerStores
+exports.getSellerStores = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Verificar se o usuário tem permissão (é vendedor)
+    if (req.user.role !== 'seller') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Você não tem permissão para acessar lojas' 
+      });
+    }
+    
+    // Buscar APENAS as lojas do usuário logado
+    const query = `
+      SELECT 
+        s.id, s.name, s.description, s.address, s.location,
+        s.category, s.created_at, s.updated_at,
+        MAX(CASE WHEN si.is_primary = true THEN si.image_url ELSE NULL END) AS primary_image_url
+      FROM 
+        stores s
+      LEFT JOIN 
+        store_images si ON s.id = si.store_id
+      WHERE 
+        s.user_id = $1
+      GROUP BY 
+        s.id, s.name, s.description, s.address, s.location, s.category, s.created_at, s.updated_at
+      ORDER BY 
+        s.created_at DESC
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    
+    // Adicionar URL segura para cada loja
+    const stores = result.rows.map(store => {
+      let imageUrl = '/placeholder-image.jpg';
+      
+      if (store.primary_image_url) {
+        // Garantir caminho seguro
+        const expectedPathPattern = `/uploads/stores/${store.id}/`;
+        
+        if (store.primary_image_url.includes(expectedPathPattern)) {
+          imageUrl = store.primary_image_url;
+        } else {
+          // Reconstruir caminho seguro
+          const fileName = store.primary_image_url.split('/').pop();
+          imageUrl = `${expectedPathPattern}${fileName}`;
+        }
+      }
+      
+      return {
+        ...store,
+        image_url: imageUrl
+      };
+    });
+    
+    return res.json({ stores });
+  } catch (error) {
+    console.error('Erro ao buscar lojas do vendedor:', error);
+    return res.status(500).json({ 
+      error: 'Erro ao buscar lojas',
+      message: error.message
+    });
+  }
+};
+4. Corrigir Mistura de Imagens na Página de Produtos
+javascript// controllers/product.controller.js - Corrigir a função getProducts
+exports.getProducts = async (req, res) => {
+  try {
+    // Parâmetros de filtro (mesmo código existente)
+    
+    // Consulta aprimorada para exibir apenas as imagens corretas de cada produto
+    const query = `
+      SELECT 
+        p.id, p.name, p.description, p.price, p.discounted_price,
+        p.category, p.store_id, p.created_at, p.updated_at,
+        s.name AS store_name,
+        pi.id AS image_id,
+        pi.image_url,
+        pi.thumbnail_url,
+        pi.is_primary
+      FROM 
+        products p
+      JOIN 
+        stores s ON p.store_id = s.id
+      LEFT JOIN 
+        product_images pi ON p.id = pi.product_id
+      WHERE 
+        p.is_active = true
+        ${category ? ' AND LOWER(p.category) = LOWER($' + paramIndex++ + ')' : ''}
+        ${minPrice ? ' AND p.price >= $' + paramIndex++ : ''}
+        ${maxPrice ? ' AND p.price <= $' + paramIndex++ : ''}
+        ${search ? ' AND (LOWER(p.name) LIKE LOWER($' + paramIndex++ + ') OR LOWER(p.description) LIKE LOWER($' + paramIndex + '))' : ''}
+        AND (pi.is_primary = true OR pi.id IS NULL)
+      ORDER BY 
+        ${sortClause}
+      ${limit ? ' LIMIT ' + limit : ''}
+    `;
+    
+    const { rows } = await pool.query(query, params);
+    
+    // Agrupar produtos com suas imagens corretas
+    const productsMap = new Map();
+    
+    rows.forEach(row => {
+      const productId = row.id;
+      
+      if (!productsMap.has(productId)) {
+        // Inicializar o produto
+        productsMap.set(productId, {
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          price: parseFloat(row.price),
+          discounted_price: row.discounted_price ? parseFloat(row.discounted_price) : null,
+          category: row.category,
+          store_id: row.store_id,
+          store_name: row.store_name,
+          created_at: new Date(row.created_at).toISOString(),
+          updated_at: new Date(row.updated_at).toISOString(),
+          images: []
+        });
+      }
+      
+      const product = productsMap.get(productId);
+      
+      // Adicionar imagem apenas se existir
+      if (row.image_id) {
+        // Verificar se o caminho da imagem está correto
+        let imageUrl = row.image_url;
+        let thumbnailUrl = row.thumbnail_url;
+        
+        // Padrão de caminho seguro esperado
+        const expectedPathPattern = `/uploads/stores/${row.store_id}/products/${row.id}/`;
+        
+        // Se o caminho não seguir o padrão seguro, reconstruí-lo
+        if (!imageUrl.includes(expectedPathPattern)) {
+          const fileName = imageUrl.split('/').pop();
+          imageUrl = `${expectedPathPattern}${fileName}`;
+          
+          const thumbFileName = thumbnailUrl.split('/').pop();
+          thumbnailUrl = `${expectedPathPattern}thumb-${thumbFileName.replace('thumb-', '')}`;
+        }
+        
+        product.images.push({
+          id: row.image_id,
+          image_url: imageUrl,
+          thumbnail_url: thumbnailUrl,
+          is_primary: row.is_primary
+        });
+      }
+      
+      // Usar a primeira imagem como imagem principal
+      if (product.images.length > 0 && !product.image_url) {
+        const primaryImage = product.images.find(img => img.is_primary) || product.images[0];
+        product.image_url = primaryImage.image_url;
+        product.thumbnail_url = primaryImage.thumbnail_url;
+      } else if (product.images.length === 0) {
+        // Se não tiver imagens, usar placeholder
+        product.image_url = '/placeholder-image.jpg';
+        product.thumbnail_url = '/placeholder-image.jpg';
+      }
+    });
+    
+    // Converter Map para array
+    const products = Array.from(productsMap.values());
+    
+    return res.json({ 
+      products,
+      count: products.length,
+      filters: { category, categoryId, categorySlug }
+    });
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    return res.status(500).json({ 
+      products: [],
+      error: 'Erro ao buscar produtos',
+      message: error.message
+    });
+  }
+};
+5. Middleware de Validação de Imagens
+Além das correções específicas acima, vamos adicionar um middleware de validação que será aplicado em todas as rotas de imagem:
+javascript// middleware/image-validation.js
+const path = require('path');
+const fs = require('fs');
+const { pool } = require('../db');
+
+/**
+ * Middleware para validar e corrigir caminhos de imagens
+ * Previne acesso a imagens entre lojas diferentes
+ */
+const validateImageAccess = async (req, res, next) => {
+  // Verificar se é uma requisição para o diretório de uploads
+  if (!req.path.startsWith('/uploads/')) {
+    return next();
+  }
+  
+  try {
+    // Extrair informações do caminho
+    const pathParts = req.path.split('/');
+    
+    // Verificar se segue o padrão /uploads/stores/[storeId]/...
+    if (pathParts.length < 4 || pathParts[1] !== 'uploads' || pathParts[2] !== 'stores') {
+      console.warn(`⚠️ Tentativa de acesso a caminho de imagem inválido: ${req.path}`);
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    const storeId = parseInt(pathParts[3]);
+    
+    if (isNaN(storeId)) {
+      console.warn(`⚠️ ID de loja inválido no caminho: ${req.path}`);
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    // Verificar se inclui produtos
+    if (pathParts.length >= 6 && pathParts[4] === 'products') {
+      const productId = parseInt(pathParts[5]);
+      
+      if (isNaN(productId)) {
+        console.warn(`⚠️ ID de produto inválido no caminho: ${req.path}`);
+        return res.redirect('/placeholder-image.jpg');
+      }
+      
+      // Verificar se o produto pertence à loja
+      const query = `
+        SELECT id FROM products WHERE id = $1 AND store_id = $2
+      `;
+      
+      const result = await pool.query(query, [productId, storeId]);
+      
+      if (result.rows.length === 0) {
+        console.error(`⚠️ VIOLAÇÃO DE SEGURANÇA: Produto ${productId} não pertence à loja ${storeId}`);
+        return res.redirect('/placeholder-image.jpg');
+      }
+    } else {
+      // Verificar se a loja existe
+      const query = `SELECT id FROM stores WHERE id = $1`;
+      const result = await pool.query(query, [storeId]);
+      
+      if (result.rows.length === 0) {
+        console.warn(`⚠️ Loja não encontrada: ${storeId}`);
+        return res.redirect('/placeholder-image.jpg');
+      }
+    }
+    
+    // Se tudo estiver ok, continuar
+    next();
+  } catch (error) {
+    console.error('Erro na validação de imagem:', error);
+    return res.redirect('/placeholder-image.jpg');
+  }
+};
+
+module.exports = validateImageAccess;
+6. Atualizações no Frontend
+Por fim, precisamos garantir que o frontend use os caminhos corretos e trate erros de carregamento de imagens:
+jsx// Componente ProductCard.jsx
+import React from 'react';
+
+const ProductCard = ({ product }) => {
+  // Handler para tratar erros de imagem
+  const handleImageError = (e) => {
+    e.target.onerror = null;
+    e.target.src = '/placeholder-image.jpg';
+  };
+  
+  return (
+    <div className="product-card">
+      <div className="product-image">
+        <img 
+          src={product.image_url || `/api/products/${product.id}/primary-image`}
+          alt={product.name}
+          onError={handleImageError}
+        />
+      </div>
+      
+      <div className="product-details">
+        <h3>{product.name}</h3>
+        <p>R$ {product.price.toFixed(2)}</p>
+        {/* Outros detalhes */}
+      </div>
+    </div>
+  );
+};
+
+export default ProductCard;
+Plano de Implementação
+Para implementar estas correções, siga estas etapas:
+
+Fazer backup do código atual antes de qualquer alteração
+Atualizar os controllers:
+
+image.controller.js - Adicionar função de exclusão corrigida
+product.controller.js - Corrigir funções getProducts e getSellerProducts
+store.controller.js - Corrigir função getSellerStores
+
+
+Adicionar o middleware de validação:
+
+Criar arquivo middleware/image-validation.js
+Registrar o middleware no arquivo principal (app.js ou server.js)
+
+
+Atualizar componentes do frontend para tratar erros de imagem
+Testar cada correção individualmente antes de prosseguir
+
+Prioridades de Implementação
+
+PRIORIDADE ALTA: Corrigir a falha de segurança na página /seller/stores
+PRIORIDADE ALTA: Corrigir mistura de imagens na página de produtos
+PRIORIDADE MÉDIA: Corrigir exibição de imagens na lista de produtos do vendedor
+PRIORIDADE MÉDIA: Corrigir função de exclusão de imagens
+PRIORIDADE BAIXA: Implementar middleware de validação de imagens
+
+Solução Final
+Estas correções abordam todos os problemas identificados, fornecendo:
+
+Segurança rigorosa: Garantindo que cada loja só tenha acesso às suas próprias imagens e dados
+Consistência de dados: Assegurando que as imagens corretas sejam associadas aos produtos corretos
+Tratamento de erros: Lidando adequadamente com falhas de carregamento de imagens
+Manutenção da funcionalidade existente: Preservando o trabalho já realizado
+
+Com estas implementações, seu sistema estará muito mais seguro e consistente, sem os problemas de mistura de imagens e falhas de segurança.
