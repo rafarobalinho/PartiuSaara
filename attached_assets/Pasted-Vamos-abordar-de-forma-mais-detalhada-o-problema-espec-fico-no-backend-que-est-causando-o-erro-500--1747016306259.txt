@@ -1,0 +1,265 @@
+Vamos abordar de forma mais detalhada o problema específico no backend que está causando o erro 500. Vamos também fazer uma versão mínima do componente que não dependa da funcionalidade de avatar para garantir que pelo menos a edição das informações do perfil funcione.
+1. Primeiro, vamos modificar o DialogContent para resolver o aviso:
+jsx<DialogContent className="sm:max-w-[425px]" aria-describedby="profile-edit-description">
+  <DialogHeader>
+    <DialogTitle>Editar Perfil</DialogTitle>
+    <p id="profile-edit-description" className="text-sm text-muted-foreground">
+      Faça alterações em seu perfil abaixo
+    </p>
+  </DialogHeader>
+  
+  {/* resto do conteúdo */}
+</DialogContent>
+2. Versão minimalista da função saveProfileChanges (sem avatar):
+jsx// Versão simplificada sem depender do upload de avatar
+const saveProfileChanges = async () => {
+  try {
+    // Validar os campos
+    if (!profileForm.name || !profileForm.email) {
+      toast({
+        title: "Erro",
+        description: "Nome e email são obrigatórios",
+        status: "error"
+      });
+      return;
+    }
+    
+    // Validar a senha se estiver tentando alterá-la
+    if (passwordFieldsEnabled && profileForm.newPassword) {
+      if (profileForm.newPassword !== profileForm.confirmPassword) {
+        toast({
+          title: "Erro",
+          description: "As senhas não coincidem",
+          status: "error"
+        });
+        return;
+      }
+    }
+    
+    // Preparar os dados para enviar (sem avatar)
+    const updateData = {
+      name: profileForm.name,
+      email: profileForm.email
+    };
+    
+    // Adicionar senha se estiver alterando
+    if (passwordFieldsEnabled && profileForm.newPassword) {
+      updateData.password = profileForm.newPassword;
+    }
+    
+    // Enviar requisição para atualizar o perfil
+    const response = await fetch('/api/users/update', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updateData)
+    });
+    
+    if (response.ok) {
+      // Fechar o modal e atualizar os dados
+      setIsEditProfileOpen(false);
+      // Invalidar a query para recarregar os dados do usuário
+      queryClient.invalidateQueries(['/api/users/me']);
+      
+      toast({
+        title: "Perfil atualizado",
+        description: "Suas informações foram atualizadas com sucesso",
+        status: "success"
+      });
+    } else {
+      const errorData = await response.json();
+      toast({
+        title: "Erro",
+        description: errorData.message || "Não foi possível atualizar o perfil",
+        status: "error"
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao atualizar perfil:', error);
+    toast({
+      title: "Erro",
+      description: "Ocorreu um erro ao atualizar o perfil",
+      status: "error"
+    });
+  }
+};
+3. Versão minimalista do modal sem funcionalidade de avatar:
+jsx{/* Modal de Edição de Perfil - Versão simplificada sem avatar */}
+<Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
+  <DialogContent className="sm:max-w-[425px]" aria-describedby="profile-edit-description">
+    <DialogHeader>
+      <DialogTitle>Editar Perfil</DialogTitle>
+      <p id="profile-edit-description" className="text-sm text-muted-foreground">
+        Faça alterações em seu perfil abaixo
+      </p>
+    </DialogHeader>
+    
+    <div className="grid gap-4 py-4">
+      {/* Avatar simples sem funcionalidade de upload */}
+      <div className="mb-4 flex flex-col items-center">
+        <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
+          <i className="fas fa-user text-3xl"></i>
+        </div>
+        {/* Botão desabilitado temporariamente */}
+        <Button variant="outline" size="sm" disabled>
+          <i className="fas fa-camera mr-2"></i> Alterar foto
+        </Button>
+        <p className="text-xs text-muted-foreground mt-1">
+          Upload de fotos temporariamente indisponível
+        </p>
+      </div>
+      
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="name" className="text-right">
+          Nome
+        </Label>
+        <Input
+          id="name"
+          name="name"
+          value={profileForm.name}
+          onChange={handleProfileChange}
+          className="col-span-3"
+        />
+      </div>
+      
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="email" className="text-right">
+          Email
+        </Label>
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          value={profileForm.email}
+          onChange={handleProfileChange}
+          className="col-span-3"
+        />
+      </div>
+      
+      <Separator className="my-2" />
+      
+      <h3 className="font-medium text-lg">Segurança da Conta</h3>
+      
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="currentPassword" className="text-right">
+          Senha Atual
+        </Label>
+        <div className="col-span-3 flex gap-2">
+          <Input
+            id="currentPassword"
+            name="currentPassword"
+            type="password"
+            value={profileForm.currentPassword}
+            onChange={handleProfileChange}
+            className="flex-1"
+          />
+          <Button 
+            type="button" 
+            variant="outline" 
+            size="sm"
+            onClick={verifyCurrentPassword}
+            disabled={!profileForm.currentPassword}
+          >
+            Verificar
+          </Button>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="newPassword" className="text-right">
+          Nova Senha
+        </Label>
+        <Input
+          id="newPassword"
+          name="newPassword"
+          type="password"
+          disabled={!passwordFieldsEnabled}
+          value={profileForm.newPassword}
+          onChange={handleProfileChange}
+          className="col-span-3"
+        />
+      </div>
+      
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="confirmPassword" className="text-right">
+          Confirmar
+        </Label>
+        <Input
+          id="confirmPassword"
+          name="confirmPassword"
+          type="password"
+          disabled={!passwordFieldsEnabled}
+          value={profileForm.confirmPassword}
+          onChange={handleProfileChange}
+          className="col-span-3"
+        />
+      </div>
+    </div>
+    
+    <DialogFooter>
+      <Button 
+        variant="outline" 
+        onClick={() => setIsEditProfileOpen(false)}
+      >
+        Cancelar
+      </Button>
+      <Button onClick={saveProfileChanges}>
+        Salvar Alterações
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+4. Diagnosticar problema no backend
+O erro 500 ao tentar acessar /api/users/avatar sugere que há um problema no servidor. Vamos verificar três possibilidades principais:
+a) Verificar se a rota está configurada no servidor:
+javascript// Verifique se esta rota está registrada em seu arquivo principal do servidor (app.js, server.js, etc.)
+import userRoutes from './routes/users.js';
+app.use('/api/users', userRoutes);
+b) Verifique permissões de diretório:
+O erro pode estar ocorrendo porque o servidor não tem permissão para escrever no diretório de uploads. Verifique se o diretório existe e tem as permissões corretas:
+javascript// Adicione este código ao início do seu arquivo de servidor
+import fs from 'fs';
+import path from 'path';
+
+// Garantir que os diretórios de upload existam
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  try {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('Diretório de uploads criado:', uploadsDir);
+  } catch (error) {
+    console.error('Erro ao criar diretório de uploads:', error);
+  }
+}
+c) Versão minimalista do endpoint de avatar:
+Se quiser implementar um endpoint mínimo para diagnóstico, tente este:
+javascript// Em routes/users.js (ou onde estiver configurando suas rotas)
+router.put('/avatar', authMiddleware, (req, res) => {
+  try {
+    // Apenas retornar uma resposta de sucesso para teste
+    res.json({
+      success: true,
+      message: 'Endpoint de avatar está funcionando',
+      avatar: {
+        url: '/placeholder-avatar.jpg',
+        thumbnailUrl: '/placeholder-avatar.jpg'
+      }
+    });
+  } catch (error) {
+    console.error('Erro no endpoint de avatar:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro interno do servidor', 
+      error: error.message 
+    });
+  }
+});
+Sumário da abordagem:
+
+Desative temporariamente a funcionalidade de upload de avatar para garantir que o restante do formulário de edição de perfil funcione.
+Implemente as correções de acessibilidade para o DialogContent.
+Simplifique ao máximo o código para isolar o problema.
+Verifique configurações e permissões no servidor que poderiam estar causando o erro 500.
+
+Isso permitirá que pelo menos a funcionalidade básica de edição de perfil esteja funcionando, enquanto você diagnostica o problema específico com o upload de avatar.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas. 3.7 Sonnet
