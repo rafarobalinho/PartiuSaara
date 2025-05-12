@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Avatar } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface UserData {
   id: number;
@@ -351,12 +351,15 @@ export default function Account() {
           <Card className="mb-6">
             <CardContent className="pt-6">
               <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-                <Avatar 
-                  src={userData?.avatarUrl} 
-                  alt="Avatar do usuário"
-                  size="lg"
-                  fallback={<i className="fas fa-user text-3xl"></i>}
-                />
+                <Avatar size="lg">
+                  {userData?.avatarUrl ? (
+                    <AvatarImage src={userData.avatarUrl} alt="Avatar do usuário" />
+                  ) : (
+                    <AvatarFallback>
+                      <i className="fas fa-user text-3xl"></i>
+                    </AvatarFallback>
+                  )}
+                </Avatar>
                 
                 <div className="flex-1">
                   <h2 className="text-xl font-bold">{userData ? `${userData.firstName} ${userData.lastName}` : user?.email}</h2>
