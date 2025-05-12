@@ -42,7 +42,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/me', authMiddleware, UserController.getCurrentUser);
   app.post('/api/users/verify-password', authMiddleware, UserController.verifyPassword);
   app.put('/api/users/update', authMiddleware, UserController.updateUser);
-  app.post('/api/users/avatar', authMiddleware, AvatarController.updateUserAvatar);
+  app.post('/api/users/avatar', authMiddleware, AvatarController.uploadAvatarMiddleware, AvatarController.uploadAvatar);
 
   // Category routes
   app.get('/api/categories', async (req: Request, res: Response) => {

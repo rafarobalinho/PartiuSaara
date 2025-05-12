@@ -1,104 +1,104 @@
 import { Request, Response } from 'express';
-import { storage } from '../storage';
-import { imageUpload } from '../utils/imageUpload';
-import fs from 'fs';
 import path from 'path';
+import { imageUpload, processImage } from '../utils/imageUpload';
+import fs from 'fs';
+import { storage } from '../storage';
 
 /**
- * Endpoint para atualização do avatar do usuário
+ * Middleware para uploads de avatar
  */
-export async function updateUserAvatar(req: Request, res: Response) {
-  try {
-    // ID do usuário autenticado
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Usuário não autenticado' 
-      });
-    }
-    
-    // Verificar se o diretório do usuário existe, se não, criar
-    const userDir = path.join(process.cwd(), 'public', 'uploads', 'users', userId.toString());
-    if (!fs.existsSync(userDir)) {
-      fs.mkdirSync(userDir, { recursive: true });
-    }
-    
-    // Usar o middleware de upload existente para manter compatibilidade
-    imageUpload.single('avatar')(req, res, async (err) => {
-      if (err) {
-        console.error('Erro no upload de avatar:', err);
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Erro no upload da imagem: ' + err.message 
-        });
-      }
-      
-      if (!req.file) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Nenhuma imagem enviada' 
-        });
-      }
-      
-      try {
-        // Processar a imagem usando o sistema existente
-        const fullPath = req.file.path;
-        const filename = path.basename(fullPath);
-        const fileNameWithoutExt = path.basename(filename, path.extname(filename));
-        
-        // Definir caminhos para as imagens processadas
-        const thumbnailPath = `/uploads/users/${userId}/thumb-${fileNameWithoutExt}.jpg`;
-        const originalPath = `/uploads/users/${userId}/${fileNameWithoutExt}.jpg`;
-        
-        // Mover os arquivos para o diretório do usuário se necessário
-        const targetThumbPath = path.join(process.cwd(), 'public', thumbnailPath);
-        const targetOriginalPath = path.join(process.cwd(), 'public', originalPath);
-        
-        // Garantir que os arquivos estejam no local correto
-        if (fs.existsSync(path.join(process.cwd(), 'public', 'uploads', `${fileNameWithoutExt}.jpg`))) {
-          fs.renameSync(
-            path.join(process.cwd(), 'public', 'uploads', `${fileNameWithoutExt}.jpg`),
-            targetOriginalPath
-          );
-        }
-        
-        if (fs.existsSync(path.join(process.cwd(), 'public', 'uploads', 'thumbnails', `${fileNameWithoutExt}.jpg`))) {
-          fs.renameSync(
-            path.join(process.cwd(), 'public', 'uploads', 'thumbnails', `${fileNameWithoutExt}.jpg`),
-            targetThumbPath
-          );
-        }
-        
-        // Atualizar o avatar do usuário no banco de dados
-        await storage.updateUser(userId, {
-          avatarUrl: originalPath,
-          avatarThumbnailUrl: thumbnailPath
-        });
-        
-        // Retornar sucesso com os caminhos das imagens
-        return res.json({
-          success: true,
-          message: 'Avatar atualizado com sucesso',
-          avatar: {
-            url: originalPath,
-            thumbnailUrl: thumbnailPath
-          }
-        });
-      } catch (error) {
-        console.error('Erro ao processar o avatar:', error);
-        return res.status(500).json({ 
-          success: false, 
-          message: 'Erro ao processar o avatar',
-          error: error instanceof Error ? error.message : 'Erro desconhecido'
-        });
-      }
-    });
-  } catch (error) {
-    console.error('Erro ao atualizar avatar:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Erro interno do servidor' 
-    });
+export const uploadAvatarMiddleware = imageUpload.single('avatar');
+
+/**
+ * Cria o diretório de avatares se não existir
+ */
+function ensureAvatarDirExists(): void {
+  const avatarDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
+  const avatarThumbnailDir = path.join(process.cwd(), 'public', 'uploads', 'avatars', 'thumbnails');
+  
+  if (!fs.existsSync(avatarDir)) {
+    fs.mkdirSync(avatarDir, { recursive: true });
+  }
+  
+  if (!fs.existsSync(avatarThumbnailDir)) {
+    fs.mkdirSync(avatarThumbnailDir, { recursive: true });
   }
 }
+
+/**
+ * Upload e processamento de avatar
+ */
+export const uploadAvatar = async (req: Request, res: Response) => {
+  try {
+    ensureAvatarDirExists();
+    
+    // Verificar se existe um arquivo enviado
+    if (!req.file) {
+      return res.status(400).json({ message: 'Nenhum arquivo enviado' });
+    }
+
+    // Obter o ID do usuário autenticado
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Usuário não autenticado' });
+    }
+    
+    // Obter informações do arquivo
+    const originalPath = req.file.path;
+    const filename = `avatar-${userId}-${Date.now()}${path.extname(req.file.originalname)}`;
+    
+    // Definir caminhos para as versões de imagem
+    const avatarDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
+    const destinationPath = path.join(avatarDir, filename);
+    
+    // Processar a imagem (redimensionar e criar thumbnail)
+    const { optimizedPath, thumbnailPath } = await processImage(originalPath, 400, 100);
+    
+    // Mover as imagens processadas para os diretórios corretos
+    const finalOptimizedPath = path.join(avatarDir, filename);
+    const finalThumbnailPath = path.join(avatarDir, 'thumbnails', filename);
+    
+    fs.renameSync(optimizedPath, finalOptimizedPath);
+    fs.renameSync(thumbnailPath, finalThumbnailPath);
+    
+    // Remover o arquivo original
+    if (fs.existsSync(originalPath)) {
+      fs.unlinkSync(originalPath);
+    }
+    
+    // URLs para salvar no banco de dados
+    const avatarUrl = `/uploads/avatars/${filename}`;
+    const avatarThumbnailUrl = `/uploads/avatars/thumbnails/${filename}`;
+    
+    // Obter o avatar atual para remover depois
+    const currentUser = await storage.getUser(userId);
+    
+    // Atualizar o usuário no banco de dados
+    await storage.updateUserAvatar(userId, avatarUrl, avatarThumbnailUrl);
+    
+    // Remover o avatar antigo se existir
+    if (currentUser?.avatarUrl) {
+      const oldAvatarPath = path.join(process.cwd(), 'public', currentUser.avatarUrl);
+      if (fs.existsSync(oldAvatarPath)) {
+        fs.unlinkSync(oldAvatarPath);
+      }
+    }
+    
+    if (currentUser?.avatarThumbnailUrl) {
+      const oldThumbnailPath = path.join(process.cwd(), 'public', currentUser.avatarThumbnailUrl);
+      if (fs.existsSync(oldThumbnailPath)) {
+        fs.unlinkSync(oldThumbnailPath);
+      }
+    }
+    
+    return res.status(200).json({ 
+      message: 'Avatar atualizado com sucesso',
+      avatarUrl, 
+      avatarThumbnailUrl 
+    });
+    
+  } catch (error) {
+    console.error('Erro ao processar upload de avatar:', error);
+    return res.status(500).json({ message: 'Erro ao processar o avatar' });
+  }
+};
