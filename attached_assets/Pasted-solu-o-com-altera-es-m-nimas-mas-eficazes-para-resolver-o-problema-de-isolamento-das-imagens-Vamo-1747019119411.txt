@@ -1,0 +1,470 @@
+solução com alterações mínimas mas eficazes para resolver o problema de isolamento das imagens. Vamos focar em modificar apenas o que é absolutamente necessário para garantir que as imagens de produtos sejam isoladas por loja.
+1. Modificar o imageUpload.js
+Este é o arquivo principal que precisa ser alterado para isolar as imagens por loja e produto. Aqui está a versão modificada:
+javascriptimport multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import sharp from 'sharp';
+import { fileURLToPath } from 'url';
+import { db } from '../db.js'; // Importando o banco de dados
+
+// Obtém o caminho do diretório atual em ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '../..');
+
+// Define as pastas de upload
+const uploadDir = path.join(rootDir, 'public', 'uploads');
+const thumbnailDir = path.join(uploadDir, 'thumbnails');
+
+// Garante que as pastas existam
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+if (!fs.existsSync(thumbnailDir)) {
+  fs.mkdirSync(thumbnailDir, { recursive: true });
+}
+
+// Configuração do armazenamento para o multer
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Cria um nome de arquivo único baseado no timestamp e um número aleatório
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    // Obtém a extensão do arquivo original
+    const ext = path.extname(file.originalname).toLowerCase();
+    // Cria o nome do arquivo final
+    cb(null, uniqueSuffix + ext);
+  }
+});
+
+// Função para filtrar arquivos (aceita apenas imagens)
+const fileFilter = (req, file, cb) => {
+  // Aceita apenas os tipos de imagem mais comuns
+  const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  
+  if (allowedMimes.includes(file.mimetype)) {
+    cb(null, true); // Aceita o arquivo
+  } else {
+    cb(new Error('Tipo de arquivo inválido. Apenas imagens são permitidas.'), false);
+  }
+};
+
+// Cria a instância do multer
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // Limite de 5MB por arquivo
+  }
+});
+
+// Middleware para processar as imagens após o upload
+const processImages = async (req, res, next) => {
+  if (!req.files || req.files.length === 0) {
+    return next();
+  }
+
+  try {
+    // Nova seção: Determinar os diretórios corretos com base no tipo e entityId
+    const { type, entityId } = req.query;
+    let storeId, productId;
+    let targetDir = uploadDir;
+    let targetThumbDir = thumbnailDir;
+    
+    // Determinar storeId com base no tipo de entidade
+    if (type && entityId) {
+      if (type === 'store') {
+        storeId = entityId;
+      } else if (type === 'product') {
+        productId = entityId;
+        
+        // Buscar o storeId do produto
+        try {
+          // Usar raw query para compatibilidade com qualquer ORM
+          const result = await db.query('SELECT store_id FROM products WHERE id = $1', [productId]);
+          if (result.rows && result.rows.length > 0) {
+            storeId = result.rows[0].store_id;
+            console.log(`Produto ${productId} pertence à loja ${storeId}`);
+          } else {
+            console.warn(`Produto ${productId} não encontrado no banco de dados`);
+          }
+        } catch (err) {
+          console.error('Erro ao buscar informações do produto:', err);
+        }
+      }
+    }
+    
+    // Criar diretórios específicos se tivermos as informações necessárias
+    if (storeId) {
+      // Criar diretório específico da loja
+      const storeDir = path.join(uploadDir, 'stores', storeId.toString());
+      if (!fs.existsSync(storeDir)) {
+        fs.mkdirSync(storeDir, { recursive: true });
+      }
+      
+      targetDir = storeDir;
+      
+      // Se for um produto, criar subdiretório específico
+      if (productId) {
+        const productDir = path.join(storeDir, 'products', productId.toString());
+        if (!fs.existsSync(productDir)) {
+          fs.mkdirSync(productDir, { recursive: true });
+        }
+        targetDir = productDir;
+      }
+      
+      // Criar diretório para thumbnails
+      targetThumbDir = path.join(targetDir, 'thumbnails');
+      if (!fs.existsSync(targetThumbDir)) {
+        fs.mkdirSync(targetThumbDir, { recursive: true });
+      }
+    }
+    
+    // Para cada arquivo enviado, cria versões otimizadas nos diretórios corretos
+    const processPromises = req.files.map(async (file) => {
+      // Nome base do arquivo sem extensão
+      const fileNameWithoutExt = path.basename(file.path, path.extname(file.path));
+      const fileName = `${fileNameWithoutExt}.jpg`;
+      
+      // Determinar caminhos de destino para arquivos
+      const optimizedPath = path.join(targetDir, fileName);
+      const thumbnailPath = path.join(targetThumbDir, `thumb-${fileName}`);
+      
+      // Determinar URLs para armazenar no banco de dados (caminhos relativos)
+      let imageUrl, thumbnailUrl;
+      
+      if (storeId) {
+        // Caminho URL para loja/produto
+        let urlBase = `/uploads/stores/${storeId}`;
+        if (productId) {
+          urlBase += `/products/${productId}`;
+        }
+        
+        imageUrl = `${urlBase}/${fileName}`;
+        thumbnailUrl = `${urlBase}/thumbnails/thumb-${fileName}`;
+      } else {
+        // Mantém caminho padrão para compatibilidade
+        imageUrl = `/uploads/${fileName}`;
+        thumbnailUrl = `/uploads/thumbnails/${fileName}`;
+      }
+      
+      // Adicionar URLs ao objeto de arquivo para uso posterior
+      file.secureImageUrl = imageUrl;
+      file.secureThumbnailUrl = thumbnailUrl;
+      
+      console.log(`Processando imagem: ${file.path} -> ${optimizedPath}`);
+      console.log(`URLs seguras: ${imageUrl} -> ${thumbnailUrl}`);
+      
+      try {
+        // Usar nome temporário para processamento (evitar conflitos)
+        const tempFilePath = path.join(uploadDir, `temp_${Date.now()}_${fileNameWithoutExt}.jpg`);
+        
+        // Processar o arquivo original com sharp (código original)
+        await sharp(file.path)
+          .resize({
+            width: 1920,
+            height: 1080,
+            fit: 'inside',
+            withoutEnlargement: true
+          })
+          .flatten({ background: { r: 255, g: 255, b: 255 } })
+          .jpeg({ quality: 85 })
+          .toFile(tempFilePath);
+          
+        // Garantir que o diretório de destino exista
+        const targetDirName = path.dirname(optimizedPath);
+        if (!fs.existsSync(targetDirName)) {
+          fs.mkdirSync(targetDirName, { recursive: true });
+        }
+        
+        // Mover para o destino final
+        fs.renameSync(tempFilePath, optimizedPath);
+        
+        // Remover arquivo original
+        if (file.path !== optimizedPath) {
+          try {
+            fs.unlinkSync(file.path);
+          } catch (e) {
+            console.log(`Aviso: Não foi possível excluir o arquivo original: ${e.message}`);
+          }
+        }
+        
+        console.log(`Gerando thumbnail: ${thumbnailPath}`);
+        
+        // Garantir que o diretório de thumbnail exista
+        const thumbDirName = path.dirname(thumbnailPath);
+        if (!fs.existsSync(thumbDirName)) {
+          fs.mkdirSync(thumbDirName, { recursive: true });
+        }
+        
+        // Criar thumbnail (código original)
+        await sharp(optimizedPath)
+          .resize({
+            width: 300,
+            height: 300,
+            fit: 'cover',
+            position: 'centre'
+          })
+          .flatten({ background: { r: 255, g: 255, b: 255 } })
+          .jpeg({ quality: 80 })
+          .toFile(thumbnailPath);
+        
+        return { optimizedPath, thumbnailPath, imageUrl, thumbnailUrl };
+      } catch (err) {
+        console.error(`Erro ao processar imagem individual: ${file.path}`, err);
+        throw err;
+      }
+    });
+
+    const processedResults = await Promise.all(processPromises);
+    
+    // Salvar os resultados no objeto de requisição para uso no controller
+    req.processedFiles = processedResults;
+    
+    next();
+  } catch (error) {
+    console.error('Erro ao processar imagens:', error);
+    next(error);
+  }
+};
+
+// Exporta o middleware completo
+export const imageUpload = {
+  array: (fieldName, maxCount) => {
+    return (req, res, next) => {
+      upload.array(fieldName, maxCount)(req, res, (err) => {
+        if (err) return next(err);
+        processImages(req, res, next);
+      });
+    };
+  },
+  single: (fieldName) => {
+    return (req, res, next) => {
+      upload.single(fieldName)(req, res, (err) => {
+        if (err) return next(err);
+        processImages(req, res, next);
+      });
+    };
+  }
+};
+2. Modificar o upload.controller.js
+Aqui vamos fazer apenas pequenas modificações para usar os novos caminhos seguros:
+javascriptimport fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { imageUpload } from '../utils/imageUpload.js';
+import { db } from '../db.js';
+import { storeImages, productImages } from '../../shared/schema.js';
+import { eq, desc } from 'drizzle-orm';
+
+// Obtém o caminho do diretório atual em ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '../..');
+
+/**
+ * @route POST /api/upload/images
+ * @desc Upload múltiplas imagens e retorna URLs otimizadas
+ * @access Privado (apenas usuários autenticados)
+ */
+export const uploadImages = async (req, res) => {
+  try {
+    // A verificação de autenticação já é feita pelo middleware authMiddleware na rota
+    const { type, entityId } = req.query;
+    
+    if (!type || !entityId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Parâmetros obrigatórios não fornecidos: type (store ou product) e entityId' 
+      });
+    }
+
+    // Verifica se o tipo é válido
+    if (type !== 'store' && type !== 'product') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Tipo inválido. Deve ser "store" ou "product"' 
+      });
+    }
+
+    // A configuração de upload é tratada pelo middleware imageUpload
+    imageUpload.array('images', 10)(req, res, async (err) => {
+      if (err) {
+        console.error('Erro no upload de imagens:', err);
+        return res.status(400).json({ success: false, message: 'Erro no upload de imagens: ' + err.message });
+      }
+
+      // Se não houver arquivos enviados
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ success: false, message: 'Nenhuma imagem enviada' });
+      }
+
+      try {
+        // Processa as imagens com os novos caminhos seguros
+        const processedImages = req.files.map(file => {
+          // Usar os caminhos seguros gerados no middleware
+          return {
+            originalName: file.originalname,
+            // Usar URLs seguros se disponíveis
+            imageUrl: file.secureImageUrl || `/uploads/${path.basename(file.path, path.extname(file.path))}.jpg`,
+            thumbnailUrl: file.secureThumbnailUrl || `/uploads/thumbnails/${path.basename(file.path, path.extname(file.path))}.jpg`,
+            size: file.size,
+            mimetype: 'image/jpeg'
+          };
+        });
+
+        // Salva as imagens no banco de dados - O resto permanece inalterado
+        const savedImages = [];
+
+        for (const image of processedImages) {
+          if (type === 'store') {
+            // Se for uma loja, primeiro desativa todas as imagens primárias existentes
+            await db.update(storeImages)
+              .set({
+                isPrimary: false
+              })
+              .where(eq(storeImages.storeId, parseInt(entityId)));
+            
+            // Salva a nova imagem como primária (sempre a mais recente será primária)
+            const [savedImage] = await db.insert(storeImages).values({
+              storeId: parseInt(entityId),
+              imageUrl: image.imageUrl,
+              thumbnailUrl: image.thumbnailUrl,
+              isPrimary: true, // Sempre verdadeiro - a imagem mais recente é a primária
+              displayOrder: savedImages.length
+            }).returning();
+            
+            savedImages.push({
+              ...image,
+              id: savedImage.id,
+              isPrimary: savedImage.isPrimary
+            });
+          } else {
+            // Se for um produto, primeiro desativa todas as imagens primárias existentes
+            await db.update(productImages)
+              .set({
+                isPrimary: false
+              })
+              .where(eq(productImages.productId, parseInt(entityId)));
+            
+            // Salva a nova imagem como primária (sempre a mais recente será primária)
+            const [savedImage] = await db.insert(productImages).values({
+              productId: parseInt(entityId),
+              imageUrl: image.imageUrl,
+              thumbnailUrl: image.thumbnailUrl,
+              isPrimary: true, // Sempre verdadeiro - a imagem mais recente é a primária
+              displayOrder: savedImages.length
+            }).returning();
+            
+            savedImages.push({
+              ...image,
+              id: savedImage.id,
+              isPrimary: savedImage.isPrimary
+            });
+          }
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: 'Imagens enviadas com sucesso',
+          images: savedImages
+        });
+      } catch (error) {
+        console.error('Erro ao processar as imagens:', error);
+        // Resposta mais detalhada do erro para facilitar o debugging
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Erro ao processar as imagens', 
+          error: error.message,
+          details: error.stack
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Erro no servidor durante upload:', error);
+    return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+  }
+};
+
+// O resto do arquivo permanece o mesmo
+3. Criar um Middleware para Validação de Acesso a Imagens
+Este é um novo arquivo que você precisa criar para impedir o acesso não autorizado a imagens:
+javascript// server/middleware/image-validation.js
+
+import { pool } from '../db.js';
+
+/**
+ * Middleware para validar acesso a imagens de produtos
+ * Este middleware deve ser aplicado às rotas de arquivos estáticos
+ */
+export const validateImageAccess = async (req, res, next) => {
+  try {
+    // Verificar se estamos acessando uma imagem de produto
+    const path = req.path;
+    if (!path.includes('/uploads/stores/') || !path.includes('/products/')) {
+      // Não é uma imagem de produto, continuar normalmente
+      return next();
+    }
+    
+    // Extrair IDs da loja e produto da URL
+    // Formato esperado: /uploads/stores/{storeId}/products/{productId}/...
+    const pathParts = path.split('/');
+    const storesIndex = pathParts.indexOf('stores');
+    const productsIndex = pathParts.indexOf('products');
+    
+    if (storesIndex === -1 || productsIndex === -1 || 
+        storesIndex + 1 >= pathParts.length || 
+        productsIndex + 1 >= pathParts.length) {
+      // Formato de URL inválido, continuar por compatibilidade
+      return next();
+    }
+    
+    const storeId = parseInt(pathParts[storesIndex + 1]);
+    const productId = parseInt(pathParts[productsIndex + 1]);
+    
+    if (isNaN(storeId) || isNaN(productId)) {
+      // IDs inválidos, continuar por compatibilidade
+      return next();
+    }
+    
+    // Verificar se o produto pertence à loja
+    const query = 'SELECT id FROM products WHERE id = $1 AND store_id = $2';
+    const result = await pool.query(query, [productId, storeId]);
+    
+    if (result.rows.length === 0) {
+      console.warn(`Acesso não autorizado: Imagem do produto ${productId} da loja ${storeId}`);
+      return res.redirect('/placeholder-image.jpg');
+    }
+    
+    // Tudo ok, continuar
+    next();
+  } catch (error) {
+    console.error('Erro ao validar acesso à imagem:', error);
+    // Em caso de erro, permitir acesso por segurança
+    next();
+  }
+};
+4. Aplicar o Middleware de Validação nas Rotas Estáticas
+Adicione o seguinte código ao seu arquivo principal (app.js ou server.js):
+javascript// Aplicar middleware de validação de imagens
+import { validateImageAccess } from './middleware/image-validation.js';
+
+// Aplicar apenas às rotas de uploads
+app.use('/uploads/stores', validateImageAccess, express.static(path.join(__dirname, 'public/uploads/stores')));
+5. Execute o Script de Verificação e Correção
+Como mencionado anteriormente, você já possui um excelente script para verificar e corrigir o mapeamento de imagens. Execute-o para ajustar as imagens existentes:
+bashnode scripts/verify-image-product-mapping.js
+Conclusão
+Esta solução:
+
+Organiza as imagens em diretórios isolados por loja e produto
+Verifica a propriedade das imagens ao acessá-las
+Mantém compatibilidade com as imagens existentes enquanto corrige as novas
+Usa URLs seguros que incluem informações de loja e produto
+Faz alterações mínimas ao seu código existente, concentrando-se apenas no necessário
+
+Com essas modificações, suas imagens ficarão devidamente isoladas por loja e produto, garantindo que a imagem de um produto de uma loja não possa ser acessada ou exibida por produtos de outras lojas.
+Além disso, o script de verificação que você já tem ajudará a corrigir os mapeamentos de imagens existentes, garantindo que todas as imagens estejam corretamente associadas aos seus respectivos produtos e lojas.

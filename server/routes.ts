@@ -27,6 +27,7 @@ import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/stor
 import { comparePasswords } from './utils/auth';
 import { geocodingMiddleware } from "./middlewares/geocoding.middleware";
 import { processStoreMiddleware } from "./middleware/store-processor.middleware";
+import { secureImageMiddleware } from "./middleware/secure-image-middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Registrar as rotas de imagens
