@@ -16,8 +16,12 @@ interface UserData {
   username: string;
   email: string;
   name: string;
+  firstName: string;
+  lastName: string;
   role: 'customer' | 'seller';
   createdAt?: string;
+  avatarUrl?: string;
+  avatarThumbnailUrl?: string;
   stats?: {
     wishlistCount: number;
     reservationsCount: number;
@@ -227,8 +231,50 @@ export default function Account() {
         name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
         email: userData.email || ''
       }));
+      
+      // Inicializar preview do avatar se existir
+      if (userData.avatarUrl) {
+        setAvatarPreview(userData.avatarUrl);
+      }
     }
   }, [userData]);
+  
+  // Função para selecionar avatar
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  // Função para lidar com a seleção de arquivo de avatar
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validar tipo de arquivo
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Erro",
+          description: "Por favor, selecione um arquivo de imagem válido.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Validar tamanho do arquivo (máximo 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Erro",
+          description: "O arquivo deve ter no máximo 5MB.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setAvatarFile(file);
+      
+      // Criar URL temporária para preview
+      const objectUrl = URL.createObjectURL(file);
+      setAvatarPreview(objectUrl);
+    }
+  };
 
   const { data: recentReservations = [], isLoading: isReservationsLoading } = useQuery({
     queryKey: ['/api/reservations?limit=3'],
@@ -500,10 +546,38 @@ export default function Account() {
           
           <div className="grid gap-4 py-4">
             <div className="mb-4 flex flex-col items-center">
-              <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2">
-                <i className="fas fa-user text-3xl"></i>
+              <div 
+                className="w-24 h-24 rounded-full overflow-hidden cursor-pointer relative mb-2"
+                onClick={handleAvatarClick}
+              >
+                {avatarPreview ? (
+                  <img 
+                    src={avatarPreview} 
+                    alt="Avatar do usuário" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary">
+                    <i className="fas fa-user text-3xl"></i>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                  <span className="text-white text-sm">Alterar</span>
+                </div>
               </div>
-              <Button variant="outline" size="sm">
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleAvatarChange}
+              />
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleAvatarClick}
+                type="button"
+              >
                 <i className="fas fa-camera mr-2"></i> Alterar foto
               </Button>
             </div>
