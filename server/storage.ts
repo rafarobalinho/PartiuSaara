@@ -1601,9 +1601,9 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .update(users)
       .set({ 
-        avatar_url: avatarUrl,
-        avatar_thumbnail_url: avatarThumbnailUrl,
-        updated_at: new Date()
+        avatarUrl: avatarUrl,
+        avatarThumbnailUrl: avatarThumbnailUrl,
+        updatedAt: new Date()
       })
       .where(eq(users.id, userId))
       .returning();
