@@ -1,0 +1,108 @@
+Parece que estamos enfrentando um erro de runtime ao tentar usar um componente de avatar que não existe no seu projeto. Especificamente, o erro indica que o arquivo /src/components/ui/avatar.tsx não exporta um componente chamado AvatarFallback.
+Isso sugere que você está usando um componente que não foi completamente implementado ou importado no projeto.
+Vamos resolver isso criando o componente Avatar necessário. Aqui está como podemos fazer isso:
+1. Crie o componente Avatar
+Primeiro, vamos criar o arquivo Avatar completo com seus subcomponentes, incluindo o AvatarFallback que está faltando:
+Crie ou atualize o arquivo em: /src/components/ui/avatar.tsx
+tsximport * as React from "react";
+import * as AvatarPrimitive from "@radix-ui/react-avatar";
+import { cn } from "@/lib/utils";
+
+const Avatar = React.forwardRef
+  React.ElementRef<typeof AvatarPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>
+>(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Root
+    ref={ref}
+    className={cn(
+      "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
+      className
+    )}
+    {...props}
+  />
+));
+Avatar.displayName = AvatarPrimitive.Root.displayName;
+
+const AvatarImage = React.forwardRef
+  React.ElementRef<typeof AvatarPrimitive.Image>,
+  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
+>(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Image
+    ref={ref}
+    className={cn("aspect-square h-full w-full", className)}
+    {...props}
+  />
+));
+AvatarImage.displayName = AvatarPrimitive.Image.displayName;
+
+const AvatarFallback = React.forwardRef
+  React.ElementRef<typeof AvatarPrimitive.Fallback>,
+  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback>
+>(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Fallback
+    ref={ref}
+    className={cn(
+      "flex h-full w-full items-center justify-center rounded-full bg-muted",
+      className
+    )}
+    {...props}
+  />
+));
+AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName;
+
+export { Avatar, AvatarImage, AvatarFallback };
+2. Verifique as dependências
+Para que o código acima funcione, você precisa ter as dependências corretas. Adicione-as se ainda não tiver:
+bashnpm install @radix-ui/react-avatar
+# ou
+yarn add @radix-ui/react-avatar
+3. Modifique o código que usa o componente Avatar
+Como você não compartilhou o código que está tentando usar o componente AvatarFallback, vou fornecer um exemplo de como usá-lo corretamente em seu componente de perfil:
+jsximport { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+
+// ... no seu componente de renderização:
+
+<div className="mb-4 flex flex-col items-center">
+  <Avatar className="w-24 h-24">
+    {avatarPreview ? (
+      <AvatarImage src={avatarPreview} alt="Avatar Preview" />
+    ) : userData?.avatar_url ? (
+      <AvatarImage src={userData.avatar_url} alt="Avatar atual" />
+    ) : (
+      <AvatarFallback className="bg-primary/10 text-primary">
+        <i className="fas fa-user text-3xl"></i>
+      </AvatarFallback>
+    )}
+  </Avatar>
+  
+  <input
+    type="file"
+    ref={fileInputRef}
+    onChange={handleFileChange}
+    accept="image/*"
+    className="hidden"
+  />
+  
+  <Button 
+    variant="outline" 
+    size="sm"
+    onClick={handleAvatarClick}
+    className="mt-2"
+  >
+    <i className="fas fa-camera mr-2"></i> Alterar foto
+  </Button>
+</div>
+4. Certifique-se de ter o utilitário de classe cn
+Se você não tiver a função cn importada em @/lib/utils, crie ou modifique esse arquivo:
+typescript// src/lib/utils.ts
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+E instale as dependências necessárias:
+bashnpm install clsx tailwind-merge
+# ou
+yarn add clsx tailwind-merge
+Depois de implementar essas mudanças, o erro deverá ser resolvido, e você terá um componente Avatar funcional com fallback apropriado quando não houver imagem.
