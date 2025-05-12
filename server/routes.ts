@@ -30,6 +30,9 @@ import { processStoreMiddleware } from "./middleware/store-processor.middleware"
 import { secureImageMiddleware } from "./middleware/secure-image-middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Aplicar middleware de segurança de imagens
+  app.use(secureImageMiddleware);
+  
   // Registrar as rotas de imagens
   app.use('/api', imagesRoutes);
 
