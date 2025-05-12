@@ -29,6 +29,8 @@ export const users = pgTable("users", {
   dateOfBirth: text("date_of_birth"),
   gender: text("gender").$type<"male" | "female" | "not_specified">(),
   role: text("role").$type<"customer" | "seller" | "admin">().notNull().default("customer"),
+  avatarUrl: text("avatar_url"),
+  avatarThumbnailUrl: text("avatar_thumbnail_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -36,7 +38,9 @@ export const users = pgTable("users", {
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
-  updatedAt: true
+  updatedAt: true,
+  avatarUrl: true,
+  avatarThumbnailUrl: true
 });
 
 // Stores schema
