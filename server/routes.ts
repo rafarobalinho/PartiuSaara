@@ -7,6 +7,7 @@ import { storage } from "./storage";
 import { authMiddleware, adminMiddleware } from "./middleware/auth";
 import * as AuthController from "./controllers/auth.controller";
 import * as UserController from "./controllers/user.controller";
+import * as AvatarController from "./controllers/avatar.controller";
 import * as ProductController from "./controllers/product.controller";
 import * as StoreController from "./controllers/store.controller";
 import * as PromotionController from "./controllers/promotion.controller";
@@ -41,6 +42,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users/me', authMiddleware, UserController.getCurrentUser);
   app.post('/api/users/verify-password', authMiddleware, UserController.verifyPassword);
   app.put('/api/users/update', authMiddleware, UserController.updateUser);
+  app.put('/api/users/avatar', authMiddleware, AvatarController.updateUserAvatar);
 
   // Category routes
   app.get('/api/categories', async (req: Request, res: Response) => {
