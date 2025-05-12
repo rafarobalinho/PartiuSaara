@@ -49,17 +49,45 @@ export const uploadAvatar = async (req: Request, res: Response) => {
     
     // Definir caminhos para as versões de imagem
     const avatarDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
-    const destinationPath = path.join(avatarDir, filename);
     
-    // Processar a imagem (redimensionar e criar thumbnail)
-    const { optimizedPath, thumbnailPath } = await processImage(originalPath, 400, 100);
+    // Criar diretório temporário para processamento
+    const tempDir = path.join(process.cwd(), 'public', 'uploads', 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
     
-    // Mover as imagens processadas para os diretórios corretos
+    // Copiar o arquivo original para um local temporário para evitar conflito
+    const tempFilePath = path.join(tempDir, `temp-${filename}`);
+    fs.copyFileSync(originalPath, tempFilePath);
+    
+    // Processar a imagem a partir do arquivo temporário
+    const { originalPath: optimizedPath, thumbnailPath } = await processImage(tempFilePath, 400, 100);
+    
+    // Definir caminhos finais
     const finalOptimizedPath = path.join(avatarDir, filename);
     const finalThumbnailPath = path.join(avatarDir, 'thumbnails', filename);
     
-    fs.renameSync(optimizedPath, finalOptimizedPath);
-    fs.renameSync(thumbnailPath, finalThumbnailPath);
+    // Mover as imagens processadas para os diretórios corretos
+    if (!fs.existsSync(path.dirname(finalOptimizedPath))) {
+      fs.mkdirSync(path.dirname(finalOptimizedPath), { recursive: true });
+    }
+    if (!fs.existsSync(path.dirname(finalThumbnailPath))) {
+      fs.mkdirSync(path.dirname(finalThumbnailPath), { recursive: true });
+    }
+    
+    fs.copyFileSync(optimizedPath, finalOptimizedPath);
+    fs.copyFileSync(thumbnailPath, finalThumbnailPath);
+    
+    // Limpar arquivos temporários
+    if (fs.existsSync(tempFilePath)) {
+      fs.unlinkSync(tempFilePath);
+    }
+    if (fs.existsSync(optimizedPath)) {
+      fs.unlinkSync(optimizedPath);
+    }
+    if (fs.existsSync(thumbnailPath)) {
+      fs.unlinkSync(thumbnailPath);
+    }
     
     // Remover o arquivo original
     if (fs.existsSync(originalPath)) {

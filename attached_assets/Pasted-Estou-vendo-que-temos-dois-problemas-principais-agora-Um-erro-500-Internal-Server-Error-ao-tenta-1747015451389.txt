@@ -1,0 +1,260 @@
+Estou vendo que temos dois problemas principais agora:
+
+Um erro 500 (Internal Server Error) ao tentar acessar a rota api/users/avatar
+Um erro específico "Erro ao processar o avatar" na função saveProfileChanges na linha 183 do arquivo index.tsx
+
+Vamos resolver esses problemas:
+1. Primeiro, vamos consertar o erro no endpoint de avatar
+Parece que o backend está tendo problemas ao processar o upload do avatar. Vamos verificar se o endpoint existe e está configurado corretamente.
+Verifique se a rota do avatar está registrada corretamente
+Primeiro, você precisa garantir que a rota para o avatar esteja configurada no seu servidor. Vamos simplificar o endpoint para evitar o erro 500:
+javascript// server/routes/users.js ou similar
+import express from 'express';
+import multer from 'multer';
+import { authMiddleware } from '../middleware/auth.js';
+
+const router = express.Router();
+
+// Configuração básica do multer para upload de arquivos
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'public/uploads');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+
+const upload = multer({ storage: storage });
+
+// Endpoint para upload de avatar
+router.put('/avatar', authMiddleware, upload.single('avatar'), async (req, res) => {
+  try {
+    // Verificar se um arquivo foi enviado
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Nenhum arquivo enviado' });
+    }
+
+    // Obter o caminho do arquivo
+    const avatarUrl = `/uploads/${req.file.filename}`;
+
+    // Atualizar o avatar no banco de dados
+    // Simplesmente retornar sucesso com o URL para debug
+    return res.json({
+      success: true,
+      message: 'Avatar processado com sucesso',
+      avatar: {
+        url: avatarUrl,
+        thumbnailUrl: avatarUrl // Mesma URL por enquanto, para simplificar
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao processar avatar:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao processar o avatar', 
+      error: error.message 
+    });
+  }
+});
+
+export default router;
+2. Agora, vamos simplificar o código do frontend para depuração
+Vamos modificar a função saveProfileChanges para incluir logs e manusear o erro específico no upload de avatar:
+javascript// Função simplificada para upload do avatar
+const uploadAvatar = async () => {
+  if (!avatarFile) return null;
+  
+  console.log('Preparando para enviar avatar:', avatarFile.name);
+  
+  const formData = new FormData();
+  formData.append('avatar', avatarFile);
+  
+  try {
+    console.log('Enviando requisição de upload...');
+    
+    // Adicionar log para ver o que está sendo enviado
+    console.log('FormData contém avatar?', formData.has('avatar'));
+    
+    const response = await fetch('/api/users/avatar', {
+      method: 'PUT',
+      body: formData,
+    });
+    
+    console.log('Resposta recebida:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Erro na resposta:', errorText);
+      throw new Error(`Falha ao fazer upload do avatar: ${response.status} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('Upload bem-sucedido:', data);
+    return data.avatar.url;
+  } catch (error) {
+    console.error('Erro detalhado ao fazer upload do avatar:', error);
+    // Não interromper o fluxo, apenas registrar o erro
+    toast({
+      title: "Aviso",
+      description: "Não foi possível atualizar o avatar, mas outras informações serão salvas",
+      status: "warning"
+    });
+    return null;
+  }
+};
+
+// Modificar a função saveProfileChanges para tolerar falhas no avatar
+const saveProfileChanges = async () => {
+  console.log('Iniciando saveProfileChanges');
+  try {
+    // Validar os campos
+    if (!profileForm.name || !profileForm.email) {
+      toast({
+        title: "Erro",
+        description: "Nome e email são obrigatórios",
+        status: "error"
+      });
+      return;
+    }
+    
+    // Estrutura try/catch separada para avatar
+    let avatarUrl = null;
+    if (avatarFile) {
+      try {
+        console.log('Tentando fazer upload do avatar...');
+        avatarUrl = await uploadAvatar();
+        console.log('URL do avatar recebida:', avatarUrl);
+      } catch (avatarError) {
+        console.error('Erro isolado no upload do avatar:', avatarError);
+        // Continuar a execução mesmo com erro no avatar
+      }
+    }
+    
+    // Preparar os dados para enviar
+    const updateData = {
+      name: profileForm.name,
+      email: profileForm.email
+    };
+    
+    // Adicionar URL do avatar se disponível
+    if (avatarUrl) {
+      updateData.avatar_url = avatarUrl;
+    }
+    
+    // Adicionar senha se estiver alterando
+    if (passwordFieldsEnabled && profileForm.newPassword) {
+      if (profileForm.newPassword !== profileForm.confirmPassword) {
+        toast({
+          title: "Erro",
+          description: "As senhas não coincidem",
+          status: "error"
+        });
+        return;
+      }
+      updateData.password = profileForm.newPassword;
+    }
+    
+    console.log('Enviando dados para atualização:', Object.keys(updateData));
+    
+    // Enviar requisição para atualizar o perfil
+    const response = await fetch('/api/users/update', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updateData)
+    });
+    
+    console.log('Resposta da atualização:', response.status);
+    
+    if (response.ok) {
+      // Fechar o modal e atualizar os dados
+      setIsEditProfileOpen(false);
+      // Invalidar a query para recarregar os dados do usuário
+      queryClient.invalidateQueries(['/api/users/me']);
+      
+      toast({
+        title: "Perfil atualizado",
+        description: avatarUrl 
+          ? "Suas informações foram atualizadas com sucesso" 
+          : "Suas informações foram atualizadas, mas houve um problema com o avatar",
+        status: "success"
+      });
+    } else {
+      const errorData = await response.json();
+      toast({
+        title: "Erro",
+        description: errorData.message || "Não foi possível atualizar o perfil",
+        status: "error"
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao atualizar perfil:', error);
+    toast({
+      title: "Erro",
+      description: "Ocorreu um erro ao atualizar o perfil",
+      status: "error"
+    });
+  }
+};
+3. Vamos também corrigir o aviso sobre o DialogContent
+O primeiro aviso menciona que o DialogContent está faltando uma descrição. Vamos corrigir isso:
+jsx<DialogContent className="sm:max-w-[425px]" aria-describedby="profile-edit-description">
+  <DialogHeader>
+    <DialogTitle>Editar Perfil</DialogTitle>
+    <p id="profile-edit-description" className="text-sm text-muted-foreground">
+      Faça alterações em seu perfil abaixo
+    </p>
+  </DialogHeader>
+  
+  {/* Resto do conteúdo... */}
+</DialogContent>
+4. Resolvendo o problema do componente Avatar
+Para lidar com o erro de componente Avatar que vimos antes, vamos usar a abordagem mais simples possível para evitar depender de componentes que talvez não existam na sua aplicação:
+jsx<div className="mb-4 flex flex-col items-center">
+  <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2 overflow-hidden">
+    {avatarPreview ? (
+      <img 
+        src={avatarPreview} 
+        alt="Avatar Preview" 
+        className="w-full h-full object-cover"
+      />
+    ) : userData?.avatar_url ? (
+      <img 
+        src={userData.avatar_url} 
+        alt="Avatar atual" 
+        className="w-full h-full object-cover"
+      />
+    ) : (
+      <i className="fas fa-user text-3xl"></i>
+    )}
+  </div>
+  
+  <input
+    type="file"
+    ref={fileInputRef}
+    onChange={handleFileChange}
+    accept="image/*"
+    className="hidden"
+  />
+  
+  <Button 
+    variant="outline" 
+    size="sm"
+    onClick={handleAvatarClick}
+  >
+    <i className="fas fa-camera mr-2"></i> Alterar foto
+  </Button>
+</div>
+Esta abordagem evita o uso do componente Avatar que estava causando problemas e usa HTML básico com Tailwind para conseguir o mesmo efeito visual.
+Resumo das alterações:
+
+Simplificamos o endpoint de backend para o upload de avatar para isolamento de problemas
+Adicionamos logs detalhados para ajudar a depurar o problema
+Implementamos tratamento de erros robusto para que mesmo que o upload do avatar falhe, o resto da atualização do perfil ainda funcione
+Corrigimos o aviso de acessibilidade no DialogContent
+Substituímos o componente Avatar por HTML básico para evitar dependências problemáticas
+
+Essas alterações devem ajudar a identificar e resolver o problema específico com o upload de avatar, permitindo que você depure mais facilmente sem quebrar o restante das funcionalidades do usuário.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas.
