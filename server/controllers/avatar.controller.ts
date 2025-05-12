@@ -45,84 +45,51 @@ export const uploadAvatar = async (req: Request, res: Response) => {
     
     // Obter informações do arquivo
     const originalPath = req.file.path;
-    const filename = `avatar-${userId}-${Date.now()}${path.extname(req.file.originalname)}`;
     
-    // Definir caminhos para as versões de imagem
-    const avatarDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
+    // Utilizar o novo processamento seguro de imagens com diretórios isolados
+    // Definimos o tipo "user" e o entityId como o ID do usuário
+    console.log(`Processando avatar para usuário ${userId}...`);
     
-    // Criar diretório temporário para processamento
-    const tempDir = path.join(process.cwd(), 'public', 'uploads', 'temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
+    // Processar a imagem usando o novo método que cria diretórios isolados
+    const { imageUrl, thumbnailUrl } = await processImage(originalPath, 'user', userId, 400, 100);
     
-    // Copiar o arquivo original para um local temporário para evitar conflito
-    const tempFilePath = path.join(tempDir, `temp-${filename}`);
-    fs.copyFileSync(originalPath, tempFilePath);
-    
-    // Processar a imagem a partir do arquivo temporário
-    const { originalPath: optimizedPath, thumbnailPath } = await processImage(tempFilePath, 400, 100);
-    
-    // Definir caminhos finais
-    const finalOptimizedPath = path.join(avatarDir, filename);
-    const finalThumbnailPath = path.join(avatarDir, 'thumbnails', filename);
-    
-    // Mover as imagens processadas para os diretórios corretos
-    if (!fs.existsSync(path.dirname(finalOptimizedPath))) {
-      fs.mkdirSync(path.dirname(finalOptimizedPath), { recursive: true });
-    }
-    if (!fs.existsSync(path.dirname(finalThumbnailPath))) {
-      fs.mkdirSync(path.dirname(finalThumbnailPath), { recursive: true });
-    }
-    
-    fs.copyFileSync(optimizedPath, finalOptimizedPath);
-    fs.copyFileSync(thumbnailPath, finalThumbnailPath);
-    
-    // Limpar arquivos temporários
-    if (fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-    }
-    if (fs.existsSync(optimizedPath)) {
-      fs.unlinkSync(optimizedPath);
-    }
-    if (fs.existsSync(thumbnailPath)) {
-      fs.unlinkSync(thumbnailPath);
-    }
-    
-    // Remover o arquivo original
-    if (fs.existsSync(originalPath)) {
-      fs.unlinkSync(originalPath);
-    }
-    
-    // URLs para salvar no banco de dados
-    const avatarUrl = `/uploads/avatars/${filename}`;
-    const avatarThumbnailUrl = `/uploads/avatars/thumbnails/${filename}`;
+    console.log(`Avatar processado: ${imageUrl}, ${thumbnailUrl}`);
     
     // Obter o avatar atual para remover depois
     const currentUser = await storage.getUser(userId);
     
     // Atualizar o usuário no banco de dados
-    await storage.updateUserAvatar(userId, avatarUrl, avatarThumbnailUrl);
+    await storage.updateUserAvatar(userId, imageUrl, thumbnailUrl);
     
     // Remover o avatar antigo se existir
     if (currentUser?.avatarUrl) {
       const oldAvatarPath = path.join(process.cwd(), 'public', currentUser.avatarUrl);
       if (fs.existsSync(oldAvatarPath)) {
-        fs.unlinkSync(oldAvatarPath);
+        try {
+          fs.unlinkSync(oldAvatarPath);
+          console.log(`Avatar antigo removido: ${oldAvatarPath}`);
+        } catch (e) {
+          console.log(`Não foi possível remover avatar antigo: ${e.message}`);
+        }
       }
     }
     
     if (currentUser?.avatarThumbnailUrl) {
       const oldThumbnailPath = path.join(process.cwd(), 'public', currentUser.avatarThumbnailUrl);
       if (fs.existsSync(oldThumbnailPath)) {
-        fs.unlinkSync(oldThumbnailPath);
+        try {
+          fs.unlinkSync(oldThumbnailPath);
+          console.log(`Thumbnail antigo removido: ${oldThumbnailPath}`);
+        } catch (e) {
+          console.log(`Não foi possível remover thumbnail antigo: ${e.message}`);
+        }
       }
     }
     
     return res.status(200).json({ 
       message: 'Avatar atualizado com sucesso',
-      avatarUrl, 
-      avatarThumbnailUrl 
+      avatarUrl: imageUrl, 
+      avatarThumbnailUrl: thumbnailUrl 
     });
     
   } catch (error) {
