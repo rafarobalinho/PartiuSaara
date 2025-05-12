@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
@@ -62,6 +62,11 @@ export default function Account() {
     confirmPassword: ''
   });
   const [passwordFieldsEnabled, setPasswordFieldsEnabled] = useState(false);
+  
+  // Estados para o avatar
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Dados do usuário são obtidos na useQuery abaixo
 
@@ -149,7 +154,7 @@ export default function Account() {
         updateData.password = profileForm.newPassword;
       }
 
-      // Enviar requisição para atualizar o perfil
+      // Primeiro, vamos atualizar o perfil básico
       const response = await fetch('/api/users/update', {
         method: 'PUT',
         headers: {
@@ -157,6 +162,22 @@ export default function Account() {
         },
         body: JSON.stringify(updateData)
       });
+      
+      // Fazer upload do avatar se houver um arquivo selecionado
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
+        
+        const avatarResponse = await fetch('/api/users/avatar', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!avatarResponse.ok) {
+          const errorData = await avatarResponse.json();
+          throw new Error(errorData.message || 'Erro ao atualizar avatar');
+        }
+      }
 
       if (response.ok) {
         // Fechar o modal e atualizar os dados
