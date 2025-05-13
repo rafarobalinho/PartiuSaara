@@ -1,0 +1,27 @@
+Vamos focar no componente safe-image.tsx, que parece estar tentando carregar imagens de múltiplos caminhos incorretos antes de usar o placeholder.
+Aqui está um prompt para o agente de IA do Replit corrigir o componente safe-image.tsx:
+Por favor, corrija o componente safe-image.tsx que está causando erros de carregamento de imagens em /account/reservations.
+
+Analisando os logs de erro do console, vejo que o componente está tentando carregar imagens usando vários caminhos incorretos antes de usar o placeholder:
+
+1. Tentativa 1: `/api/reservations/20/image` (não existe)
+2. Tentativa 2: `/uploads/reservations-20.jpg` 
+3. Tentativa 3: URLs absolutas do Replit
+4. Tentativa 4: `/placeholder-image.jpg`
+
+O backend já está fornecendo o caminho correto das imagens, usando `/api/products/[id]/primary-image`. O problema parece estar no componente safe-image.tsx que não está usando diretamente este caminho.
+
+Por favor, faça as seguintes modificações em `client/src/components/ui/safe-image.tsx`:
+
+1. Verifique a função ou componente que tenta carregar imagens para reservas
+2. Se houver uma lógica específica para tentar múltiplos caminhos, ajuste-a para:
+   - Para reservas, usar diretamente o caminho `/api/products/[id]/primary-image`
+   - Remover a tentativa de carregar de `/api/reservations/[id]/image`
+   - Remover a tentativa de carregar diretamente de `/uploads/reservations-[id].jpg`
+
+3. Se o componente estiver usando a propriedade `src` diretamente, certifique-se de que esteja recebendo o valor correto do backend.
+
+4. Adicione um log para mostrar qual caminho de imagem está sendo usado para debug.
+
+Esta correção deve resolver o problema onde as imagens nas reservas estão sendo exibidas como placeholders em vez das imagens reais dos produtos.
+Este prompt se concentra especificamente no componente do frontend que parece estar causando o problema, mesmo com o backend fornecendo os caminhos corretos.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas. 3.7 Sonnet

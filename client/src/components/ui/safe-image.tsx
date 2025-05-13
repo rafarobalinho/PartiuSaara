@@ -46,12 +46,17 @@ export function SafeImage({
     if (type) {
       if (type === 'product' && productId) {
         setImgSrc(`/api/products/${productId}/primary-image`);
+        console.log(`SafeImage: Usando caminho para produto: /api/products/${productId}/primary-image`);
         return;
       } else if (type === 'store' && storeId) {
         setImgSrc(`/api/stores/${storeId}/primary-image`);
+        console.log(`SafeImage: Usando caminho para loja: /api/stores/${storeId}/primary-image`);
         return;
       } else if (type === 'reservation' && reservationId) {
-        setImgSrc(`/api/reservations/${reservationId}/image`);
+        // Para reservas, usamos o caminho do produto associado diretamente
+        // em vez de tentar uma rota específica para reservas que pode estar com erro
+        setImgSrc(`/api/products/${productId}/primary-image`);
+        console.log(`SafeImage: Usando caminho para reserva convertido: /api/products/${productId}/primary-image`);
         return;
       }
     }
@@ -90,11 +95,43 @@ export function SafeImage({
     }
     
     // Se for URL de API para imagem principal de loja ou produto, mantém
+    // Se for URL de API para reserva, converte para caminho do produto se possível
     if (src.match(/\/api\/stores\/\d+\/primary-image/) || 
-        src.match(/\/api\/products\/\d+\/primary-image/) ||
-        src.match(/\/api\/reservations\/\d+\/image/)) {
+        src.match(/\/api\/products\/\d+\/primary-image/)) {
       setImgSrc(src);
+      console.log('SafeImage: Mantendo caminho de API válido:', src);
       return;
+    }
+    
+    // Se for um caminho de reserva, converte para caminho de produto
+    if (src.match(/\/api\/reservations\/(\d+)\/image/)) {
+      // Se temos productId, usar o caminho de imagem do produto
+      if (productId) {
+        const newSrc = `/api/products/${productId}/primary-image`;
+        console.log('SafeImage: Convertendo caminho de reserva para produto:', newSrc);
+        setImgSrc(newSrc);
+        return;
+      }
+      // Se não temos productId, extrair id da reserva e obter o produto
+      const match = src.match(/\/api\/reservations\/(\d+)\/image/);
+      if (match) {
+        const reservationId = match[1];
+        console.log('SafeImage: Caminho de reserva detectado, usando caminho para produto relacionado se disponível');
+        // Se tivermos dados da reserva no src, usar o productId dela
+        if (src.indexOf('?productId=') > 0) {
+          const productIdMatch = src.match(/\?productId=(\d+)/);
+          if (productIdMatch) {
+            const extractedProductId = productIdMatch[1];
+            const newSrc = `/api/products/${extractedProductId}/primary-image`;
+            console.log('SafeImage: Extraído productId do URL:', newSrc);
+            setImgSrc(newSrc);
+            return;
+          }
+        }
+        // Se não foi possível extrair, vamos usar o fallback 
+        setImgSrc(fallbackSrc);
+        return;
+      }
     }
     
     // URLs de imagem de produto diretas (timestamp-id)
@@ -139,18 +176,29 @@ export function SafeImage({
         if (entityType === 'products' && productId) {
           // Tentar a URL de thumbnail como fallback
           const newSrc = `/api/products/${productId}/thumbnail`;
-          console.log('Tentando thumbnail do produto:', newSrc);
+          console.log('SafeImage: Tentando thumbnail do produto:', newSrc);
           setImgSrc(newSrc);
         } else if (entityType === 'stores' && storeId) {
           // Tentar caminho de upload direto para a loja
           const newSrc = `/uploads/stores/${storeId}/logo.jpg`;
-          console.log('Tentando caminho direto para logo da loja:', newSrc);
+          console.log('SafeImage: Tentando caminho direto para logo da loja:', newSrc);
           setImgSrc(newSrc);
+        } else if (entityType === 'reservations') {
+          // Para reservas, tentar usar o ID do produto diretamente
+          if (productId) {
+            const newSrc = `/api/products/${productId}/primary-image`;
+            console.log('SafeImage: Tentando imagem do produto associado à reserva:', newSrc);
+            setImgSrc(newSrc);
+          } else {
+            // Se não temos o ID do produto, ir direto para o fallback
+            console.log('SafeImage: Reserva sem ID de produto, usando fallback');
+            setImgSrc(fallbackSrc);
+            setError(true);
+          }
         } else {
-          // Fallback genérico por tipo
-          const newSrc = `/uploads/${entityType}-${entityId}.jpg`;
-          console.log('Tentando caminho alternativo:', newSrc);
-          setImgSrc(newSrc);
+          // Usar caminho de fallback diretamente para evitar erros
+          setImgSrc(fallbackSrc);
+          setError(true);
         }
       } else {
         // Segunda tentativa: usar caminho absoluto
