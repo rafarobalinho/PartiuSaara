@@ -45,12 +45,7 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-interface RegisterProps {
-  initialRole?: 'customer' | 'seller';
-  onSuccess?: () => void;
-}
-
-export default function Register({ initialRole = 'customer', onSuccess }: RegisterProps) {
+export default function Register() {
   const { register, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,7 +60,7 @@ export default function Register({ initialRole = 'customer', onSuccess }: Regist
       lastName: '',
       dateOfBirth: '',
       gender: 'not_specified',
-      role: initialRole,
+      role: 'customer',
     },
   });
 
@@ -88,11 +83,7 @@ export default function Register({ initialRole = 'customer', onSuccess }: Regist
         data.gender,
         data.role
       );
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        navigate('/');
-      }
+      navigate('/');
     } catch (error) {
       console.error('Registration error:', error);
     } finally {
