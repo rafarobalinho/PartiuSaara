@@ -292,13 +292,12 @@ export default function Reservations() {
                       <div key={reservation.id} className="bg-white rounded-lg shadow-sm p-4 border flex flex-col sm:flex-row">
                         <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 sm:mr-4">
                           <SafeImage 
-                            src={reservation.imageUrl || `/api/reservations/${reservation.id}/image`}
+                            src={`/api/products/${reservation.productId}/primary-image`}
                             alt={reservation.product_name || 'Produto'} 
                             className="w-full h-full object-cover"
                             fallbackSrc="/placeholder-image.jpg"
-                            reservationId={reservation.id}
-                            type="reservation"
                             productId={reservation.productId}
+                            type="product"
                           />
                         </div>
                         <div className="flex-1">
