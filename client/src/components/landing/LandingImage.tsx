@@ -1,64 +1,37 @@
-import { useState, useEffect } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+import React, { useState } from 'react';
 
 interface LandingImageProps {
   src: string;
   alt: string;
   className?: string;
-  width?: number;
-  height?: number;
 }
 
-/**
- * Componente para exibir imagens estáticas nas landing pages
- * As imagens devem ser colocadas no diretório /public/landing/
- * Exemplo de uso: <LandingImage src="lojista-hero.jpg" alt="Hero" />
- */
-export function LandingImage({ src, alt, className = '', width, height }: LandingImageProps) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(false);
+export function LandingImage({ src, alt, className = "" }: LandingImageProps) {
+  const [hasError, setHasError] = useState(false);
   
-  // Constrói o caminho da imagem (removendo o /landing/ caso já esteja incluído)
-  const imagePath = src.startsWith('/landing/') ? src : `/landing/${src}`;
+  // Função para lidar com erros de carregamento
+  const handleError = () => {
+    console.error(`Erro ao carregar imagem: ${src}`);
+    setHasError(true);
+  };
   
-  useEffect(() => {
-    const img = new Image();
-    img.src = imagePath;
-    img.onload = () => setIsLoading(false);
-    img.onerror = () => {
-      console.error(`Erro ao carregar imagem: ${imagePath}`);
-      setIsLoading(false);
-      setError(true);
-    };
-  }, [imagePath]);
-  
-  if (isLoading) {
+  if (hasError) {
     return (
-      <Skeleton 
-        className={`${className} bg-gray-200`} 
-        style={{ width: width ? `${width}px` : '100%', height: height ? `${height}px` : '250px' }}
-      />
-    );
-  }
-  
-  if (error) {
-    return (
-      <div 
-        className={`${className} bg-gray-100 flex items-center justify-center`}
-        style={{ width: width ? `${width}px` : '100%', height: height ? `${height}px` : '250px' }}
-      >
-        <p className="text-gray-500">Imagem não encontrada</p>
+      <div className={`bg-gradient-to-r from-blue-100 to-indigo-100 flex items-center justify-center ${className}`} style={{ minHeight: '200px' }}>
+        <p className="text-indigo-600 font-medium">{alt || "Imagem não disponível"}</p>
       </div>
     );
   }
   
+  // Garantir que a URL comece com uma barra
+  const imageSrc = src.startsWith('/') ? src : `/${src}`;
+  
   return (
     <img 
-      src={imagePath}
-      alt={alt}
+      src={imageSrc} 
+      alt={alt} 
       className={className}
-      width={width}
-      height={height}
+      onError={handleError}
       loading="lazy"
     />
   );
