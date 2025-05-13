@@ -2,7 +2,7 @@ import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { CheckCircle, ArrowRight, Smartphone, BarChart2, Megaphone, Users, ShoppingCart, MapPin } from 'lucide-react';
-import { LandingImage } from '@/components/landing/LandingImage';
+import { StaticImage } from '@/components/landing/StaticImage';
 
 export default function ForStoreOwners() {
   return (
@@ -31,8 +31,8 @@ export default function ForStoreOwners() {
             </div>
             <div className="md:w-1/2 relative">
               <div className="relative rounded-lg overflow-hidden">
-                <LandingImage 
-                  src="sellers/hero-banner.jpg" 
+                <StaticImage 
+                  filename="sellers/hero-banner.jpg" 
                   alt="Loja no Saara" 
                   className="w-full h-full object-cover"
                 />
@@ -157,8 +157,8 @@ export default function ForStoreOwners() {
             </div>
             <div className="md:w-1/2 relative">
               <div className="relative rounded-lg overflow-hidden">
-                <LandingImage 
-                  src="sellers/feature-store.jpg" 
+                <StaticImage 
+                  filename="sellers/feature-store.jpg" 
                   alt="Sistema de vendas em uma loja" 
                   className="w-full h-full object-cover"
                 />
