@@ -179,14 +179,10 @@ export async function getReservations(req: Request, res: Response) {
           const imageExists = reservation.product.images.some((img: ProductImage) => img.id === row.pi_id);
           
           if (!imageExists) {
-            // Construir caminho de imagem seguro com isolamento de loja
-            const secureImagePath = row.pi_image_url.startsWith('/uploads/stores/') 
-              ? row.pi_image_url 
-              : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/${row.pi_image_url.split('/').pop()}`;
+            // Usar caminho da API para imagens
+            const secureImagePath = `/api/products/${row.p_id}/primary-image`;
               
-            const secureThumbnailPath = row.pi_thumbnail_url.startsWith('/uploads/stores/')
-              ? row.pi_thumbnail_url
-              : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/thumb-${row.pi_thumbnail_url.split('/').pop()}`;
+            const secureThumbnailPath = `/api/products/${row.p_id}/thumbnail`;
               
             // Adicionar imagem ao produto com caminhos seguros
             reservation.product.images.push({
@@ -207,7 +203,7 @@ export async function getReservations(req: Request, res: Response) {
 
             // Se esta é a imagem principal e ainda não temos uma imagem plana definida
             if (row.pi_is_primary && !reservation.product_image) {
-              reservation.product_image = secureImagePath;
+              reservation.product_image = `/api/products/${row.p_id}/primary-image`;
               reservation.store_id = row.p_store_id; // Adicionar store_id para referência
             }
           }
@@ -231,12 +227,12 @@ export async function getReservations(req: Request, res: Response) {
       if (res.product.images.length === 0) {
         res.product.images.push({
           id: 0,
-          image_url: '/placeholder-image.jpg',
-          thumbnail_url: '/placeholder-image.jpg',
+          image_url: `/api/products/${res.product_id}/primary-image`,
+          thumbnail_url: `/api/products/${res.product_id}/thumbnail`,
           is_primary: true
         });
         // Também atualize o campo plano
-        res.product_image = '/placeholder-image.jpg';
+        res.product_image = `/api/products/${res.product_id}/primary-image`;
       }
     });
 
@@ -333,13 +329,9 @@ export async function createReservation(req: Request, res: Response) {
       .filter(row => row.pi_id && row.pi_product_id === row.p_id)
       .map(row => {
         // Construir caminho de imagem seguro com isolamento de loja
-        const secureImagePath = row.pi_image_url.startsWith('/uploads/stores/') 
-          ? row.pi_image_url 
-          : `/uploads/stores/${store_id}/products/${row.p_id}/${row.pi_image_url.split('/').pop()}`;
+        const secureImagePath = `/api/products/${row.p_id}/primary-image`;
           
-        const secureThumbnailPath = row.pi_thumbnail_url.startsWith('/uploads/stores/')
-          ? row.pi_thumbnail_url
-          : `/uploads/stores/${store_id}/products/${row.p_id}/thumb-${row.pi_thumbnail_url.split('/').pop()}`;
+        const secureThumbnailPath = `/api/products/${row.p_id}/thumbnail`;
           
         console.log(`Criando reserva: imagem segura: ${secureImagePath} para produto ${row.p_id}`);
         
