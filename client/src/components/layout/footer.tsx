@@ -40,11 +40,11 @@ export default function Footer() {
           <div>
             <h3 className="text-lg font-semibold mb-4">Para lojistas</h3>
             <ul className="text-sm text-gray-600 space-y-2">
-              <li><Link href="/seller/dashboard"><span className="hover:text-primary cursor-pointer">Como participar</span></Link></li>
-              <li><Link href="/seller/dashboard"><span className="hover:text-primary cursor-pointer">Benefícios</span></Link></li>
-              <li><Link href="/seller/subscription"><span className="hover:text-primary cursor-pointer">Planos e assinaturas</span></Link></li>
-              <li><Link href="/seller/promotions/add"><span className="hover:text-primary cursor-pointer">Criar promoções</span></Link></li>
-              <li><Link href="/seller/analytics"><span className="hover:text-primary cursor-pointer">Dashboard de vendas</span></Link></li>
+              <li><Link href="/for-store-owners"><span className="hover:text-primary cursor-pointer">Como participar</span></Link></li>
+              <li><Link href="/for-store-owners#benefits"><span className="hover:text-primary cursor-pointer">Benefícios</span></Link></li>
+              <li><Link href="/for-store-owners#pricing"><span className="hover:text-primary cursor-pointer">Planos e assinaturas</span></Link></li>
+              <li><Link href="/auth?tab=register&role=seller"><span className="hover:text-primary cursor-pointer">Criar conta</span></Link></li>
+              <li><Link href="/seller/dashboard"><span className="hover:text-primary cursor-pointer">Acessar painel</span></Link></li>
             </ul>
           </div>
           

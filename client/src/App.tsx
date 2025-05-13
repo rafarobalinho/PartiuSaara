@@ -46,6 +46,7 @@ import AddStore from "@/pages/seller/stores/add-store";
 import StoreDetail from "@/pages/seller/stores/store-detail";
 import StoreProducts from "@/pages/seller/stores/store-products";
 import LocationSettingsPage from "@/pages/seller/settings/location";
+import ForStoreOwners from "@/pages/for-store-owners";
 
 function Router() {
   return (
@@ -64,6 +65,7 @@ function Router() {
           <Route path="/stores" component={Stores} />
           <Route path="/stores/map" component={StoresMapPage} />
           <Route path="/stores/:id" component={ClientStoreDetail} />
+          <Route path="/for-store-owners" component={ForStoreOwners} />
           <Route path="/account" component={Account} />
           <Route path="/account/wishlist" component={Wishlist} />
           <Route path="/account/reservations" component={Reservations} />
