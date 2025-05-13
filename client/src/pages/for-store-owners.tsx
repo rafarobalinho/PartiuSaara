@@ -2,6 +2,7 @@ import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { CheckCircle, ArrowRight, Smartphone, BarChart2, Megaphone, Users, ShoppingCart, MapPin } from 'lucide-react';
+import { LandingImage } from '@/components/landing/LandingImage';
 
 export default function ForStoreOwners() {
   return (
@@ -30,13 +31,10 @@ export default function ForStoreOwners() {
             </div>
             <div className="md:w-1/2 relative">
               <div className="relative rounded-lg overflow-hidden">
-                <img 
-                  src="/uploads/store-showcase.jpg" 
+                <LandingImage 
+                  src="/landing/sellers/hero-banner.jpg" 
                   alt="Loja no Saara" 
-                  className="w-full h-full object-cover rounded-lg"
-                  onError={(e) => {
-                    e.currentTarget.src = '/uploads/placeholder-store.jpg';
-                  }}
+                  className="w-full h-full object-cover"
                 />
                 <div className="absolute top-4 right-4 bg-white p-3 rounded-lg shadow-lg">
                   <div className="text-primary font-bold">Vendas Mensais</div>
