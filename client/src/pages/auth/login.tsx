@@ -24,11 +24,7 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-interface LoginProps {
-  onSuccess?: () => void;
-}
-
-export default function Login({ onSuccess }: LoginProps) {
+export default function Login() {
   const { login, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,11 +48,7 @@ export default function Login({ onSuccess }: LoginProps) {
     try {
       setIsSubmitting(true);
       await login(data.email, data.password);
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        navigate('/');
-      }
+      navigate('/');
     } catch (error) {
       console.error('Login error:', error);
     } finally {

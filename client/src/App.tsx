@@ -10,11 +10,11 @@ import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import MobileNavigation from "@/components/layout/mobile-navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 import Home from "@/pages/home";
 import NotFound from "@/pages/not-found";
-import AuthPage from "@/pages/auth/index";
+import Login from "@/pages/auth/login";
+import Register from "@/pages/auth/register";
 import Categories from "@/pages/categories/index";
 import Category from "@/pages/categories/category";
 import Products from "@/pages/products/index";
@@ -46,7 +46,6 @@ import AddStore from "@/pages/seller/stores/add-store";
 import StoreDetail from "@/pages/seller/stores/store-detail";
 import StoreProducts from "@/pages/seller/stores/store-products";
 import LocationSettingsPage from "@/pages/seller/settings/location";
-import ForStoreOwners from "@/pages/for-store-owners";
 
 function Router() {
   return (
@@ -54,207 +53,58 @@ function Router() {
       <Header />
       <div className="flex-grow">
         <Switch>
-          {/* Rotas públicas */}
-          <Route path="/auth" component={AuthPage} />
-          <Route path="/for-store-owners" component={ForStoreOwners} />
-          <Route path="/admin/login" component={AdminLogin} />
-          
-          {/* Página inicial com conteúdo público, mas com acesso personalizado quando autenticado */}
-          <Route path="/">
-            <Home />
-          </Route>
-          
-          {/* Rotas protegidas (requerem autenticação) */}
-          <Route path="/categories">
-            <ProtectedRoute>
-              <Categories />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/categories/:category">
-            <ProtectedRoute>
-              <Category />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/products">
-            <ProtectedRoute>
-              <Products />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/products/:id">
-            <ProtectedRoute>
-              <ProductDetail />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/promotions">
-            <ProtectedRoute>
-              <Promotions />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/stores">
-            <ProtectedRoute>
-              <Stores />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/stores/map">
-            <ProtectedRoute>
-              <StoresMapPage />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/stores/:id">
-            <ProtectedRoute>
-              <ClientStoreDetail />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/account">
-            <ProtectedRoute>
-              <Account />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/account/wishlist">
-            <ProtectedRoute>
-              <Wishlist />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/account/reservations">
-            <ProtectedRoute>
-              <Reservations />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/dashboard">
-            <ProtectedRoute>
-              <SellerDashboard />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/products">
-            <ProtectedRoute>
-              <SellerProducts />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/products/add">
-            <ProtectedRoute>
-              <AddProduct />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/products/:id/edit">
-            <ProtectedRoute>
-              <EditProduct />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/promotions">
-            <ProtectedRoute>
-              <SellerPromotions />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/promotions/add">
-            <ProtectedRoute>
-              <AddPromotion />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/promotions/:id/edit">
-            <ProtectedRoute>
-              <EditPromotion />
-            </ProtectedRoute>
-          </Route>
-          
+          <Route path="/" component={Home} />
+          <Route path="/login" component={Login} />
+          <Route path="/register" component={Register} />
+          <Route path="/categories" component={Categories} />
+          <Route path="/categories/:category" component={Category} />
+          <Route path="/products" component={Products} />
+          <Route path="/products/:id" component={ProductDetail} />
+          <Route path="/promotions" component={Promotions} />
+          <Route path="/stores" component={Stores} />
+          <Route path="/stores/map" component={StoresMapPage} />
+          <Route path="/stores/:id" component={ClientStoreDetail} />
+          <Route path="/account" component={Account} />
+          <Route path="/account/wishlist" component={Wishlist} />
+          <Route path="/account/reservations" component={Reservations} />
+          <Route path="/seller/dashboard" component={SellerDashboard} />
+          <Route path="/seller/products" component={SellerProducts} />
+          <Route path="/seller/products/add" component={AddProduct} />
+          <Route path="/seller/products/:id/edit" component={EditProduct} />
+          <Route path="/seller/promotions" component={SellerPromotions} />
+          <Route path="/seller/promotions/add" component={AddPromotion} />
+          <Route path="/seller/promotions/:id/edit" component={EditPromotion} />
           {/* Redirect from the old path structure to the new one */}
-          <Route path="/seller/promotions/edit/:id">
-            <ProtectedRoute>
-              <RedirectEditPromotion />
-            </ProtectedRoute>
-          </Route>
-          
+          <Route path="/seller/promotions/edit/:id" component={RedirectEditPromotion} />
           {/* Alternative simple edit page that doesn't use dynamic routing */}
-          <Route path="/seller/edit-promotion">
-            <ProtectedRoute>
-              <SimpleEditPromotion />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/stores">
-            <ProtectedRoute>
-              <SellerStores />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/stores/add-store">
-            <ProtectedRoute>
-              <AddStore />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/stores/:id">
-            <ProtectedRoute>
-              <StoreDetail />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/stores/:id/products">
-            <ProtectedRoute>
-              <StoreProducts />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/analytics">
-            <ProtectedRoute>
-              <SellerAnalytics />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/subscription">
-            <ProtectedRoute>
-              <SellerSubscription />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/seller/settings/location">
-            <ProtectedRoute>
-              <LocationSettingsPage />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/admin/setup">
-            <ProtectedRoute>
-              <AdminSetup />
-            </ProtectedRoute>
-          </Route>
-          
+          <Route path="/seller/edit-promotion" component={SimpleEditPromotion} />
+          <Route path="/seller/stores" component={SellerStores} />
+          <Route path="/seller/stores/add-store" component={AddStore} />
+          <Route path="/seller/stores/:id" component={StoreDetail} />
+          <Route path="/seller/stores/:id/products" component={StoreProducts} />
+          <Route path="/seller/analytics" component={SellerAnalytics} />
+          <Route path="/seller/subscription" component={SellerSubscription} />
+          <Route path="/seller/settings/location" component={LocationSettingsPage} />
+          <Route path="/admin/login" component={AdminLogin} />
+          <Route path="/admin/setup" component={AdminSetup} />
           <Route path="/admin/geocoding">
-            <ProtectedRoute>
+            {() => (
               <div className="flex-grow">
                 <AdminLayout>
                   <GeocodingPanel />
                 </AdminLayout>
               </div>
-            </ProtectedRoute>
+            )}
           </Route>
-          
           <Route path="/admin/place-details/:id">
-            <ProtectedRoute>
+            {() => (
               <div className="flex-grow">
                 <AdminLayout>
                   <PlaceDetailsPage />
                 </AdminLayout>
               </div>
-            </ProtectedRoute>
+            )}
           </Route>
-          
           <Route component={NotFound} />
         </Switch>
       </div>
