@@ -65,7 +65,7 @@ export default function Register({ initialRole = 'customer', onSuccess }: Regist
       lastName: '',
       dateOfBirth: '',
       gender: 'not_specified',
-      role: 'customer',
+      role: initialRole,
     },
   });
 
@@ -88,7 +88,11 @@ export default function Register({ initialRole = 'customer', onSuccess }: Regist
         data.gender,
         data.role
       );
-      navigate('/');
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate('/');
+      }
     } catch (error) {
       console.error('Registration error:', error);
     } finally {
