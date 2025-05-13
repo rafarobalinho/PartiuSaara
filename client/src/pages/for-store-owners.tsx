@@ -32,7 +32,7 @@ export default function ForStoreOwners() {
             <div className="md:w-1/2 relative">
               <div className="relative rounded-lg overflow-hidden">
                 <LandingImage 
-                  src="/landing/sellers/photo-1441986300917-64674bd600d8.jpg" 
+                  src="sellerHero" 
                   alt="Lojista gerenciando produtos" 
                   className="w-full h-full object-cover rounded-lg shadow-lg"
                 />
@@ -158,7 +158,7 @@ export default function ForStoreOwners() {
             <div className="md:w-1/2 relative">
               <div className="relative rounded-lg overflow-hidden">
                 <LandingImage 
-                  src="/landing/sellers/photo-1556740738-b6a63e27c4df.jpg" 
+                  src="sellerFeature" 
                   alt="Recursos para lojistas" 
                   className="w-full h-full object-cover rounded-lg shadow-lg"
                 />

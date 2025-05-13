@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { INLINE_IMAGES } from '../../data/inlineImages';
 
 interface LandingImageProps {
+  // Pode ser uma chave do objeto INLINE_IMAGES ou um caminho normal
   src: string;
   alt: string;
   className?: string;
@@ -23,12 +25,25 @@ export function LandingImage({ src, alt, className = "" }: LandingImageProps) {
     );
   }
   
-  // Garantir que a URL comece com uma barra
-  const imageSrc = src.startsWith('/') ? src : `/${src}`;
+  // Verificar se a src é uma chave no objeto INLINE_IMAGES
+  const inlineImage = INLINE_IMAGES[src];
   
+  // Se for uma chave válida, usar a imagem em base64
+  if (inlineImage) {
+    return (
+      <img 
+        src={inlineImage} 
+        alt={alt} 
+        className={className}
+        loading="lazy"
+      />
+    );
+  }
+  
+  // Caso contrário, usar o caminho normal com tratamento de erro
   return (
     <img 
-      src={imageSrc} 
+      src={src.startsWith('/') ? src : `/${src}`} 
       alt={alt} 
       className={className}
       onError={handleError}
