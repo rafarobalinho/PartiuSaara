@@ -18,8 +18,8 @@ export function LandingImage({ src, alt, className = '', width, height }: Landin
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
   
-  // Constrói o caminho da imagem
-  const imagePath = `/landing/${src}`;
+  // Constrói o caminho da imagem (removendo o /landing/ caso já esteja incluído)
+  const imagePath = src.startsWith('/landing/') ? src : `/landing/${src}`;
   
   useEffect(() => {
     const img = new Image();
