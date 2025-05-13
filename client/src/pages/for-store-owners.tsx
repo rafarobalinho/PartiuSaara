@@ -2,7 +2,7 @@ import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { CheckCircle, ArrowRight, Smartphone, BarChart2, Megaphone, Users, ShoppingCart, MapPin } from 'lucide-react';
-import { StaticImage } from '@/components/landing/StaticImage';
+import { LandingImage } from '@/components/landing/LandingImage';
 
 export default function ForStoreOwners() {
   return (
@@ -31,10 +31,10 @@ export default function ForStoreOwners() {
             </div>
             <div className="md:w-1/2 relative">
               <div className="relative rounded-lg overflow-hidden">
-                <StaticImage 
-                  filename="sellers/hero-banner.jpg" 
-                  alt="Loja no Saara" 
-                  className="w-full h-full object-cover"
+                <LandingImage 
+                  src="/landing/sellers/photo-1441986300917-64674bd600d8.jpg" 
+                  alt="Lojista gerenciando produtos" 
+                  className="w-full h-full object-cover rounded-lg shadow-lg"
                 />
                 <div className="absolute top-4 right-4 bg-white p-3 rounded-lg shadow-lg">
                   <div className="text-primary font-bold">Vendas Mensais</div>
@@ -157,10 +157,10 @@ export default function ForStoreOwners() {
             </div>
             <div className="md:w-1/2 relative">
               <div className="relative rounded-lg overflow-hidden">
-                <StaticImage 
-                  filename="sellers/feature-store.jpg" 
-                  alt="Sistema de vendas em uma loja" 
-                  className="w-full h-full object-cover"
+                <LandingImage 
+                  src="/landing/sellers/photo-1556740738-b6a63e27c4df.jpg" 
+                  alt="Recursos para lojistas" 
+                  className="w-full h-full object-cover rounded-lg shadow-lg"
                 />
                 <div className="absolute bottom-4 right-4 bg-white p-3 rounded-lg shadow-lg">
                   <div className="text-primary font-bold">+300</div>
