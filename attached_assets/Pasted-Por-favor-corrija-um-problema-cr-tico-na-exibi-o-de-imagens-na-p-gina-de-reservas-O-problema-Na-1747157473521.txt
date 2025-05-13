@@ -1,0 +1,33 @@
+Por favor, corrija um problema crítico na exibição de imagens na página de reservas.
+
+O problema: Na página /account/reservations, as imagens dos produtos estão sendo exibidas incorretamente como placeholders em vez de usar o caminho correto da API.
+
+Caminho incorreto atual: /placeholder-image.jpg
+Caminho correto (como já funciona no wishlist): /api/products/[id]/primary-image
+
+A correção deve ser implementada no arquivo reservation.controller.ts. Precisamos modificar a função getReservations() para usar o endpoint da API para carregamento de imagens, em vez de construir caminhos diretos para os arquivos.
+
+Por favor, faça as seguintes alterações específicas:
+
+1. Modifique todas as ocorrências onde são construídos caminhos de imagem como:
+   ```javascript
+   const secureImagePath = row.pi_image_url.startsWith('/uploads/stores/') 
+     ? row.pi_image_url 
+     : `/uploads/stores/${row.p_store_id}/products/${row.p_id}/${row.pi_image_url.split('/').pop()}`;
+Substitua por:
+javascriptconst secureImagePath = `/api/products/${row.p_id}/primary-image`;
+
+Da mesma forma, mude os caminhos de thumbnails para:
+javascriptconst secureThumbnailPath = `/api/products/${row.p_id}/thumbnail`;
+
+E quando estiver definindo a imagem principal do produto, substitua por:
+javascriptif (row.pi_is_primary && !reservation.product_image) {
+  reservation.product_image = `/api/products/${row.p_id}/primary-image`;
+  reservation.store_id = row.p_store_id;
+}
+
+Aplique a mesma lógica em outras partes do arquivo onde imagens de produtos são referenciadas, como nas funções createReservation() e updateReservationStatus().
+
+Estas mudanças garantirão que as imagens nas reservas sejam carregadas de forma consistente através da API, assim como já funciona na página de wishlist.
+
+Este prompt fornece instruções claras e diretas sobre o que precisa ser alterado, facilitando para o agente de IA do Replit implementar as correções necessárias de forma eficiente.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas.
