@@ -488,13 +488,9 @@ export async function updateReservationStatus(req: Request, res: Response) {
       .filter(row => row.pi_id && row.pi_product_id === row.p_id)
       .map(row => {
         // Construir caminho de imagem seguro com isolamento de loja
-        const secureImagePath = row.pi_image_url.startsWith('/uploads/stores/') 
-          ? row.pi_image_url 
-          : `/uploads/stores/${store_id}/products/${row.p_id}/${row.pi_image_url.split('/').pop()}`;
+        const secureImagePath = `/api/products/${row.p_id}/primary-image`;
           
-        const secureThumbnailPath = row.pi_thumbnail_url.startsWith('/uploads/stores/')
-          ? row.pi_thumbnail_url
-          : `/uploads/stores/${store_id}/products/${row.p_id}/thumb-${row.pi_thumbnail_url.split('/').pop()}`;
+        const secureThumbnailPath = `/api/products/${row.p_id}/thumbnail`;
           
         console.log(`Atualizando reserva: imagem segura: ${secureImagePath} para produto ${row.p_id}`);
         
