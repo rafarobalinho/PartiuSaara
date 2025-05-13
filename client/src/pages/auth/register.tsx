@@ -45,7 +45,12 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-export default function Register() {
+interface RegisterProps {
+  initialRole?: 'customer' | 'seller';
+  onSuccess?: () => void;
+}
+
+export default function Register({ initialRole = 'customer', onSuccess }: RegisterProps) {
   const { register, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
