@@ -157,13 +157,10 @@ export default function ForStoreOwners() {
             </div>
             <div className="md:w-1/2 relative">
               <div className="relative rounded-lg overflow-hidden">
-                <img 
-                  src="/uploads/store-pos-system.jpg" 
+                <LandingImage 
+                  src="/landing/sellers/feature-store.jpg" 
                   alt="Sistema de vendas em uma loja" 
-                  className="w-full h-full object-cover rounded-lg"
-                  onError={(e) => {
-                    e.currentTarget.src = '/uploads/placeholder-pos.jpg';
-                  }}
+                  className="w-full h-full object-cover"
                 />
                 <div className="absolute bottom-4 right-4 bg-white p-3 rounded-lg shadow-lg">
                   <div className="text-primary font-bold">+300</div>
