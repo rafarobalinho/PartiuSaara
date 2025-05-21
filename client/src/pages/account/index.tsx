@@ -294,22 +294,6 @@ export default function Account() {
     }
   });
 
-  const { data: recentWishlistItems = [], isLoading: isWishlistLoading } = useQuery({
-    queryKey: ['/api/wishlist?limit=3'],
-    queryFn: async () => {
-      try {
-        const response = await fetch('/api/wishlist?limit=3');
-        if (!response.ok) {
-          throw new Error('Failed to fetch wishlist items');
-        }
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching wishlist items:', error);
-        return [];
-      }
-    }
-  });
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
@@ -533,70 +517,17 @@ export default function Account() {
                 </TabsContent>
 
                 <TabsContent value="wishlist">
-                  {/* Wishlist data tab */}
-                  {isWishlistLoading ? (
-                    <div className="space-y-4">
-                      {[1, 2, 3].map((_, index) => (
-                        <div key={index} className="flex items-center p-3 border rounded-lg">
-                          <div className="w-16 h-16 bg-gray-200 animate-pulse rounded-md mr-4"></div>
-                          <div className="flex-1">
-                            <div className="h-5 bg-gray-200 animate-pulse rounded w-3/4 mb-2"></div>
-                            <div className="h-4 bg-gray-200 animate-pulse rounded w-1/2"></div>
-                          </div>
-                          <div className="h-8 bg-gray-200 animate-pulse rounded w-20"></div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : recentWishlistItems && recentWishlistItems.length > 0 ? (
-                    <div className="space-y-4">
-                      {recentWishlistItems.map((item) => (
-                        <div key={item.id} className="flex items-center p-3 border rounded-lg">
-                          <div className="w-16 h-16 rounded-md mr-4 overflow-hidden">
-                            <SafeImage 
-                              src={item.product?.images?.[0]?.image_url || `/api/products/${item.productId}/primary-image`} 
-                              alt={item.product?.name || 'Produto'} 
-                              className="w-full h-full object-cover"
-                              fallbackSrc="/placeholder-image.jpg"
-                              productId={item.productId}
-                              type="product"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium">{item.product?.name || 'Produto indisponível'}</h4>
-                            <p className="text-sm text-gray-500">
-                              {item.product?.store?.name || 'Loja'} • {new Date(item.createdAt).toLocaleDateString('pt-BR')}
-                            </p>
-                          </div>
-                          <div>
-                            <Badge className="bg-primary/10 text-primary">
-                              {item.product?.discountedPrice ? 
-                                formatCurrency(item.product.discountedPrice) : 
-                                formatCurrency(item.product?.price || 0)}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-
-                      <div className="mt-4 text-center">
-                        <Button asChild variant="link" className="text-primary">
-                          <Link href="/account/wishlist">
-                            <a>Ver todos os favoritos</a>
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="text-4xl mb-4"><i className="fas fa-heart text-gray-300"></i></div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-1">Lista de desejos vazia</h3>
-                      <p className="text-gray-500 mb-4">Você ainda não adicionou nenhum produto à sua lista de desejos.</p>
-                      <Button asChild className="bg-primary text-white hover:bg-primary/90">
-                        <Link href="/products">
-                          <a>Explorar produtos</a>
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
+                  {/* Similar to reservations tab but with wishlist data */}
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-4"><i className="fas fa-heart text-gray-300"></i></div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-1">Lista de desejos</h3>
+                    <p className="text-gray-500 mb-4">Veja todos os produtos da sua lista de desejos.</p>
+                    <Button asChild className="bg-primary text-white hover:bg-primary/90">
+                      <Link href="/account/wishlist">
+                        <a>Ver lista de desejos</a>
+                      </Link>
+                    </Button>
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>
