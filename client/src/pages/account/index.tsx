@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
+import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -466,7 +467,7 @@ export default function Account() {
                         <div key={reservation.id} className="flex items-center p-3 border rounded-lg">
                           <div className="w-16 h-16 rounded-md mr-4 overflow-hidden">
                             <SafeImage 
-                              src={reservation.product?.images?.[0] || '/placeholder-image.jpg'} 
+                              src={`/api/products/${reservation.productId}/primary-image`} 
                               alt={reservation.product?.name || 'Produto'} 
                               className="w-full h-full object-cover"
                               productId={reservation.productId}
