@@ -295,7 +295,7 @@ export default function Account() {
       }
     }
   });
-  
+
   // Consulta para os itens da wishlist
   const { data: wishlistItems = [], isLoading: isWishlistLoading } = useQuery({
     queryKey: ['/api/wishlist?limit=3'],
