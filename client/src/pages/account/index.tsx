@@ -464,16 +464,22 @@ export default function Account() {
                       {recentReservations.map((reservation: Reservation) => (
                         <div key={reservation.id} className="flex items-center p-3 border rounded-lg">
                           <div className="w-16 h-16 rounded-md mr-4 overflow-hidden">
-                            <img 
-                              src={reservation.product.images[0]} 
-                              alt={reservation.product.name} 
-                              className="w-full h-full object-cover"
-                            />
+                            {reservation.product && reservation.product.images && reservation.product.images.length > 0 ? (
+                              <img 
+                                src={reservation.product.images[0]} 
+                                alt={reservation.product?.name || 'Produto'} 
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                                <i className="fas fa-image text-gray-400"></i>
+                              </div>
+                            )}
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-medium">{reservation.product.name}</h4>
+                            <h4 className="font-medium">{reservation.product?.name || 'Produto indisponível'}</h4>
                             <p className="text-sm text-gray-500">
-                              {reservation.product.store.name} • {new Date(reservation.createdAt).toLocaleDateString('pt-BR')}
+                              {reservation.product?.store?.name || 'Loja'} • {new Date(reservation.createdAt).toLocaleDateString('pt-BR')}
                             </p>
                           </div>
                           <div>
