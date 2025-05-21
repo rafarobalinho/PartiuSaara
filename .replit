@@ -16,7 +16,6 @@ localPort = 5000
 externalPort = 80
 
 [workflows]
-runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -30,8 +29,16 @@ args = "Start application"
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow]]
+name = "Shell Command"
+mode = "sequential"
+author = 17262902
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
-waitForPort = 5000
+args = "ssh -i %HOMEPATH%/.ssh/replit -p 22 28e4b557-7792-4b03-b33e-93489b7586b5@28e4b557-7792-4b03-b33e-93489b7586b5-00-33goki6qofjtz.riker.replit.dev"
