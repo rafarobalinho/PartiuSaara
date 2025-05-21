@@ -89,14 +89,14 @@ export default function Wishlist() {
     onSuccess: () => {
       // Invalidar as consultas para atualizar os dados
       queryClient.invalidateQueries({ queryKey: ['/api/wishlist'] });
-      
+
       // Atualizar contador de favoritos
       decrementWishlistCount();
-      
+
       // Sincronizar contadores e favoritos com o servidor
       syncCounters();
       syncFavorites();
-      
+
       toast({
         title: 'Item removido',
         description: 'O produto foi removido da sua lista de desejos com sucesso.',
@@ -119,13 +119,13 @@ export default function Wishlist() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/reservations'] });
-      
+
       // Atualizar contador de reservas
       incrementReservationsCount();
-      
+
       // Sincronizar contadores com o servidor
       syncCounters();
-      
+
       toast({
         title: 'Reserva criada',
         description: 'O produto foi reservado com sucesso. Você tem 72 horas para retirar.',
@@ -145,7 +145,7 @@ export default function Wishlist() {
   const handleRemoveItem = (productId: number) => {
     // Atualize o estado local imediatamente para feedback instantâneo
     removeFavoriteProduct(productId);
-    
+
     // Em seguida, faça a mutação para o servidor
     removeItemMutation.mutate(productId);
   };
@@ -232,7 +232,7 @@ export default function Wishlist() {
                         {item.product.store && (
                           <Link href={`/stores/${item.product.store.id}`}>
                             <a className="text-sm text-gray-500 hover:text-primary block mb-2">
-                              <i className="fas fa-store mr-1"></i> {item.product.store.name || 'Loja'}
+                              <i className="fas fa-store mr-1"></i> {item.product.store?.name || 'Loja'}
                             </a>
                           </Link>
                         )}
