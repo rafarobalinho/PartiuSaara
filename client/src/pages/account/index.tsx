@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { SafeImage } from '@/components/ui/safe-image';
 
 interface UserData {
   id: number;
@@ -55,7 +56,7 @@ export default function Account() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   // Estados para o modal de edição de perfil
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({
@@ -67,12 +68,12 @@ export default function Account() {
     confirmPassword: ''
   });
   const [passwordFieldsEnabled, setPasswordFieldsEnabled] = useState(false);
-  
+
   // Estados para o avatar
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Dados do usuário são obtidos na useQuery abaixo
 
   // Função para lidar com as mudanças nos campos do formulário
@@ -167,17 +168,17 @@ export default function Account() {
         },
         body: JSON.stringify(updateData)
       });
-      
+
       // Fazer upload do avatar se houver um arquivo selecionado
       if (avatarFile) {
         const formData = new FormData();
         formData.append('avatar', avatarFile);
-        
+
         const avatarResponse = await fetch('/api/users/avatar', {
           method: 'POST',
           body: formData
         });
-        
+
         if (!avatarResponse.ok) {
           const errorData = await avatarResponse.json();
           throw new Error(errorData.message || 'Erro ao atualizar avatar');
@@ -189,7 +190,7 @@ export default function Account() {
         setIsEditProfileOpen(false);
         // Invalidar a query para recarregar os dados do usuário
         queryClient.invalidateQueries({ queryKey: ['/api/users/me'] });
-        
+
         toast({
           title: "Perfil atualizado",
           description: "Suas informações foram atualizadas com sucesso",
@@ -223,7 +224,7 @@ export default function Account() {
     queryKey: ['/api/users/me'],
     retry: false
   });
-  
+
   // Ao receber os dados do usuário, preencher o formulário
   useEffect(() => {
     if (userData) {
@@ -232,19 +233,19 @@ export default function Account() {
         name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
         email: userData.email || ''
       }));
-      
+
       // Inicializar preview do avatar se existir
       if (userData.avatarUrl) {
         setAvatarPreview(userData.avatarUrl);
       }
     }
   }, [userData]);
-  
+
   // Função para selecionar avatar
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
   };
-  
+
   // Função para lidar com a seleção de arquivo de avatar
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -258,7 +259,7 @@ export default function Account() {
         });
         return;
       }
-      
+
       // Validar tamanho do arquivo (máximo 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast({
@@ -268,9 +269,9 @@ export default function Account() {
         });
         return;
       }
-      
+
       setAvatarFile(file);
-      
+
       // Criar URL temporária para preview
       const objectUrl = URL.createObjectURL(file);
       setAvatarPreview(objectUrl);
@@ -360,11 +361,11 @@ export default function Account() {
                     </AvatarFallback>
                   )}
                 </Avatar>
-                
+
                 <div className="flex-1">
                   <h2 className="text-xl font-bold">{userData ? `${userData.firstName} ${userData.lastName}` : user?.email}</h2>
                   <p className="text-gray-500">{userData?.email || user?.email}</p>
-                  
+
                   <div className="flex items-center mt-2">
                     <Badge variant="outline" className="mr-2">
                       {userData?.role === 'seller' ? 'Lojista' : 'Consumidor'}
@@ -376,7 +377,7 @@ export default function Account() {
                     )}
                   </div>
                 </div>
-                
+
                 <Button 
                   variant="outline" 
                   className="flex-shrink-0"
@@ -403,7 +404,7 @@ export default function Account() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
@@ -417,7 +418,7 @@ export default function Account() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
@@ -444,7 +445,7 @@ export default function Account() {
                   <TabsTrigger value="reservations">Reservas</TabsTrigger>
                   <TabsTrigger value="wishlist">Lista de Desejos</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="reservations">
                   {isReservationsLoading ? (
                     <div className="space-y-4">
@@ -464,17 +465,14 @@ export default function Account() {
                       {recentReservations.map((reservation: Reservation) => (
                         <div key={reservation.id} className="flex items-center p-3 border rounded-lg">
                           <div className="w-16 h-16 rounded-md mr-4 overflow-hidden">
-                            {reservation.product && reservation.product.images && reservation.product.images.length > 0 ? (
-                              <img 
-                                src={reservation.product.images[0]} 
-                                alt={reservation.product?.name || 'Produto'} 
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                                <i className="fas fa-image text-gray-400"></i>
-                              </div>
-                            )}
+                            <SafeImage 
+                              src={reservation.product?.images?.[0] || '/placeholder-image.jpg'} 
+                              alt={reservation.product?.name || 'Produto'} 
+                              className="w-full h-full object-cover"
+                              productId={reservation.productId}
+                              fallbackSrc="/placeholder-image.jpg"
+                              type="product"
+                            />
                           </div>
                           <div className="flex-1">
                             <h4 className="font-medium">{reservation.product?.name || 'Produto indisponível'}</h4>
@@ -495,7 +493,7 @@ export default function Account() {
                           </div>
                         </div>
                       ))}
-                      
+
                       <div className="mt-4 text-center">
                         <Button asChild variant="link" className="text-primary">
                           <Link href="/account/reservations">
@@ -517,7 +515,7 @@ export default function Account() {
                     </div>
                   )}
                 </TabsContent>
-                
+
                 <TabsContent value="wishlist">
                   {/* Similar to reservations tab but with wishlist data */}
                   <div className="text-center py-8">
@@ -543,7 +541,7 @@ export default function Account() {
           <DialogHeader>
             <DialogTitle>Editar Perfil</DialogTitle>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             <div className="mb-4 flex flex-col items-center">
               <div 
@@ -581,7 +579,7 @@ export default function Account() {
                 <i className="fas fa-camera mr-2"></i> Alterar foto
               </Button>
             </div>
-            
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">
                 Nome
@@ -594,7 +592,7 @@ export default function Account() {
                 className="col-span-3"
               />
             </div>
-            
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="email" className="text-right">
                 Email
@@ -608,11 +606,11 @@ export default function Account() {
                 className="col-span-3"
               />
             </div>
-            
+
             <Separator className="my-2" />
-            
+
             <h3 className="font-medium text-lg">Segurança da Conta</h3>
-            
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="currentPassword" className="text-right">
                 Senha Atual
@@ -637,7 +635,7 @@ export default function Account() {
                 </Button>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="newPassword" className="text-right">
                 Nova Senha
@@ -652,7 +650,7 @@ export default function Account() {
                 className="col-span-3"
               />
             </div>
-            
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="confirmPassword" className="text-right">
                 Confirmar
@@ -668,7 +666,7 @@ export default function Account() {
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button 
               variant="outline" 
@@ -693,7 +691,7 @@ function Badge({ children, className = "", variant = "default" }) {
     secondary: "bg-gray-100 text-gray-800",
     outline: "border border-gray-200 text-gray-800",
   };
-  
+
   return (
     <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${variantClasses[variant]} ${className}`}>
       {children}
