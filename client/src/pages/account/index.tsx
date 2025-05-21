@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
+import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { SafeImage } from '@/components/ui/safe-image';
 
 interface UserData {
   id: number;
@@ -55,7 +57,7 @@ export default function Account() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   // Estados para o modal de edição de perfil
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({
@@ -67,12 +69,12 @@ export default function Account() {
     confirmPassword: ''
   });
   const [passwordFieldsEnabled, setPasswordFieldsEnabled] = useState(false);
-  
+
   // Estados para o avatar
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Dados do usuário são obtidos na useQuery abaixo
 
   // Função para lidar com as mudanças nos campos do formulário
@@ -167,17 +169,17 @@ export default function Account() {
         },
         body: JSON.stringify(updateData)
       });
-      
+
       // Fazer upload do avatar se houver um arquivo selecionado
       if (avatarFile) {
         const formData = new FormData();
         formData.append('avatar', avatarFile);
-        
+
         const avatarResponse = await fetch('/api/users/avatar', {
           method: 'POST',
           body: formData
         });
-        
+
         if (!avatarResponse.ok) {
           const errorData = await avatarResponse.json();
           throw new Error(errorData.message || 'Erro ao atualizar avatar');
@@ -189,7 +191,7 @@ export default function Account() {
         setIsEditProfileOpen(false);
         // Invalidar a query para recarregar os dados do usuário
         queryClient.invalidateQueries({ queryKey: ['/api/users/me'] });
-        
+
         toast({
           title: "Perfil atualizado",
           description: "Suas informações foram atualizadas com sucesso",
@@ -223,7 +225,7 @@ export default function Account() {
     queryKey: ['/api/users/me'],
     retry: false
   });
-  
+
   // Ao receber os dados do usuário, preencher o formulário
   useEffect(() => {
     if (userData) {
@@ -232,19 +234,19 @@ export default function Account() {
         name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
         email: userData.email || ''
       }));
-      
+
       // Inicializar preview do avatar se existir
       if (userData.avatarUrl) {
         setAvatarPreview(userData.avatarUrl);
       }
     }
   }, [userData]);
-  
+
   // Função para selecionar avatar
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
   };
-  
+
   // Função para lidar com a seleção de arquivo de avatar
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -258,7 +260,7 @@ export default function Account() {
         });
         return;
       }
-      
+
       // Validar tamanho do arquivo (máximo 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast({
@@ -268,15 +270,16 @@ export default function Account() {
         });
         return;
       }
-      
+
       setAvatarFile(file);
-      
+
       // Criar URL temporária para preview
       const objectUrl = URL.createObjectURL(file);
       setAvatarPreview(objectUrl);
     }
   };
 
+  // Consulta para as reservas recentes
   const { data: recentReservations = [], isLoading: isReservationsLoading } = useQuery({
     queryKey: ['/api/reservations?limit=3'],
     queryFn: async () => {
@@ -288,6 +291,23 @@ export default function Account() {
         return await response.json();
       } catch (error) {
         console.error('Error fetching reservations:', error);
+        return [];
+      }
+    }
+  });
+  
+  // Consulta para os itens da wishlist
+  const { data: wishlistItems = [], isLoading: isWishlistLoading } = useQuery({
+    queryKey: ['/api/wishlist?limit=3'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/wishlist?limit=3');
+        if (!response.ok) {
+          throw new Error('Failed to fetch wishlist');
+        }
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching wishlist:', error);
         return [];
       }
     }
@@ -360,11 +380,11 @@ export default function Account() {
                     </AvatarFallback>
                   )}
                 </Avatar>
-                
+
                 <div className="flex-1">
                   <h2 className="text-xl font-bold">{userData ? `${userData.firstName} ${userData.lastName}` : user?.email}</h2>
                   <p className="text-gray-500">{userData?.email || user?.email}</p>
-                  
+
                   <div className="flex items-center mt-2">
                     <Badge variant="outline" className="mr-2">
                       {userData?.role === 'seller' ? 'Lojista' : 'Consumidor'}
@@ -376,7 +396,7 @@ export default function Account() {
                     )}
                   </div>
                 </div>
-                
+
                 <Button 
                   variant="outline" 
                   className="flex-shrink-0"
@@ -403,7 +423,7 @@ export default function Account() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
@@ -417,7 +437,7 @@ export default function Account() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
@@ -444,7 +464,7 @@ export default function Account() {
                   <TabsTrigger value="reservations">Reservas</TabsTrigger>
                   <TabsTrigger value="wishlist">Lista de Desejos</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="reservations">
                   {isReservationsLoading ? (
                     <div className="space-y-4">
@@ -464,16 +484,19 @@ export default function Account() {
                       {recentReservations.map((reservation: Reservation) => (
                         <div key={reservation.id} className="flex items-center p-3 border rounded-lg">
                           <div className="w-16 h-16 rounded-md mr-4 overflow-hidden">
-                            <img 
-                              src={reservation.product.images[0]} 
-                              alt={reservation.product.name} 
+                            <SafeImage 
+                              src={`/api/products/${reservation.productId}/primary-image`} 
+                              alt={reservation.product?.name || 'Produto'} 
                               className="w-full h-full object-cover"
+                              productId={reservation.productId}
+                              fallbackSrc="/placeholder-image.jpg"
+                              type="product"
                             />
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-medium">{reservation.product.name}</h4>
+                            <h4 className="font-medium">{reservation.product?.name || 'Produto indisponível'}</h4>
                             <p className="text-sm text-gray-500">
-                              {reservation.product.store.name} • {new Date(reservation.createdAt).toLocaleDateString('pt-BR')}
+                              {reservation.product?.store?.name || 'Loja'} • {new Date(reservation.createdAt).toLocaleDateString('pt-BR')}
                             </p>
                           </div>
                           <div>
@@ -489,7 +512,7 @@ export default function Account() {
                           </div>
                         </div>
                       ))}
-                      
+
                       <div className="mt-4 text-center">
                         <Button asChild variant="link" className="text-primary">
                           <Link href="/account/reservations">
@@ -511,19 +534,69 @@ export default function Account() {
                     </div>
                   )}
                 </TabsContent>
-                
+
                 <TabsContent value="wishlist">
-                  {/* Similar to reservations tab but with wishlist data */}
-                  <div className="text-center py-8">
-                    <div className="text-4xl mb-4"><i className="fas fa-heart text-gray-300"></i></div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-1">Lista de desejos</h3>
-                    <p className="text-gray-500 mb-4">Veja todos os produtos da sua lista de desejos.</p>
-                    <Button asChild className="bg-primary text-white hover:bg-primary/90">
-                      <Link href="/account/wishlist">
-                        <a>Ver lista de desejos</a>
-                      </Link>
-                    </Button>
-                  </div>
+                  {isWishlistLoading ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((_, index) => (
+                        <div key={index} className="flex items-center p-3 border rounded-lg">
+                          <div className="w-16 h-16 bg-gray-200 animate-pulse rounded-md mr-4"></div>
+                          <div className="flex-1">
+                            <div className="h-5 bg-gray-200 animate-pulse rounded w-3/4 mb-2"></div>
+                            <div className="h-4 bg-gray-200 animate-pulse rounded w-1/2"></div>
+                          </div>
+                          <div className="h-8 bg-gray-200 animate-pulse rounded w-20"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : wishlistItems.length > 0 ? (
+                    <div className="space-y-4">
+                      {wishlistItems.map((item) => (
+                        <div key={item.id} className="flex items-center p-3 border rounded-lg">
+                          <div className="w-16 h-16 rounded-md mr-4 overflow-hidden">
+                            <SafeImage 
+                              src={`/api/products/${item.productId}/primary-image`} 
+                              alt={item.product?.name || 'Produto'} 
+                              className="w-full h-full object-cover"
+                              productId={item.productId}
+                              fallbackSrc="/placeholder-image.jpg"
+                              type="product"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium">{item.product?.name || 'Produto indisponível'}</h4>
+                            <p className="text-sm text-gray-500">
+                              {item.product?.store?.name || 'Loja'} • {new Date(item.createdAt).toLocaleDateString('pt-BR')}
+                            </p>
+                            {item.product?.price && (
+                              <p className="text-primary font-medium mt-1">
+                                {formatCurrency(item.product.discountedPrice || item.product.price)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="mt-4 text-center">
+                        <Button asChild variant="link" className="text-primary">
+                          <Link href="/account/wishlist">
+                            <a>Ver lista de desejos completa</a>
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-4xl mb-4"><i className="fas fa-heart text-gray-300"></i></div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-1">Lista de desejos vazia</h3>
+                      <p className="text-gray-500 mb-4">Você ainda não adicionou produtos à sua lista de desejos.</p>
+                      <Button asChild className="bg-primary text-white hover:bg-primary/90">
+                        <Link href="/products">
+                          <a>Explorar produtos</a>
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -537,7 +610,7 @@ export default function Account() {
           <DialogHeader>
             <DialogTitle>Editar Perfil</DialogTitle>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             <div className="mb-4 flex flex-col items-center">
               <div 
@@ -575,7 +648,7 @@ export default function Account() {
                 <i className="fas fa-camera mr-2"></i> Alterar foto
               </Button>
             </div>
-            
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="name" className="text-right">
                 Nome
@@ -588,7 +661,7 @@ export default function Account() {
                 className="col-span-3"
               />
             </div>
-            
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="email" className="text-right">
                 Email
@@ -602,11 +675,11 @@ export default function Account() {
                 className="col-span-3"
               />
             </div>
-            
+
             <Separator className="my-2" />
-            
+
             <h3 className="font-medium text-lg">Segurança da Conta</h3>
-            
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="currentPassword" className="text-right">
                 Senha Atual
@@ -631,7 +704,7 @@ export default function Account() {
                 </Button>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="newPassword" className="text-right">
                 Nova Senha
@@ -646,7 +719,7 @@ export default function Account() {
                 className="col-span-3"
               />
             </div>
-            
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="confirmPassword" className="text-right">
                 Confirmar
@@ -662,7 +735,7 @@ export default function Account() {
               />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button 
               variant="outline" 
@@ -687,7 +760,7 @@ function Badge({ children, className = "", variant = "default" }) {
     secondary: "bg-gray-100 text-gray-800",
     outline: "border border-gray-200 text-gray-800",
   };
-  
+
   return (
     <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${variantClasses[variant]} ${className}`}>
       {children}
