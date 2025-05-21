@@ -498,6 +498,11 @@ export default function Account() {
                             <p className="text-sm text-gray-500">
                               {reservation.product?.store?.name || 'Loja'} • {new Date(reservation.createdAt).toLocaleDateString('pt-BR')}
                             </p>
+                            {reservation.product?.price && (
+                              <p className="text-primary font-medium mt-1">
+                                {formatCurrency(reservation.product.discountedPrice || reservation.product.price)}
+                              </p>
+                            )}
                           </div>
                           <div>
                             <Badge className={
