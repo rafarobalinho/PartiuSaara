@@ -496,7 +496,7 @@ export default function Account() {
                           <div className="flex-1">
                             <h4 className="font-medium">{reservation.product?.name || 'Produto indisponível'}</h4>
                             <p className="text-sm text-gray-500">
-                              {reservation.product?.store ? reservation.product.store.name : 'Loja'} • {new Date(reservation.createdAt).toLocaleDateString('pt-BR')}
+                              {reservation.product?.store?.name || 'Loja'} • {new Date(reservation.createdAt).toLocaleDateString('pt-BR')}
                             </p>
                             {reservation.product?.price && (
                               <p className="text-primary font-medium mt-1">
