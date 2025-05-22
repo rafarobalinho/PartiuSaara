@@ -16,6 +16,7 @@ localPort = 5000
 externalPort = 80
 
 [workflows]
+runButton = "Run"
 
 [[workflows.workflow]]
 name = "Project"
@@ -42,3 +43,12 @@ author = 17262902
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "ssh -i %HOMEPATH%/.ssh/replit -p 22 28e4b557-7792-4b03-b33e-93489b7586b5@28e4b557-7792-4b03-b33e-93489b7586b5-00-33goki6qofjtz.riker.replit.dev"
+
+[[workflows.workflow]]
+name = "Run"
+author = 17262902
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
