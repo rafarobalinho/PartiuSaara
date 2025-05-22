@@ -130,6 +130,44 @@ export default function SellerDashboard() {
           </div>
         )}
       </div>
+      
+      {/* Resumo do plano atual */}
+      {store && (
+        <div className="mb-6 bg-white rounded-lg shadow-sm p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold mb-2">Seu Plano Atual</h2>
+              <div className="flex items-center mb-2">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  store.subscriptionPlan === 'premium' ? 'bg-purple-100 text-purple-800' :
+                  store.subscriptionPlan === 'pro' ? 'bg-blue-100 text-blue-800' :
+                  store.subscriptionPlan === 'start' ? 'bg-green-100 text-green-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  Plano {store.subscriptionPlan.charAt(0).toUpperCase() + store.subscriptionPlan.slice(1)}
+                </span>
+                {store.subscriptionEndDate && store.subscriptionPlan !== 'freemium' && (
+                  <span className="ml-3 text-sm text-gray-500">
+                    Válido até {new Date(store.subscriptionEndDate).toLocaleDateString('pt-BR')}
+                  </span>
+                )}
+              </div>
+              <p className="text-gray-600 text-sm mb-4">
+                {store.subscriptionPlan === 'freemium' ? 
+                  'Seu plano atual tem recursos limitados. Faça upgrade para desbloquear mais funcionalidades.' :
+                  'Gerencie seu plano e considere um upgrade para acessar recursos adicionais.'}
+              </p>
+            </div>
+            
+            <Button asChild className="bg-primary text-white hover:bg-primary/90">
+              <Link href="/seller/subscription">
+                <a>Gerenciar Plano</a>
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
+      </div>
 
       <div className="flex justify-between items-center my-4">
         <h2 className="text-xl font-bold">Resumo</h2>

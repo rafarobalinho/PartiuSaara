@@ -62,96 +62,11 @@ export default function SellerSubscription() {
     queryKey: ['/api/subscriptions/plans'],
     queryFn: async () => {
       try {
-        // Mock data for demonstration
-        return [
-          {
-            id: 'freemium',
-            name: 'Freemium',
-            description: 'Funcionalidades básicas para começar a vender',
-            price: {
-              monthly: 0,
-              yearly: 0
-            },
-            features: [
-              'Cadastrar até 5 produtos',
-              'Criar 1 promoção simples por mês',
-              'Dashboard básico',
-              'Listagem nas buscas e categorias'
-            ],
-            limits: {
-              products: 5,
-              promotions: 1,
-              flashPromotions: 0,
-              coupons: 0
-            }
-          },
-          {
-            id: 'start',
-            name: 'Start',
-            description: 'Perfeito para quem está começando',
-            price: {
-              monthly: 149.90,
-              yearly: 1439.00
-            },
-            features: [
-              'Cadastrar até 10 produtos',
-              'Criar até 5 cupons',
-              'Notificações push para seguidores',
-              'Analytics parcial',
-              'Suporte prioritário'
-            ],
-            limits: {
-              products: 10,
-              promotions: 5,
-              flashPromotions: 1,
-              coupons: 5
-            }
-          },
-          {
-            id: 'pro',
-            name: 'Pro',
-            description: 'Ideal para lojas em crescimento',
-            price: {
-              monthly: 249.90,
-              yearly: 2399.00
-            },
-            features: [
-              'Cadastrar até 50 produtos',
-              'Cupons ilimitados',
-              'Promoções relâmpago',
-              'Analytics completo',
-              'Destaque na página de categoria'
-            ],
-            limits: {
-              products: 50,
-              promotions: 20,
-              flashPromotions: 5,
-              coupons: -1 // Unlimited
-            }
-          },
-          {
-            id: 'premium',
-            name: 'Premium',
-            description: 'Para lojistas que querem dominar o mercado',
-            price: {
-              monthly: 349.90,
-              yearly: 3359.00
-            },
-            features: [
-              'Produtos ilimitados',
-              'Cupons e promoções ilimitados',
-              'Analytics completo com exportação',
-              'Destaque em toda a plataforma',
-              'Suporte VIP'
-            ],
-            limits: {
-              products: -1, // Unlimited
-              promotions: -1, // Unlimited
-              flashPromotions: -1, // Unlimited
-              coupons: -1 // Unlimited
-            }
-          }
-        ] as SubscriptionPlan[];
+        const response = await fetch('/api/subscriptions/plans');
+        if (!response.ok) {
+          throw new Error('Failed to fetch subscription plans');
+        }
+        return await response.json();
       } catch (error) {
         console.error('Error fetching subscription plans:', error);
         return [];
@@ -164,22 +79,16 @@ export default function SellerSubscription() {
     queryKey: ['/api/subscriptions/my-plan'],
     queryFn: async () => {
       try {
-        // Mock data for demonstration
-        const currentPlan = plans.find(p => p.id === 'freemium');
-        return {
-          plan: currentPlan,
-          endDate: null, // No end date for freemium
-          store: {
-            id: 1,
-            name: 'Minha Loja Principal'
-          }
-        } as Subscription;
+        const response = await fetch('/api/subscriptions/my-plan');
+        if (!response.ok) {
+          throw new Error('Failed to fetch current subscription');
+        }
+        return await response.json();
       } catch (error) {
         console.error('Error fetching current subscription:', error);
         return null;
       }
-    },
-    enabled: plans.length > 0
+    }
   });
 
   useEffect(() => {
