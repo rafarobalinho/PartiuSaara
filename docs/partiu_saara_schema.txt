@@ -1,0 +1,392 @@
+// Schema Prisma para o projeto "Partiu Saara"
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum para tipos de usuário
+enum UserRole {
+  customer
+  seller
+  admin
+}
+
+// Enum para gênero
+enum Gender {
+  male
+  female
+  not_specified
+}
+
+// Enum para status de reserva
+enum ReservationStatus {
+  pending
+  completed
+  expired
+  cancelled
+}
+
+// Enum para status de negócio
+enum BusinessStatus {
+  operational
+  temporarily_closed
+  permanently_closed
+}
+
+// Enum para tipo de promoção
+enum PromotionType {
+  regular
+  flash
+}
+
+// Enum para planos de assinatura
+enum SubscriptionPlan {
+  freemium
+  start
+  pro
+  premium
+}
+
+// Enum para status de assinatura
+enum SubscriptionStatus {
+  active
+  inactive
+  trial
+  expired
+  cancelled
+}
+
+// Tabela de usuários (consumidores e vendedores)
+model User {
+  id          Int      @id @default(autoincrement())
+  email       String   @unique
+  password    String
+  firstName   String   @map("first_name")
+  lastName    String   @map("last_name")
+  dateOfBirth DateTime? @map("date_of_birth")
+  gender      Gender?
+  role        UserRole @default(customer)
+  cpf         String?  @unique
+  phone       String?
+  address     Json?    // Estrutura: { street, city, state, zipCode, complement }
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relacionamentos
+  stores       Store[]
+  reservations Reservation[]
+  wishlistItems WishlistItem[]
+  favoriteStores FavoriteStore[]
+  subscriptions Subscription[]
+
+  @@map("users")
+}
+
+// Tabela de lojas
+model Store {
+  id               Int              @id @default(autoincrement())
+  userId           Int              @map("user_id")
+  name             String
+  description      String?
+  category         String?
+  address          Json?            // Estrutura: { street, city, state, zipCode, complement }
+  location         Json?            // Estrutura: { latitude, longitude }
+  placeId          String?          @map("place_id")
+  phone            String?
+  website          String?
+  logo             String?
+  subscriptionPlan SubscriptionPlan @default(freemium) @map("subscription_plan")
+  isActive         Boolean          @default(true) @map("is_active")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  // Relacionamentos
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products       Product[]
+  images         StoreImage[]
+  promotions     Promotion[]
+  coupons        Coupon[]
+  reservations   Reservation[]
+  favoriteStores FavoriteStore[]
+  analytics      StoreAnalytics[]
+  impressions    StoreImpression[]
+  placeDetails   StorePlaceDetails?
+  subscriptions  Subscription[]
+
+  @@map("stores")
+}
+
+// Tabela de imagens das lojas
+model StoreImage {
+  id           Int     @id @default(autoincrement())
+  storeId      Int     @map("store_id")
+  imageUrl     String  @map("image_url")
+  thumbnailUrl String  @map("thumbnail_url")
+  isPrimary    Boolean @default(false) @map("is_primary")
+  displayOrder Int     @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relacionamentos
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("store_images")
+}
+
+// Tabela de detalhes do Google Places para lojas
+model StorePlaceDetails {
+  id               Int      @id @default(autoincrement())
+  storeId          Int      @unique @map("store_id")
+  placeId          String   @map("place_id")
+  name             String?
+  formattedAddress String?  @map("formatted_address")
+  phoneNumber      String?  @map("phone_number")
+  website          String?
+  rating           Decimal?
+  totalRatings     Int?     @default(0) @map("total_ratings")
+  businessStatus   String?  @map("business_status")
+  types            String?  // JSON string
+  openingHours     String?  @map("opening_hours") // JSON string
+  reviews          String?  // JSON string
+  editorialSummary String?  @map("editorial_summary")
+  lastUpdated      DateTime @default(now()) @map("last_updated")
+
+  // Relacionamentos
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("store_place_details")
+}
+
+// Tabela de categorias
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  imageUrl    String?   @map("image_url")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relacionamentos
+  products Product[]
+
+  @@map("categories")
+}
+
+// Tabela de produtos
+model Product {
+  id             Int      @id @default(autoincrement())
+  storeId        Int      @map("store_id")
+  categoryId     Int?     @map("category_id")
+  name           String
+  description    String?
+  category       String?  // Mantido para compatibilidade
+  price          Decimal
+  discountedPrice Decimal? @map("discounted_price")
+  stock          Int      @default(0)
+  sku            String?
+  brand          String?
+  weight         Decimal?
+  dimensions     Json?    // Estrutura: { length, width, height }
+  isFeatured     Boolean  @default(false) @map("is_featured")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relacionamentos
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  categoryRef   Category?      @relation(fields: [categoryId], references: [id])
+  images        ProductImage[]
+  promotions    Promotion[]
+  reservations  Reservation[]
+  wishlistItems WishlistItem[]
+
+  @@map("products")
+}
+
+// Tabela de imagens dos produtos
+model ProductImage {
+  id           Int     @id @default(autoincrement())
+  productId    Int     @map("product_id")
+  imageUrl     String  @map("image_url")
+  thumbnailUrl String  @map("thumbnail_url")
+  isPrimary    Boolean @default(false) @map("is_primary")
+  displayOrder Int     @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relacionamentos
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+// Tabela de promoções
+model Promotion {
+  id                 Int           @id @default(autoincrement())
+  productId          Int           @map("product_id")
+  storeId            Int           @map("store_id")
+  type               PromotionType @default(regular)
+  discountPercentage Decimal?      @map("discount_percentage")
+  discountAmount     Decimal?      @map("discount_amount")
+  startTime          DateTime      @map("start_time")
+  endTime            DateTime      @map("end_time")
+  isActive           Boolean       @default(true) @map("is_active")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  // Relacionamentos
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("promotions")
+}
+
+// Tabela de cupons
+model Coupon {
+  id              Int      @id @default(autoincrement())
+  storeId         Int      @map("store_id")
+  code            String   @unique
+  description     String?
+  discountType    String   @map("discount_type") // 'percentage' or 'amount'
+  discountValue   Decimal  @map("discount_value")
+  minPurchase     Decimal? @map("min_purchase")
+  maxUses         Int?     @map("max_uses")
+  usedCount       Int      @default(0) @map("used_count")
+  isFlash         Boolean  @default(false) @map("is_flash")
+  validFrom       DateTime @map("valid_from")
+  validUntil      DateTime @map("valid_until")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relacionamentos
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("coupons")
+}
+
+// Tabela de reservas
+model Reservation {
+  id        Int               @id @default(autoincrement())
+  userId    Int               @map("user_id")
+  productId Int               @map("product_id")
+  storeId   Int               @map("store_id")
+  quantity  Int               @default(1)
+  status    ReservationStatus @default(pending)
+  expiresAt DateTime          @map("expires_at")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  // Relacionamentos
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("reservations")
+}
+
+// Tabela de lista de desejos
+model WishlistItem {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  productId Int      @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relacionamentos
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlist_items")
+}
+
+// Tabela de lojas favoritas
+model FavoriteStore {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  storeId   Int      @map("store_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relacionamentos
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storeId])
+  @@map("favorite_stores")
+}
+
+// Tabela de assinaturas dos lojistas
+model Subscription {
+  id                Int                @id @default(autoincrement())
+  userId            Int                @map("user_id")
+  storeId           Int                @map("store_id")
+  plan              SubscriptionPlan
+  status            SubscriptionStatus @default(trial)
+  startDate         DateTime           @map("start_date")
+  endDate           DateTime           @map("end_date")
+  trialEndsAt       DateTime?          @map("trial_ends_at")
+  price             Decimal
+  billingCycle      String             @map("billing_cycle") // 'monthly' or 'annual'
+  stripeCustomerId  String?            @map("stripe_customer_id")
+  stripeSubscriptionId String?         @map("stripe_subscription_id")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  // Relacionamentos
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+// Tabela de analytics das lojas
+model StoreAnalytics {
+  id                    Int      @id @default(autoincrement())
+  storeId               Int      @map("store_id")
+  date                  DateTime @db.Date
+  profileViews          Int      @default(0) @map("profile_views")
+  productsReserved      Int      @default(0) @map("products_reserved")
+  wishlistAdditions     Int      @default(0) @map("wishlist_additions")
+  newFavorites          Int      @default(0) @map("new_favorites")
+  impressions           Int      @default(0)
+  clicks                Int      @default(0)
+  couponViews           Int      @default(0) @map("coupon_views")
+  couponUses            Int      @default(0) @map("coupon_uses")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relacionamentos
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, date])
+  @@map("store_analytics")
+}
+
+// Tabela de impressões (para controle de destaques)
+model StoreImpression {
+  id        Int      @id @default(autoincrement())
+  storeId   Int      @map("store_id")
+  productId Int?     @map("product_id")
+  location  String   // 'home', 'category', 'promotion', etc.
+  timestamp DateTime @default(now())
+
+  // Relacionamentos
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("store_impressions")
+}
+
+// Tabela de sessões (para autenticação)
+model Session {
+  id        String   @id
+  sid       String   @unique
+  data      String
+  expiresAt DateTime @map("expires_at")
+
+  @@map("sessions")
+}

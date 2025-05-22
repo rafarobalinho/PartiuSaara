@@ -1,0 +1,289 @@
+# Documento de Requisitos do Produto (PRD): Partiu Saara
+
+**Versão:** 1.0
+**Data:** 22 de maio de 2025
+**Proprietário do Produto:** (Seu Nome/Empresa)
+
+**Índice:**
+1.  Introdução
+2.  Objetivos e Metas
+3.  Público-Alvo
+4.  Escopo do Produto e Funcionalidades
+    4.1. Funcionalidades para Consumidores
+    4.2. Funcionalidades para Lojistas
+    4.3. Páginas Auxiliares
+    4.4. Modelo de Monetização
+    4.5. Lógica de Destaques (Impressões)
+    4.6. Fora do Escopo para o MVP (Mínimo Produto Viável)
+5.  Requisitos Não Funcionais
+6.  Design e Experiência do Usuário (UX/UI)
+7.  Plano de Lançamento (Fases)
+8.  Métricas de Sucesso
+9.  Considerações Futuras
+10. Suposições e Restrições
+
+---
+
+### 1. Introdução
+
+**1.1. Visão Geral do Projeto**
+O aplicativo "Partiu Saara" tem como objetivo principal conectar diretamente os consumidores finais aos lojistas de grandes mercados populares, como o SAARA no Rio de Janeiro[cite: 1]. Ele não se propõe a ser um marketplace tradicional[cite: 2]. A intenção é reinventar os guias de promoções convencionais, oferecendo uma experiência focada em divulgação, reserva de produtos com retirada presencial na loja, e tendo como mecanismos centrais as promoções e cupons[cite: 2]. O projeto visa libertar os lojistas das altas taxas cobradas por marketplaces tradicionais[cite: 4].
+
+**1.2. Problema a ser Resolvido**
+* **Para Consumidores:** Dificuldade em encontrar e comparar promoções específicas de lojas em grandes centros de comércio popular de forma centralizada e digital; falta de um mecanismo prático para garantir o preço de uma promoção antes de ir à loja.
+* **Para Lojistas:** Altas taxas cobradas por marketplaces tradicionais para vender online; dificuldade em atrair clientes para a loja física e divulgar promoções de forma eficaz e com baixo custo; falta de dados sobre o comportamento do consumidor em relação aos seus produtos e loja.
+
+**1.3. Proposta de Valor**
+* **Para Consumidores:** Uma plataforma única para descobrir as melhores promoções, reservar produtos com preços promocionais garantidos para retirada na loja, e explorar de forma fácil e interativa os grandes centros comerciais.
+* **Para Lojistas:** Uma ferramenta de baixo custo para aumentar a visibilidade da loja e dos produtos, atrair clientes para a loja física através de promoções e cupons, gerenciar ofertas de forma simples e obter insights sobre o interesse dos consumidores, sem pagar comissões sobre vendas[cite: 2].
+
+---
+
+### 2. Objetivos e Metas
+
+**2.1. Objetivos de Negócio**
+* Tornar-se a principal plataforma de referência para promoções e descobertas em mercados populares, começando pelo SAARA.
+* Criar uma base sólida de lojistas e consumidores ativos.
+* Gerar receita através dos planos de assinatura para lojistas[cite: 20].
+* Promover o comércio local e a visitação às lojas físicas.
+
+**2.2. Objetivos do Produto**
+* Facilitar a descoberta de produtos e promoções pelos consumidores.
+* Permitir a reserva de produtos com retirada presencial de forma simples e segura[cite: 4].
+* Oferecer aos lojistas ferramentas fáceis para cadastrar produtos e criar promoções atrativas[cite: 10, 11].
+* Fornecer dados relevantes aos lojistas sobre o desempenho de suas lojas e produtos na plataforma[cite: 12].
+
+---
+
+### 3. Público-Alvo
+
+**3.1. Consumidores**
+* Pessoas que frequentam ou têm interesse em comprar em grandes centros de comércio popular (como o SAARA).
+* Buscadores de promoções e ofertas.
+* Usuários de smartphones que preferem planejar suas compras e garantir preços promocionais.
+* Pessoas que valorizam a experiência de compra física, mas querem a conveniência da descoberta e reserva online.
+
+**3.2. Lojistas**
+* Pequenos e médios varejistas localizados em grandes centros de comércio popular.
+* Lojistas que buscam alternativas de divulgação mais baratas que os marketplaces tradicionais.
+* Proprietários de lojas que desejam aumentar o fluxo de clientes em suas lojas físicas.
+* Lojistas interessados em entender melhor o comportamento de seus potenciais clientes online.
+
+---
+
+### 4. Escopo do Produto e Funcionalidades
+
+**4.1. Funcionalidades para Consumidores**
+
+* **RF1.1: Cadastro/Login de usuários**
+    * Permitir cadastro com nome, CPF, endereço, e-mail, telefone[cite: 5].
+    * Login com e-mail e senha.
+    * Recuperação de senha.
+* **RF1.2: Página inicial com destaques**
+    * Exibição de promoções em destaque, categorias principais, e mapas interativos[cite: 6].
+* **RF1.3: Tela de categorias**
+    * Navegação por categorias de produtos (Moda feminina, masculina, infantil, acessórios, eletrônicos, etc.)[cite: 6].
+* **RF1.4: Página detalhada de produtos e lojas**
+    * Visualização de imagens, descrições, especificações de produtos e informações das lojas[cite: 7].
+* **RF1.5: Busca e filtragem avançada**
+    * Busca por preço, loja, categoria, produtos em promoção[cite: 7].
+* **RF1.6: Lista de Desejos**
+    * Salvar produtos para compra futura[cite: 8].
+* **RF1.7: Reservas**
+    * Reservar produtos com preço promocional para retirada presencial (retirada em até 72 horas)[cite: 8].
+    * Gerenciar reservas (visualizar, cancelar).
+* **RF1.8: Geolocalização e mapa interativo**
+    * Visualizar lojas no mapa (integrado ao Google Maps)[cite: 9].
+    * Encontrar lojas próximas.
+* **RF1.9: Promoções Relâmpago**
+    * Visualizar ofertas especiais, limitadas por tempo ou proximidade geográfica[cite: 9].
+
+**4.2. Funcionalidades para Lojistas**
+
+* **RF2.1: Cadastro e gerenciamento da loja**[cite: 10].
+    * Login e recuperação de senha.
+* **RF2.2: Cadastro detalhado de produtos**
+    * Incluir nome, categoria, preço, estoque, fotos[cite: 10].
+* **RF2.3: Gestão facilitada das promoções**
+    * Criação ágil de Promoções Relâmpago[cite: 11].
+    * Criação de promoções regulares.
+* **RF2.4: Gestão de estoque simplificada**
+    * Alerta sobre baixo estoque[cite: 11].
+* **RF2.5: Dashboard Completo de Analytics (conforme plano)**
+    * Quantidade de visitas ao perfil da loja[cite: 12].
+    * Produtos reservados pelos usuários[cite: 12].
+    * Quantidade de vezes que produtos foram adicionados à lista de desejos[cite: 13].
+    * Quantidade de usuários que marcaram a loja como favorita[cite: 13].
+    * Indicadores demográficos anonimizados (faixa etária, gênero, localização aproximada)[cite: 14].
+    * Relatórios sobre desempenho dos cupons[cite: 24].
+    * Número de impressões da loja/produtos[cite: 42, 47].
+* **RF2.6: Gerenciamento de Reservas**
+    * Receber notificações de novas reservas.
+    * Visualizar e gerenciar status das reservas.
+
+**4.3. Páginas Auxiliares**
+
+* **RF3.1: Página Cadastro de Produtos (restrita ao lojista)**
+    * Upload de imagens, controle de estoque e promoções diretamente nesta página[cite: 15].
+* **RF3.2: Página Criação de Promoções Relâmpago (restrita ao lojista)**
+    * Fácil configuração de promoções rápidas, visualmente atraentes, com notificações automáticas[cite: 16].
+* **RF3.3: Tela de Categorias (para usuários)**
+    * Interface clara, rápida e intuitiva para explorar categorias[cite: 17].
+* **RF3.4: Página "Produtos em Promoção"**
+    * Centralização visual de todos os produtos em promoção, com filtros[cite: 18].
+
+**4.4. Modelo de Monetização**
+A receita será obtida através de Planos de Cupons de Desconto adquiridos pelos lojistas[cite: 20]. Não haverá checkout integrado para vendas de produtos dos lojistas[cite: 3].
+
+* **RF4.4.1: Plano Freemium**
+    * Cadastro da loja (informações básicas, até 1 imagem) .
+    * Cadastro até 5 produtos .
+    * Criar 1 promoção simples por mês .
+    * Acessar mini-dashboard (visualizações da loja) .
+    * Responder mensagens no chat com consumidores .
+    * Ser listado nas buscas e categorias, sem destaque .
+    * Não pode publicar cupons promocionais nem promoções relâmpago .
+    * Sem notificações push para clientes .
+    * Sem destaque na página inicial ou em categorias .
+* **RF4.4.2: Período de Teste com Funções Completas (Trial)**
+    * Novos lojistas entram em um período de teste gratuito (7 ou 14 dias) com acesso total[cite: 27].
+    * Ao final do prazo, rebaixamento automático para o plano freemium[cite: 28].
+    * Notificação para upgrade com desconto especial[cite: 28].
+* **RF4.4.3: Planos Pagos (Start, Pro, Premium)** [cite: 31]
+    * **Start:** R$ 149,90 (mensal) / R$ 1.439,00 (anual). 10 produtos, 5 cupons, notificações push para seguidores da loja[cite: 31].
+    * **Pro:** R$ 249,90 (mensal) / R$ 2.399,00 (anual). 50 produtos, cupons ilimitados, promoções relâmpago, analytics parcial[cite: 31].
+    * **Premium:** R$ 349,90 (mensal) / R$ 3.359,00 (anual). Produtos ilimitados, analytics completo, destaque em toda a plataforma[cite: 31].
+    * Todos os planos pagos incluem: Painel de marketing, Dashboard com indicadores de comportamento, Relatórios por e-mail, Acesso prioritário ao suporte[cite: 32].
+* **RF4.4.4: Funcionalidades dos Planos de Cupons**
+    * Publicar cupons com data de validade[cite: 24].
+    * Limitar por quantidade de uso[cite: 24].
+    * Opção de cupom relâmpago[cite: 24].
+    * Destaque do cupom na vitrine de promoções[cite: 24].
+    * Envio de push automático para usuários que favoritaram a loja (conforme plano)[cite: 24].
+    * Acesso a relatórios sobre desempenho dos cupons[cite: 24].
+* **RF4.4.5: Sistema de Pagamento para Planos**
+    * Lojistas podem assinar planos (mensal/anual)[cite: 29].
+    * Gerenciamento de status de assinatura.
+
+**4.5. Lógica de Destaques (Impressões)**
+Controlar e distribuir as impressões entre os lojistas pagantes, respeitando o plano contratado[cite: 34].
+
+* **RF4.5.1: Prioridade de Exibição**
+    * Cada plano pago terá um peso de exibição (Premium: 3, Pro: 2, Start: 1, Freemium: 0 - não exibido em destaque)[cite: 36].
+* **RF4.5.2: Distribuição Automatizada**
+    * Endpoint que busca lojistas pagantes ativos, verifica plano/peso e gera rotação automática com base nesses pesos[cite: 37, 46].
+* **RF4.5.3: Monitoramento de Impressões**
+    * Tabela para registrar impressões (id, lojista_id, produto_id, data_hora, local)[cite: 42].
+    * Exibir no dashboard do lojista o número de exibições[cite: 42].
+* **RF4.5.4: Algoritmo de Exposição Justa (Opcional Avançado)**
+    * FIFO rotativo por plano, reforço com engajamento, expiração de destaque[cite: 43, 44].
+
+**4.6. Fora do Escopo para o MVP (Mínimo Produto Viável) Inicial**
+* Chat consumidor-lojista (embora mencionado no Freemium[cite: 25], pode ser uma v1.1).
+* Funcionalidades avançadas de "impulsionamentos" pagos (além dos planos)[cite: 25].
+* Cobrança por clique (pay-per-click)[cite: 25].
+* Venda de pacotes de mídia (banners, vídeos, notificações patrocinadas)[cite: 25].
+* Algoritmo de exposição justa altamente complexo (uma versão simplificada de rotação ponderada será o MVP).
+
+---
+
+### 5. Requisitos Não Funcionais (RNF)
+
+* **RNF1: Usabilidade** (Intuitivo, fácil de usar, feedback visual claro).
+* **RNF2: Desempenho** (Carregamento rápido, respostas ágeis, suportar carga).
+* **RNF3: Confiabilidade** (Alta disponibilidade, consistência de dados, backups).
+* **RNF4: Segurança** (Proteção de dados LGPD, senhas criptografadas, contra ataques comuns).
+* **RNF5: Escalabilidade** (Suportar crescimento de usuários/dados, modularidade).
+* **RNF6: Manutenibilidade** (Código organizado/documentado, facilidade de correção).
+* **RNF7: Compatibilidade** (Principais S.O. mobile e navegadores web).
+* **RNF8: Integração de Pagamento** (Segura e confiável para planos de lojistas).
+
+---
+
+### 6. Design e Experiência do Usuário (UX/UI)
+
+* A interface deve ser limpa, moderna e focada na facilidade de uso, tanto para consumidores quanto para lojistas.
+* Cores e identidade visual devem refletir a proposta de valor do "Partiu Saara" (dinamismo, economia, descoberta).
+* O fluxo de navegação deve ser lógico e intuitivo, minimizando o número de cliques para ações chave.
+* **Wireframes e Mockups:** Serão desenvolvidos e anexados a este PRD em uma seção separada ou link externo. Eles cobrirão todas as telas principais e fluxos de usuário. (Ex: Telas de Cadastro, Login, Home, Categorias, Detalhe do Produto/Loja, Reserva, Dashboard do Lojista, Criação de Promoção, Planos).
+* Responsividade: O design deve se adaptar a diferentes tamanhos de tela (mobile-first, com versões para tablet e desktop se aplicável como PWA ou Web App).
+
+---
+
+### 7. Plano de Lançamento (Fases)
+
+* **Fase 0: Planejamento e Design** (Concluída)
+* **Fase 1: Desenvolvimento MVP Essencial (Consumidor e Lojista Freemium)**
+    * Foco: RF1.1-RF1.6 (Consumidor), RF2.1-RF2.4 (Lojista Freemium), Páginas Auxiliares básicas.
+* **Fase 2: Implementação de Reservas e Geolocalização**
+    * Foco: RF1.7, RF1.8 (Consumidor), RF2.6 (Lojista).
+* **Fase 3: Implementação de Monetização e Promoções Avançadas**
+    * Foco: RF1.9 (Consumidor), RF2.3 (avançado), RF4.4 (Monetização), RF2.5 (Analytics inicial para planos).
+* **Fase 4: Analytics Avançado e Lógica de Destaques**
+    * Foco: RF2.5 (Analytics completo), RF4.5 (Lógica de Destaques).
+* **Fase 5: Testes Finais e Preparação para Lançamento**
+* **Fase 6: Lançamento e Pós-Lançamento**
+
+**Critérios de Lançamento (MVP):**
+* Funcionalidades essenciais do consumidor (Cadastro, login, busca, visualização de produtos/lojas, lista de desejos, reserva) estáveis e testadas.
+* Funcionalidades essenciais do lojista (Cadastro, login, cadastro de produtos limitado, criação de promoção simples) estáveis e testadas.
+* Implementação do plano Freemium e Trial.
+* Sistema de pagamento para planos de lojistas funcionando e seguro.
+* Testes de usabilidade, segurança básica e performance concluídos com resultados satisfatórios.
+* Conformidade com a LGPD.
+
+---
+
+### 8. Métricas de Sucesso
+
+* **Engajamento de Consumidores:**
+    * Número de downloads/cadastros de consumidores.
+    * Número de usuários ativos diários/mensais (DAU/MAU).
+    * Número de pesquisas realizadas.
+    * Número de produtos adicionados à lista de desejos.
+    * Número de reservas realizadas e concluídas.
+    * Tempo médio gasto no aplicativo por sessão.
+* **Adoção e Engajamento de Lojistas:**
+    * Número de cadastros de lojistas.
+    * Taxa de conversão de lojistas do plano Freemium/Trial para planos pagos.
+    * Número de produtos cadastrados.
+    * Número de promoções e cupons criados.
+    * Taxa de retenção de lojistas.
+* **Monetização:**
+    * Receita mensal recorrente (MRR) dos planos de lojistas.
+    * Valor médio por lojista (ARPU).
+* **Performance da Plataforma:**
+    * Tempo de atividade do sistema (Uptime).
+    * Velocidade de carregamento das páginas.
+    * Taxa de erro.
+
+---
+
+### 9. Considerações Futuras (Pós-Lançamento)
+
+* Implementação de Chat Consumidor-Lojista.
+* Funcionalidades de "Gamificação" para engajar consumidores.
+* Sistema de avaliação e comentários para produtos e lojas.
+* Integrações com redes sociais para compartilhamento de ofertas.
+* Expansão para outras cidades e mercados populares.
+* Modelos de monetização adicionais (impulsionamentos[cite: 25], pay-per-click[cite: 25], pacotes de mídia [cite: 25]).
+* Aprimoramento do algoritmo de "exposição justa".
+* Desenvolvimento de aplicativo nativo (se o MVP for PWA/Web App e houver demanda).
+* Funcionalidades de notificação push mais granulares para consumidores (ex: alerta de novas promoções em categorias de interesse).
+
+---
+
+### 10. Suposições e Restrições
+
+**Suposições:**
+* Lojistas de mercados populares têm interesse em uma plataforma digital de baixo custo para divulgar suas ofertas e atrair clientes.
+* Consumidores estão dispostos a usar um aplicativo para encontrar promoções e reservar produtos para retirada física.
+* A integração com o Google Maps para geolocalização atenderá às necessidades do projeto.
+* A infraestrutura escolhida (servidores, banco de dados) será capaz de lidar com o crescimento inicial de usuários.
+
+**Restrições:**
+* O orçamento e o cronograma definidos devem ser respeitados.
+* O produto inicial não incluirá checkout de produtos dentro do app (exceto para planos de lojistas)[cite: 3].
+* Não haverá integrações com plataformas externas de venda de produtos dos lojistas[cite: 14, 22].
+* O desenvolvimento será focado nas plataformas definidas (ex: PWA, ou app Android/iOS específico).
+* O time de desenvolvimento possui as habilidades necessárias para construir o produto utilizando as tecnologias escolhidas.
