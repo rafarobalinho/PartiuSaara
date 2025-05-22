@@ -100,73 +100,74 @@ export default function SellerDashboard() {
   });
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold mb-2">Dashboard do Lojista</h1>
-          <p className="text-gray-600">Gerencie sua loja e acompanhe as estatísticas</p>
+    <>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold mb-2">Dashboard do Lojista</h1>
+            <p className="text-gray-600">Gerencie sua loja e acompanhe as estatísticas</p>
+          </div>
+          
+          {store && (
+            <div className="mt-4 md:mt-0 flex flex-col items-end">
+              <div className="flex items-center mb-1">
+                <span className="font-medium">{store.name}</span>
+                <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                  {store.subscriptionPlan === 'freemium' ? 'Plano Gratuito' : 'Plano ' + store.subscriptionPlan.charAt(0).toUpperCase() + store.subscriptionPlan.slice(1)}
+                </span>
+              </div>
+              {store.subscriptionPlan !== 'freemium' && store.subscriptionEndDate && (
+                <span className="text-xs text-gray-500">
+                  Assinatura válida até {new Date(store.subscriptionEndDate).toLocaleDateString('pt-BR')}
+                </span>
+              )}
+              {store.subscriptionPlan === 'freemium' && (
+                <Button asChild size="sm" className="mt-2 bg-primary text-white hover:bg-primary/90">
+                  <Link href="/seller/subscription">
+                    <a>Fazer upgrade do plano</a>
+                  </Link>
+                </Button>
+              )}
+            </div>
+          )}
         </div>
         
+        {/* Resumo do plano atual */}
         {store && (
-          <div className="mt-4 md:mt-0 flex flex-col items-end">
-            <div className="flex items-center mb-1">
-              <span className="font-medium">{store.name}</span>
-              <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
-                {store.subscriptionPlan === 'freemium' ? 'Plano Gratuito' : 'Plano ' + store.subscriptionPlan.charAt(0).toUpperCase() + store.subscriptionPlan.slice(1)}
-              </span>
-            </div>
-            {store.subscriptionPlan !== 'freemium' && store.subscriptionEndDate && (
-              <span className="text-xs text-gray-500">
-                Assinatura válida até {new Date(store.subscriptionEndDate).toLocaleDateString('pt-BR')}
-              </span>
-            )}
-            {store.subscriptionPlan === 'freemium' && (
-              <Button asChild size="sm" className="mt-2 bg-primary text-white hover:bg-primary/90">
+          <div className="mb-6 bg-white rounded-lg shadow-sm p-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold mb-2">Seu Plano Atual</h2>
+                <div className="flex items-center mb-2">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    store.subscriptionPlan === 'premium' ? 'bg-purple-100 text-purple-800' :
+                    store.subscriptionPlan === 'pro' ? 'bg-blue-100 text-blue-800' :
+                    store.subscriptionPlan === 'start' ? 'bg-green-100 text-green-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    Plano {store.subscriptionPlan.charAt(0).toUpperCase() + store.subscriptionPlan.slice(1)}
+                  </span>
+                  {store.subscriptionEndDate && store.subscriptionPlan !== 'freemium' && (
+                    <span className="ml-3 text-sm text-gray-500">
+                      Válido até {new Date(store.subscriptionEndDate).toLocaleDateString('pt-BR')}
+                    </span>
+                  )}
+                </div>
+                <p className="text-gray-600 text-sm mb-4">
+                  {store.subscriptionPlan === 'freemium' ? 
+                    'Seu plano atual tem recursos limitados. Faça upgrade para desbloquear mais funcionalidades.' :
+                    'Gerencie seu plano e considere um upgrade para acessar recursos adicionais.'}
+                </p>
+              </div>
+              
+              <Button asChild className="bg-primary text-white hover:bg-primary/90">
                 <Link href="/seller/subscription">
-                  <a>Fazer upgrade do plano</a>
+                  <a>Gerenciar Plano</a>
                 </Link>
               </Button>
-            )}
+            </div>
           </div>
         )}
-      </div>
-      
-      {/* Resumo do plano atual */}
-      {store && (
-        <div className="mb-6 bg-white rounded-lg shadow-sm p-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold mb-2">Seu Plano Atual</h2>
-              <div className="flex items-center mb-2">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  store.subscriptionPlan === 'premium' ? 'bg-purple-100 text-purple-800' :
-                  store.subscriptionPlan === 'pro' ? 'bg-blue-100 text-blue-800' :
-                  store.subscriptionPlan === 'start' ? 'bg-green-100 text-green-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  Plano {store.subscriptionPlan.charAt(0).toUpperCase() + store.subscriptionPlan.slice(1)}
-                </span>
-                {store.subscriptionEndDate && store.subscriptionPlan !== 'freemium' && (
-                  <span className="ml-3 text-sm text-gray-500">
-                    Válido até {new Date(store.subscriptionEndDate).toLocaleDateString('pt-BR')}
-                  </span>
-                )}
-              </div>
-              <p className="text-gray-600 text-sm mb-4">
-                {store.subscriptionPlan === 'freemium' ? 
-                  'Seu plano atual tem recursos limitados. Faça upgrade para desbloquear mais funcionalidades.' :
-                  'Gerencie seu plano e considere um upgrade para acessar recursos adicionais.'}
-              </p>
-            </div>
-            
-            <Button asChild className="bg-primary text-white hover:bg-primary/90">
-              <Link href="/seller/subscription">
-                <a>Gerenciar Plano</a>
-              </Link>
-            </Button>
-          </div>
-        </div>
-      )}
       </div>
 
       <div className="flex justify-between items-center my-4">
@@ -184,6 +185,8 @@ export default function SellerDashboard() {
           </Button>
         </div>
       </div>
+    </>
+  );
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
