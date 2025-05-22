@@ -635,7 +635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Importar e executar a função de limpeza
       const { cleanAllBlobUrls } = await import('./scripts/clean-blob-urls');
-      const result = await cleanAllBlobUrls();
+      const result = await await cleanAllBlobUrls();
 
       return res.json({ 
         success: true, 
@@ -806,7 +806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           path: `/uploads/${file}`,
           size: stats.size,
           created: stats.birthtime,
-```tool_code
+```tool_code blocks.
           formattedSize: `${Math.round(stats.size / 1024)} KB`
         };
       });
