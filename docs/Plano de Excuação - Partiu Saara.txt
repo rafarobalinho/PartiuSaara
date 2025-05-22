@@ -1,0 +1,240 @@
+# Plano de Execução para Agente de IA (Replit): Projeto Partiu Saara
+
+**Objetivo:** Guiar o desenvolvimento do aplicativo "Partiu Saara" em fases, detalhando as tarefas de backend, frontend e testes para cada etapa.
+
+---
+
+## Fase 0: Configuração e Planejamento Inicial
+
+**Objetivos:** Preparar o ambiente de desenvolvimento e revisar os requisitos.
+
+* **Tarefas:**
+    1.  **Ambiente Replit:**
+        * Configurar um novo projeto (Replit) com as linguagens e frameworks escolhidos para backend e frontend.
+        * Estruturar as pastas do projeto (ex: `/backend`, `/frontend`, `/database`, `/docs`).
+    2.  **Banco de Dados:**
+        * Escolher o tipo de banco de dados (ex: PostgreSQL, MySQL, ou NoSQL como MongoDB, dependendo da preferência e escalabilidade no Replit).
+        * Configurar a conexão inicial com o banco de dados a partir do ambiente Replit.
+    3.  **Revisão de Documentação:**
+        * Analisar o PRD (Product Requirements Document) do "Partiu Saara" para total compreensão das funcionalidades, especialmente RFs e RNFs.
+    4.  **Ferramentas:**
+        * Configurar ferramentas de versionamento (Git, integrado ao Replit).
+        * Definir ferramentas para teste de API (ex: Postman, ou testes automatizados no Replit).
+
+---
+
+## Fase 1: MVP Essencial - Núcleo Consumidor e Lojista (Freemium)
+
+**Objetivos:** Desenvolver as funcionalidades centrais de cadastro, login, visualização de conteúdo básico e o plano Freemium para lojistas.
+
+* **1.1. Backend:**
+    * **Modelagem de Dados:**
+        * Criar tabelas/coleções: `Usuarios` (consumidores), `Lojistas`, `Produtos`, `Categorias`.
+        * Definir campos e relacionamentos conforme PRD.
+    * **APIs - Consumidor:**
+        * Endpoint para Cadastro de Consumidor ([RF1.1.1](#41-funcionalidades-para-consumidores)).
+        * Endpoint para Login de Consumidor (com geração de token JWT) ([RF1.1.2](#41-funcionalidades-para-consumidores)).
+        * Endpoint para Recuperação de Senha (básico).
+    * **APIs - Lojista (Freemium):**
+        * Endpoint para Cadastro de Lojista ([RF2.1.1](#42-funcionalidades-para-lojistas)).
+        * Endpoint para Login de Lojista (com geração de token JWT).
+        * Endpoints CRUD para Perfil da Loja (limitado pelo Freemium, ex: 1 imagem).
+        * Endpoints CRUD para Produtos (limitado a 5 produtos para Freemium) ([RF2.2.2](#42-funcionalidades-para-lojistas)).
+        * Endpoint para Lojista criar 1 Promoção Simples por mês ([RF2.3.1](#42-funcionalidades-para-lojistas)).
+    * **APIs - Conteúdo Geral:**
+        * Endpoint para listar Categorias ([RF1.3](#41-funcionalidades-para-consumidores)).
+        * Endpoint para listar Produtos (com filtros básicos por categoria).
+        * Endpoint para visualizar detalhes de um Produto.
+        * Endpoint para visualizar detalhes de uma Loja.
+        * Endpoint para Dashboard básico do Lojista (visualizações da loja) ([RF2.4.1](#42-funcionalidades-para-lojistas)).
+    * **Autenticação & Autorização:**
+        * Implementar middleware para proteger rotas baseadas em token JWT e papéis (consumidor, lojista).
+
+* **1.2. Frontend:**
+    * **Telas de Autenticação (Consumidor e Lojista):**
+        * Formulário de Cadastro.
+        * Formulário de Login.
+        * Interface para Recuperação de Senha.
+    * **Telas do Consumidor:**
+        * Página Inicial (com placeholders para destaques futuros, listagem de categorias e alguns produtos) ([RF1.2](#41-funcionalidades-para-consumidores)).
+        * Tela de listagem de Categorias ([RF1.3](#41-funcionalidades-para-consumidores)).
+        * Tela de Detalhes do Produto (imagens, descrição, preço) ([RF1.4](#41-funcionalidades-para-consumidores)).
+        * Tela de Detalhes da Loja ([RF1.4](#41-funcionalidades-para-consumidores)).
+        * Funcionalidade básica de Lista de Desejos (adicionar/remover, visualizar) ([RF1.6](#41-funcionalidades-para-consumidores)).
+    * **Painel do Lojista (Freemium):**
+        * Formulário para Cadastro/Edição de informações da Loja ([RF2.2.1](#42-funcionalidades-para-lojistas)).
+        * Interface para Cadastro/Listagem/Edição de Produtos (com limite de 5) ([RF2.2.2](#42-funcionalidades-para-lojistas)).
+        * Interface para criação/visualização da Promoção Simples mensal ([RF2.3.1](#42-funcionalidades-para-lojistas)).
+        * Visualização do mini-dashboard (visualizações da loja) ([RF2.4.1](#42-funcionalidades-para-lojistas)).
+    * **Navegação:**
+        * Estrutura de navegação principal (menu, rodapé).
+
+* **1.3. Testes:**
+    * Testes unitários para as funções críticas do backend (validações, lógica de negócio).
+    * Testes de integração para os endpoints da API (usando Postman ou similar).
+    * Testes manuais funcionais das telas e fluxos implementados no frontend.
+    * Verificar conformidade com os limites do plano Freemium.
+
+---
+
+## Fase 2: Implementação de Reservas e Geolocalização
+
+**Objetivos:** Adicionar a funcionalidade de reserva de produtos e integração com mapas.
+
+* **2.1. Backend:**
+    * **Modelagem de Dados:**
+        * Criar tabela/coleção: `Reservas` (com campos para usuario_id, produto_id, lojista_id, status, data_reserva, data_validade_retirada, etc.).
+    * **APIs - Reservas:**
+        * Endpoint para Consumidor criar uma Reserva ([RF1.7](#41-funcionalidades-para-consumidores)).
+        * Endpoint para Consumidor visualizar/cancelar suas Reservas.
+        * Endpoint para Lojista visualizar/gerenciar Reservas de seus produtos.
+        * Lógica para atualizar o estoque do produto após uma reserva ser confirmada.
+        * (Opcional) Notificações básicas para lojista sobre nova reserva.
+    * **APIs - Geolocalização:**
+        * Endpoint para Lojistas salvarem/atualizarem as coordenadas geográficas de suas lojas.
+        * Endpoint para retornar Lojas com suas coordenadas para exibição no mapa ([RF1.8](#41-funcionalidades-para-consumidores)).
+        * (Opcional) Endpoint para buscar lojas próximas a uma dada coordenada (com filtros básicos).
+
+* **2.2. Frontend:**
+    * **Consumidor:**
+        * Botão "Reservar" na página de detalhes do produto ([RF1.7](#41-funcionalidades-para-consumidores)).
+        * Fluxo de confirmação da reserva (informando validade de 72h).
+        * Tela "Minhas Reservas" para o consumidor.
+        * Integração de componente de Mapa (ex: Google Maps API via JavaScript) para exibir lojas ([RF1.8.1](#41-funcionalidades-para-consumidores)).
+        * Funcionalidade para pedir permissão de geolocalização do usuário e exibir lojas próximas no mapa.
+    * **Painel do Lojista:**
+        * Seção para Lojista visualizar e gerenciar as reservas recebidas.
+        * Campo no cadastro da loja para inserir/visualizar coordenadas (ou integração com mapa para definir localização).
+
+* **2.3. Testes:**
+    * Testes unitários para a lógica de reserva e atualização de estoque.
+    * Testes de API para todos os novos endpoints (Reservas, Geolocalização).
+    * Testes funcionais do fluxo completo de reserva pelo consumidor e gerenciamento pelo lojista.
+    * Testes da funcionalidade de mapa e "lojas próximas".
+
+---
+
+## Fase 3: Monetização e Promoções Avançadas
+
+**Objetivos:** Implementar o sistema de planos pagos para lojistas, funcionalidades de cupons e promoções relâmpago.
+
+* **3.1. Backend:**
+    * **Modelagem de Dados:**
+        * Tabelas/coleções: `Planos` (Start, Pro, Premium com seus atributos), `AssinaturasLojistas` (lojista_id, plano_id, data_inicio, data_fim, status_pagamento), `Cupons`, `PromocoesRelampago`.
+    * **APIs - Monetização:**
+        * Endpoints CRUD para gerenciamento de Planos (pelo admin do sistema).
+        * Endpoint para Lojista visualizar os Planos disponíveis.
+        * Endpoint para Lojista iniciar uma Assinatura (integração com API de gateway de pagamento - ex: Stripe).
+        * Webhook para receber atualizações de status de pagamento do gateway e atualizar `AssinaturasLojistas`.
+        * Lógica de controle de acesso a funcionalidades baseada no plano ativo do lojista (middleware ou verificações).
+    * **APIs - Promoções Avançadas (conforme plano):**
+        * Endpoints CRUD para `Cupons` (criar, listar, editar, deletar - com limites por plano) ([RF5.3](#41-funcionalidades-para-consumidores)).
+        * Endpoints CRUD para `PromocoesRelampago` ([RF5.1](#41-funcionalidades-para-consumidores)).
+    * **APIs - Consumidor:**
+        * Endpoint para listar Produtos em Promoção (incluindo relâmpago e com cupons) ([RF5.2](#41-funcionalidades-para-consumidores)).
+
+* **3.2. Frontend:**
+    * **Painel do Lojista:**
+        * Tela de visualização dos Planos e seus benefícios ([RF6.5.1](#44-modelo-de-monetizacao)).
+        * Interface para o Lojista assinar/trocar de Plano (integrando com o fluxo do gateway de pagamento).
+        * Seção para gerenciamento de `Cupons` (criar, editar, visualizar - habilitado conforme plano) ([RF4.4.4](#44-modelo-de-monetizacao)).
+        * Seção para criação de `PromocoesRelampago` (habilitado conforme plano) ([RF3.2](#43-paginas-auxiliares)).
+        * Alertas/Bloqueios visuais ao tentar usar funcionalidades não inclusas no plano atual.
+    * **Consumidor:**
+        * Destaque visual para `PromocoesRelampago` e produtos com `Cupons`.
+        * Página dedicada "Produtos em Promoção" com filtros ([RF5.2.1](#41-funcionalidades-para-consumidores)).
+    * **Período de Trial:**
+        * Lógica no frontend/backend para habilitar todas as funções durante o trial ([RF4.4.2](#44-modelo-de-monetizacao)).
+        * Notificações sobre o fim do trial e opção de upgrade.
+
+* **3.3. Testes:**
+    * Testes unitários para a lógica de planos, assinaturas e controle de acesso.
+    * Testes de API para todos os endpoints de Monetização e Promoções Avançadas.
+    * Teste completo do fluxo de assinatura de um plano por um lojista, incluindo a integração com o gateway de pagamento (usar modo de teste do gateway).
+    * Testar a criação e visualização de cupons e promoções relâmpago por lojistas (respeitando os limites dos planos).
+    * Testar o comportamento do sistema durante e após o período de trial.
+
+---
+
+## Fase 4: Analytics e Lógica de Destaques
+
+**Objetivos:** Fornecer dados analíticos aos lojistas e implementar o sistema de destaques.
+
+* **4.1. Backend:**
+    * **Modelagem de Dados:**
+        * Tabela/coleção: `ImpressoesDestaque` (lojista_id, produto_id, tipo_destaque, data_hora).
+        * Tabela/coleção ou lógica para agregar `AnalyticsLojista` (visitas_perfil, produtos_reservados, adicoes_lista_desejos, loja_favorita, etc.).
+    * **APIs - Analytics (conforme plano):**
+        * Endpoints para registrar eventos (visita ao perfil, adição à lista de desejos, etc.).
+        * Endpoint para Lojista obter os dados consolidados de seu Analytics ([RF2.5](#42-funcionalidades-para-lojistas)).
+        * Endpoint para Lojista obter relatórios de desempenho de cupons ([RF2.5](#42-funcionalidades-para-lojistas)).
+    * **APIs - Lógica de Destaques:**
+        * Endpoint que retorna uma lista de lojas/produtos para destaque, aplicando a lógica de rotação ponderada por plano ([RF4.5.1](#45-logica-de-destaques-impressoes), [RF4.5.2](#45-logica-de-destaques-impressoes)).
+        * Endpoint para registrar uma impressão quando um item destacado é exibido ([RF4.5.3](#45-logica-de-destaques-impressoes)).
+    * **Tarefas Agendadas (Cron Jobs - se Replit suportar ou via serviço externo):**
+        * Para processar/agregar dados de analytics periodicamente.
+
+* **4.2. Frontend:**
+    * **Painel do Lojista:**
+        * Seção de Dashboard com gráficos e números exibindo os Analytics (visitas, reservas, desejos, favoritos, impressões, desempenho de cupons - conforme plano) ([RF7.1](#42-funcionalidades-para-lojistas)).
+    * **Consumidor:**
+        * Integração nas telas relevantes (Página Inicial, Categorias) para consumir o endpoint de Destaques e exibir os itens dinamicamente.
+
+* **4.3. Testes:**
+    * Testes unitários para a lógica de agregação de analytics e o algoritmo de destaques.
+    * Testes de API para os endpoints de Analytics e Destaques.
+    * Validação dos dados exibidos no Dashboard do Lojista.
+    * Verificar se a lógica de destaques está funcionando conforme os pesos dos planos.
+
+---
+
+## Fase 5: Testes Finais, Refinamento e Preparação para Deploy
+
+**Objetivos:** Garantir a qualidade, estabilidade e segurança da aplicação antes do lançamento.
+
+* **Tarefas:**
+    1.  **Testes Completos (End-to-End):**
+        * Executar fluxos completos de ponta a ponta, cobrindo todos os perfis de usuário (Consumidor, Lojista Freemium, Lojista Start/Pro/Premium).
+    2.  **Testes de Usabilidade (UX/UI):**
+        * Revisar toda a interface e fluxos de navegação para garantir clareza e facilidade de uso.
+    3.  **Testes de Segurança:**
+        * Verificar as principais vulnerabilidades (OWASP Top 10 - ex: SQL Injection, XSS, Autenticação Quebrada).
+        * Garantir que dados sensíveis (CPF, senhas) estão protegidos (HTTPS, hashing de senhas).
+    4.  **Testes de Performance:**
+        * Avaliar tempos de resposta das APIs e carregamento das telas sob carga simulada (básica).
+    5.  **Otimizações:**
+        * Refatorar código conforme necessário para melhorar performance ou legibilidade.
+        * Otimizar consultas ao banco de dados.
+    6.  **Correção de Bugs:**
+        * Priorizar e corrigir os bugs identificados em todas as fases de teste.
+    7.  **Documentação:**
+        * Finalizar documentação das APIs (Swagger/OpenAPI, se utilizado).
+        * Documentar processos de deploy e configuração do ambiente.
+    8.  **Configuração de Ambiente de Produção:**
+        * Preparar o ambiente de deploy (seja no Replit ou host externo).
+        * Configurar variáveis de ambiente para produção (chaves de API de produção, URL do banco de dados de produção).
+
+---
+
+## Fase 6: Lançamento (Deploy) e Monitoramento Inicial
+
+**Objetivos:** Publicar a aplicação e monitorar seu funcionamento inicial.
+
+* **Tarefas:**
+    1.  **Deploy:**
+        * Realizar o deploy da versão final do backend e frontend no ambiente de produção.
+    2.  **Testes Pós-Deploy (Smoke Tests):**
+        * Verificar rapidamente as funcionalidades críticas em produção para garantir que o deploy foi bem-sucedido.
+    3.  **Monitoramento:**
+        * Configurar e acompanhar logs de aplicação e servidor.
+        * Monitorar performance e taxa de erros.
+    4.  **Feedback Inicial:**
+        * Estabelecer canais para coletar feedback dos primeiros usuários.
+    5.  **Plano de Rollback:**
+        * Ter um plano para reverter para uma versão anterior estável em caso de problemas críticos no lançamento.
+
+---
+
+Este plano de execução deve fornecer ao agente de IA no Replit um roteiro claro para o desenvolvimento. Cada fase pode ser subdividida em sprints ou tarefas menores conforme necessário.
+
+Se este plano atender à sua necessidade, me diga "Próximo Passo".

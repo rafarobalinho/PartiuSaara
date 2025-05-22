@@ -1,0 +1,186 @@
+flowchart TD
+    A[🚀 Partiu Saara - Tela Inicial] --> B{👤 Usuário Logado?}
+    
+    B -->|Não| C[📱 Tela de Login/Cadastro]
+    B -->|Sim| D{🎭 Tipo de Usuário?}
+    
+    C --> C1[📝 Cadastro Consumidor]
+    C --> C2[📝 Cadastro Lojista]
+    C1 --> D
+    C2 --> D
+    
+    D -->|👤 Consumidor| E[🏠 Home - Consumidor]
+    D -->|🏪 Lojista| F[📊 Dashboard Lojista]
+    
+    %% FLUXO DO CONSUMIDOR
+    E --> E1[🎯 Categorias]
+    E --> E2[🗺️ Mapa Interativo]
+    E --> E3[🔥 Promoções Relâmpago]
+    E --> E4[🔍 Busca Produtos]
+    E --> E5[❤️ Lista de Desejos]
+    E --> E6[📋 Minhas Reservas]
+    
+    E1 --> G[📱 Lista de Produtos]
+    E4 --> G
+    E3 --> G
+    
+    G --> H[📦 Detalhes do Produto]
+    H --> H1[🛒 Reservar Produto]
+    H --> H2[❤️ Adicionar aos Desejos]
+    H --> H3[🏪 Ver Loja]
+    
+    H1 --> I[✅ Confirmação de Reserva]
+    I --> I1[⏰ Reserva Ativa - 72h]
+    I1 --> I2{🕐 Status da Reserva}
+    I2 -->|Retirado| I3[✅ Reserva Concluída]
+    I2 -->|Cancelado| I4[❌ Reserva Cancelada]
+    I2 -->|Expirado| I5[⏰ Reserva Expirada]
+    
+    H3 --> J[🏪 Perfil da Loja]
+    J --> J1[📦 Produtos da Loja]
+    J --> J2[🎟️ Cupons Disponíveis]
+    J --> J3[⭐ Favoritar Loja]
+    J --> J4[🗺️ Localização no Mapa]
+    
+    E2 --> K[🗺️ Mapa com Lojas]
+    K --> J
+    
+    E5 --> L[❤️ Produtos Desejados]
+    L --> H
+    
+    E6 --> M[📋 Lista de Reservas]
+    M --> M1[📦 Detalhes da Reserva]
+    M1 --> M2[❌ Cancelar Reserva]
+    
+    %% FLUXO DO LOJISTA
+    F --> F1{📊 Status do Plano}
+    F1 -->|Freemium| N[🆓 Painel Freemium]
+    F1 -->|Trial| O[🎁 Painel Trial - 14 dias]
+    F1 -->|Pago| P[💎 Painel Premium]
+    
+    N --> N1[🏪 Gerenciar Loja - Básico]
+    N --> N2[📦 Produtos - Máx 5]
+    N --> N3[🎯 1 Promoção/Mês]
+    N --> N4[📈 Analytics Básico]
+    N --> N5[💳 Upgrade de Plano]
+    
+    O --> O1[🏪 Gerenciar Loja - Completo]
+    O --> O2[📦 Produtos Ilimitados]
+    O --> O3[🔥 Promoções Relâmpago]
+    O --> O4[🎟️ Cupons Ilimitados]
+    O --> O5[📊 Analytics Completo]
+    O --> O6[💳 Escolher Plano Pago]
+    
+    P --> P1[🏪 Gerenciar Loja - Premium]
+    P --> P2[📦 Produtos Ilimitados]
+    P --> P3[🔥 Promoções Relâmpago]
+    P --> P4[🎟️ Cupons Avançados]
+    P --> P5[📊 Analytics Avançado]
+    P --> P6[🌟 Destaque Garantido]
+    P --> P7[💳 Gerenciar Assinatura]
+    
+    %% GESTÃO DE PRODUTOS
+    N2 --> Q[📦 Lista de Produtos]
+    O2 --> Q
+    P2 --> Q
+    
+    Q --> Q1[➕ Adicionar Produto]
+    Q --> Q2[✏️ Editar Produto]
+    Q --> Q3[🗑️ Excluir Produto]
+    
+    Q1 --> R[📝 Formulário do Produto]
+    Q2 --> R
+    R --> R1[📸 Upload de Imagens]
+    R --> R2[💰 Definir Preços]
+    R --> R3[📊 Controle de Estoque]
+    R --> S[✅ Produto Cadastrado]
+    
+    %% GESTÃO DE PROMOÇÕES
+    N3 --> T[🎯 Criar Promoção Simples]
+    O3 --> U[🔥 Criar Promoção Relâmpago]
+    P3 --> U
+    
+    T --> V[📝 Formulário Promoção]
+    U --> V
+    V --> V1[📦 Selecionar Produto]
+    V --> V2[💸 Definir Desconto]
+    V --> V3[📅 Período da Promoção]
+    V --> W[✅ Promoção Ativa]
+    
+    %% GESTÃO DE CUPONS
+    O4 --> X[🎟️ Gerenciar Cupons]
+    P4 --> X
+    X --> X1[➕ Criar Cupom]
+    X --> X2[📋 Lista de Cupons]
+    X1 --> Y[📝 Configurar Cupom]
+    Y --> Y1[🏷️ Código do Cupom]
+    Y --> Y2[💸 Valor do Desconto]
+    Y --> Y3[📅 Validade]
+    Y --> Y4[🔢 Limite de Uso]
+    Y --> Z[✅ Cupom Criado]
+    
+    %% ANALYTICS
+    N4 --> AA[📈 Visualizações Básicas]
+    O5 --> BB[📊 Analytics Detalhado]
+    P5 --> CC[📊 Analytics Premium]
+    
+    BB --> BB1[👁️ Visualizações da Loja]
+    BB --> BB2[🛒 Produtos Reservados]
+    BB --> BB3[❤️ Lista de Desejos]
+    BB --> BB4[⭐ Favoritos]
+    
+    CC --> CC1[👁️ Visualizações da Loja]
+    CC --> CC2[🛒 Produtos Reservados]
+    CC --> CC3[❤️ Lista de Desejos]
+    CC --> CC4[⭐ Favoritos]
+    CC --> CC5[🌟 Impressões de Destaque]
+    CC --> CC6[🎟️ Performance de Cupons]
+    CC --> CC7[👥 Demografia dos Usuários]
+    
+    %% RESERVAS PARA LOJISTA
+    F --> DD[📋 Gerenciar Reservas]
+    DD --> DD1[📦 Novas Reservas]
+    DD --> DD2[⏰ Reservas Ativas]
+    DD --> DD3[✅ Reservas Concluídas]
+    DD1 --> EE[📱 Notificação de Reserva]
+    DD2 --> FF[🕐 Acompanhar Status]
+    
+    %% SISTEMA DE PAGAMENTO
+    N5 --> GG[💳 Escolha do Plano]
+    O6 --> GG
+    P7 --> GG
+    
+    GG --> GG1[🆓➡️💎 Start - R$ 149,90]
+    GG --> GG2[🆓➡️💎 Pro - R$ 249,90]
+    GG --> GG3[🆓➡️💎 Premium - R$ 349,90]
+    
+    GG1 --> HH[💳 Pagamento Stripe]
+    GG2 --> HH
+    GG3 --> HH
+    
+    HH --> HH1[✅ Pagamento Aprovado]
+    HH --> HH2[❌ Pagamento Recusado]
+    
+    HH1 --> II[🎉 Plano Ativo]
+    HH2 --> JJ[🔄 Tentar Novamente]
+    JJ --> HH
+    
+    II --> P
+    
+    %% SISTEMA DE DESTAQUES
+    P6 --> KK[🌟 Sistema de Destaques]
+    KK --> KK1[🏠 Destaque na Home]
+    KK --> KK2[🎯 Destaque por Categoria]
+    KK --> KK3[🔥 Destaque em Promoções]
+    
+    %% NOTIFICAÇÕES
+    W --> LL[📱 Notificar Consumidores]
+    Z --> LL
+    LL --> MM[🔔 Push Notification]
+    MM --> E
+    
+    style A fill:#ff6b6b
+    style E fill:#4ecdc4
+    style F fill:#45b7d1
+    style GG fill:#96ceb4
+    style KK fill:#ffeaa7

@@ -1,0 +1,212 @@
+flowchart TD
+    A[Partiu Saara - Tela Inicial] --> B{Usuario Logado?}
+    
+    B -->|Nao| C[Tela de Login/Cadastro]
+    B -->|Sim| D{Tipo de Usuario?}
+    
+    C --> C1[Cadastro Consumidor]
+    C --> C2[Cadastro Lojista]
+    C1 --> D
+    C2 --> D
+    
+    D -->|Consumidor| E[Home - Consumidor]
+    D -->|Lojista| F[Dashboard Lojista]
+    
+    %% FLUXO DO CONSUMIDOR
+    E --> E1[Categorias]
+    E --> E2[Mapa Interativo]
+    E --> E3[Promocoes Relampago]
+    E --> E4[Busca Produtos]
+    E --> E5[Lista de Desejos]
+    E --> E6[Minhas Reservas]
+    
+    E1 --> G[Lista de Produtos]
+    E4 --> G
+    E3 --> G
+    
+    G --> H[Detalhes do Produto]
+    H --> H1[Reservar Produto]
+    H --> H2[Adicionar aos Desejos]
+    H --> H3[Ver Loja]
+    
+    H1 --> I[Confirmacao de Reserva]
+    I --> I1[Reserva Ativa - 72h]
+    I1 --> I2{Status da Reserva}
+    I2 -->|Retirado| I3[Reserva Concluida]
+    I2 -->|Cancelado| I4[Reserva Cancelada]
+    I2 -->|Expirado| I5[Reserva Expirada]
+    
+    H3 --> J[Perfil da Loja]
+    J --> J1[Produtos da Loja]
+    J --> J2[Cupons Disponiveis]
+    J --> J3[Favoritar Loja]
+    J --> J4[Localizacao no Mapa]
+    
+    E2 --> K[Mapa com Lojas]
+    K --> J
+    
+    E5 --> L[Produtos Desejados]
+    L --> H
+    
+    E6 --> M[Lista de Reservas]
+    M --> M1[Detalhes da Reserva]
+    M1 --> M2[Cancelar Reserva]
+    
+    %% FLUXO DO LOJISTA
+    F --> F1{Status do Plano}
+    F1 -->|Freemium| N[Painel Freemium]
+    F1 -->|Trial| O[Painel Trial - 14 dias]
+    F1 -->|Pago| P[Painel Premium]
+    
+    N --> N1[Gerenciar Loja - Basico]
+    N --> N2[Produtos - Max 5]
+    N --> N3[1 Promocao por Mes]
+    N --> N4[Analytics Basico]
+    N --> N5[Upgrade de Plano]
+    
+    O --> O1[Gerenciar Loja - Completo]
+    O --> O2[Produtos Ilimitados]
+    O --> O3[Promocoes Relampago]
+    O --> O4[Cupons Ilimitados]
+    O --> O5[Analytics Completo]
+    O --> O6[Escolher Plano Pago]
+    
+    P --> P1[Gerenciar Loja - Premium]
+    P --> P2[Produtos Ilimitados]
+    P --> P3[Promocoes Relampago]
+    P --> P4[Cupons Avancados]
+    P --> P5[Analytics Avancado]
+    P --> P6[Destaque Garantido]
+    P --> P7[Gerenciar Assinatura]
+    
+    %% GESTAO DE PRODUTOS
+    N2 --> Q[Lista de Produtos]
+    O2 --> Q
+    P2 --> Q
+    
+    Q --> Q1[Adicionar Produto]
+    Q --> Q2[Editar Produto]
+    Q --> Q3[Excluir Produto]
+    
+    Q1 --> R[Formulario do Produto]
+    Q2 --> R
+    R --> R1[Upload de Imagens]
+    R --> R2[Definir Precos]
+    R --> R3[Controle de Estoque]
+    R --> S[Produto Cadastrado]
+    
+    %% GESTAO DE PROMOCOES
+    N3 --> T[Criar Promocao Simples]
+    O3 --> U[Criar Promocao Relampago]
+    P3 --> U
+    
+    T --> V[Formulario Promocao]
+    U --> V
+    V --> V1[Selecionar Produto]
+    V --> V2[Definir Desconto]
+    V --> V3[Periodo da Promocao]
+    V --> W[Promocao Ativa]
+    
+    %% GESTAO DE CUPONS
+    O4 --> X[Gerenciar Cupons]
+    P4 --> X
+    X --> X1[Criar Cupom]
+    X --> X2[Lista de Cupons]
+    X1 --> Y[Configurar Cupom]
+    Y --> Y1[Codigo do Cupom]
+    Y --> Y2[Valor do Desconto]
+    Y --> Y3[Validade]
+    Y --> Y4[Limite de Uso]
+    Y --> Z[Cupom Criado]
+    
+    %% ANALYTICS
+    N4 --> AA[Visualizacoes Basicas]
+    O5 --> BB[Analytics Detalhado]
+    P5 --> CC[Analytics Premium]
+    
+    BB --> BB1[Visualizacoes da Loja]
+    BB --> BB2[Produtos Reservados]
+    BB --> BB3[Lista de Desejos]
+    BB --> BB4[Favoritos]
+    
+    CC --> CC1[Visualizacoes da Loja]
+    CC --> CC2[Produtos Reservados]
+    CC --> CC3[Lista de Desejos]
+    CC --> CC4[Favoritos]
+    CC --> CC5[Impressoes de Destaque]
+    CC --> CC6[Performance de Cupons]
+    CC --> CC7[Demografia dos Usuarios]
+    
+    %% RESERVAS PARA LOJISTA
+    F --> DD[Gerenciar Reservas]
+    DD --> DD1[Novas Reservas]
+    DD --> DD2[Reservas Ativas]
+    DD --> DD3[Reservas Concluidas]
+    DD1 --> EE[Notificacao de Reserva]
+    DD2 --> FF[Acompanhar Status]
+    
+    %% SISTEMA DE PAGAMENTO
+    N5 --> GG[Escolha do Plano]
+    O6 --> GG
+    P7 --> GG
+    
+    GG --> GG1[Start - R$ 149,90]
+    GG --> GG2[Pro - R$ 249,90]
+    GG --> GG3[Premium - R$ 349,90]
+    
+    GG1 --> HH[Pagamento Stripe]
+    GG2 --> HH
+    GG3 --> HH
+    
+    HH --> HH1[Pagamento Aprovado]
+    HH --> HH2[Pagamento Recusado]
+    
+    HH1 --> II[Plano Ativo]
+    HH2 --> JJ[Tentar Novamente]
+    JJ --> HH
+    
+    II --> P
+    
+    %% SISTEMA DE DESTAQUES
+    P6 --> KK[Sistema de Destaques]
+    KK --> KK1[Destaque na Home]
+    KK --> KK2[Destaque por Categoria]
+    KK --> KK3[Destaque em Promocoes]
+    
+    %% NOTIFICACOES
+    W --> LL[Notificar Consumidores]
+    Z --> LL
+    LL --> MM[Push Notification]
+    MM --> E
+    
+    %% FLUXOS DE ONBOARDING ESPECIFICOS
+    
+    %% ONBOARDING CONSUMIDOR
+    C1 --> ON1[Bem-vindo ao Partiu Saara]
+    ON1 --> ON2[Carrossel: Descubra]
+    ON2 --> ON3[Carrossel: Reserve]
+    ON3 --> ON4[Carrossel: Explore]
+    ON4 --> ON5[Carrossel: Organize]
+    ON5 --> ON6[Formulario Cadastro]
+    ON6 --> ON7[Permissao Localizacao]
+    ON7 --> ON8[Tutorial Interativo Home]
+    ON8 --> E
+    
+    %% ONBOARDING LOJISTA
+    C2 --> OL1[Bem-vindo Lojista]
+    OL1 --> OL2[Carrossel: Aumente Vendas]
+    OL2 --> OL3[Carrossel: Atraia Clientes]
+    OL3 --> OL4[Carrossel: Entenda Publico]
+    OL4 --> OL5[Carrossel: Ganhe Destaque]
+    OL5 --> OL6[Formulario Cadastro Loja]
+    OL6 --> OL7[Trial Ativado]
+    OL7 --> OL8[Tutorial Dashboard]
+    OL8 --> F
+    
+    style A fill:#ff6b6b
+    style E fill:#4ecdc4
+    style F fill:#45b7d1
+    style GG fill:#96ceb4
+    style KK fill:#ffeaa7
+    style ON1 fill:#dda0dd
+    style OL1 fill:#dda0dd
