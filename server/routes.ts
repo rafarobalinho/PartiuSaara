@@ -806,7 +806,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           path: `/uploads/${file}`,
           size: stats.size,
           created: stats.birthtime,
-```tool_code
           formattedSize: `${Math.round(stats.size / 1024)} KB`
         };
       });
