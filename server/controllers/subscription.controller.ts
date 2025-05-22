@@ -205,3 +205,235 @@ export async function getMySubscription(req: Request, res: Response) {
     res.status(500).json({ message: 'Internal server error' });
   }
 }
+import { Request, Response } from 'express';
+import { db } from '../db';
+
+// Definir planos estáticos de acordo com o PRD
+const plans = [
+  {
+    id: 1,
+    name: 'Freemium',
+    price: 0,
+    priceYearly: 0,
+    description: 'Plano básico gratuito para testar a plataforma',
+    features: [
+      'Cadastro da loja (informações básicas, até 1 imagem)',
+      'Cadastro até 5 produtos',
+      'Criar 1 promoção simples por mês',
+      'Acessar mini-dashboard (visualizações da loja)',
+      'Responder mensagens no chat com consumidores',
+      'Ser listado nas buscas e categorias, sem destaque'
+    ],
+    limitations: [
+      'Não pode publicar cupons promocionais',
+      'Não pode criar promoções relâmpago',
+      'Sem notificações push para clientes',
+      'Sem destaque na página inicial ou em categorias'
+    ],
+    productLimit: 5,
+    promotionLimit: 1,
+    couponLimit: 0,
+    hasFlashPromotions: false,
+    hasAnalytics: false,
+    stripePriceId: {
+      monthly: null,
+      yearly: null
+    }
+  },
+  {
+    id: 2,
+    name: 'Start',
+    price: 149.9,
+    priceYearly: 1439.0,
+    description: 'Ideal para pequenos lojistas começando no digital',
+    features: [
+      'Cadastro da loja (informações completas, até 5 imagens)',
+      'Cadastro até 10 produtos',
+      'Até 5 cupons por mês',
+      'Criar promoções regulares ilimitadas',
+      'Notificações push para seguidores da loja',
+      'Acesso ao painel de marketing básico',
+      'Dashboard com indicadores básicos de comportamento',
+      'Relatórios por e-mail',
+      'Acesso prioritário ao suporte'
+    ],
+    productLimit: 10,
+    promotionLimit: -1, // -1 significa ilimitado
+    couponLimit: 5,
+    hasFlashPromotions: false,
+    hasAnalytics: true,
+    stripePriceId: {
+      monthly: process.env.STRIPE_PRICE_START_MONTHLY || 'price_start_monthly',
+      yearly: process.env.STRIPE_PRICE_START_YEARLY || 'price_start_yearly'
+    }
+  },
+  {
+    id: 3,
+    name: 'Pro',
+    price: 249.9,
+    priceYearly: 2399.0,
+    description: 'Para lojistas que buscam crescimento digital',
+    features: [
+      'Cadastro da loja (informações completas, até 10 imagens)',
+      'Cadastro até 50 produtos',
+      'Cupons ilimitados',
+      'Promoções relâmpago',
+      'Analytics parcial com dados demográficos',
+      'Notificações direcionadas para clientes próximos',
+      'Destaque rotativo na página de categoria',
+      'Acesso ao painel de marketing avançado',
+      'Dashboard com todos indicadores de comportamento',
+      'Relatórios detalhados por e-mail',
+      'Acesso VIP ao suporte'
+    ],
+    productLimit: 50,
+    promotionLimit: -1,
+    couponLimit: -1,
+    hasFlashPromotions: true,
+    hasAnalytics: true,
+    stripePriceId: {
+      monthly: process.env.STRIPE_PRICE_PRO_MONTHLY || 'price_pro_monthly',
+      yearly: process.env.STRIPE_PRICE_PRO_YEARLY || 'price_pro_yearly'
+    }
+  },
+  {
+    id: 4,
+    name: 'Premium',
+    price: 349.9,
+    priceYearly: 3359.0,
+    description: 'Experiência completa para lojistas estabelecidos',
+    features: [
+      'Cadastro da loja (informações completas, até 20 imagens)',
+      'Produtos ilimitados',
+      'Cupons ilimitados',
+      'Promoções relâmpago ilimitadas',
+      'Analytics completo com comparativos de mercado',
+      'Notificações automáticas para todos usuários',
+      'Destaque fixo na página inicial',
+      'Destaque especial em resultados de busca',
+      'Badge "Premium" na vitrine da loja',
+      'Acesso ao painel de marketing premium',
+      'Dashboard com todos indicadores + previsões',
+      'Relatórios personalizados',
+      'Suporte preferencial com gerente dedicado'
+    ],
+    productLimit: -1,
+    promotionLimit: -1, 
+    couponLimit: -1,
+    hasFlashPromotions: true,
+    hasAnalytics: true,
+    stripePriceId: {
+      monthly: process.env.STRIPE_PRICE_PREMIUM_MONTHLY || 'price_premium_monthly',
+      yearly: process.env.STRIPE_PRICE_PREMIUM_YEARLY || 'price_premium_yearly'
+    }
+  }
+];
+
+// Obter todos os planos
+export const getPlans = async (req: Request, res: Response) => {
+  try {
+    res.json(plans);
+  } catch (error) {
+    console.error('Erro ao obter planos:', error);
+    res.status(500).json({ error: 'Erro ao obter planos' });
+  }
+};
+
+// Obter plano atual do lojista
+export const getCurrentPlan = async (req: Request, res: Response) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Usuário não autenticado' });
+    }
+
+    const user = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.id, req.session.userId as number),
+      columns: {
+        planId: true,
+        subscriptionStatus: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    const userPlan = plans.find(plan => plan.id === user.planId) || plans[0];
+    
+    res.json({
+      ...userPlan,
+      subscriptionStatus: user.subscriptionStatus || 'inactive'
+    });
+  } catch (error) {
+    console.error('Erro ao obter plano atual:', error);
+    res.status(500).json({ error: 'Erro ao obter plano atual' });
+  }
+};
+
+// Verificar limites do plano (produtos, promoções, cupons)
+export const checkPlanLimits = async (req: Request, res: Response) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Usuário não autenticado' });
+    }
+
+    const { type } = req.params; // 'products', 'promotions', 'coupons'
+    
+    const user = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.id, req.session.userId as number),
+      columns: {
+        id: true,
+        planId: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    const userPlan = plans.find(plan => plan.id === user.planId) || plans[0];
+    
+    let currentCount = 0;
+    let limit = 0;
+    
+    // Buscar contagem atual
+    switch (type) {
+      case 'products':
+        const products = await db.query.products.findMany({
+          where: (products, { eq }) => eq(products.userId, user.id)
+        });
+        currentCount = products.length;
+        limit = userPlan.productLimit;
+        break;
+        
+      case 'promotions':
+        const promotions = await db.query.promotions.findMany({
+          where: (promotions, { eq }) => eq(promotions.userId, user.id)
+        });
+        currentCount = promotions.length;
+        limit = userPlan.promotionLimit;
+        break;
+        
+      case 'coupons':
+        // Implementação futura - quando tabela de cupons for criada
+        limit = userPlan.couponLimit;
+        break;
+        
+      default:
+        return res.status(400).json({ error: 'Tipo inválido' });
+    }
+    
+    // -1 significa ilimitado
+    const isWithinLimit = limit === -1 || currentCount < limit;
+    
+    res.json({
+      currentCount,
+      limit: limit === -1 ? 'Ilimitado' : limit,
+      isWithinLimit,
+      planName: userPlan.name
+    });
+  } catch (error) {
+    console.error('Erro ao verificar limites do plano:', error);
+    res.status(500).json({ error: 'Erro ao verificar limites do plano' });
+  }
+};

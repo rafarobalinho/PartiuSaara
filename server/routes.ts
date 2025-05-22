@@ -32,7 +32,7 @@ import { secureImageMiddleware } from "./middleware/secure-image-middleware";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Aplicar middleware de segurança de imagens
   app.use(secureImageMiddleware);
-  
+
   // Registrar as rotas de imagens
   app.use('/api', imagesRoutes);
 
@@ -53,28 +53,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const categories = await storage.getCategories();
     res.json(categories);
   });
-  
+
   app.get('/api/categories/:slug', async (req: Request, res: Response) => {
     const { slug } = req.params;
     const category = await storage.getCategoryBySlug(slug);
-    
+
     if (!category) {
       return res.status(404).json({ message: 'Category not found' });
     }
-    
+
     res.json(category);
   });
-  
+
   // Endpoint específico para produtos por categoria
   app.get('/api/categories/:slug/products', async (req: Request, res: Response) => {
     try {
       const { slug } = req.params;
       console.log(`Buscando produtos para categoria com slug: ${slug}`);
-      
+
       // 1. Primeiro, encontre a categoria pelo slug
       const categoryQuery = 'SELECT * FROM categories WHERE slug = $1';
       const categoryResult = await pool.query(categoryQuery, [slug]);
-      
+
       if (categoryResult.rows.length === 0) {
         console.log(`Categoria não encontrada com slug: ${slug}`);
         return res.json({
@@ -82,11 +82,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Categoria não encontrada'
         });
       }
-      
+
       // 2. Obter o nome exato da categoria
       const categoryName = categoryResult.rows[0].name;
       console.log(`Categoria encontrada: ${categoryName}`);
-      
+
       // 3. Buscar produtos que correspondam a essa categoria (comparação case-insensitive)
       const productsQuery = `
         SELECT p.* 
@@ -95,11 +95,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           AND p.is_active = true
         ORDER BY p.created_at DESC
       `;
-      
+
       const productsResult = await pool.query(productsQuery, [categoryName]);
       const products = productsResult.rows;
       console.log(`Encontrados ${products.length} produtos na categoria "${categoryName}"`);
-      
+
       // 4. Para cada produto, buscar sua imagem primária
       const productsWithImages = await Promise.all(
         products.map(async (product) => {
@@ -111,7 +111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               LIMIT 1
             `;
             const imagesResult = await pool.query(imagesQuery, [product.id]);
-            
+
             if (imagesResult.rows.length > 0) {
               return {
                 ...product,
@@ -125,7 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         })
       );
-      
+
       // 5. Retornar JSON com todos os dados
       return res.json({
         success: true,
@@ -137,7 +137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         products: productsWithImages,
         count: productsWithImages.length
       });
-      
+
     } catch (error) {
       console.error('Erro ao buscar produtos por categoria:', error);
       return res.status(500).json({
@@ -161,48 +161,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/products/featured', ProductController.getFeaturedProducts);
   app.get('/api/products/:id', ProductController.getProduct);
   app.get('/api/products/:id/related', ProductController.getRelatedProducts);
-  
+
   // Rotas de produtos que requerem autenticação e verificação de propriedade
   app.post('/api/products', authMiddleware, ProductController.createProduct);
   app.put('/api/products/:id', authMiddleware, verifyProductOwnership, ProductController.updateProduct);
-  
+
   // Rota para excluir um produto
   app.delete('/api/products/:id', authMiddleware, verifyProductOwnership, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const productId = parseInt(id);
-      
+
       if (isNaN(productId)) {
         return res.status(400).json({ message: 'ID de produto inválido' });
       }
-      
+
       console.log(`Solicitação para excluir produto ID: ${productId}`);
-      
+
       // 1. Verificar se o produto existe
       const product = await db.query.products.findFirst({
         where: eq(products.id, productId),
       });
-      
+
       if (!product) {
         return res.status(404).json({ message: 'Produto não encontrado' });
       }
-      
+
       // 2. Excluir imagens do produto
       await db.delete(productImages)
         .where(eq(productImages.productId, productId));
-      
+
       // 3. Excluir reservas do produto
       await db.delete(reservations)
         .where(eq(reservations.productId, productId));
-      
+
       // 4. Excluir promoções do produto
       await db.delete(promotions)
         .where(eq(promotions.productId, productId));
-      
+
       // 5. Excluir o produto
       await db.delete(products)
         .where(eq(products.id, productId));
-      
+
       return res.status(200).json({ 
         success: true, 
         message: 'Produto excluído com sucesso' 
@@ -215,30 +215,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Rota para ativar/desativar um produto
   app.put('/api/products/:id/toggle-status', authMiddleware, verifyProductOwnership, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const productId = parseInt(id);
-      
+
       // Obter o produto atual
       const product = await storage.getProduct(productId);
       if (!product) {
         return res.status(404).json({ message: 'Produto não encontrado' });
       }
-      
+
       // Inverter o status atual
       const isActive = !product.isActive;
-      
+
       // Atualizar o produto com o novo status
       await db.update(products)
         .set({ isActive })
         .where(eq(products.id, productId));
-      
+
       // Buscar o produto atualizado
       const updatedProduct = await storage.getProduct(productId);
-      
+
       return res.json(updatedProduct);
     } catch (error) {
       console.error('Erro ao alternar status do produto:', error);
@@ -250,17 +250,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rotas públicas de lojas
   app.get('/api/stores', StoreController.getStores);
   app.get('/api/stores/nearby', StoreController.getNearbyStores);
-  
+
   // Rota específica para o mapa - deve vir antes das rotas parametrizadas
   app.get('/api/stores/map', MapController.getStoresForMap);
-  
+
   // Rota para listar apenas as lojas do usuário logado
   // IMPORTANTE: Esta rota específica deve vir antes das rotas parametrizadas (:id)
   app.get('/api/stores/my-stores', authMiddleware, async (req: Request, res: Response) => {
     try {
       const user = req.user;
       if (!user) return res.status(401).json({ message: 'Unauthorized' });
-      
+
       const stores = await storage.getStoresByUserId(user.id);
       res.json(stores);
     } catch (error) {
@@ -268,51 +268,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Internal server error' });
     }
   });
-  
+
   // Rotas para lojas específicas (parametrizadas)
   app.get('/api/stores/:id', StoreController.getStore);
   app.get('/api/stores/:id/products', StoreController.getStoreProducts);
   app.get('/api/stores/:id/coupons', StoreController.getStoreCoupons);
-  
+
   // Rotas que requerem geocodificação
 
   // Rotas que requerem autenticação e verificação de propriedade
   app.post('/api/stores', authMiddleware, geocodingMiddleware, processStoreMiddleware, StoreController.createStore);
   app.put('/api/stores/:id', authMiddleware, verifyStoreOwnership, geocodingMiddleware, processStoreMiddleware, StoreController.updateStore);
   app.patch('/api/stores/:id', authMiddleware, verifyStoreOwnership, geocodingMiddleware, processStoreMiddleware, StoreController.updateStore);
-  
+
   // Rota para excluir uma loja
   app.delete('/api/stores/:id', authMiddleware, verifyStoreOwnership, async (req: Request, res: Response) => {
     try {
       const storeId = parseInt(req.params.id);
-      
+
       console.log(`Solicitação para excluir loja ID: ${storeId}`);
-      
+
       // 1. Primeiro excluir imagens relacionadas
       await db.delete(storeImages)
         .where(eq(storeImages.storeId, storeId));
-      
+
       // 2. Verificar se há produtos associados a esta loja
       const storeProducts = await db.select()
         .from(products)
         .where(eq(products.storeId, storeId));
-      
+
       if (storeProducts.length > 0) {
         // 2.1 Para cada produto, excluir imagens relacionadas
         for (const product of storeProducts) {
           await db.delete(productImages)
             .where(eq(productImages.productId, product.id));
         }
-        
+
         // 2.2 Excluir todos os produtos da loja
         await db.delete(products)
           .where(eq(products.storeId, storeId));
       }
-      
+
       // 3. Excluir a loja
       await db.delete(stores)
         .where(eq(stores.id, storeId));
-      
+
       return res.json({
         success: true,
         message: 'Loja excluída com sucesso'
@@ -326,25 +326,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Rota para adicionar imagens a uma loja existente
   app.post('/api/stores/:id/images', authMiddleware, verifyStoreOwnership, async (req: Request, res: Response) => {
     try {
       const storeId = parseInt(req.params.id);
       const { imageUrls, isPrimary = false } = req.body;
-      
+
       if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
         return res.status(400).json({ message: 'URLs de imagens são obrigatórias' });
       }
 
       console.log(`Adicionando ${imageUrls.length} imagens à loja ID ${storeId}`);
-      
+
       // Processar cada URL de imagem
       const imageRecords = [];
       for (const imageUrl of imageUrls) {
         // Criar URL para thumbnail a partir da URL da imagem original
         const thumbnailUrl = imageUrl.replace(/\/uploads\//, '/uploads/thumbnails/');
-        
+
         // Inserir a imagem no banco
         const [image] = await db.insert(storeImages)
           .values({
@@ -355,10 +355,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             displayOrder: imageRecords.length
           })
           .returning();
-          
+
         imageRecords.push(image);
       }
-      
+
       return res.status(201).json({ 
         success: true, 
         message: 'Imagens adicionadas com sucesso', 
@@ -378,16 +378,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/promotions', async (req: Request, res: Response) => {
     try {
       const promotions = await storage.getPromotions();
-      
+
       // Para cada promoção, obter os detalhes do produto e calcular preço com desconto
       const promotionsWithProducts = await Promise.all(
         promotions.map(async (promotion) => {
           const product = await storage.getProduct(promotion.productId);
-          
+
           if (!product) {
             return null;
           }
-          
+
           // Calcular preço com desconto
           let discountedPrice = product.price;
           if (promotion.discountPercentage) {
@@ -395,13 +395,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Arredondar para duas casas decimais
             discountedPrice = Math.round(discountedPrice * 100) / 100;
           }
-          
+
           // Adicionar o preço com desconto ao produto
           const productWithDiscount = {
             ...product,
             discountedPrice: discountedPrice
           };
-          
+
           return { 
             ...promotion, 
             product: productWithDiscount,
@@ -409,10 +409,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
       );
-      
+
       // Filtrar promoções sem produtos
       const validPromotions = promotionsWithProducts.filter(promo => promo !== null);
-      
+
       res.json(validPromotions);
     } catch (error) {
       console.error('Error fetching promotions:', error);
@@ -445,38 +445,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/favorite-stores', authMiddleware, async (req: Request, res: Response) => {
     const user = req.user;
     if (!user) return res.status(401).json({ message: 'Unauthorized' });
-    
+
     const favoriteStores = await storage.getFavoriteStores(user.id);
     res.json(favoriteStores);
   });
-  
+
   app.post('/api/favorite-stores/:storeId', authMiddleware, async (req: Request, res: Response) => {
     const user = req.user;
     if (!user) return res.status(401).json({ message: 'Unauthorized' });
-    
+
     const { storeId } = req.params;
-    
+
     const store = await storage.getStore(Number(storeId));
     if (!store) {
       return res.status(404).json({ message: 'Store not found' });
     }
-    
+
     const favoriteStore = await storage.addFavoriteStore(user.id, Number(storeId));
     res.json(favoriteStore);
   });
-  
+
   app.delete('/api/favorite-stores/:storeId', authMiddleware, async (req: Request, res: Response) => {
     const user = req.user;
     if (!user) return res.status(401).json({ message: 'Unauthorized' });
-    
+
     const { storeId } = req.params;
-    
+
     const success = await storage.removeFavoriteStore(user.id, Number(storeId));
-    
+
     if (!success) {
       return res.status(404).json({ message: 'Favorite store not found' });
     }
-    
+
     res.json({ success });
   });
 
@@ -495,23 +495,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/seller/stats', authMiddleware, async (req: Request, res: Response) => {
     const user = req.user;
     if (!user) return res.status(401).json({ message: 'Unauthorized' });
-    
+
     try {
       // Buscar a loja do vendedor
       const stores = await storage.getStoresByUserId(user.id);
       if (!stores.length) {
         return res.status(404).json({ message: 'Nenhuma loja encontrada' });
       }
-      
+
       const storeId = stores[0].id;
-      
+
       // Buscar estatísticas
       // Número total de produtos
       const products = await pool.query(
         `SELECT COUNT(*) as total FROM products WHERE store_id = $1`,
         [storeId]
       );
-      
+
       // Número total de reservas (excluindo as canceladas)
       const reservations = await pool.query(
         `SELECT COUNT(*) as total FROM reservations r
@@ -520,7 +520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
          AND r.status != 'cancelled'`,
         [storeId]
       );
-      
+
       // Número de reservas pendentes
       const pendingReservations = await pool.query(
         `SELECT COUNT(*) as total FROM reservations r
@@ -528,13 +528,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
          WHERE p.store_id = $1 AND r.status = 'pending'`,
         [storeId]
       );
-      
+
       // Número total de cupons/promoções
       const coupons = await pool.query(
         `SELECT COUNT(*) as total FROM promotions WHERE store_id = $1`,
         [storeId]
       );
-      
+
       res.json({
         totalProducts: parseInt(products.rows[0].total) || 0,
         totalReservations: parseInt(reservations.rows[0].total) || 0,
@@ -551,16 +551,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/stores/:id/analytics', authMiddleware, verifyStoreOwnership, async (req: Request, res: Response) => {
     const user = req.user;
     if (!user) return res.status(401).json({ message: 'Unauthorized' });
-    
+
     const { id } = req.params;
     const { startDate, endDate } = req.query;
-    
+
     const impressions = await storage.getStoreImpressions(
       Number(id),
       startDate ? new Date(startDate as string) : undefined,
       endDate ? new Date(endDate as string) : undefined
     );
-    
+
     res.json(impressions);
   });
 
@@ -579,12 +579,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           eq(storeImages.isPrimary, true)
         ))
         .limit(1);
-      
+
       if (image) {
         // Redirecionar para a URL da imagem
         return res.redirect(image.imageUrl);
       }
-      
+
       // Fallback para uma imagem padrão se nenhuma imagem foi encontrada
       return res.redirect('/assets/default-store-image.jpg');
     } catch (error) {
@@ -592,7 +592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: 'Erro ao buscar imagem' });
     }
   });
-  
+
   // Rota para obter a imagem principal de um produto
   app.get('/api/products/:id/primary-image', async (req: Request, res: Response) => {
     try {
@@ -604,12 +604,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           eq(productImages.isPrimary, true)
         ))
         .limit(1);
-      
+
       if (image) {
         // Redirecionar para a URL da imagem
         return res.redirect(image.imageUrl);
       }
-      
+
       // Fallback para uma imagem padrão se nenhuma imagem foi encontrada
       return res.redirect('/assets/default-product-image.jpg');
     } catch (error) {
@@ -632,11 +632,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.session.userId || req.session.role !== 'admin') {
         return res.status(403).json({ success: false, message: 'Acesso negado. Apenas administradores podem realizar esta operação.' });
       }
-      
+
       // Importar e executar a função de limpeza
       const { cleanAllBlobUrls } = await import('./scripts/clean-blob-urls');
       const result = await cleanAllBlobUrls();
-      
+
       return res.json({ 
         success: true, 
         message: `Limpeza concluída: ${result.stores} lojas e ${result.products} produtos atualizados.`,
@@ -651,16 +651,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   app.post('/api/admin/login', async (req: Request, res: Response) => {
     // Definir explicitamente o tipo de conteúdo como JSON para evitar respostas HTML
     res.setHeader('Content-Type', 'application/json');
-    
+
     try {
       console.log('Requisição de login administrativo recebida');
       console.log('Headers:', req.headers);
       console.log('Body:', { email: req.body?.email ? '[PRESENTE]' : '[AUSENTE]', password: req.body?.password ? '[PRESENTE]' : '[AUSENTE]' });
-      
+
       const { email, password } = req.body;
 
       if (!email || !password) {
@@ -677,7 +677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       console.log('Usuário encontrado:', user ? 'Sim' : 'Não');
-      
+
       if (!user) {
         console.log('Falha na autenticação: Usuário não encontrado');
         return res.status(401).json({ 
@@ -698,7 +698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verificar a senha
       const isPasswordValid = await comparePasswords(password, user.password);
       console.log('Senha válida:', isPasswordValid ? 'Sim' : 'Não');
-      
+
       if (!isPasswordValid) {
         console.log('Falha na autenticação: Senha incorreta');
         return res.status(401).json({ 
@@ -711,7 +711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Autenticar o usuário e salvar na sessão
         req.session.userId = user.id;
         console.log('ID do usuário salvo na sessão:', user.id);
-        
+
         // Salvando a sessão explicitamente
         await new Promise<void>((resolve, reject) => {
           req.session.save((err) => {
@@ -731,16 +731,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Erro ao criar sessão de autenticação' 
         });
       }
-      
+
       // Remover a senha da resposta
       const { password: _, ...userWithoutPassword } = user;
-      
+
       const responseData = {
         user: userWithoutPassword,
         success: true,
         message: 'Login administrativo realizado com sucesso'
       };
-      
+
       console.log('Enviando resposta de sucesso para login administrativo');
       return res.status(200).json(responseData);
     } catch (error) {
@@ -765,18 +765,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/geocode-store/:id', authMiddleware, adminMiddleware, AdminController.geocodeStoreById);
   app.post('/api/admin/update-store-coordinates/:id', authMiddleware, adminMiddleware, AdminController.updateStoreCoordinates);
   app.post('/api/admin/geocode-all-stores', authMiddleware, adminMiddleware, MapController.batchGeocodeAllStores);
-  
+
   // Rotas para detalhes de lugares do Google Places
   app.get('/api/admin/stores/:storeId/place-details', authMiddleware, adminMiddleware, PlaceDetailsController.getStoreGooglePlaceDetails);
   app.post('/api/admin/stores/:storeId/refresh-place-details', authMiddleware, adminMiddleware, PlaceDetailsController.refreshStoreGooglePlaceDetails);
   app.post('/api/admin/update-all-store-details', authMiddleware, adminMiddleware, PlaceDetailsController.updateAllStoresPlaceDetails);
-  
+
   // Rota de diagnóstico para verificar arquivos do diretório de uploads
   app.get('/api/admin/check-uploads', authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
     try {
       const uploadsDir = path.join(__dirname, '../public/uploads');
       const thumbnailsDir = path.join(__dirname, '../public/uploads/thumbnails');
-      
+
       // Verificar se os diretórios existem
       if (!fs.existsSync(uploadsDir)) {
         return res.status(500).json({
@@ -785,18 +785,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           path: uploadsDir
         });
       }
-      
+
       // Ler arquivos do diretório principal
       const files = fs.readdirSync(uploadsDir).filter(file => 
         !fs.statSync(path.join(uploadsDir, file)).isDirectory()
       );
-      
+
       // Ler arquivos do diretório de thumbnails (se existir)
       let thumbnails: string[] = [];
       if (fs.existsSync(thumbnailsDir)) {
         thumbnails = fs.readdirSync(thumbnailsDir);
       }
-      
+
       // Coletar estatísticas dos arquivos
       const fileStats = files.map(file => {
         const filePath = path.join(uploadsDir, file);
@@ -806,22 +806,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           path: `/uploads/${file}`,
           size: stats.size,
           created: stats.birthtime,
+```tool_code
           formattedSize: `${Math.round(stats.size / 1024)} KB`
         };
       });
-      
+
       // Verificar arquivos no banco de dados
       const storeImagesResult = await db.query.storeImages.findMany();
       const productImagesResult = await db.query.productImages.findMany();
-      
+
       // Identificar arquivos que existem fisicamente mas não estão no banco
       const dbImageNames = new Set([
         ...storeImagesResult.map(img => path.basename(img.imageUrl || '')),
         ...productImagesResult.map(img => path.basename(img.imageUrl || ''))
       ].filter(Boolean));
-      
+
       const orphanedFiles = files.filter(file => !dbImageNames.has(file));
-      
+
       // Identificar registros no banco que não têm arquivos físicos
       const missingFiles = [
         ...storeImagesResult.filter(img => {
@@ -833,7 +834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return filename && !files.includes(filename);
         })
       ];
-      
+
       return res.json({
         success: true,
         directories: {
