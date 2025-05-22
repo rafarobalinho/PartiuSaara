@@ -33,7 +33,7 @@ app.use(cors({
   origin: function(origin, callback) {
     // Permitir requisições sem origem (como chamadas diretas da API)
     if (!origin) return callback(null, true);
-    
+
     // Verificar se a origem está na lista de permitidas ou se corresponde a um padrão wildcard
     const isAllowed = allowedOrigins.some(allowedOrigin => {
       if (allowedOrigin.includes('*')) {
@@ -42,7 +42,7 @@ app.use(cors({
       }
       return allowedOrigin === origin;
     });
-    
+
     if (isAllowed) {
       callback(null, true);
     } else {
@@ -58,8 +58,14 @@ app.use(cors({
 // Configurar o middleware CSP
 setupCSP(app);
 
-// Configurar parsers antes do middleware de erros
-app.use(express.json());
+// Parse JSON bodies (exceto para a rota de webhook do Stripe)
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/payment/webhook') {
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
 app.use(express.urlencoded({ extended: false }));
 
 // Middleware para capturar erros de parsing JSON
@@ -124,7 +130,7 @@ app.use((req, res, next) => {
   } catch (error) {
     console.error('❌ Erro ao verificar diretórios de uploads:', error);
   }
-  
+
   // Inicializar tabelas personalizadas
   try {
     await initCustomTables();
@@ -132,16 +138,16 @@ app.use((req, res, next) => {
   } catch (error) {
     console.error('❌ Erro ao inicializar tabelas personalizadas:', error);
   }
-  
+
   const server = await registerRoutes(app);
 
   // Middleware para tratar erros e garantir que sempre retornamos JSON
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-    
+
     console.error('Error handler middleware:', err);
-    
+
     // Definir explicitamente o content type para JSON
     res.setHeader('Content-Type', 'application/json');
     res.status(status).json({ 

@@ -192,7 +192,7 @@ export default function SellerSubscription() {
   const purchaseMutation = useMutation({
     mutationFn: async () => {
       if (!selectedPlan) return null;
-      
+
       return apiRequest('POST', '/api/subscriptions/purchase', {
         planId: selectedPlan,
         interval: billingCycle
@@ -216,6 +216,41 @@ export default function SellerSubscription() {
     }
   });
 
+    const stripeCheckoutMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedPlan) return null;
+
+      // Chamar o endpoint da sua API para iniciar o checkout do Stripe
+      const response = await apiRequest('POST', '/api/stripe/checkout', {
+        planId: selectedPlan,
+        interval: billingCycle,
+      });
+
+      return response?.url; // Supondo que a API retorna a URL de checkout
+    },
+    onSuccess: (url) => {
+      if (url) {
+        // Redirecionar o usuário para a página de checkout do Stripe
+        window.location.href = url;
+      } else {
+        toast({
+          title: 'Erro',
+          description: 'Ocorreu um erro ao iniciar o checkout. Tente novamente.',
+          variant: 'destructive',
+        });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro',
+        description: 'Ocorreu um erro ao iniciar o checkout. Tente novamente.',
+        variant: 'destructive',
+      });
+      console.error('Erro ao iniciar o checkout do Stripe:', error);
+    },
+  });
+
+
   const handlePurchase = () => {
     if (selectedPlan === subscription?.plan?.id) {
       toast({
@@ -225,7 +260,7 @@ export default function SellerSubscription() {
       });
       return;
     }
-    
+
     if (!selectedPlan) {
       toast({
         title: 'Selecione um plano',
@@ -234,8 +269,9 @@ export default function SellerSubscription() {
       });
       return;
     }
-    
-    purchaseMutation.mutate();
+
+    //purchaseMutation.mutate();
+    stripeCheckoutMutation.mutate();
   };
 
   // Calculate annual savings
@@ -294,7 +330,7 @@ export default function SellerSubscription() {
               const isCurrentPlan = subscription?.plan?.id === plan.id;
               const isPremiumPlan = plan.id === 'premium';
               const isFreePlan = plan.id === 'freemium';
-              
+
               return (
                 <Card 
                   key={plan.id} 
@@ -315,7 +351,7 @@ export default function SellerSubscription() {
                       </div>
                     </div>
                   )}
-                  
+
                   <CardHeader>
                     <CardTitle className={isPremiumPlan ? 'text-primary' : ''}>
                       {plan.name}
@@ -341,7 +377,7 @@ export default function SellerSubscription() {
                         </div>
                       )}
                     </div>
-                    
+
                     <RadioGroup value={selectedPlan || ''} onValueChange={setSelectedPlan}>
                       <div className="flex items-center space-x-2 mb-6">
                         <RadioGroupItem value={plan.id} id={`plan-${plan.id}`} />
@@ -350,7 +386,7 @@ export default function SellerSubscription() {
                         </Label>
                       </div>
                     </RadioGroup>
-                    
+
                     <div className="space-y-2">
                       {plan.features.map((feature, index) => (
                         <div key={index} className="flex items-baseline">
@@ -395,7 +431,7 @@ export default function SellerSubscription() {
                   </div>
                 )}
               </div>
-              
+
               <div className="flex space-x-2">
                 <Button 
                   variant="outline"
