@@ -1,0 +1,253 @@
+🔧 Correção - Problemas dos Endpoints
+🚨 PROBLEMAS IDENTIFICADOS
+
+Debug endpoint: Retorna HTML (provavelmente 404) - endpoint não existe
+Stripe endpoint: "Unauthorized: No session found" - middleware de auth bloqueando
+
+🛠️ SOLUÇÃO 1: VERIFICAR SE ENDPOINTS EXISTEM
+bash# Verificar se os arquivos foram criados
+ls -la api/
+ls -la api/debug-vars.js
+ls -la api/stripe/
+ls -la api/stripe/checkout.js
+🛠️ SOLUÇÃO 2: CRIAR ENDPOINTS CORRETOS
+A. Criar /api/debug-vars.js
+javascript// /api/debug-vars.js
+export default function handler(req, res) {
+  // Configurar CORS se necessário
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/json');
+
+  try {
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      url: req.url,
+      environment: {
+        NODE_ENV: process.env.NODE_ENV || 'undefined',
+        STRIPE_MODE: process.env.STRIPE_MODE || 'undefined',
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'undefined'
+      },
+      stripeKeys: {
+        STRIPE_SECRET_KEY_TEST: !!process.env.STRIPE_SECRET_KEY_TEST,
+        STRIPE_PUBLIC_KEY_TEST: !!process.env.STRIPE_PUBLIC_KEY_TEST,
+        STRIPE_SECRET_KEY: !!process.env.STRIPE_SECRET_KEY,
+        STRIPE_PUBLIC_KEY: !!process.env.STRIPE_PUBLIC_KEY
+      },
+      activeMode: (process.env.STRIPE_MODE === 'test') ? 'TEST' : 'LIVE',
+      activeSecretKey: (() => {
+        if (process.env.STRIPE_MODE === 'test') {
+          return process.env.STRIPE_SECRET_KEY_TEST ? 'CONFIGURADA' : 'AUSENTE';
+        } else {
+          return process.env.STRIPE_SECRET_KEY ? 'CONFIGURADA' : 'AUSENTE';
+        }
+      })()
+    };
+
+    console.log('🔍 Debug info:', debugInfo);
+
+    return res.status(200).json(debugInfo);
+
+  } catch (error) {
+    console.error('❌ Debug error:', error);
+    
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+B. Criar /api/stripe/checkout.js SEM AUTENTICAÇÃO
+javascript// /api/stripe/checkout.js
+export default async function handler(req, res) {
+  console.log('🚀 === STRIPE CHECKOUT START ===');
+  console.log('Method:', req.method);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+
+  // Configurar headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/json');
+
+  // Handle OPTIONS para CORS
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    console.log('❌ Method not allowed:', req.method);
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    // REMOVER QUALQUER VERIFICAÇÃO DE AUTENTICAÇÃO POR ENQUANTO
+    // Focar apenas no funcionamento básico
+
+    const { planId, interval } = req.body || {};
+
+    console.log('📦 Plan ID:', planId);
+    console.log('📦 Interval:', interval);
+
+    if (!planId) {
+      console.log('❌ Plan ID missing');
+      return res.status(400).json({ 
+        error: 'Plan ID é obrigatório',
+        received: { planId, interval }
+      });
+    }
+
+    // ===== FREEMIUM - SEM STRIPE =====
+    if (planId === 'freemium') {
+      console.log('✅ Freemium plan - ativando localmente');
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Plano freemium ativado com sucesso',
+        planType: 'freemium',
+        needsRedirect: false,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // ===== PLANOS PAGOS =====
+    console.log('💳 Plano pago - verificando Stripe...');
+
+    // Verificar se Stripe está disponível
+    let Stripe;
+    try {
+      Stripe = require('stripe');
+      console.log('✅ Stripe library loaded');
+    } catch (error) {
+      console.error('❌ Stripe not found:', error);
+      return res.status(500).json({
+        error: 'Sistema de pagamento indisponível',
+        details: 'Stripe library not installed - run: npm install stripe'
+      });
+    }
+
+    // Verificar variáveis de ambiente
+    const isTestMode = process.env.STRIPE_MODE === 'test';
+    const secretKey = isTestMode 
+      ? process.env.STRIPE_SECRET_KEY_TEST 
+      : process.env.STRIPE_SECRET_KEY;
+
+    console.log('🔧 Stripe config:', {
+      mode: isTestMode ? 'TEST' : 'LIVE',
+      keyExists: !!secretKey,
+      keyPrefix: secretKey ? secretKey.substring(0, 12) + '...' : 'MISSING'
+    });
+
+    if (!secretKey) {
+      const missingKey = isTestMode ? 'STRIPE_SECRET_KEY_TEST' : 'STRIPE_SECRET_KEY';
+      console.error('❌ Missing key:', missingKey);
+      
+      return res.status(500).json({
+        error: 'Configuração Stripe ausente',
+        missingKey,
+        mode: isTestMode ? 'test' : 'live'
+      });
+    }
+
+    // Inicializar Stripe
+    const stripe = new Stripe(secretKey, { apiVersion: '2023-10-16' });
+
+    // Price mapping - SUBSTITUA PELOS SEUS
+    const priceMapping = {
+      start: {
+        monthly: isTestMode ? 'price_TEST_START_MONTHLY' : 'price_LIVE_START_MONTHLY',
+        yearly: isTestMode ? 'price_TEST_START_YEARLY' : 'price_LIVE_START_YEARLY'
+      },
+      pro: {
+        monthly: isTestMode ? 'price_TEST_PRO_MONTHLY' : 'price_LIVE_PRO_MONTHLY',
+        yearly: isTestMode ? 'price_TEST_PRO_YEARLY' : 'price_LIVE_PRO_YEARLY'
+      },
+      premium: {
+        monthly: isTestMode ? 'price_TEST_PREMIUM_MONTHLY' : 'price_LIVE_PREMIUM_MONTHLY',
+        yearly: isTestMode ? 'price_TEST_PREMIUM_YEARLY' : 'price_LIVE_PREMIUM_YEARLY'
+      }
+    };
+
+    const priceId = priceMapping[planId]?.[interval || 'monthly'];
+
+    console.log('💰 Price ID:', priceId);
+
+    if (!priceId) {
+      console.log('❌ Price ID not found');
+      return res.status(400).json({
+        error: 'Configuração de preço não encontrada',
+        planId,
+        interval,
+        availablePlans: Object.keys(priceMapping)
+      });
+    }
+
+    // Criar sessão Stripe
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5000';
+    
+    console.log('🔄 Creating Stripe session...');
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price: priceId,
+        quantity: 1,
+      }],
+      mode: 'subscription',
+      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/pricing`,
+      metadata: { 
+        planId, 
+        interval: interval || 'monthly',
+        mode: isTestMode ? 'test' : 'live'
+      }
+    });
+
+    console.log('✅ Session created:', session.id);
+
+    return res.status(200).json({
+      success: true,
+      url: session.url,
+      sessionId: session.id,
+      planType: planId,
+      needsRedirect: true,
+      mode: isTestMode ? 'test' : 'live'
+    });
+
+  } catch (error) {
+    console.error('❌ Stripe checkout error:', error);
+    
+    return res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: error.message,
+      type: error.type || 'unknown',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+}
+🧪 TESTE NOVAMENTE
+bash# Teste debug (sem json_pp primeiro)
+echo "=== TESTE DEBUG ==="
+curl -s "http://localhost:5000/api/debug-vars"
+
+echo -e "\n\n=== TESTE FREEMIUM ==="
+curl -s -X POST "http://localhost:5000/api/stripe/checkout" \
+-H "Content-Type: application/json" \
+-d '{"planId":"freemium"}'
+🔍 VERIFICAR ESTRUTURA DE ARQUIVOS
+Confirme se os arquivos estão nos locais corretos:
+projeto/
+├── api/
+│   ├── debug-vars.js          ← CRIAR ESTE
+│   └── stripe/
+│       └── checkout.js        ← CRIAR ESTE
+📋 PRÓXIMOS PASSOS
+
+Criar os dois arquivos acima
+Testar novamente sem json_pp
+Ver se debug retorna JSON válido
+Ver se freemium funciona sem auth
+Instalar Stripe se necessário: npm install stripe
+
+Depois me mostre os resultados dos novos testes! 🎯
