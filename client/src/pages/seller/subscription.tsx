@@ -127,6 +127,10 @@ export default function SellerSubscription() {
 
     const stripeCheckoutMutation = useMutation({
     mutationFn: async () => {
+      if (!selectedPlan) {
+        throw new Error('Nenhum plano selecionado');
+      }
+
       console.log('🚀 Iniciando checkout para:', selectedPlan);
 
       // Chamar o endpoint da sua API para iniciar o checkout do Stripe
@@ -147,7 +151,7 @@ export default function SellerSubscription() {
       if (data.mode === 'test') {
         console.log('🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
       }
-
+      
       if (data.url) {
         // Redirecionar o usuário para a página de checkout do Stripe
         window.location.href = data.url;
@@ -167,9 +171,9 @@ export default function SellerSubscription() {
     },
     onError: (error) => {
       console.error('❌ Erro de checkout:', error);
-
+      
       let errorMessage = 'Erro ao iniciar checkout';
-
+      
       if (error.message?.includes('failed to fetch')) {
         errorMessage = 'Erro de conexão. Verifique sua internet.';
       } else if (error.message?.includes('Invalid plan')) {
@@ -177,7 +181,7 @@ export default function SellerSubscription() {
       } else {
         errorMessage = error.message || 'Erro desconhecido';
       }
-
+      
       toast({
         title: 'Erro',
         description: errorMessage,
