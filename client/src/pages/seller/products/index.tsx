@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'wouter';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
-import { useLocation, Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,6 +32,17 @@ interface Product {
   createdAt: string;
   images: string[];
   thumbnailUrl?: string;
+}
+
+interface StorePlanData {
+  plan: {
+    id: number;
+    name: string;
+    limits: {
+      products: number;
+    };
+  };
+  storeId: number;
 }
 
 export default function SellerProducts() {
@@ -77,6 +90,27 @@ export default function SellerProducts() {
     enabled: !!isAuthenticated && !!isSeller && !!user
   });
 
+    // Fetch store plan data
+    const { data: storePlanData, isLoading: isLoadingStorePlanData } = useQuery({
+      queryKey: ['/api/stores', selectedStoreId, 'plan'],
+      queryFn: async () => {
+        try {
+          if (!selectedStoreId) return null;
+  
+          const res = await fetch(`/api/stores/${selectedStoreId}/plan`);
+          if (!res.ok) {
+            throw new Error('Falha ao carregar o plano da loja');
+          }
+  
+          return await res.json();
+        } catch (error) {
+          console.error('Error fetching store plan:', error);
+          return null;
+        }
+      },
+      enabled: !!selectedStoreId
+    });
+
   // Set the selected store when stores are loaded
   useEffect(() => {
     if (Array.isArray(stores) && stores?.length > 0 && !selectedStoreId) {
@@ -102,12 +136,12 @@ export default function SellerProducts() {
     queryFn: async () => {
       try {
         if (!selectedStoreId) return [];
-        
+
         const res = await fetch(`/api/stores/${selectedStoreId}/products`);
         if (!res.ok) {
           throw new Error('Falha ao carregar produtos');
         }
-        
+
         return await res.json();
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -120,9 +154,9 @@ export default function SellerProducts() {
   // Fetch and prepare products with image URLs
   useEffect(() => {
     if (!products || !Array.isArray(products) || products.length === 0) return;
-    
+
     setIsLoadingImages(true);
-    
+
     // Simply prepare product data with proper API URL structure
     // Actual image loading will be handled by the ImageComponent
     try {
@@ -134,7 +168,7 @@ export default function SellerProducts() {
           thumbnailUrl: `/api/products/${product.id}/primary-image`
         };
       });
-      
+
       setProductsWithImages(enhancedProducts);
     } catch (error) {
       console.error('Erro ao processar dados dos produtos:', error);
@@ -162,12 +196,31 @@ export default function SellerProducts() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+        {storePlanData && products.length > 0 && (
+          <Alert variant="default" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Informação sobre seu plano</AlertTitle>
+            <AlertDescription className="flex justify-between items-center">
+              <span>
+                Seu plano <strong>{storePlanData.plan?.name || 'atual'}</strong> permite 
+                {storePlanData.plan?.limits?.products === -1 ? 
+                  ' produtos ilimitados.' : 
+                  ` até ${storePlanData.plan?.limits?.products || 5} produtos.`
+                } Você está usando {products.length} produto(s).
+              </span>
+              <Button asChild variant="outline" size="sm" className="ml-4">
+                <Link href="/seller/subscription">Gerenciar Plano</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold mb-2">Meus Produtos</h1>
           <p className="text-gray-600">Gerencie seus produtos, preços e estoque</p>
         </div>
-        
+
         <Button asChild className="mt-4 md:mt-0 bg-primary text-white hover:bg-primary/90">
           <Link href="/seller/products/add">
             <i className="fas fa-plus mr-2"></i> Adicionar Produto
@@ -228,12 +281,12 @@ export default function SellerProducts() {
           {Array(6).fill(0).map((_, index) => (
             <div key={index} className="border rounded-lg overflow-hidden shadow-sm bg-white animate-pulse">
               <div className="relative pt-[100%] bg-gray-200"></div>
-              
+
               <div className="p-3">
                 <div className="h-4 bg-gray-200 rounded mb-2 w-3/4"></div>
                 <div className="h-5 bg-gray-200 rounded mb-2 w-1/2"></div>
                 <div className="h-3 bg-gray-200 rounded mb-3 w-1/3"></div>
-                
+
                 <div className="flex gap-1 mt-2">
                   <div className="h-8 bg-gray-200 rounded flex-1"></div>
                   <div className="h-8 bg-gray-200 rounded flex-1"></div>
@@ -264,7 +317,7 @@ export default function SellerProducts() {
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Product info */}
                   <div className="p-2">
                     <h3 className="font-medium text-sm truncate">{product.name}</h3>
@@ -277,7 +330,7 @@ export default function SellerProducts() {
                       <p className="text-primary font-bold text-sm">{formatCurrency(product.price)}</p>
                     )}
                     <p className="text-xs text-gray-500 truncate">{product.category}</p>
-                    
+
                     <div className="mt-2 flex gap-1">
                       <Button 
                         size="sm" 
@@ -300,7 +353,7 @@ export default function SellerProducts() {
               ))}
             </div>
           </div>
-          
+
           {/* Desktop table view */}
           <div className="hidden md:block bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
@@ -394,9 +447,9 @@ export default function SellerProducts() {
                                     method: 'DELETE',
                                     credentials: 'include'
                                   });
-                                  
+
                                   const result = await response.json();
-                                  
+
                                   if (result.success) {
                                     // Atualizar a lista de produtos após exclusão
                                     refetch();
