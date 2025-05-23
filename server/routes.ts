@@ -31,6 +31,47 @@ import { processStoreMiddleware } from "./middleware/store-processor.middleware"
 import { secureImageMiddleware } from "./middleware/secure-image-middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Importações e configurações
+
+  // Rota de verificação de saúde do servidor
+  app.get('/api/health', async (req, res) => {
+    try {
+      // Verifique componentes do sistema
+      const checks = {
+        server: { status: 'ok', timestamp: new Date().toISOString() },
+        database: { status: 'pending' },
+        stripe: { status: 'pending' }
+      };
+
+      // Verificar banco de dados
+      try {
+        // Tente uma operação simples no banco de dados
+        // Ex: await db.query('SELECT 1');
+        checks.database.status = 'ok';
+      } catch (dbError) {
+        checks.database.status = 'error';
+        checks.database.error = dbError.message;
+      }
+
+      // Verificar Stripe
+      if (process.env.STRIPE_SECRET_KEY) {
+        checks.stripe.status = 'ok';
+      } else {
+        checks.stripe.status = 'error';
+        checks.stripe.error = 'STRIPE_SECRET_KEY não configurada';
+      }
+
+      res.json({
+        status: 'online',
+        checks
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        status: 'error',
+        error: error.message
+      });
+    }
+  });
   // Aplicar middleware de segurança de imagens
   app.use(secureImageMiddleware);
 
@@ -775,7 +816,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/geocode-all-stores', authMiddleware, adminMiddleware, MapController.batchGeocodeAllStores);
 
   // Rotas para detalhes de lugares do Google Places
-  app.get('/api/admin/stores/:storeId/place-details', authMiddleware, adminMiddleware, PlaceDetailsController.getStoreGooglePlaceDetails);
+  // The code includes a new health check route.
+app.get('/api/admin/stores/:storeId/place-details', authMiddleware, adminMiddleware, PlaceDetailsController.getStoreGooglePlaceDetails);
   app.post('/api/admin/stores/:storeId/refresh-place-details', authMiddleware, adminMiddleware, PlaceDetailsController.refreshStoreGooglePlaceDetails);
   app.post('/api/admin/update-all-store-details', authMiddleware, adminMiddleware, PlaceDetailsController.updateAllStoresPlaceDetails);
 

@@ -1,111 +1,88 @@
 import { Request, Response } from 'express';
-import { db } from '../db';
 import Stripe from 'stripe';
 
-// Log para depuração
-console.log("Stripe Controller: Inicializando...");
-console.log("STRIPE_SECRET_KEY configurada:", process.env.STRIPE_SECRET_KEY ? "Sim" : "Não");
-console.log("FRONTEND_URL configurado:", process.env.FRONTEND_URL || process.env.CLIENT_URL || "(não definido)");
+// Verifica se a chave do Stripe está definida no ambiente
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+const FRONTEND_URL = process.env.FRONTEND_URL || null;
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.error("ALERTA: STRIPE_SECRET_KEY não está definida no ambiente!");
-}
+// Logs para diagnóstico
+console.log('Stripe Controller: Inicializando...');
+console.log(`STRIPE_SECRET_KEY configurada: ${STRIPE_SECRET_KEY ? 'Sim' : 'Não'}`);
+console.log(`FRONTEND_URL configurado: ${FRONTEND_URL || '(não definido)'}`);
 
-// Inicialize o cliente Stripe com sua chave secreta
-try {
-  const stripeKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeKey || stripeKey.trim() === '') {
-    throw new Error('Chave do Stripe não configurada');
-  }
-
-  const stripe = new Stripe(stripeKey, {
-    apiVersion: '2023-10-16',
-  });
-  
-  console.log("Stripe inicializado com sucesso!");
-} catch (error) {
-  console.error("Erro ao inicializar o Stripe:", error);
-  // Não lance o erro aqui, para que o servidor possa iniciar mesmo com erro no Stripe
-  // Apenas emita um log de erro
-}
-
-// Variável global para o cliente Stripe
-const stripe = process.env.STRIPE_SECRET_KEY 
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' }) 
+// Inicializa o Stripe somente se a chave secreta estiver disponível
+const stripe = STRIPE_SECRET_KEY
+  ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' })
   : null;
+
+if (stripe) {
+  console.log('Stripe inicializado com sucesso!');
+} else {
+  console.error('ERRO: Stripe não pôde ser inicializado. Verifique a variável STRIPE_SECRET_KEY.');
+}
 
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
-    // Verificar se o Stripe foi inicializado corretamente
+    // Verifica se o Stripe foi inicializado
     if (!stripe) {
-      console.error("Checkout falhou: Cliente Stripe não inicializado");
-      return res.status(500).json({ 
-        error: 'Serviço de pagamento não disponível no momento', 
-        details: 'Configuração do Stripe incompleta'
-      });
+      throw new Error('Stripe não está configurado. Verifique a variável STRIPE_SECRET_KEY.');
     }
 
-    const { priceId, planId } = req.body;
-    console.log("Criando sessão de checkout para priceId:", priceId, "planId:", planId);
+    const { items, currency = 'brl' } = req.body;
 
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Usuário não autenticado' });
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Itens inválidos para checkout' });
     }
 
-    // Buscar dados do usuário e da loja
-    const user = await db.query.users.findFirst({
-      where: (users, { eq }) => eq(users.id, req.session.userId as number)
-    });
+    // URL de redirecionamento após pagamento
+    const successUrl = FRONTEND_URL
+      ? `${FRONTEND_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`
+      : `${req.protocol}://${req.get('host')}/payment/success?session_id={CHECKOUT_SESSION_ID}`;
 
-    if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
-    }
+    const cancelUrl = FRONTEND_URL
+      ? `${FRONTEND_URL}/payment/canceled`
+      : `${req.protocol}://${req.get('host')}/payment/canceled`;
 
-    // Criar ou recuperar o Customer no Stripe
-    let customerId = user.stripeCustomerId;
-
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: `${user.firstName} ${user.lastName}`,
-        metadata: {
-          userId: user.id.toString()
-        }
-      });
-
-      customerId = customer.id;
-
-      // Atualizar o usuário com o customerId do Stripe
-      await db.update(db.users).set({
-        stripeCustomerId: customerId
-      }).where(db.eq(db.users.id, user.id));
-    }
-
-    // Criar a sessão de checkout
+    // Cria a sessão de checkout
     const session = await stripe.checkout.sessions.create({
-      customer: customerId,
       payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
+      line_items: items.map((item: any) => ({
+        price_data: {
+          currency,
+          product_data: {
+            name: item.name,
+            images: item.image ? [item.image] : [],
+          },
+          unit_amount: Math.round(item.price * 100), // Stripe usa centavos
         },
-      ],
-      mode: 'subscription',
-      success_url: `${process.env.FRONTEND_URL}/seller/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/seller/subscription?canceled=true`,
-      metadata: {
-        userId: user.id.toString(),
-        planId: planId.toString()
-      }
+        quantity: item.quantity || 1,
+      })),
+      mode: 'payment',
+      success_url: successUrl,
+      cancel_url: cancelUrl,
     });
 
-    res.json({ url: session.url });
+    res.json({ sessionId: session.id });
   } catch (error) {
     console.error('Erro ao criar sessão de checkout:', error);
-    res.status(500).json({ error: 'Erro ao criar sessão de checkout' });
+    res.status(500).json({
+      error: 'Falha ao processar o checkout',
+      details: error.message
+    });
   }
 };
+
+export const getStripePublicKey = (req: Request, res: Response) => {
+  const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
+
+  if (!publishableKey) {
+    return res.status(500).json({ error: 'Chave pública do Stripe não configurada' });
+  }
+
+  res.json({ publishableKey });
+};
+
+import { db } from '../db';
 
 export const handleWebhook = async (req: Request, res: Response) => {
   const sig = req.headers['stripe-signature'] as string;
@@ -236,12 +213,12 @@ export const checkFlashPromotionEligibility = async (req: Request, res: Response
     // No plano Freemium e Start não pode criar promoções relâmpago
     const isEligible = user.planId >= 3 && user.subscriptionStatus === 'active';
 
-    res.json({ 
-      isEligible, 
+    res.json({
+      isEligible,
       currentPlan: user.planId,
       planName: getPlanName(user.planId),
-      message: isEligible 
-        ? 'Você pode criar promoções relâmpago' 
+      message: isEligible
+        ? 'Você pode criar promoções relâmpago'
         : 'Faça upgrade para o plano Pro ou Premium para criar promoções relâmpago'
     });
   } catch (error) {
@@ -278,14 +255,14 @@ export const checkCouponEligibility = async (req: Request, res: Response) => {
     if (user.planId === 2) couponLimit = 5; // Start: 5 cupons
     else if (user.planId >= 3) couponLimit = -1; // Pro e Premium: ilimitado
 
-    res.json({ 
-      isEligible, 
+    res.json({
+      isEligible,
       currentPlan: user.planId,
       planName: getPlanName(user.planId),
       couponLimit,
-      message: isEligible 
-        ? couponLimit === -1 
-          ? 'Você pode criar cupons ilimitados' 
+      message: isEligible
+        ? couponLimit === -1
+          ? 'Você pode criar cupons ilimitados'
           : `Você pode criar até ${couponLimit} cupons por mês`
         : 'Faça upgrade para o plano Start ou superior para criar cupons'
     });
