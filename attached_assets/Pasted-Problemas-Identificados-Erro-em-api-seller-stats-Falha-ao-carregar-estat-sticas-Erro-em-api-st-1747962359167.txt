@@ -1,0 +1,112 @@
+Problemas Identificados:
+
+Erro em /api/seller/stats - Falha ao carregar estatísticas
+Erro em /api/stripe/checkout - Problema na requisição do Stripe
+Erros no queryClient - Problemas de mutação e requisições
+
+Soluções:
+1. Verificar o servidor backend
+Primeiro, verifique se o servidor está rodando corretamente:
+bash# No terminal do servidor
+npm run dev
+# ou
+yarn dev
+2. Corrigir a rota /api/seller/stats
+No seu arquivo server/routes.ts, verifique se a rota está implementada corretamente:
+javascript// Exemplo de como deveria estar a rota de stats
+app.get('/api/seller/stats', async (req, res) => {
+  try {
+    // Sua lógica para buscar estatísticas
+    const stats = {
+      totalSales: 0,
+      totalRevenue: 0,
+      activeProducts: 0,
+      // outros dados...
+    };
+    
+    res.json(stats);
+  } catch (error) {
+    console.error('Erro ao buscar stats:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+3. Corrigir a rota /api/stripe/checkout
+javascriptapp.post('/api/stripe/checkout', async (req, res) => {
+  try {
+    // Verifique se o Stripe está configurado
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('Stripe não configurado');
+    }
+    
+    // Sua lógica do Stripe aqui
+    const session = await stripe.checkout.sessions.create({
+      // configurações da sessão
+    });
+    
+    res.json({ sessionId: session.id });
+  } catch (error) {
+    console.error('Erro no Stripe checkout:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+4. Verificar variáveis de ambiente
+Certifique-se de que você tem um arquivo .env com as configurações necessárias:
+env# .env
+DATABASE_URL="sua_url_do_banco"
+STRIPE_SECRET_KEY="sua_chave_secreta_do_stripe"
+STRIPE_PUBLISHABLE_KEY="sua_chave_publica_do_stripe"
+5. Verificar logs do servidor
+No terminal onde o servidor está rodando, verifique se há mensagens de erro mais detalhadas. Adicione logs para debugar:
+javascript// Adicione middleware de logging
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`, req.body);
+  next();
+});
+
+// Middleware de erro global
+app.use((error, req, res, next) => {
+  console.error('Erro no servidor:', error);
+  res.status(500).json({ 
+    error: 'Erro interno do servidor',
+    message: error.message 
+  });
+});
+6. Verificar conexão com banco de dados
+Se você estiver usando um banco de dados, verifique se a conexão está funcionando:
+javascript// Teste a conexão do banco
+app.get('/api/health', async (req, res) => {
+  try {
+    // Teste uma query simples
+    // await db.query('SELECT 1');
+    res.json({ status: 'OK', timestamp: new Date() });
+  } catch (error) {
+    res.status(500).json({ status: 'ERROR', error: error.message });
+  }
+});
+7. Corrigir problemas no frontend
+No seu componente React, adicione tratamento de erro:
+jsx// No seu dashboard.tsx
+useEffect(() => {
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/seller/stats');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setStats(data);
+    } catch (error) {
+      console.error('Erro ao buscar stats:', error);
+      // Mostrar uma mensagem de erro para o usuário
+    }
+  };
+  
+  fetchStats();
+}, []);
+Passos para Debug:
+
+Reinicie o servidor completamente
+Verifique o console do navegador para mais detalhes dos erros
+Verifique os logs do servidor no terminal
+Teste as rotas individualmente usando um cliente REST como Postman ou Insomnia
+Verifique se todas as dependências estão instaladas (npm install)
