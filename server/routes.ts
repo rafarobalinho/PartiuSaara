@@ -499,11 +499,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/stripe/webhook', StripeController.handleWebhook);
   app.get('/api/stripe/subscription', authMiddleware, StripeController.getSubscriptionDetails);
   app.post('/api/stripe/cancel', authMiddleware, StripeController.cancelSubscription);
-  
+
   // Rotas para configuração e teste do Stripe
   app.get('/api/stripe/config', StripeController.getStripeConfig);
   app.get('/api/stripe/test', StripeController.testStripeConnection);
+
+  // Rotas de diagnóstico
   app.get('/api/debug', DebugController.getDiagnostics);
+  app.get('/api/stripe-prices', DebugController.getStripePrices);
 
   // Rota de estatísticas para o painel do vendedor
   app.get('/api/seller/stats', authMiddleware, async (req: Request, res: Response) => {
@@ -512,11 +515,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       console.log("📊 Buscando estatísticas para o vendedor ID:", user.id);
-      
+
       // Buscar a loja do vendedor
       const stores = await storage.getStoresByUserId(user.id);
       console.log("🏪 Lojas encontradas:", stores.length);
-      
+
       if (!stores.length) {
         return res.status(404).json({ message: 'Nenhuma loja encontrada' });
       }
@@ -531,7 +534,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let reservationsCount = 0;
       let pendingReservationsCount = 0;
       let couponsCount = 0;
-      
+
       try {
         // Usando consultas drizzle em vez de SQL direto para evitar erros de nome de coluna
         const productsResult = await db.query.products.findMany({
@@ -539,10 +542,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         productsCount = productsResult.length;
         console.log("📦 Produtos encontrados:", productsCount);
-        
+
         // Buscar IDs dos produtos para usar nas outras consultas
         const productIds = productsResult.map(p => p.id);
-        
+
         if (productIds.length > 0) {
           // Reservas totais (excluindo canceladas)
           const reservationsResult = await db.query.reservations.findMany({
@@ -554,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           reservationsCount = reservationsResult.length;
           console.log("🔖 Reservas encontradas:", reservationsCount);
-          
+
           // Reservas pendentes
           const pendingReservationsResult = await db.query.reservations.findMany({
             where: (reservations, { and, eq, inArray }) => 
@@ -566,19 +569,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pendingReservationsCount = pendingReservationsResult.length;
           console.log("⏳ Reservas pendentes:", pendingReservationsCount);
         }
-        
+
         // Cupons/promoções da loja
         const couponsResult = await db.query.promotions.findMany({
           where: (promotions, { eq }) => eq(promotions.storeId, storeId)
         });
         couponsCount = couponsResult.length;
         console.log("🏷️ Cupons/promoções:", couponsCount);
-        
+
       } catch (queryError) {
         console.error("❌ Erro nas consultas Drizzle:", queryError);
         // Continuar com os valores padrão
       }
-      
+
       res.json({
         totalProducts: productsCount,
         totalReservations: reservationsCount,
