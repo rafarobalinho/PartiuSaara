@@ -147,6 +147,51 @@ export default function SellerSubscription() {
       return response; // Retorna toda a resposta, não apenas a URL
     },
     onSuccess: (data) => {
+
+// Função de checkout com logging seguro
+const initiateCheckout = async (planId: string, interval: string) => {
+  setLoading(true);
+  try {
+    logger.info("Iniciando checkout", { planId, interval });
+    
+    const response = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ planId, interval }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      logger.error("❌ Erro de checkout", error);
+      toast({
+        title: "Erro ao processar pagamento",
+        description: "Por favor, tente novamente mais tarde.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const data = await response.json();
+    logger.success("Checkout bem-sucedido, redirecionando");
+    
+    // Redirecionar para a URL do Stripe
+    if (data.url) {
+      window.location.href = data.url;
+    }
+  } catch (error) {
+    logger.error("Erro na requisição para", "/api/stripe/checkout", error);
+    toast({
+      title: "Falha ao conectar ao servidor",
+      description: "Verifique sua conexão e tente novamente.",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
       // Log do modo para usuário (apenas em desenvolvimento)
       if (data.mode === 'test') {
         console.log('🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
