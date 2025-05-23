@@ -1,3 +1,4 @@
+
 import { Request, Response } from 'express';
 import { db } from '../db';
 import Stripe from 'stripe';
@@ -33,7 +34,7 @@ try {
   stripe = new Stripe(stripeSecretKey, {
     apiVersion: '2023-10-16',
   });
-
+  
   console.log("Stripe inicializado com sucesso no modo", isTestMode ? "TESTE" : "PRODUÇÃO");
 } catch (error) {
   console.error("Erro ao inicializar o Stripe:", error);
@@ -58,126 +59,292 @@ const priceMapping = {
 };
 
 export const createCheckoutSession = async (req: Request, res: Response) => {
-  const startTime = Date.now();
-  let userId = null;
+  console.log('🚀 === STRIPE CHECKOUT DEBUG START ===');
+  console.log('📋 Method:', req.method);
+  console.log('📋 Headers:', JSON.stringify({
+    host: req.headers.host,
+    origin: req.headers.origin,
+    referer: req.headers.referer
+  }, null, 2));
+  console.log('📋 Body:', JSON.stringify(req.body, null, 2));
+  console.log('📋 Query:', JSON.stringify(req.query, null, 2));
 
   try {
-    console.log('🚀 === STRIPE CHECKOUT DEBUG START ===');
-    console.log('📋 Method:', req.method);
-    console.log('📋 Headers:', {
-      "host": req.headers.host,
-      "origin": req.headers.origin,
-      "referer": req.headers.referer
-    });
-    console.log('📋 Body:', req.body);
-    console.log('📋 Query:', req.query);
-
-    // CHECKPOINT 1: Verificar método HTTP
+    // CHECKPOINT 1: Verificar método
     console.log('🔍 CHECKPOINT 1: Verificando método HTTP');
     if (req.method !== 'POST') {
-      console.log('❌ CHECKPOINT 1: Método inválido:', req.method);
-      return res.status(405).json({ error: 'Method not allowed' });
+      console.log('❌ Método não permitido:', req.method);
+      return res.status(405).json({ 
+        error: 'Method not allowed',
+        checkpoint: 'HTTP_METHOD' 
+      });
     }
     console.log('✅ CHECKPOINT 1: Método POST válido');
 
-    // CHECKPOINT 2: Verificar autenticação
+    // CHECKPOINT 2: Verificar variáveis de ambiente
     console.log('🔍 CHECKPOINT 2: Verificando variáveis de ambiente');
     const isTestMode = process.env.STRIPE_MODE === 'test';
     console.log('🔧 Test Mode:', isTestMode);
     console.log('🔧 STRIPE_MODE env:', process.env.STRIPE_MODE);
 
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Usuário não autenticado' });
-    }
-
-    userId = req.session.userId;
-
-    // Validar body da requisição
-    const { planId, interval } = req.body;
-    if (!planId) {
-      return res.status(400).json({ error: 'ID do plano é obrigatório' });
-    }
-
-    // Configurar Stripe
-    const secretKey = isTestMode 
+    const stripeSecretKey = isTestMode 
       ? process.env.STRIPE_SECRET_KEY_TEST 
       : process.env.STRIPE_SECRET_KEY_LIVE;
 
     console.log('🔑 Using key type:', isTestMode ? 'TEST' : 'LIVE');
-    console.log('🔑 Key exists:', !!secretKey);
-    console.log('🔑 Key prefix:', secretKey ? secretKey.substring(0, 7) : 'MISSING');
-
-    if (!secretKey) {
-      const errorMessage = isTestMode 
-        ? 'Missing STRIPE_SECRET_KEY_TEST environment variable' 
-        : 'Missing STRIPE_SECRET_KEY_LIVE environment variable';
-
-      console.log('❌ CHECKPOINT 2: Chave ausente:', errorMessage);
-      return res.status(500).json({ error: errorMessage });
+    console.log('🔑 Key exists:', !!stripeSecretKey);
+    if (stripeSecretKey) {
+      console.log('🔑 Key prefix:', stripeSecretKey.substring(0, 8) + '...');
+    } else {
+      console.log('🔑 Key prefix: MISSING');
     }
 
-    const stripe = new Stripe(secretKey);
+    if (!stripeSecretKey) {
+      const missingKey = isTestMode ? 'STRIPE_SECRET_KEY_TEST' : 'STRIPE_SECRET_KEY_LIVE';
+      console.error('❌ CHECKPOINT 2: Chave ausente:', missingKey);
+      return res.status(500).json({ 
+        error: `Missing ${missingKey}`,
+        mode: isTestMode ? 'test' : 'live',
+        checkpoint: 'STRIPE_KEY_MISSING',
+        environment: {
+          STRIPE_MODE: process.env.STRIPE_MODE,
+          NODE_ENV: process.env.NODE_ENV,
+          hasTestKey: !!process.env.STRIPE_SECRET_KEY_TEST,
+          hasLiveKey: !!process.env.STRIPE_SECRET_KEY_LIVE
+        }
+      });
+    }
+    console.log('✅ CHECKPOINT 2: Chave Stripe disponível');
 
-    // Buscar usuário
-    const user = await db.query.users.findFirst({
-      where: (users, { eq }) => eq(users.id, userId as number)
-    });
+    // CHECKPOINT 3: Inicializar Stripe
+    console.log('🔍 CHECKPOINT 3: Inicializando Stripe');
+    let localStripe;
+    try {
+      localStripe = new Stripe(stripeSecretKey, {
+        apiVersion: '2023-10-16',
+      });
+      console.log('✅ CHECKPOINT 3: Stripe inicializado com sucesso');
+    } catch (stripeInitError) {
+      console.error('❌ CHECKPOINT 3: Erro ao inicializar Stripe:', stripeInitError);
+      return res.status(500).json({
+        error: 'Failed to initialize Stripe',
+        details: stripeInitError.message,
+        checkpoint: 'STRIPE_INIT_ERROR'
+      });
+    }
+
+    // CHECKPOINT 4: Validar dados da requisição
+    console.log('🔍 CHECKPOINT 4: Validando dados da requisição');
+    const { planId, interval = 'monthly' } = req.body;
+    console.log('📦 Plan ID:', planId);
+    console.log('📦 Interval:', interval);
+
+    if (!planId) {
+      console.log('❌ CHECKPOINT 4: Plan ID ausente');
+      return res.status(400).json({ 
+        error: 'Plan ID is required',
+        checkpoint: 'VALIDATION_ERROR'
+      });
+    }
+    console.log('✅ CHECKPOINT 4: Dados válidos');
+
+    // CHECKPOINT 5: Verificar autenticação
+    console.log('🔍 CHECKPOINT 5: Verificando autenticação');
+    if (!req.session.userId) {
+      console.log('❌ CHECKPOINT 5: Usuário não autenticado');
+      return res.status(401).json({ 
+        error: 'Usuário não autenticado',
+        mode: isTestMode ? 'test' : 'live',
+        checkpoint: 'AUTH_ERROR'
+      });
+    }
+    console.log('✅ CHECKPOINT 5: Usuário autenticado, ID:', req.session.userId);
+
+    // CHECKPOINT 6: Mapear Price IDs
+    console.log('🔍 CHECKPOINT 6: Mapeando Price IDs');
+    
+    // Plano freemium não tem pagamento
+    if (planId === 'freemium') {
+      console.log('✅ CHECKPOINT 6: Plano freemium selecionado - sem pagamento necessário');
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Plano Freemium ativado',
+        redirect: false,
+        mode: isTestMode ? 'test' : 'live',
+        checkpoint: 'FREEMIUM_SUCCESS'
+      });
+    }
+
+    // Obter o Price ID com base no plano e intervalo
+    const priceId = priceMapping[planId]?.[interval];
+    console.log('💰 Price ID mapeado:', priceId);
+    
+    if (!priceId) {
+      console.log('❌ CHECKPOINT 6: Price ID inválido para plano:', planId);
+      console.log('❌ PriceMapping disponível:', JSON.stringify(priceMapping));
+      return res.status(400).json({ 
+        error: 'Invalid plan or price ID not found',
+        planId,
+        interval,
+        mode: isTestMode ? 'test' : 'live',
+        checkpoint: 'PRICE_MAPPING_ERROR',
+        plansDisponiveis: Object.keys(priceMapping)
+      });
+    }
+    console.log('✅ CHECKPOINT 6: Price ID mapeado com sucesso:', priceId);
+
+    // CHECKPOINT 7: Buscar dados do usuário
+    console.log('🔍 CHECKPOINT 7: Buscando dados do usuário');
+    let user;
+    try {
+      user = await db.query.users.findFirst({
+        where: (users, { eq }) => eq(users.id, req.session.userId as number)
+      });
+      console.log('✅ CHECKPOINT 7: Usuário encontrado:', user ? `ID: ${user.id}, Email: ${user.email}` : 'Não encontrado');
+    } catch (dbError) {
+      console.error('❌ CHECKPOINT 7: Erro ao buscar usuário:', dbError);
+      return res.status(500).json({
+        error: 'Erro ao buscar dados do usuário',
+        details: dbError.message,
+        mode: isTestMode ? 'test' : 'live',
+        checkpoint: 'DB_ERROR'
+      });
+    }
 
     if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+      console.log('❌ CHECKPOINT 7: Usuário não encontrado no banco');
+      return res.status(404).json({ 
+        error: 'Usuário não encontrado',
+        mode: isTestMode ? 'test' : 'live',
+        checkpoint: 'USER_NOT_FOUND'
+      });
     }
 
-    // Definir priceId baseado no plano e intervalo
-    let priceId;
+    // CHECKPOINT 8: Criar ou recuperar o Customer no Stripe
+    console.log('🔍 CHECKPOINT 8: Gerenciando Customer Stripe');
+    let customerId = user.stripeCustomerId;
+    console.log('🔍 Customer ID existente:', customerId || 'Nenhum');
 
-    if (interval === 'monthly') {
-      if (planId === 'start') {
-        priceId = isTestMode ? 'price_start_monthly_test' : 'price_start_monthly_live';
-      } else if (planId === 'pro') {
-        priceId = isTestMode ? 'price_pro_monthly_test' : 'price_pro_monthly_live';
+    if (!customerId) {
+      try {
+        console.log('🔄 Criando novo customer no Stripe...');
+        const customer = await localStripe.customers.create({
+          email: user.email,
+          name: `${user.firstName} ${user.lastName}`,
+          metadata: {
+            userId: user.id.toString()
+          }
+        });
+
+        customerId = customer.id;
+        console.log('✅ Novo customer criado:', customerId);
+
+        // Atualizar o usuário com o customerId do Stripe
+        await db.update(db.users).set({
+          stripeCustomerId: customerId
+        }).where(db.eq(db.users.id, user.id));
+        console.log('✅ Usuário atualizado com o Customer ID');
+      } catch (customerError) {
+        console.error('❌ CHECKPOINT 8: Erro ao criar customer:', customerError);
+        return res.status(500).json({
+          error: 'Erro ao criar cliente no Stripe',
+          details: customerError.message,
+          mode: isTestMode ? 'test' : 'live',
+          checkpoint: 'CUSTOMER_CREATION_ERROR'
+        });
       }
-    } else if (interval === 'yearly') {
-      if (planId === 'start') {
-        priceId = isTestMode ? 'price_start_yearly_test' : 'price_start_yearly_live';
-      } else if (planId === 'pro') {
-        priceId = isTestMode ? 'price_pro_yearly_test' : 'price_pro_yearly_live';
-      }
     }
+    console.log('✅ CHECKPOINT 8: Customer ID disponível:', customerId);
 
-    if (!priceId) {
-      return res.status(400).json({ error: 'Plano ou intervalo inválido' });
-    }
+    // CHECKPOINT 9: Configurar URLs para redirecionamento
+    console.log('🔍 CHECKPOINT 9: Configurando URLs');
+    // URL base para redirecionamentos
+    const baseUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || req.headers.origin;
+    console.log('🔗 URL base para redirecionamentos:', baseUrl);
+    
+    const successUrl = `${baseUrl}/seller/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${baseUrl}/seller/subscription?canceled=true`;
+    
+    console.log('🔗 Success URL:', successUrl);
+    console.log('🔗 Cancel URL:', cancelUrl);
+    console.log('✅ CHECKPOINT 9: URLs configuradas');
 
-    // Criar sessão de checkout
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+    // CHECKPOINT 10: Criar a sessão de checkout
+    console.log('🔍 CHECKPOINT 10: Criando sessão de checkout');
+    console.log('📊 Session params:', {
+      customer: customerId,
+      price: priceId,
+      quantity: 1,
       mode: 'subscription',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/seller/subscription?success=true`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/seller/subscription`,
-      customer: user.stripeCustomerId,
-      metadata: {
-        userId: user.id.toString(),
-        planId: planId
-      }
+      success_url: successUrl,
+      cancel_url: cancelUrl
     });
+    
+    let session;
+    try {
+      session = await localStripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        metadata: {
+          userId: user.id.toString(),
+          planId: planId.toString(),
+          interval: interval,
+          mode: isTestMode ? 'test' : 'live'
+        }
+      });
+      console.log('✅ CHECKPOINT 10: Sessão criada com sucesso:', session.id);
+    } catch (sessionError) {
+      console.error('❌ CHECKPOINT 10: Erro ao criar sessão:', sessionError);
+      console.error('Session error type:', sessionError.type);
+      console.error('Session error code:', sessionError.code);
+      console.error('Session error message:', sessionError.message);
+      
+      return res.status(500).json({
+        error: 'Failed to create Stripe session',
+        details: sessionError.message,
+        type: sessionError.type,
+        code: sessionError.code,
+        mode: isTestMode ? 'test' : 'live',
+        checkpoint: 'STRIPE_SESSION_ERROR'
+      });
+    }
 
-    // Log de sucesso (com informações não sensíveis)
-    const processingTime = Date.now() - startTime;
-    console.log(`✅ Sessão Stripe criada com sucesso em ${processingTime}ms para o plano ${planId}`);
+    // CHECKPOINT 11: Retornar resposta
+    console.log('🔍 CHECKPOINT 11: Preparando resposta');
+    const response = {
+      success: true,
+      url: session.url,
+      sessionId: session.id,
+      mode: isTestMode ? 'test' : 'live'
+    };
+    console.log('📤 Response:', JSON.stringify(response, null, 2));
+    console.log('✅ CHECKPOINT 11: Resposta preparada');
 
-    res.json({ url: session.url });
-  } catch (error) {
-    const processingTime = Date.now() - startTime;
-    console.error('❌ Erro ao criar sessão de checkout:', error);
-    console.log(`❌ Falha após ${processingTime}ms`);
+    console.log('🎉 === STRIPE CHECKOUT DEBUG SUCCESS ===');
+    return res.status(200).json(response);
 
-    res.status(500).json({ error: 'Erro ao criar sessão de checkout' });
+  } catch (globalError) {
+    console.error('💥 === STRIPE CHECKOUT GLOBAL ERROR ===');
+    console.error('Global error message:', globalError.message);
+    console.error('Global error name:', globalError.name);
+    console.error('Global error stack:', globalError.stack);
+    
+    return res.status(500).json({
+      error: 'Internal server error',
+      details: globalError.message,
+      name: globalError.name,
+      mode: isTestMode ? 'test' : 'live',
+      checkpoint: 'GLOBAL_ERROR'
+    });
   }
 };
 
@@ -190,7 +357,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
     const webhookSecret = isTestMode 
       ? process.env.STRIPE_WEBHOOK_SECRET_TEST 
       : process.env.STRIPE_WEBHOOK_SECRET_LIVE;
-
+    
     if (!stripe || !webhookSecret) {
       throw new Error('Configuração do Stripe incompleta');
     }
@@ -276,7 +443,7 @@ export const getSubscriptionDetails = async (req: Request, res: Response) => {
     }
 
     const subscription = await stripe.subscriptions.retrieve(user.subscriptionId);
-
+    
     res.json({
       ...subscription,
       mode: isTestMode ? 'test' : 'live'
@@ -462,10 +629,10 @@ export const testStripeConnection = async (req: Request, res: Response) => {
         mode: isTestMode ? 'test' : 'live'
       });
     }
-
+    
     const products = await stripe.products.list({ limit: 5 });
     const prices = await stripe.prices.list({ limit: 10 });
-
+    
     return res.status(200).json({
       success: true,
       message: `Stripe conectado com sucesso em modo ${isTestMode ? 'TEST' : 'LIVE'}!`,
