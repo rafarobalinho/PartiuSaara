@@ -78,7 +78,7 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
 // Products schema
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
-  storeId: integer("store_id").notNull().references(() => stores.id),
+  store_id: integer("store_id").notNull().references(() => stores.id),
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(),
@@ -100,7 +100,8 @@ export const insertProductSchema = createInsertSchema(products).omit({
 // Promotions schema
 export const promotions = pgTable("promotions", {
   id: serial("id").primaryKey(),
-  productId: integer("product_id").notNull().references(() => products.id),
+  product_id: integer("product_id").notNull().references(() => products.id),
+  store_id: integer("store_id").references(() => stores.id),
   type: text("type").$type<"flash" | "regular">().notNull(),
   discountPercentage: integer("discount_percentage").notNull(),
   startTime: timestamp("start_time").notNull(),
