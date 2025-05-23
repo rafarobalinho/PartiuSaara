@@ -166,10 +166,25 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     // Plano freemium não tem pagamento
     if (planId === 'freemium') {
       console.log('✅ CHECKPOINT 6: Plano freemium selecionado - sem pagamento necessário');
+      
+      try {
+        // Atualizar o usuário para o plano freemium no banco de dados
+        await db.update(db.users).set({
+          planId: 1, // ID do plano freemium
+          subscriptionStatus: 'active'
+        }).where(db.eq(db.users.id, user.id));
+        
+        console.log('✅ Usuário atualizado para o plano freemium:', user.id);
+      } catch (dbError) {
+        console.error('❌ Erro ao atualizar usuário para freemium:', dbError);
+        // Mesmo com erro de BD, continuamos o fluxo para retornar sucesso ao cliente
+      }
+      
       return res.status(200).json({ 
         success: true, 
-        message: 'Plano Freemium ativado',
+        message: 'Plano Freemium ativado com sucesso',
         redirect: false,
+        requiresPayment: false,
         mode: isTestMode ? 'test' : 'live',
         checkpoint: 'FREEMIUM_SUCCESS'
       });

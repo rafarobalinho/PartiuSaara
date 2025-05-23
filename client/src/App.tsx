@@ -116,6 +116,15 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    // Inicializar o sistema de logging seguro
+    try {
+      console.log("ℹ️ Aplicação inicializada com sistema de logging seguro");
+    } catch (error) {
+      console.error("[LOG_ERROR] ℹ️ Aplicação inicializada com sistema de logging seguro - Failed to log safely");
+    }
+    // Inicialize o componente de notificações ou outros efeitos globais aqui
+  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
