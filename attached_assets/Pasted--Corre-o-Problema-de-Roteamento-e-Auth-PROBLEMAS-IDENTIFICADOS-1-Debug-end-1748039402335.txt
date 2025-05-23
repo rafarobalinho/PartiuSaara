@@ -1,0 +1,123 @@
+# 🔧 Correção - Problema de Roteamento e Auth
+
+## 🚨 **PROBLEMAS IDENTIFICADOS**
+
+1. **Debug endpoint não existe**: Retorna HTML da página principal
+2. **Auth middleware**: Bloqueando endpoints com "Unauthorized: No session found"
+3. **Framework**: Parece ser **Vite + React** (não Next.js)
+
+## 🛠️ **SOLUÇÕES BASEADAS NO FRAMEWORK**
+
+### **PROBLEMA 1: Estrutura de arquivos incorreta**
+
+Se for **Vite/React**, a estrutura `/api/` não funciona assim. Você precisa de um **backend separado**.
+
+### **PROBLEMA 2: Middleware de autenticação**
+
+O erro "Unauthorized: No session found" indica que há middleware bloqueando.
+
+## ⚡ **SOLUÇÃO IMEDIATA**
+
+### **1. IDENTIFICAR O FRAMEWORK**
+
+```bash
+echo "=== VERIFICANDO FRAMEWORK ==="
+cat package.json | grep -E "(next|vite|react|express)"
+ls -la src/
+ls -la pages/ 2>/dev/null || echo "Pasta pages não existe"
+```
+
+### **2. ENCONTRAR ONDE ESTÃO OS ENDPOINTS**
+
+```bash
+echo "=== PROCURANDO ENDPOINTS EXISTENTES ==="
+find . -name "*.js" -o -name "*.ts" | grep -E "(api|server|backend)" | head -10
+grep -r "stripe" . --include="*.js" --include="*.ts" | head -5
+```
+
+### **3. VERIFICAR MIDDLEWARE DE AUTH**
+
+```bash
+echo "=== PROCURANDO MIDDLEWARE DE AUTH ==="
+grep -r "Unauthorized" . --include="*.js" --include="*.ts"
+grep -r "session.*found" . --include="*.js" --include="*.ts"
+```
+
+### **4. TESTE SIMPLES SEM AUTH**
+
+Crie um endpoint de teste básico:
+
+```bash
+# Se for Express/Node backend
+cat > test-endpoint.js << 'EOF'
+// Endpoint de teste standalone
+const express = require('express');
+const app = express();
+
+app.use(express.json());
+
+app.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Endpoint funcionando!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.post('/stripe-test', (req, res) => {
+  const { planId } = req.body;
+  
+  if (planId === 'freemium') {
+    return res.json({
+      success: true,
+      message: 'Freemium ativado',
+      planType: 'freemium'
+    });
+  }
+  
+  res.json({ error: 'Plano não implementado' });
+});
+
+app.listen(3001, () => {
+  console.log('Servidor teste rodando na porta 3001');
+});
+EOF
+```
+
+### **5. RODAR TESTE STANDALONE**
+
+```bash
+node test-endpoint.js &
+sleep 2
+curl "http://localhost:3001/test"
+curl -X POST "http://localhost:3001/stripe-test" \
+-H "Content-Type: application/json" \
+-d '{"planId":"freemium"}'
+```
+
+## 🔍 **INVESTIGAÇÃO ESPECÍFICA**
+
+### **A. Se for Vite/React (frontend only):**
+- Precisa de backend separado
+- API routes não funcionam na estrutura `/api/`
+
+### **B. Se for Next.js mal configurado:**
+- Arquivos devem estar em `/pages/api/` ou `/app/api/`
+- Middleware pode estar bloqueando
+
+### **C. Se houver middleware de auth:**
+- Precisa desabilitar temporariamente
+- Ou adicionar exceção para endpoints de teste
+
+## 📋 **PRÓXIMOS PASSOS**
+
+1. **Execute** os comandos de investigação acima
+2. **Identifique** o framework exato
+3. **Localize** onde estão os endpoints existentes
+4. **Encontre** o middleware que está bloqueando
+5. **Cole** os resultados aqui
+
+## 🎯 **BASEADO NOS RESULTADOS**
+
+Vou criar uma solução específica para seu framework e configuração exata.
+
+**IMPORTANTE**: Cole os resultados da investigação para que eu possa dar a solução correta! 🔍
