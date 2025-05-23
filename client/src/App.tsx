@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/auth-context";
 import { UiProvider } from "@/context/ui-context";
 import StripeMode from "@/components/ui/stripe-mode";
+import { setupSafeLogging } from "@/lib/debug";
 
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
@@ -116,6 +117,9 @@ function Router() {
 }
 
 function App() {
+  // Inicializar sistema de logging seguro antes de renderizar a aplicação
+  setupSafeLogging();
+  
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
