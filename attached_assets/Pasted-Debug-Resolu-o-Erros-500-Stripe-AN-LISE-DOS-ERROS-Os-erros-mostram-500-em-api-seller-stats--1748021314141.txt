@@ -1,0 +1,344 @@
+Debug - Resolução Erros 500 Stripe
+🚨 ANÁLISE DOS ERROS
+Os erros mostram:
+
+500 em /api/seller/stats - Endpoint de estatísticas
+500 em /api/stripe/checkout - Checkout do Stripe
+"Iniciando checkout para: pro" - Mutation sendo executada
+Erro na requisição para /api/stripe/checkout
+
+
+🛠️ PROMPT PARA DIAGNÓSTICO IMEDIATO
+PASSO 1: CRIAR ENDPOINT DE DIAGNÓSTICO
+Crie o arquivo /api/debug.js:
+javascriptexport default function handler(req, res) {
+  try {
+    // Verificar todas as variáveis de ambiente
+    const diagnostics = {
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      url: req.url,
+      
+      // Verificar variáveis
+      environment: {
+        NODE_ENV: process.env.NODE_ENV,
+        STRIPE_MODE: process.env.STRIPE_MODE,
+        APP_URL: process.env.NEXT_PUBLIC_APP_URL
+      },
+      
+      // Verificar chaves (sem expor valores)
+      keys: {
+        test_secret: !!process.env.STRIPE_SECRET_KEY_TEST,
+        test_public: !!process.env.STRIPE_PUBLIC_KEY_TEST,
+        live_secret: !!process.env.STRIPE_SECRET_KEY_LIVE,
+        live_public: !!process.env.STRIPE_PUBLISHABLE_KEY_LIVE,
+      },
+      
+      // Status das chaves
+      stripe_config: {
+        mode: process.env.STRIPE_MODE === 'test' ? 'TEST' : 'LIVE',
+        active_secret_key: process.env.STRIPE_MODE === 'test' 
+          ? (process.env.STRIPE_SECRET_KEY_TEST ? 'CONFIGURED' : 'MISSING')
+          : (process.env.STRIPE_SECRET_KEY_LIVE ? 'CONFIGURED' : 'MISSING')
+      }
+    };
+
+    console.log('🔍 DIAGNOSTICS:', JSON.stringify(diagnostics, null, 2));
+
+    return res.status(200).json({
+      success: true,
+      message: 'Diagnóstico concluído - verifique os logs',
+      data: diagnostics
+    });
+
+  } catch (error) {
+    console.error('❌ DIAGNOSTIC ERROR:', error);
+    
+    return res.status(500).json({
+      success: false,
+      error: 'Erro no diagnóstico',
+      details: error.message,
+      stack: error.stack
+    });
+  }
+}
+PASSO 2: CORRIGIR ENDPOINT STRIPE CHECKOUT
+Substitua completamente o conteúdo de /api/stripe/checkout.js:
+javascriptexport default async function handler(req, res) {
+  // Log inicial para debug
+  console.log('🚀 STRIPE CHECKOUT INICIADO');
+  console.log('📋 Method:', req.method);
+  console.log('📋 Body:', req.body);
+
+  try {
+    // Verificar método
+    if (req.method !== 'POST') {
+      console.log('❌ Método não permitido:', req.method);
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // Verificar se stripe está disponível
+    let Stripe;
+    try {
+      Stripe = require('stripe');
+      console.log('✅ Stripe library loaded');
+    } catch (stripeError) {
+      console.error('❌ Erro ao carregar Stripe:', stripeError);
+      return res.status(500).json({ 
+        error: 'Stripe library not found',
+        details: 'Execute: npm install stripe' 
+      });
+    }
+
+    // Verificar variáveis de ambiente
+    const isTestMode = process.env.STRIPE_MODE === 'test';
+    console.log('🔧 Test Mode:', isTestMode);
+    console.log('🔧 STRIPE_MODE env:', process.env.STRIPE_MODE);
+
+    const stripeSecretKey = isTestMode 
+      ? process.env.STRIPE_SECRET_KEY_TEST 
+      : process.env.STRIPE_SECRET_KEY_LIVE;
+
+    console.log('🔑 Using key type:', isTestMode ? 'TEST' : 'LIVE');
+    console.log('🔑 Key exists:', !!stripeSecretKey);
+    console.log('🔑 Key prefix:', stripeSecretKey ? stripeSecretKey.substring(0, 7) + '...' : 'MISSING');
+
+    if (!stripeSecretKey) {
+      const missingKey = isTestMode ? 'STRIPE_SECRET_KEY_TEST' : 'STRIPE_SECRET_KEY_LIVE';
+      console.error('❌ Chave ausente:', missingKey);
+      return res.status(500).json({ 
+        error: `Missing ${missingKey}`,
+        mode: isTestMode ? 'test' : 'live'
+      });
+    }
+
+    // Inicializar Stripe
+    let stripe;
+    try {
+      stripe = new Stripe(stripeSecretKey, {
+        apiVersion: '2023-10-16',
+      });
+      console.log('✅ Stripe initialized');
+    } catch (stripeInitError) {
+      console.error('❌ Erro ao inicializar Stripe:', stripeInitError);
+      return res.status(500).json({
+        error: 'Failed to initialize Stripe',
+        details: stripeInitError.message
+      });
+    }
+
+    // Processar dados da requisição
+    const { planId, interval } = req.body;
+    console.log('📦 Plan ID:', planId);
+    console.log('📦 Interval:', interval);
+
+    if (!planId) {
+      console.log('❌ Plan ID missing');
+      return res.status(400).json({ error: 'Plan ID is required' });
+    }
+
+    // Mapeamento SIMPLES para teste
+    const testPriceMapping = {
+      freemium: null,
+      start: 'price_1234567890abcdef', // SUBSTITUA por um Price ID real de teste
+      pro: 'price_abcdef1234567890',   // SUBSTITUA por um Price ID real de teste  
+      premium: 'price_fedcba0987654321' // SUBSTITUA por um Price ID real de teste
+    };
+
+    if (planId === 'freemium') {
+      console.log('✅ Freemium plan selected');
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Freemium plan activated',
+        redirect: false,
+        mode: isTestMode ? 'test' : 'live'
+      });
+    }
+
+    const priceId = testPriceMapping[planId];
+    console.log('💰 Price ID:', priceId);
+
+    if (!priceId) {
+      console.log('❌ Invalid plan:', planId);
+      return res.status(400).json({ error: 'Invalid plan' });
+    }
+
+    // Criar sessão do Stripe
+    console.log('🔄 Creating Stripe session...');
+    
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price: priceId,
+        quantity: 1,
+      }],
+      mode: 'subscription',
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/pricing`,
+      metadata: {
+        planId,
+        interval: interval || 'monthly',
+        mode: isTestMode ? 'test' : 'live'
+      },
+    });
+
+    console.log('✅ Session created successfully:', session.id);
+
+    return res.status(200).json({
+      success: true,
+      url: session.url,
+      sessionId: session.id,
+      mode: isTestMode ? 'test' : 'live'
+    });
+
+  } catch (error) {
+    console.error('❌ STRIPE CHECKOUT ERROR:');
+    console.error('Error message:', error.message);
+    console.error('Error type:', error.type);
+    console.error('Error code:', error.code);
+    console.error('Full error:', error);
+    
+    return res.status(500).json({
+      error: 'Internal server error',
+      details: error.message,
+      type: error.type || 'unknown',
+      code: error.code || 'unknown'
+    });
+  }
+}
+PASSO 3: CORRIGIR ENDPOINT STATS
+Identifique e corrija o arquivo /api/seller/stats.js existente:
+javascriptexport default async function handler(req, res) {
+  console.log('📊 STATS ENDPOINT CALLED');
+  console.log('📋 Method:', req.method);
+
+  try {
+    // Verificar método
+    if (req.method !== 'GET') {
+      console.log('❌ Método não permitido:', req.method);
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // Verificar autenticação/autorização se necessário
+    // const userId = req.headers.authorization; // ou como você autentica
+
+    // Importar sua conexão com banco de dados
+    // Substitua pela sua implementação real de banco
+    // const db = require('../lib/database'); // ou como você conecta
+
+    console.log('🔄 Buscando estatísticas do banco...');
+
+    // IMPLEMENTE AQUI SUA QUERY REAL DO BANCO
+    // Exemplo genérico - substitua pela sua implementação:
+    /*
+    const stats = await db.query(`
+      SELECT 
+        COUNT(*) as totalProducts,
+        (SELECT COUNT(*) FROM reservations WHERE status = 'pending') as pendingReservations,
+        (SELECT COUNT(*) FROM reservations) as totalReservations,
+        (SELECT COUNT(*) FROM coupons) as totalCoupons
+      FROM products 
+      WHERE seller_id = ?
+    `, [userId]);
+    */
+
+    // SE SUA QUERY ATUAL ESTÁ FALHANDO, adicione logs detalhados:
+    console.log('🔍 Executando query de estatísticas...');
+    
+    // Sua implementação existente aqui
+    // Envolver em try-catch individual para capturar erro específico
+    let stats;
+    try {
+      // Cole aqui sua query/lógica atual que está falhando
+      // stats = await suaQueryAtual();
+      
+      // TEMPORARIAMENTE, para debug, descomente a linha abaixo:
+      throw new Error('Implementar query real aqui');
+      
+    } catch (queryError) {
+      console.error('❌ Erro na query de stats:', queryError);
+      console.error('Query error details:', queryError.message);
+      console.error('Query error stack:', queryError.stack);
+      
+      // Retornar erro específico para debug
+      return res.status(500).json({
+        error: 'Database query failed',
+        details: queryError.message,
+        type: 'database_error'
+      });
+    }
+
+    console.log('✅ Stats obtidas com sucesso:', stats);
+
+    return res.status(200).json(stats);
+
+  } catch (error) {
+    console.error('❌ STATS ENDPOINT ERROR:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    return res.status(500).json({
+      error: 'Internal server error in stats',
+      details: error.message,
+      endpoint: '/api/seller/stats'
+    });
+  }
+}
+PASSO 4: VERIFICAR DEPENDÊNCIAS
+Execute no terminal do Replit:
+bash# Instalar/reinstalar dependências
+npm install stripe
+npm install
+
+# Verificar se instalou
+npm list stripe
+PASSO 5: TESTAR PASSO A PASSO
+
+Primeiro teste diagnóstico:
+
+Acesse: https://seu-repl.replit.app/api/debug
+Verifique se retorna dados de configuração
+
+
+Teste Stats:
+
+Acesse: https://seu-repl.replit.app/api/seller/stats
+Deve retornar dados temporários sem erro 500
+
+
+Teste Stripe simples:
+
+Use Postman ou curl para testar POST:
+
+bashcurl -X POST https://seu-repl.replit.app/api/stripe/checkout \
+-H "Content-Type: application/json" \
+-d '{"planId":"pro","interval":"monthly"}'
+
+
+
+🎯 SEQUÊNCIA DE TESTES
+Execute nesta ordem:
+
+✅ /api/debug - Verificar configuração
+✅ /api/seller/stats - Resolver erro 500 de stats
+✅ /api/stripe/checkout - Testar checkout isoladamente
+✅ Frontend - Testar mutation completa
+
+
+🔍 LOGS IMPORTANTES
+Monitore no console do Replit:
+
+✅ "Stripe library loaded"
+✅ "Stripe initialized"
+✅ "Session created successfully"
+❌ Qualquer erro detalhado
+
+
+📝 PRÓXIMOS PASSOS APÓS IMPLEMENTAÇÃO
+
+Acesse /api/debug e me mostre o resultado
+Verifique logs do console no Replit
+Teste cada endpoint individualmente
+Substitua Price IDs pelos reais quando funcionar
+
+Implemente essas correções e me mostre os logs de cada teste! 🚀

@@ -498,6 +498,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/stripe/webhook', StripeController.handleWebhook);
   app.get('/api/stripe/subscription', authMiddleware, StripeController.getSubscriptionDetails);
   app.post('/api/stripe/cancel', authMiddleware, StripeController.cancelSubscription);
+  
+  // Rotas para configuração e teste do Stripe
+  app.get('/api/stripe/config', StripeController.getStripeConfig);
+  app.get('/api/stripe/test', StripeController.testStripeConnection);
 
   // Rota de estatísticas para o painel do vendedor
   app.get('/api/seller/stats', authMiddleware, async (req: Request, res: Response) => {

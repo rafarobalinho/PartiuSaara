@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/auth-context";
 import { UiProvider } from "@/context/ui-context";
+import StripeMode from "@/components/ui/stripe-mode";
 
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
@@ -119,6 +120,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <UiProvider>
+          <StripeMode />
           <TooltipProvider>
             <Toaster />
             <Router />
