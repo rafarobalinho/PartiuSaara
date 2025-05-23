@@ -127,7 +127,11 @@ export default function SellerSubscription() {
 
     const stripeCheckoutMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedPlan) return null;
+      if (!selectedPlan) {
+        throw new Error('Nenhum plano selecionado');
+      }
+
+      console.log('🚀 Iniciando checkout para:', selectedPlan);
 
       // Chamar o endpoint da sua API para iniciar o checkout do Stripe
       const response = await apiRequest('POST', '/api/stripe/checkout', {
@@ -135,12 +139,28 @@ export default function SellerSubscription() {
         interval: billingCycle,
       });
 
-      return response?.url; // Supondo que a API retorna a URL de checkout
+      console.log('✅ Checkout data:', response);
+      if (response.mode === 'test') {
+        console.log('🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
+      }
+
+      return response; // Retorna toda a resposta, não apenas a URL
     },
-    onSuccess: (url) => {
-      if (url) {
+    onSuccess: (data) => {
+      // Log do modo para usuário (apenas em desenvolvimento)
+      if (data.mode === 'test') {
+        console.log('🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
+      }
+      
+      if (data.url) {
         // Redirecionar o usuário para a página de checkout do Stripe
-        window.location.href = url;
+        window.location.href = data.url;
+      } else if (data.success) {
+        toast({
+          title: 'Sucesso!',
+          description: data.message || 'Plano ativado com sucesso',
+          variant: 'default',
+        });
       } else {
         toast({
           title: 'Erro',
@@ -150,12 +170,23 @@ export default function SellerSubscription() {
       }
     },
     onError: (error) => {
+      console.error('❌ Erro de checkout:', error);
+      
+      let errorMessage = 'Erro ao iniciar checkout';
+      
+      if (error.message?.includes('failed to fetch')) {
+        errorMessage = 'Erro de conexão. Verifique sua internet.';
+      } else if (error.message?.includes('Invalid plan')) {
+        errorMessage = 'Plano selecionado inválido.';
+      } else {
+        errorMessage = error.message || 'Erro desconhecido';
+      }
+      
       toast({
         title: 'Erro',
-        description: 'Ocorreu um erro ao iniciar o checkout. Tente novamente.',
+        description: errorMessage,
         variant: 'destructive',
       });
-      console.error('Erro ao iniciar o checkout do Stripe:', error);
     },
   });
 

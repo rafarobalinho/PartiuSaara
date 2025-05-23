@@ -1,38 +1,62 @@
+
 import { Request, Response } from 'express';
 import { db } from '../db';
 import Stripe from 'stripe';
 
+// Lógica de alternância entre teste e produção
+const isTestMode = process.env.STRIPE_MODE === 'test';
+
 // Log para depuração
 console.log("Stripe Controller: Inicializando...");
-console.log("STRIPE_SECRET_KEY configurada:", process.env.STRIPE_SECRET_KEY ? "Sim" : "Não");
+console.log("STRIPE_MODE configurado:", process.env.STRIPE_MODE || "(não definido)");
+console.log("Modo atual:", isTestMode ? "TESTE" : "PRODUÇÃO");
+
+// Seleciona a chave correta com base no modo
+const stripeSecretKey = isTestMode 
+  ? process.env.STRIPE_SECRET_KEY_TEST 
+  : process.env.STRIPE_SECRET_KEY_LIVE;
+
+console.log("Chave Stripe configurada:", stripeSecretKey ? "Sim" : "Não");
 console.log("FRONTEND_URL configurado:", process.env.FRONTEND_URL || process.env.CLIENT_URL || "(não definido)");
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.error("ALERTA: STRIPE_SECRET_KEY não está definida no ambiente!");
+if (!stripeSecretKey) {
+  console.error(`ALERTA: Chave Stripe ${isTestMode ? 'TEST' : 'LIVE'} não está definida no ambiente!`);
 }
 
-// Inicialize o cliente Stripe com sua chave secreta
+// Inicialize o cliente Stripe com a chave apropriada
+let stripe: Stripe | null = null;
+
 try {
-  const stripeKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeKey || stripeKey.trim() === '') {
+  if (!stripeSecretKey || stripeSecretKey.trim() === '') {
     throw new Error('Chave do Stripe não configurada');
   }
 
-  const stripe = new Stripe(stripeKey, {
+  stripe = new Stripe(stripeSecretKey, {
     apiVersion: '2023-10-16',
   });
   
-  console.log("Stripe inicializado com sucesso!");
+  console.log("Stripe inicializado com sucesso no modo", isTestMode ? "TESTE" : "PRODUÇÃO");
 } catch (error) {
   console.error("Erro ao inicializar o Stripe:", error);
   // Não lance o erro aqui, para que o servidor possa iniciar mesmo com erro no Stripe
-  // Apenas emita um log de erro
 }
 
-// Variável global para o cliente Stripe
-const stripe = process.env.STRIPE_SECRET_KEY 
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' }) 
-  : null;
+// Mapeamento de planos para Price IDs com base no ambiente
+const priceMapping = {
+  freemium: null,
+  start: {
+    monthly: isTestMode ? 'price_TEST_START_MONTHLY' : 'price_LIVE_START_MONTHLY',
+    yearly: isTestMode ? 'price_TEST_START_YEARLY' : 'price_LIVE_START_YEARLY'
+  },
+  pro: {
+    monthly: isTestMode ? 'price_TEST_PRO_MONTHLY' : 'price_LIVE_PRO_MONTHLY',
+    yearly: isTestMode ? 'price_TEST_PRO_YEARLY' : 'price_LIVE_PRO_YEARLY'
+  },
+  premium: {
+    monthly: isTestMode ? 'price_TEST_PREMIUM_MONTHLY' : 'price_LIVE_PREMIUM_MONTHLY',
+    yearly: isTestMode ? 'price_TEST_PREMIUM_YEARLY' : 'price_LIVE_PREMIUM_YEARLY'
+  }
+};
 
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
@@ -41,24 +65,62 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       console.error("Checkout falhou: Cliente Stripe não inicializado");
       return res.status(500).json({ 
         error: 'Serviço de pagamento não disponível no momento', 
-        details: 'Configuração do Stripe incompleta'
+        details: 'Configuração do Stripe incompleta',
+        mode: isTestMode ? 'test' : 'live'
       });
     }
 
-    const { priceId, planId } = req.body;
-    console.log("Criando sessão de checkout para priceId:", priceId, "planId:", planId);
+    // Extrair dados do request
+    const { planId, interval = 'monthly' } = req.body;
+    console.log(`🔧 Stripe Mode: ${isTestMode ? 'TEST' : 'LIVE'}`);
+    console.log("Criando sessão de checkout para planId:", planId, "interval:", interval);
 
-    if (!req.session.userId) {
-      return res.status(401).json({ error: 'Usuário não autenticado' });
+    if (!planId) {
+      return res.status(400).json({ 
+        error: 'ID do plano é obrigatório',
+        mode: isTestMode ? 'test' : 'live'
+      });
     }
 
-    // Buscar dados do usuário e da loja
+    // Plano freemium não tem pagamento
+    if (planId === 'freemium') {
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Plano Freemium ativado',
+        redirect: false,
+        mode: isTestMode ? 'test' : 'live'
+      });
+    }
+
+    // Obter o Price ID com base no plano e intervalo
+    const priceId = priceMapping[planId]?.[interval];
+    
+    if (!priceId) {
+      return res.status(400).json({ 
+        error: 'Plano ou intervalo inválido', 
+        mode: isTestMode ? 'test' : 'live'
+      });
+    }
+
+    console.log(`💰 Usando Price ID: ${priceId}`);
+
+    if (!req.session.userId) {
+      return res.status(401).json({ 
+        error: 'Usuário não autenticado',
+        mode: isTestMode ? 'test' : 'live'
+      });
+    }
+
+    // Buscar dados do usuário
     const user = await db.query.users.findFirst({
       where: (users, { eq }) => eq(users.id, req.session.userId as number)
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+      return res.status(404).json({ 
+        error: 'Usuário não encontrado',
+        mode: isTestMode ? 'test' : 'live'
+      });
     }
 
     // Criar ou recuperar o Customer no Stripe
@@ -81,6 +143,9 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       }).where(db.eq(db.users.id, user.id));
     }
 
+    // URL base para redirecionamentos
+    const baseUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || req.headers.origin;
+
     // Criar a sessão de checkout
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -92,18 +157,32 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         },
       ],
       mode: 'subscription',
-      success_url: `${process.env.FRONTEND_URL}/seller/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/seller/subscription?canceled=true`,
+      success_url: `${baseUrl}/seller/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/seller/subscription?canceled=true`,
       metadata: {
         userId: user.id.toString(),
-        planId: planId.toString()
+        planId: planId.toString(),
+        interval: interval,
+        mode: isTestMode ? 'test' : 'live'
       }
     });
 
-    res.json({ url: session.url });
+    console.log('✅ Sessão criada:', session.id);
+
+    return res.json({
+      success: true,
+      url: session.url,
+      sessionId: session.id,
+      mode: isTestMode ? 'test' : 'live'
+    });
   } catch (error) {
-    console.error('Erro ao criar sessão de checkout:', error);
-    res.status(500).json({ error: 'Erro ao criar sessão de checkout' });
+    console.error('❌ Erro ao criar sessão de checkout:', error);
+    res.status(500).json({ 
+      error: 'Erro ao criar sessão de checkout', 
+      details: error.message,
+      type: error.type,
+      mode: isTestMode ? 'test' : 'live'
+    });
   }
 };
 
@@ -113,12 +192,21 @@ export const handleWebhook = async (req: Request, res: Response) => {
   let event;
 
   try {
+    const webhookSecret = isTestMode 
+      ? process.env.STRIPE_WEBHOOK_SECRET_TEST 
+      : process.env.STRIPE_WEBHOOK_SECRET_LIVE;
+    
+    if (!stripe || !webhookSecret) {
+      throw new Error('Configuração do Stripe incompleta');
+    }
+
     event = stripe.webhooks.constructEvent(
       req.body,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET || ''
+      webhookSecret
     );
   } catch (err: any) {
+    console.error('Erro no webhook Stripe:', err.message);
     res.status(400).send(`Webhook Error: ${err.message}`);
     return;
   }
@@ -159,13 +247,26 @@ export const handleWebhook = async (req: Request, res: Response) => {
       console.log(`Evento não tratado: ${event.type}`);
   }
 
-  res.json({ received: true });
+  res.json({ 
+    received: true,
+    mode: isTestMode ? 'test' : 'live'
+  });
 };
 
 export const getSubscriptionDetails = async (req: Request, res: Response) => {
   try {
     if (!req.session.userId) {
-      return res.status(401).json({ error: 'Usuário não autenticado' });
+      return res.status(401).json({ 
+        error: 'Usuário não autenticado',
+        mode: isTestMode ? 'test' : 'live'
+      });
+    }
+
+    if (!stripe) {
+      return res.status(500).json({ 
+        error: 'Serviço de pagamento não disponível',
+        mode: isTestMode ? 'test' : 'live'
+      });
     }
 
     const user = await db.query.users.findFirst({
@@ -173,21 +274,41 @@ export const getSubscriptionDetails = async (req: Request, res: Response) => {
     });
 
     if (!user || !user.subscriptionId) {
-      return res.status(404).json({ error: 'Assinatura não encontrada' });
+      return res.status(404).json({ 
+        error: 'Assinatura não encontrada',
+        mode: isTestMode ? 'test' : 'live'
+      });
     }
 
     const subscription = await stripe.subscriptions.retrieve(user.subscriptionId);
-    res.json(subscription);
+    
+    res.json({
+      ...subscription,
+      mode: isTestMode ? 'test' : 'live'
+    });
   } catch (error) {
     console.error('Erro ao obter detalhes da assinatura:', error);
-    res.status(500).json({ error: 'Erro ao obter detalhes da assinatura' });
+    res.status(500).json({ 
+      error: 'Erro ao obter detalhes da assinatura',
+      mode: isTestMode ? 'test' : 'live'
+    });
   }
 };
 
 export const cancelSubscription = async (req: Request, res: Response) => {
   try {
     if (!req.session.userId) {
-      return res.status(401).json({ error: 'Usuário não autenticado' });
+      return res.status(401).json({ 
+        error: 'Usuário não autenticado',
+        mode: isTestMode ? 'test' : 'live'
+      });
+    }
+
+    if (!stripe) {
+      return res.status(500).json({ 
+        error: 'Serviço de pagamento não disponível',
+        mode: isTestMode ? 'test' : 'live'
+      });
     }
 
     const user = await db.query.users.findFirst({
@@ -195,7 +316,10 @@ export const cancelSubscription = async (req: Request, res: Response) => {
     });
 
     if (!user || !user.subscriptionId) {
-      return res.status(404).json({ error: 'Assinatura não encontrada' });
+      return res.status(404).json({ 
+        error: 'Assinatura não encontrada',
+        mode: isTestMode ? 'test' : 'live'
+      });
     }
 
     await stripe.subscriptions.cancel(user.subscriptionId);
@@ -206,10 +330,17 @@ export const cancelSubscription = async (req: Request, res: Response) => {
       planId: 1  // Volta para o plano gratuito
     }).where(db.eq(db.users.id, user.id));
 
-    res.json({ success: true, message: 'Assinatura cancelada com sucesso' });
+    res.json({ 
+      success: true, 
+      message: 'Assinatura cancelada com sucesso',
+      mode: isTestMode ? 'test' : 'live'
+    });
   } catch (error) {
     console.error('Erro ao cancelar assinatura:', error);
-    res.status(500).json({ error: 'Erro ao cancelar assinatura' });
+    res.status(500).json({ 
+      error: 'Erro ao cancelar assinatura',
+      mode: isTestMode ? 'test' : 'live'
+    });
   }
 };
 
@@ -305,3 +436,66 @@ function getPlanName(planId: number): string {
     default: return 'Desconhecido';
   }
 }
+
+// Endpoint para verificar configuração atual do Stripe
+export const getStripeConfig = async (req: Request, res: Response) => {
+  try {
+    res.json({
+      mode: isTestMode ? 'test' : 'live',
+      environment: process.env.STRIPE_MODE,
+      hasTestKeys: !!(process.env.STRIPE_SECRET_KEY_TEST && process.env.STRIPE_PUBLIC_KEY_TEST),
+      hasLiveKeys: !!(process.env.STRIPE_SECRET_KEY_LIVE && process.env.STRIPE_PUBLISHABLE_KEY_LIVE),
+      appUrl: process.env.FRONTEND_URL || process.env.CLIENT_URL,
+      nodeEnv: process.env.NODE_ENV
+    });
+  } catch (error) {
+    console.error('Erro ao obter configuração do Stripe:', error);
+    res.status(500).json({ 
+      error: 'Erro ao obter configuração do Stripe',
+      mode: isTestMode ? 'test' : 'live'
+    });
+  }
+};
+
+// Endpoint para testar conectividade do Stripe
+export const testStripeConnection = async (req: Request, res: Response) => {
+  try {
+    if (!stripe) {
+      return res.status(500).json({ 
+        success: false,
+        error: 'Cliente Stripe não inicializado',
+        mode: isTestMode ? 'test' : 'live'
+      });
+    }
+    
+    const products = await stripe.products.list({ limit: 5 });
+    const prices = await stripe.prices.list({ limit: 10 });
+    
+    return res.status(200).json({
+      success: true,
+      message: `Stripe conectado com sucesso em modo ${isTestMode ? 'TEST' : 'LIVE'}!`,
+      mode: isTestMode ? 'test' : 'live',
+      environment: process.env.STRIPE_MODE,
+      products: products.data.map(p => ({
+        id: p.id,
+        name: p.name,
+        active: p.active
+      })),
+      prices: prices.data.map(p => ({
+        id: p.id,
+        product: p.product,
+        unit_amount: p.unit_amount,
+        currency: p.currency,
+        recurring: p.recurring
+      }))
+    });
+  } catch (error) {
+    console.error('Erro ao testar conexão com Stripe:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+      type: error.type,
+      mode: isTestMode ? 'test' : 'live'
+    });
+  }
+};
