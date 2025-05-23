@@ -1,0 +1,323 @@
+Lógica de Alternância Stripe
+🎯 OBJETIVO
+Implementar sistema de alternância automática entre chaves de teste e produção do Stripe, baseado na variável STRIPE_MODE.
+📋 CONTEXTO
+
+Variáveis de ambiente já configuradas nos Secrets
+Necessário implementar lógica para alternar entre teste/produção
+Código atual usa chaves fixas, precisa ser dinâmico
+
+🔧 IMPLEMENTAÇÃO NECESSÁRIA
+1. ATUALIZAR ENDPOINT /api/stripe/checkout.js
+Substitua o código existente por:
+javascriptimport Stripe from 'stripe';
+
+// Lógica de alternância entre teste e produção
+const isTestMode = process.env.STRIPE_MODE === 'test';
+
+const stripeSecretKey = isTestMode 
+  ? process.env.STRIPE_SECRET_KEY_TEST 
+  : process.env.STRIPE_SECRET_KEY_LIVE;
+
+const stripe = new Stripe(stripeSecretKey, {
+  apiVersion: '2023-10-16',
+});
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { planId, interval } = req.body;
+
+    if (!planId) {
+      return res.status(400).json({ error: 'Plan ID is required' });
+    }
+
+    // Log do modo atual para debug
+    console.log(`🔧 Stripe Mode: ${isTestMode ? 'TEST' : 'LIVE'}`);
+    console.log('🚀 Creating checkout for:', { planId, interval });
+
+    // Mapeamento de planos para Price IDs
+    // IMPORTANTE: Substitua pelos seus Price IDs reais do Stripe
+    const priceMapping = {
+      freemium: null,
+      start: {
+        monthly: isTestMode ? 'price_TEST_START_MONTHLY' : 'price_LIVE_START_MONTHLY',
+        yearly: isTestMode ? 'price_TEST_START_YEARLY' : 'price_LIVE_START_YEARLY'
+      },
+      pro: {
+        monthly: isTestMode ? 'price_TEST_PRO_MONTHLY' : 'price_LIVE_PRO_MONTHLY',
+        yearly: isTestMode ? 'price_TEST_PRO_YEARLY' : 'price_LIVE_PRO_YEARLY'
+      },
+      premium: {
+        monthly: isTestMode ? 'price_TEST_PREMIUM_MONTHLY' : 'price_LIVE_PREMIUM_MONTHLY',
+        yearly: isTestMode ? 'price_TEST_PREMIUM_YEARLY' : 'price_LIVE_PREMIUM_YEARLY'
+      }
+    };
+
+    if (planId === 'freemium') {
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Freemium plan activated',
+        redirect: false,
+        mode: isTestMode ? 'test' : 'live'
+      });
+    }
+
+    const priceId = priceMapping[planId]?.[interval || 'monthly'];
+    
+    if (!priceId) {
+      return res.status(400).json({ error: 'Invalid plan or interval' });
+    }
+
+    // Log do Price ID para debug
+    console.log(`💰 Using Price ID: ${priceId}`);
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price: priceId,
+        quantity: 1,
+      }],
+      mode: 'subscription',
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
+      metadata: {
+        planId,
+        interval: interval || 'monthly',
+        mode: isTestMode ? 'test' : 'live'
+      },
+    });
+
+    console.log('✅ Session created:', session.id);
+
+    return res.status(200).json({
+      success: true,
+      url: session.url,
+      sessionId: session.id,
+      mode: isTestMode ? 'test' : 'live'
+    });
+
+  } catch (error) {
+    console.error('❌ Stripe error:', error);
+    
+    return res.status(500).json({
+      error: 'Failed to create checkout session',
+      details: error.message,
+      type: error.type,
+      mode: isTestMode ? 'test' : 'live'
+    });
+  }
+}
+2. ATUALIZAR ENDPOINT DE TESTE /api/stripe-test.js
+javascriptimport Stripe from 'stripe';
+
+// Lógica de alternância
+const isTestMode = process.env.STRIPE_MODE === 'test';
+
+const stripeSecretKey = isTestMode 
+  ? process.env.STRIPE_SECRET_KEY_TEST 
+  : process.env.STRIPE_SECRET_KEY_LIVE;
+
+export default async function handler(req, res) {
+  try {
+    const stripe = new Stripe(stripeSecretKey);
+    
+    const products = await stripe.products.list({ limit: 5 });
+    const prices = await stripe.prices.list({ limit: 10 });
+    
+    return res.status(200).json({
+      success: true,
+      message: `Stripe conectado com sucesso em modo ${isTestMode ? 'TEST' : 'LIVE'}!`,
+      mode: isTestMode ? 'test' : 'live',
+      environment: process.env.STRIPE_MODE,
+      products: products.data.map(p => ({
+        id: p.id,
+        name: p.name,
+        active: p.active
+      })),
+      prices: prices.data.map(p => ({
+        id: p.id,
+        product: p.product,
+        unit_amount: p.unit_amount,
+        currency: p.currency,
+        recurring: p.recurring
+      }))
+    });
+    
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+      type: error.type,
+      mode: isTestMode ? 'test' : 'live'
+    });
+  }
+}
+3. CRIAR ENDPOINT DE CONFIGURAÇÃO /api/stripe-config.js
+javascript// Endpoint para verificar configuração atual
+export default function handler(req, res) {
+  const isTestMode = process.env.STRIPE_MODE === 'test';
+  
+  return res.status(200).json({
+    mode: isTestMode ? 'test' : 'live',
+    environment: process.env.STRIPE_MODE,
+    hasTestKeys: !!(process.env.STRIPE_SECRET_KEY_TEST && process.env.STRIPE_PUBLIC_KEY_TEST),
+    hasLiveKeys: !!(process.env.STRIPE_SECRET_KEY_LIVE && process.env.STRIPE_PUBLISHABLE_KEY_LIVE),
+    appUrl: process.env.NEXT_PUBLIC_APP_URL,
+    nodeEnv: process.env.NODE_ENV
+  });
+}
+4. ATUALIZAR MUTATION NO FRONTEND
+Localize o arquivo da mutation (provavelmente subscription.tsx) e atualize:
+javascriptconst stripeCheckoutMutation = useMutation({
+  mutationFn: async () => {
+    if (!selectedPlan) {
+      throw new Error('Nenhum plano selecionado');
+    }
+
+    console.log('🚀 Iniciando checkout para:', selectedPlan);
+
+    const response = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        planId: selectedPlan,
+        interval: billingCycle,
+      }),
+    });
+
+    console.log('📊 Response status:', response.status);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('❌ Erro da API:', errorData);
+      
+      // Log do modo para debug
+      console.log('🔧 Stripe Mode:', errorData.mode);
+      
+      throw new Error(errorData.error || `Erro ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Checkout data:', data);
+    console.log('🔧 Operating in mode:', data.mode);
+
+    return data;
+  },
+  onSuccess: (data) => {
+    // Log do modo para usuário (apenas em desenvolvimento)
+    if (data.mode === 'test') {
+      console.log('🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
+    }
+    
+    if (data.url) {
+      window.location.href = data.url;
+    } else if (data.success) {
+      toast({
+        title: 'Sucesso!',
+        description: data.message || 'Plano ativado com sucesso',
+        variant: 'default',
+      });
+    }
+  },
+  onError: (error) => {
+    console.error('❌ Mutation error:', error);
+    
+    let errorMessage = 'Erro ao iniciar checkout';
+    
+    if (error.message.includes('failed to fetch')) {
+      errorMessage = 'Erro de conexão. Verifique sua internet.';
+    } else if (error.message.includes('Invalid plan')) {
+      errorMessage = 'Plano selecionado inválido.';
+    } else {
+      errorMessage = error.message;
+    }
+    
+    toast({
+      title: 'Erro',
+      description: errorMessage,
+      variant: 'destructive',
+    });
+  },
+});
+5. ADICIONAR INDICADOR DE MODO NO FRONTEND (OPCIONAL)
+Se quiser mostrar o modo atual na interface, adicione este componente:
+javascript// components/StripeMode.jsx
+import { useEffect, useState } from 'react';
+
+export default function StripeMode() {
+  const [config, setConfig] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/stripe-config')
+      .then(res => res.json())
+      .then(setConfig)
+      .catch(console.error);
+  }, []);
+
+  if (!config || config.mode === 'live') return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black text-center py-2 z-50">
+      🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado
+    </div>
+  );
+}
+E adicione no seu layout principal:
+javascript// pages/_app.js ou layout principal
+import StripeMode from '../components/StripeMode';
+
+export default function App({ Component, pageProps }) {
+  return (
+    <>
+      <StripeMode />
+      <Component {...pageProps} />
+    </>
+  );
+}
+📋 VARIÁVEIS DE AMBIENTE NECESSÁRIAS
+Confirme que estas variáveis estão nos Secrets:
+env# CONTROLE
+STRIPE_MODE=test
+
+# CHAVES DE TESTE
+STRIPE_SECRET_KEY_TEST=sk_test_...
+STRIPE_PUBLIC_KEY_TEST=pk_test_...
+
+# CHAVES DE PRODUÇÃO
+STRIPE_SECRET_KEY_LIVE=sk_live_...
+STRIPE_PUBLISHABLE_KEY_LIVE=pk_live_...
+
+# APP
+NEXT_PUBLIC_APP_URL=https://seu-repl.replit.app
+🎯 TAREFAS APÓS IMPLEMENTAÇÃO
+1. SUBSTITUIR PRICE IDs
+No arquivo /api/stripe/checkout.js, substitua todos os valores:
+
+price_TEST_START_MONTHLY → Price ID real do modo teste
+price_LIVE_START_MONTHLY → Price ID real do modo produção
+E assim por diante para todos os planos
+
+2. TESTAR CONFIGURAÇÃO
+
+Acesse /api/stripe-config para verificar configuração
+Acesse /api/stripe-test para testar conectividade
+Teste um checkout simples
+
+3. ALTERNAR MODOS
+Para Desenvolvimento:
+envSTRIPE_MODE=test
+Para Produção:
+envSTRIPE_MODE=live
+✅ CRITÉRIOS DE SUCESSO
+
+ Endpoint /api/stripe-config mostra configuração correta
+ Endpoint /api/stripe-test conecta no modo correto
+ Logs mostram modo atual (TEST/LIVE)
+ Checkout funciona sem erros 500
+ Fácil alternância entre modos
