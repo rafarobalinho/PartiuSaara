@@ -15,6 +15,36 @@ import { checkUploadDirectories } from "./scripts/check-uploads-dir";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Configurar monitoramento para reinicialização segura
+const setupRestartMonitor = () => {
+  const restartSignalFile = path.join(__dirname, '..', 'tmp', 'restart.signal');
+  const tmpDir = path.join(__dirname, '..', 'tmp');
+  
+  // Criar diretório tmp se não existir
+  if (!fs.existsSync(tmpDir)) {
+    fs.mkdirSync(tmpDir, { recursive: true });
+  }
+  
+  // Inicializar arquivo de sinal se não existir
+  if (!fs.existsSync(restartSignalFile)) {
+    fs.writeFileSync(restartSignalFile, '0');
+  }
+  
+  // Monitorar alterações no arquivo de sinal
+  fs.watchFile(restartSignalFile, { interval: 1000 }, (curr, prev) => {
+    if (curr.mtime > prev.mtime) {
+      console.log('[Server] Sinal de reinicialização detectado. Encerrando processo...');
+      
+      // Fechar servidor graciosamente
+      setTimeout(() => {
+        process.exit(0); // O processo será reiniciado pelo workflow do Replit
+      }, 1000);
+    }
+  });
+  
+  console.log('[Server] Monitor de reinicialização configurado');
+};
+
 // Verificar ambiente
 const isProduction = process.env.NODE_ENV === 'production';
 console.log(`[Server] Inicializando no ambiente: ${isProduction ? 'Produção' : 'Desenvolvimento'}`);
@@ -122,6 +152,9 @@ app.use((req, res, next) => {
 
   next();
 });
+
+// Configurar monitoramento para reinicialização
+setupRestartMonitor();
 
 (async () => {
   // Verificar diretórios de uploads com o script aprimorado
