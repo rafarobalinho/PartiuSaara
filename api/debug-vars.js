@@ -1,10 +1,7 @@
 
-// /api/debug-vars.js
 export default function handler(req, res) {
-  // Configurar CORS se necessário
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json');
-
+  
   try {
     const debugInfo = {
       timestamp: new Date().toISOString(),
@@ -32,16 +29,13 @@ export default function handler(req, res) {
     };
 
     console.log('🔍 Debug info:', debugInfo);
-
     return res.status(200).json(debugInfo);
 
   } catch (error) {
     console.error('❌ Debug error:', error);
-    
     return res.status(500).json({
       error: 'Internal server error',
-      message: error.message,
-      timestamp: new Date().toISOString()
+      message: error.message
     });
   }
 }
