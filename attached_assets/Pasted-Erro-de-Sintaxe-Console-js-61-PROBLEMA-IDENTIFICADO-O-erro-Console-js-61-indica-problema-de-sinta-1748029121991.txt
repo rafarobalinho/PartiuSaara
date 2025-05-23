@@ -1,0 +1,128 @@
+Erro de Sintaxe Console.js:61
+🚨 PROBLEMA IDENTIFICADO
+O erro Console.js:61 indica problema de sintaxe no sistema de logging.
+Na imagem vejo:
+javascriptwinConsole[name] = (...args) => {
+  this[name](...args)
+  origin(...args) ❌ // ERRO: sintaxe incorreta
+}
+🛠️ CORREÇÃO IMEDIATA
+1. LOCALIZAR E CORRIGIR ARQUIVO CONSOLE
+Procure por arquivos que contenham modificações no console:
+
+console.js
+_app.js
+layout.js
+Qualquer arquivo que modifique console.log
+
+2. SINTAXE CORRETA
+Se você tiver código que modifica o console, deve ser assim:
+javascript// VERSÃO CORRETA
+const winConsole = window.console;
+
+['log', 'warn', 'error', 'info'].forEach(name => {
+  winConsole[name] = (...args) => {
+    // Usar apenas UMA das opções abaixo:
+    
+    // OPÇÃO A: Chamar console original
+    console[name](...args);
+    
+    // OU OPÇÃO B: Chamar função customizada
+    // customLogFunction(name, ...args);
+    
+    // OU OPÇÃO C: Ambos (se necessário)
+    // console[name](...args);
+    // customLogFunction(name, ...args);
+  };
+});
+3. REMOVER CÓDIGO PROBLEMÁTICO
+SOLUÇÃO RÁPIDA: Localize e remova/comente qualquer código que modifica o console:
+javascript// COMENTAR OU REMOVER estas linhas:
+/*
+winConsole[name] = (...args) => {
+  this[name](...args)
+  origin(...args) // Esta linha está causando o erro
+}
+*/
+4. VERIFICAR ARQUIVOS ESPECÍFICOS
+Procure nos seguintes arquivos:
+A. pages/_app.js ou app/layout.js
+javascript// Se houver algo assim, corrija:
+useEffect(() => {
+  const originalLog = console.log;
+  console.log = (...args) => {
+    originalLog(...args); // ✅ Correto
+    // NÃO fazer: origin(...args) ❌
+  };
+}, []);
+B. Qualquer arquivo de configuração de debug
+javascript// Procure por código similar e corrija:
+if (typeof window !== 'undefined') {
+  const methods = ['log', 'warn', 'error', 'info'];
+  
+  methods.forEach(method => {
+    const original = console[method];
+    console[method] = (...args) => {
+      original.apply(console, args); // ✅ Correto
+      // NÃO: origin(...args) ❌
+    };
+  });
+}
+5. LIMPEZA COMPLETA (SE NECESSÁRIO)
+Se não conseguir localizar, remova temporariamente qualquer customização de console:
+javascript// COMENTAR/REMOVER qualquer código que contenha:
+// - winConsole
+// - console override
+// - logging customization
+🔍 COMO LOCALIZAR O ARQUIVO PROBLEMÁTICO
+1. Buscar por padrões:
+No Replit, use Ctrl+Shift+F e procure por:
+
+winConsole
+origin(...args)
+console[name]
+Console.js
+
+2. Verificar imports:
+Procure por imports relacionados a console:
+
+import console
+require('./console')
+Qualquer referência a console customizado
+
+3. Arquivos mais prováveis:
+
+pages/_app.js
+app/layout.js
+lib/console.js
+utils/logger.js
+Qualquer arquivo de configuração
+
+⚡ SOLUÇÃO RÁPIDA PARA TESTAR
+PASSO 1: Comentar temporariamente TODO código relacionado a console customizado
+PASSO 2: Testar o endpoint Stripe novamente
+PASSO 3: Se funcionar, implementar console logging correto depois
+🎯 PRÓXIMOS PASSOS
+
+Localizar o arquivo com erro de sintaxe origin(...args)
+Corrigir a sintaxe ou remover código problemático
+Testar endpoint Stripe novamente
+Verificar se erro Console.js:61 desapareceu
+
+📋 CÓDIGO EXEMPLO CORRETO
+Se você quiser manter logging customizado:
+javascript// ✅ VERSÃO CORRETA E SEGURA
+if (typeof window !== 'undefined') {
+  const originalConsole = { ...console };
+  
+  ['log', 'warn', 'error', 'info'].forEach(method => {
+    console[method] = (...args) => {
+      // Chamar console original
+      originalConsole[method](...args);
+      
+      // Adicionar funcionalidade extra se necessário
+      // sendToAnalytics(method, args);
+    };
+  });
+}
+Me mostre o arquivo onde está localizado o erro origin(...args) para que eu possa ajudar com a correção específica! 🔍
