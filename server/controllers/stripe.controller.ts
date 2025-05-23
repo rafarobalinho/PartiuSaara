@@ -2,14 +2,51 @@ import { Request, Response } from 'express';
 import { db } from '../db';
 import Stripe from 'stripe';
 
+// Log para depuração
+console.log("Stripe Controller: Inicializando...");
+console.log("STRIPE_SECRET_KEY configurada:", process.env.STRIPE_SECRET_KEY ? "Sim" : "Não");
+console.log("FRONTEND_URL configurado:", process.env.FRONTEND_URL || process.env.CLIENT_URL || "(não definido)");
+
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error("ALERTA: STRIPE_SECRET_KEY não está definida no ambiente!");
+}
+
 // Inicialize o cliente Stripe com sua chave secreta
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16',
-});
+try {
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey || stripeKey.trim() === '') {
+    throw new Error('Chave do Stripe não configurada');
+  }
+
+  const stripe = new Stripe(stripeKey, {
+    apiVersion: '2023-10-16',
+  });
+  
+  console.log("Stripe inicializado com sucesso!");
+} catch (error) {
+  console.error("Erro ao inicializar o Stripe:", error);
+  // Não lance o erro aqui, para que o servidor possa iniciar mesmo com erro no Stripe
+  // Apenas emita um log de erro
+}
+
+// Variável global para o cliente Stripe
+const stripe = process.env.STRIPE_SECRET_KEY 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' }) 
+  : null;
 
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
+    // Verificar se o Stripe foi inicializado corretamente
+    if (!stripe) {
+      console.error("Checkout falhou: Cliente Stripe não inicializado");
+      return res.status(500).json({ 
+        error: 'Serviço de pagamento não disponível no momento', 
+        details: 'Configuração do Stripe incompleta'
+      });
+    }
+
     const { priceId, planId } = req.body;
+    console.log("Criando sessão de checkout para priceId:", priceId, "planId:", planId);
 
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Usuário não autenticado' });
