@@ -14,6 +14,7 @@ import * as PromotionController from "./controllers/promotion.controller";
 import * as ReservationController from "./controllers/reservation.controller";
 import * as WishlistController from "./controllers/wishlist.controller";
 import * as SubscriptionController from "./controllers/subscription.controller";
+import * as StripeController from "./controllers/stripe.controller";
 import * as MapController from "./controllers/map.controller";
 import * as AdminController from "./controllers/admin.controller";
 import * as AdminUserController from "./controllers/admin-user.controller";
@@ -490,6 +491,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/subscriptions/plans', SubscriptionController.getSubscriptionPlans);
   app.post('/api/subscriptions/purchase', authMiddleware, SubscriptionController.purchaseSubscription);
   app.get('/api/subscriptions/my-plan', authMiddleware, SubscriptionController.getMySubscription);
+
+  // Stripe routes for payment processing
+  app.post('/api/stripe/checkout', authMiddleware, StripeController.createCheckoutSession);
+  app.get('/api/stripe/checkout', (req, res) => res.json({ message: 'Stripe checkout endpoint is working' }));
+  app.post('/api/stripe/webhook', StripeController.handleWebhook);
+  app.get('/api/stripe/subscription', authMiddleware, StripeController.getSubscriptionDetails);
+  app.post('/api/stripe/cancel', authMiddleware, StripeController.cancelSubscription);
 
   // Rota de estatísticas para o painel do vendedor
   app.get('/api/seller/stats', authMiddleware, async (req: Request, res: Response) => {
