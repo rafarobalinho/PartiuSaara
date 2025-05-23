@@ -1,0 +1,220 @@
+Correção - Plano Freemium sem Stripe
+🎯 PROBLEMA IDENTIFICADO
+O plano freemium não existe no Stripe (não deveria mesmo, é gratuito), mas o código está tentando processar como se fosse um plano pago.
+🛠️ CORREÇÃO NO ENDPOINT
+Substitua seu endpoint /api/stripe/checkout.js por esta versão que trata o freemium ANTES de qualquer processamento Stripe:
+javascript// /api/stripe/checkout.js
+export default async function handler(req, res) {
+  // SEMPRE configurar header JSON
+  res.setHeader('Content-Type', 'application/json');
+
+  console.log('🚀 Stripe checkout iniciado');
+  console.log('📋 Method:', req.method);
+  console.log('📋 Body:', req.body);
+
+  try {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // Extrair dados da requisição
+    const { planId, interval } = req.body;
+    
+    console.log('📦 Plan solicitado:', planId);
+
+    if (!planId) {
+      return res.status(400).json({ error: 'Plan ID is required' });
+    }
+
+    // ✅ TRATAR FREEMIUM PRIMEIRO - ANTES DE QUALQUER COISA STRIPE
+    if (planId === 'freemium') {
+      console.log('✅ Freemium plan - não precisa Stripe');
+      
+      // Aqui você pode salvar no banco que o usuário ativou freemium
+      // await updateUserPlan(userId, 'freemium');
+      
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Plano freemium ativado com sucesso',
+        planId: 'freemium',
+        redirect: false,
+        requiresPayment: false
+      });
+    }
+
+    // 🔍 APENAS PARA PLANOS PAGOS - INICIALIZAR STRIPE
+    console.log('💳 Plano pago - inicializando Stripe');
+
+    const Stripe = require('stripe');
+    
+    const isTestMode = process.env.STRIPE_MODE === 'test';
+    const stripeSecretKey = isTestMode 
+      ? process.env.STRIPE_SECRET_KEY_TEST 
+      : process.env.STRIPE_SECRET_KEY_LIVE;
+
+    if (!stripeSecretKey) {
+      return res.status(500).json({ 
+        error: 'Configuração de pagamento ausente',
+        details: 'Stripe não configurado'
+      });
+    }
+
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
+
+    // 💰 MAPEAMENTO APENAS PARA PLANOS PAGOS
+    const priceMapping = {
+      start: {
+        monthly: isTestMode ? 'price_1QVrjOEGmTKlQppv4xVzVRKJ' : 'price_LIVE_START_MONTHLY',
+        yearly: isTestMode ? 'price_1QVrkEEGmTKlQppvwzpT4tI7' : 'price_LIVE_START_YEARLY'
+      },
+      pro: {
+        monthly: isTestMode ? 'price_1QVrkWEGmTKlQppvlzKg4NNt' : 'price_LIVE_PRO_MONTHLY',
+        yearly: isTestMode ? 'price_1QVrl4EGmTKlQppvFnz7mhQh' : 'price_LIVE_PRO_YEARLY'
+      },
+      premium: {
+        monthly: isTestMode ? 'price_1QVrlREGmTKlQppvY4qYxWTa' : 'price_LIVE_PREMIUM_MONTHLY',
+        yearly: isTestMode ? 'price_1QVrlmEGmTKlQppvKYF4UNNe' : 'price_LIVE_PREMIUM_YEARLY'
+      }
+    };
+
+    const priceId = priceMapping[planId]?.[interval || 'monthly'];
+    
+    console.log('💰 Price ID encontrado:', priceId);
+
+    if (!priceId) {
+      return res.status(400).json({ 
+        error: 'Plano não encontrado',
+        planId,
+        interval,
+        availablePlans: Object.keys(priceMapping)
+      });
+    }
+
+    // 🔄 CRIAR SESSÃO STRIPE
+    console.log('🔄 Criando sessão Stripe...');
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price: priceId,
+        quantity: 1,
+      }],
+      mode: 'subscription',
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
+      metadata: { 
+        planId, 
+        interval: interval || 'monthly',
+        mode: isTestMode ? 'test' : 'live'
+      }
+    });
+
+    console.log('✅ Sessão criada:', session.id);
+
+    return res.status(200).json({
+      success: true,
+      url: session.url,
+      sessionId: session.id,
+      planId,
+      requiresPayment: true
+    });
+
+  } catch (error) {
+    console.error('❌ Erro no checkout:', error);
+    
+    return res.status(500).json({
+      error: 'Erro interno do servidor',
+      details: error.message,
+      type: error.type || 'unknown'
+    });
+  }
+}
+🛠️ CORREÇÃO NO FRONTEND
+Atualize a mutation no subscription.tsx linha 137:
+typescriptconst stripeCheckoutMutation = useMutation({
+  mutationFn: async () => {
+    if (!selectedPlan) {
+      throw new Error('Nenhum plano selecionado');
+    }
+
+    console.log('🚀 Iniciando checkout para:', selectedPlan);
+
+    const response = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        planId: selectedPlan,
+        interval: billingCycle,
+      }),
+    });
+
+    console.log('📊 Response status:', response.status);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('❌ Erro da API:', errorData);
+      throw new Error(errorData.error || `Erro ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Checkout data:', data);
+
+    return data;
+  },
+  onSuccess: (data) => {
+    console.log('✅ Mutation success:', data);
+    
+    if (data.requiresPayment && data.url) {
+      // Plano pago - redirecionar para Stripe
+      console.log('💳 Redirecionando para Stripe Checkout');
+      window.location.href = data.url;
+    } else if (!data.requiresPayment) {
+      // Plano freemium - ativado localmente
+      console.log('🆓 Plano freemium ativado');
+      toast({
+        title: 'Sucesso!',
+        description: data.message || 'Plano ativado com sucesso',
+        variant: 'default',
+      });
+      
+      // Redirecionar para dashboard ou atualizar UI
+      // router.push('/dashboard');
+    }
+  },
+  onError: (error) => {
+    console.error('❌ Mutation error:', error);
+    
+    toast({
+      title: 'Erro',
+      description: error.message || 'Erro ao processar plano',
+      variant: 'destructive',
+    });
+  },
+});
+🎯 LÓGICA CORRIGIDA
+Fluxo Correto:
+
+Freemium → Ativa localmente, sem Stripe
+Start/Pro/Premium → Cria sessão Stripe e redireciona
+
+Benefícios:
+
+✅ Freemium nunca tenta acessar Stripe
+✅ Evita erros 500 para plano gratuito
+✅ Separação clara entre planos pagos e gratuitos
+✅ Logs específicos para debug
+
+🧪 TESTE
+
+Teste freemium: Deve ativar sem chamar Stripe
+Teste plano pago: Deve redirecionar para Stripe
+Verifique logs: Confirme que freemium não passa pelo Stripe
+
+📝 PRÓXIMOS PASSOS
+
+Implementar endpoint corrigido
+Testar com plano freemium primeiro
+Verificar se erro 500 desapareceu
+Testar planos pagos depois
