@@ -1,6 +1,10 @@
 
 import { exec } from 'child_process';
 
+/**
+ * Verifica se a porta 5000 está em uso e tenta liberá-la
+ * @param {number} port - Porta a ser verificada (padrão: 5000)
+ */
 function checkPortAndStart(port = 5000) {
   console.log(`Verificando se a porta ${port} está disponível...`);
   
@@ -29,10 +33,8 @@ function checkPortAndStart(port = 5000) {
   });
 }
 
-// Exporta a função para uso em outros arquivos
-export { checkPortAndStart };
+// Executar a verificação automaticamente
+checkPortAndStart();
 
-// Se for executado diretamente
-if (import.meta.url === import.meta.main) {
-  checkPortAndStart();
-}
+// Exporta a função para uso em outros módulos
+export { checkPortAndStart };
