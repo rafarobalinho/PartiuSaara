@@ -1,0 +1,196 @@
+Correção - Nomes Corretos das Variáveis
+🎯 PROBLEMA IDENTIFICADO
+O código estava procurando variáveis com nomes diferentes dos que você configurou.
+Você tem:
+
+STRIPE_SECRET_KEY_TEST ✅
+STRIPE_PUBLIC_KEY_TEST ✅
+STRIPE_SECRET_KEY ✅
+STRIPE_PUBLIC_KEY ✅
+
+🛠️ ADICIONAR VARIÁVEIS FALTANTES
+No Replit Secrets, adicione estas variáveis:
+STRIPE_MODE=test
+NODE_ENV=development
+NEXT_PUBLIC_APP_URL=https://seu-projeto.replit.dev
+🛠️ ENDPOINT CORRIGIDO COM NOMES CERTOS
+Crie /api/stripe/checkout.js com os nomes corretos:
+javascript// /api/stripe/checkout.js
+export default async function handler(req, res) {
+  console.log('=== STRIPE CHECKOUT ===');
+  
+  res.setHeader('Content-Type', 'application/json');
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { planId, interval } = req.body;
+
+    console.log('Plan solicitado:', planId);
+
+    if (!planId) {
+      return res.status(400).json({ error: 'Plan ID é obrigatório' });
+    }
+
+    // FREEMIUM - sem Stripe
+    if (planId === 'freemium') {
+      console.log('✅ Plano freemium ativado');
+      return res.status(200).json({
+        success: true,
+        message: 'Plano gratuito ativado',
+        planType: 'freemium',
+        needsRedirect: false
+      });
+    }
+
+    // PLANOS PAGOS
+    console.log('💳 Processando plano pago...');
+
+    const Stripe = require('stripe');
+    
+    // USAR OS NOMES CORRETOS DAS SUAS VARIÁVEIS
+    const isTestMode = process.env.STRIPE_MODE === 'test';
+    
+    let secretKey;
+    if (isTestMode) {
+      secretKey = process.env.STRIPE_SECRET_KEY_TEST;  // ✅ Nome correto
+    } else {
+      secretKey = process.env.STRIPE_SECRET_KEY;       // ✅ Nome correto
+    }
+    
+    console.log('Modo:', isTestMode ? 'TESTE' : 'PRODUÇÃO');
+    console.log('Chave disponível:', !!secretKey);
+    console.log('Prefix da chave:', secretKey ? secretKey.substring(0, 12) + '...' : 'AUSENTE');
+
+    if (!secretKey) {
+      const chaveEsperada = isTestMode ? 'STRIPE_SECRET_KEY_TEST' : 'STRIPE_SECRET_KEY';
+      return res.status(500).json({
+        error: 'Chave Stripe não encontrada',
+        chaveEsperada,
+        modo: isTestMode ? 'test' : 'live'
+      });
+    }
+
+    const stripe = new Stripe(secretKey, { apiVersion: '2023-10-16' });
+
+    // MAPEAR PREÇOS - SUBSTITUA PELOS SEUS PRICE IDs
+    const precos = {
+      start: {
+        monthly: isTestMode ? 'price_TEST_START_MONTHLY' : 'price_LIVE_START_MONTHLY',
+        yearly: isTestMode ? 'price_TEST_START_YEARLY' : 'price_LIVE_START_YEARLY'
+      },
+      pro: {
+        monthly: isTestMode ? 'price_TEST_PRO_MONTHLY' : 'price_LIVE_PRO_MONTHLY',
+        yearly: isTestMode ? 'price_TEST_PRO_YEARLY' : 'price_LIVE_PRO_YEARLY'
+      },
+      premium: {
+        monthly: isTestMode ? 'price_TEST_PREMIUM_MONTHLY' : 'price_LIVE_PREMIUM_MONTHLY',
+        yearly: isTestMode ? 'price_TEST_PREMIUM_YEARLY' : 'price_LIVE_PREMIUM_YEARLY'
+      }
+    };
+
+    const priceId = precos[planId]?.[interval || 'monthly'];
+
+    console.log('Price ID:', priceId);
+
+    if (!priceId) {
+      return res.status(400).json({
+        error: 'Plano não disponível',
+        planId,
+        interval,
+        planosDisponiveis: Object.keys(precos)
+      });
+    }
+
+    // URL base
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    
+    console.log('Base URL:', baseUrl);
+
+    // Criar sessão Stripe
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price: priceId,
+        quantity: 1,
+      }],
+      mode: 'subscription',
+      success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/pricing`,
+      metadata: { 
+        planId, 
+        interval: interval || 'monthly',
+        mode: isTestMode ? 'test' : 'live'
+      }
+    });
+
+    console.log('✅ Sessão criada:', session.id);
+
+    return res.status(200).json({
+      success: true,
+      url: session.url,
+      sessionId: session.id,
+      planType: planId,
+      needsRedirect: true,
+      mode: isTestMode ? 'test' : 'live'
+    });
+
+  } catch (error) {
+    console.error('❌ Erro Stripe:', error);
+    
+    return res.status(500).json({
+      error: 'Erro interno do servidor',
+      message: error.message,
+      type: error.type || 'unknown',
+      stripeError: error.code || null
+    });
+  }
+}
+🔍 ENDPOINT DE DEBUG
+Crie também /api/debug-vars.js para verificar as variáveis:
+javascript// /api/debug-vars.js
+export default function handler(req, res) {
+  return res.status(200).json({
+    timestamp: new Date().toISOString(),
+    environment: {
+      NODE_ENV: process.env.NODE_ENV,
+      STRIPE_MODE: process.env.STRIPE_MODE,
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL
+    },
+    stripeKeys: {
+      // Verificar existência sem expor valores
+      STRIPE_SECRET_KEY_TEST: !!process.env.STRIPE_SECRET_KEY_TEST,
+      STRIPE_PUBLIC_KEY_TEST: !!process.env.STRIPE_PUBLIC_KEY_TEST,
+      STRIPE_SECRET_KEY: !!process.env.STRIPE_SECRET_KEY,
+      STRIPE_PUBLIC_KEY: !!process.env.STRIPE_PUBLIC_KEY
+    },
+    activeMode: process.env.STRIPE_MODE === 'test' ? 'TEST' : 'LIVE',
+    activeSecretKey: process.env.STRIPE_MODE === 'test' 
+      ? (process.env.STRIPE_SECRET_KEY_TEST ? 'CONFIGURADA' : 'AUSENTE')
+      : (process.env.STRIPE_SECRET_KEY ? 'CONFIGURADA' : 'AUSENTE')
+  });
+}
+📋 PASSOS PARA IMPLEMENTAR
+
+Adicionar variáveis faltantes nos Secrets:
+STRIPE_MODE=test
+NODE_ENV=development
+NEXT_PUBLIC_APP_URL=https://[seu-projeto].replit.dev
+
+Criar /api/stripe/checkout.js
+Criar /api/debug-vars.js
+Testar debug: Acesse /api/debug-vars
+Testar checkout: Com plano freemium primeiro
+Copiar Price IDs reais do Stripe e substituir
+
+🧪 TESTE RÁPIDO
+bash# Testar debug
+curl https://seu-projeto.replit.dev/api/debug-vars
+
+# Testar freemium
+curl -X POST https://seu-projeto.replit.dev/api/stripe/checkout \
+-H "Content-Type: application/json" \
+-d '{"planId":"freemium"}'
+Agora deve funcionar com os nomes corretos das variáveis! 🎯
