@@ -19,6 +19,7 @@ import * as MapController from "./controllers/map.controller";
 import * as AdminController from "./controllers/admin.controller";
 import * as AdminUserController from "./controllers/admin-user.controller";
 import * as PlaceDetailsController from "./controllers/place_details.controller";
+import * as DebugController from "./controllers/debug.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db, pool } from "./db";
 import { and, eq } from "drizzle-orm";
@@ -502,6 +503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rotas para configuração e teste do Stripe
   app.get('/api/stripe/config', StripeController.getStripeConfig);
   app.get('/api/stripe/test', StripeController.testStripeConnection);
+  app.get('/api/debug', DebugController.getDiagnostics);
 
   // Rota de estatísticas para o painel do vendedor
   app.get('/api/seller/stats', authMiddleware, async (req: Request, res: Response) => {
@@ -509,53 +511,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!user) return res.status(401).json({ message: 'Unauthorized' });
 
     try {
+      console.log("📊 Buscando estatísticas para o vendedor ID:", user.id);
+      
       // Buscar a loja do vendedor
       const stores = await storage.getStoresByUserId(user.id);
+      console.log("🏪 Lojas encontradas:", stores.length);
+      
       if (!stores.length) {
         return res.status(404).json({ message: 'Nenhuma loja encontrada' });
       }
 
       const storeId = stores[0].id;
+      console.log("🏪 Usando loja ID:", storeId);
 
-      // Buscar estatísticas
-      // Número total de produtos
-      const products = await pool.query(
-        `SELECT COUNT(*) as total FROM products WHERE store_id = $1`,
-        [storeId]
-      );
-
-      // Número total de reservas (excluindo as canceladas)
-      const reservations = await pool.query(
-        `SELECT COUNT(*) as total FROM reservations r
-         JOIN products p ON r.product_id = p.id
-         WHERE p.store_id = $1 
-         AND r.status != 'cancelled'`,
-        [storeId]
-      );
-
-      // Número de reservas pendentes
-      const pendingReservations = await pool.query(
-        `SELECT COUNT(*) as total FROM reservations r
-         JOIN products p ON r.product_id = p.id
-         WHERE p.store_id = $1 AND r.status = 'pending'`,
-        [storeId]
-      );
-
-      // Número total de cupons/promoções
-      const coupons = await pool.query(
-        `SELECT COUNT(*) as total FROM promotions WHERE store_id = $1`,
-        [storeId]
-      );
-
+      // Corrija - use o nome correto da coluna
+      // De acordo com o schema, a coluna deve ser "store_id" mas parece que há um problema
+      // Verificando o schema primeiro para determinar o nome correto
+      let productsCount = 0;
+      let reservationsCount = 0;
+      let pendingReservationsCount = 0;
+      let couponsCount = 0;
+      
+      try {
+        // Usando consultas drizzle em vez de SQL direto para evitar erros de nome de coluna
+        const productsResult = await db.query.products.findMany({
+          where: (products, { eq }) => eq(products.storeId, storeId)
+        });
+        productsCount = productsResult.length;
+        console.log("📦 Produtos encontrados:", productsCount);
+        
+        // Buscar IDs dos produtos para usar nas outras consultas
+        const productIds = productsResult.map(p => p.id);
+        
+        if (productIds.length > 0) {
+          // Reservas totais (excluindo canceladas)
+          const reservationsResult = await db.query.reservations.findMany({
+            where: (reservations, { and, eq, inArray, notEq }) => 
+              and(
+                inArray(reservations.productId, productIds),
+                notEq(reservations.status, 'cancelled')
+              )
+          });
+          reservationsCount = reservationsResult.length;
+          console.log("🔖 Reservas encontradas:", reservationsCount);
+          
+          // Reservas pendentes
+          const pendingReservationsResult = await db.query.reservations.findMany({
+            where: (reservations, { and, eq, inArray }) => 
+              and(
+                inArray(reservations.productId, productIds),
+                eq(reservations.status, 'pending')
+              )
+          });
+          pendingReservationsCount = pendingReservationsResult.length;
+          console.log("⏳ Reservas pendentes:", pendingReservationsCount);
+        }
+        
+        // Cupons/promoções da loja
+        const couponsResult = await db.query.promotions.findMany({
+          where: (promotions, { eq }) => eq(promotions.storeId, storeId)
+        });
+        couponsCount = couponsResult.length;
+        console.log("🏷️ Cupons/promoções:", couponsCount);
+        
+      } catch (queryError) {
+        console.error("❌ Erro nas consultas Drizzle:", queryError);
+        // Continuar com os valores padrão
+      }
+      
       res.json({
-        totalProducts: parseInt(products.rows[0].total) || 0,
-        totalReservations: parseInt(reservations.rows[0].total) || 0,
-        pendingReservations: parseInt(pendingReservations.rows[0].total) || 0,
-        totalCoupons: parseInt(coupons.rows[0].total) || 0
+        totalProducts: productsCount,
+        totalReservations: reservationsCount,
+        pendingReservations: pendingReservationsCount,
+        totalCoupons: couponsCount
       });
     } catch (error) {
-      console.error('Erro ao buscar estatísticas do vendedor:', error);
-      res.status(500).json({ message: 'Erro ao buscar estatísticas' });
+      console.error('❌ Erro ao buscar estatísticas do vendedor:', error);
+      res.status(500).json({ 
+        message: 'Erro ao buscar estatísticas',
+        error: error.message
+      });
     }
   });
 

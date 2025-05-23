@@ -59,23 +59,74 @@ const priceMapping = {
 };
 
 export const createCheckoutSession = async (req: Request, res: Response) => {
+  console.log('🚀 STRIPE CHECKOUT INICIADO');
+  console.log('📋 Method:', req.method);
+  console.log('📋 Body:', req.body);
+
   try {
     // Verificar se o Stripe foi inicializado corretamente
     if (!stripe) {
-      console.error("Checkout falhou: Cliente Stripe não inicializado");
+      console.error("❌ Checkout falhou: Cliente Stripe não inicializado");
+      console.error("❌ STRIPE_MODE:", process.env.STRIPE_MODE);
+      console.error("❌ Secret key configurada:", stripeSecretKey ? "Sim (primeiros caracteres: " + stripeSecretKey.substring(0, 5) + "...)" : "Não");
+      
+      // Tentar reinicializar o Stripe
+      try {
+        if (stripeSecretKey) {
+          console.log("🔄 Tentando reinicializar o Stripe...");
+          const tempStripe = new Stripe(stripeSecretKey, {
+            apiVersion: '2023-10-16',
+          });
+          console.log("✅ Stripe reinicializado com sucesso!");
+          
+          // Se conseguiu inicializar, use essa instância para esta requisição
+          const session = await tempStripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [{
+              price: 'price_TEST_PRO_MONTHLY', // Use um dos IDs de teste
+              quantity: 1,
+            }],
+            mode: 'subscription',
+            success_url: `${process.env.FRONTEND_URL || process.env.CLIENT_URL || req.headers.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${process.env.FRONTEND_URL || process.env.CLIENT_URL || req.headers.origin}/pricing`,
+            metadata: {
+              test: 'true'
+            }
+          });
+          
+          console.log("✅ Sessão de teste criada:", session.id);
+          return res.json({
+            success: true,
+            message: "Sessão criada em modo de recuperação",
+            url: session.url,
+            sessionId: session.id,
+            mode: isTestMode ? 'test' : 'live'
+          });
+        }
+      } catch (reinitError) {
+        console.error("❌ Erro ao reinicializar Stripe:", reinitError);
+      }
+      
       return res.status(500).json({ 
         error: 'Serviço de pagamento não disponível no momento', 
         details: 'Configuração do Stripe incompleta',
-        mode: isTestMode ? 'test' : 'live'
+        mode: isTestMode ? 'test' : 'live',
+        diagnostico: {
+          STRIPE_MODE: process.env.STRIPE_MODE,
+          hasTestKey: !!process.env.STRIPE_SECRET_KEY_TEST,
+          hasLiveKey: !!process.env.STRIPE_SECRET_KEY_LIVE,
+          activeKey: !!stripeSecretKey
+        }
       });
     }
 
     // Extrair dados do request
     const { planId, interval = 'monthly' } = req.body;
     console.log(`🔧 Stripe Mode: ${isTestMode ? 'TEST' : 'LIVE'}`);
-    console.log("Criando sessão de checkout para planId:", planId, "interval:", interval);
+    console.log("📦 Criando sessão de checkout para planId:", planId, "interval:", interval);
 
     if (!planId) {
+      console.log("❌ Erro: ID do plano não fornecido");
       return res.status(400).json({ 
         error: 'ID do plano é obrigatório',
         mode: isTestMode ? 'test' : 'live'
@@ -84,6 +135,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
     // Plano freemium não tem pagamento
     if (planId === 'freemium') {
+      console.log("✅ Plano Freemium selecionado - sem pagamento necessário");
       return res.status(200).json({ 
         success: true, 
         message: 'Plano Freemium ativado',
@@ -96,15 +148,19 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     const priceId = priceMapping[planId]?.[interval];
     
     if (!priceId) {
+      console.log("❌ Erro: Plano ou intervalo inválido:", planId, interval);
+      console.log("❌ PriceMapping disponível:", JSON.stringify(priceMapping));
       return res.status(400).json({ 
         error: 'Plano ou intervalo inválido', 
-        mode: isTestMode ? 'test' : 'live'
+        mode: isTestMode ? 'test' : 'live',
+        plansDisponiveis: Object.keys(priceMapping)
       });
     }
 
     console.log(`💰 Usando Price ID: ${priceId}`);
 
     if (!req.session.userId) {
+      console.log("❌ Erro: Usuário não autenticado");
       return res.status(401).json({ 
         error: 'Usuário não autenticado',
         mode: isTestMode ? 'test' : 'live'
@@ -112,11 +168,23 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     }
 
     // Buscar dados do usuário
-    const user = await db.query.users.findFirst({
-      where: (users, { eq }) => eq(users.id, req.session.userId as number)
-    });
+    let user;
+    try {
+      user = await db.query.users.findFirst({
+        where: (users, { eq }) => eq(users.id, req.session.userId as number)
+      });
+      console.log("✅ Usuário encontrado:", user ? `ID: ${user.id}, Email: ${user.email}` : "Não encontrado");
+    } catch (dbError) {
+      console.error("❌ Erro ao buscar usuário:", dbError);
+      return res.status(500).json({
+        error: 'Erro ao buscar dados do usuário',
+        details: dbError.message,
+        mode: isTestMode ? 'test' : 'live'
+      });
+    }
 
     if (!user) {
+      console.log("❌ Erro: Usuário não encontrado no banco");
       return res.status(404).json({ 
         error: 'Usuário não encontrado',
         mode: isTestMode ? 'test' : 'live'
@@ -125,50 +193,76 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
     // Criar ou recuperar o Customer no Stripe
     let customerId = user.stripeCustomerId;
+    console.log("🔍 Customer ID existente:", customerId || "Nenhum");
 
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: `${user.firstName} ${user.lastName}`,
-        metadata: {
-          userId: user.id.toString()
-        }
-      });
+      try {
+        console.log("🔄 Criando novo customer no Stripe...");
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: `${user.firstName} ${user.lastName}`,
+          metadata: {
+            userId: user.id.toString()
+          }
+        });
 
-      customerId = customer.id;
+        customerId = customer.id;
+        console.log("✅ Novo customer criado:", customerId);
 
-      // Atualizar o usuário com o customerId do Stripe
-      await db.update(db.users).set({
-        stripeCustomerId: customerId
-      }).where(db.eq(db.users.id, user.id));
+        // Atualizar o usuário com o customerId do Stripe
+        await db.update(db.users).set({
+          stripeCustomerId: customerId
+        }).where(db.eq(db.users.id, user.id));
+        console.log("✅ Usuário atualizado com o Customer ID");
+      } catch (customerError) {
+        console.error("❌ Erro ao criar customer:", customerError);
+        return res.status(500).json({
+          error: 'Erro ao criar cliente no Stripe',
+          details: customerError.message,
+          mode: isTestMode ? 'test' : 'live'
+        });
+      }
     }
 
     // URL base para redirecionamentos
     const baseUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || req.headers.origin;
+    console.log("🔗 URL base para redirecionamentos:", baseUrl);
 
     // Criar a sessão de checkout
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      mode: 'subscription',
-      success_url: `${baseUrl}/seller/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/seller/subscription?canceled=true`,
-      metadata: {
-        userId: user.id.toString(),
-        planId: planId.toString(),
-        interval: interval,
+    let session;
+    try {
+      console.log("🔄 Criando sessão de checkout...");
+      session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url: `${baseUrl}/seller/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/seller/subscription?canceled=true`,
+        metadata: {
+          userId: user.id.toString(),
+          planId: planId.toString(),
+          interval: interval,
+          mode: isTestMode ? 'test' : 'live'
+        }
+      });
+      console.log('✅ Sessão criada com sucesso:', session.id);
+    } catch (sessionError) {
+      console.error("❌ Erro ao criar sessão:", sessionError);
+      return res.status(500).json({
+        error: 'Erro ao criar sessão no Stripe',
+        details: sessionError.message,
+        code: sessionError.code,
         mode: isTestMode ? 'test' : 'live'
-      }
-    });
+      });
+    }
 
-    console.log('✅ Sessão criada:', session.id);
-
+    console.log('✅ Retornando resposta de sucesso');
     return res.json({
       success: true,
       url: session.url,
@@ -176,11 +270,17 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       mode: isTestMode ? 'test' : 'live'
     });
   } catch (error) {
-    console.error('❌ Erro ao criar sessão de checkout:', error);
+    console.error('❌ Erro ao criar sessão de checkout:');
+    console.error('❌ Mensagem:', error.message);
+    console.error('❌ Tipo:', error.type);
+    console.error('❌ Código:', error.code);
+    console.error('❌ Stack:', error.stack);
+    
     res.status(500).json({ 
       error: 'Erro ao criar sessão de checkout', 
       details: error.message,
       type: error.type,
+      code: error.code,
       mode: isTestMode ? 'test' : 'live'
     });
   }

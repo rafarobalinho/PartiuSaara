@@ -1,0 +1,278 @@
+Debug Interno - Endpoint Stripe Checkout
+📋 ANÁLISE DO PROBLEMA
+✅ Funcionando: Endpoint responde com "Stripe checkout endpoint is working"
+❌ Problema: Erro 500 interno após processar a requisição
+🛠️ INVESTIGAÇÃO DETALHADA
+1. ADICIONAR LOGS GRANULARES NO ENDPOINT
+Localize seu arquivo /api/stripe/checkout.js e adicione logs detalhados em cada etapa:
+javascriptexport default async function handler(req, res) {
+  console.log('🚀 === STRIPE CHECKOUT DEBUG START ===');
+  console.log('📋 Method:', req.method);
+  console.log('📋 Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('📋 Body:', JSON.stringify(req.body, null, 2));
+  console.log('📋 Query:', JSON.stringify(req.query, null, 2));
+
+  try {
+    // CHECKPOINT 1: Verificar método
+    console.log('🔍 CHECKPOINT 1: Verificando método HTTP');
+    if (req.method !== 'POST') {
+      console.log('❌ Método não permitido:', req.method);
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+    console.log('✅ CHECKPOINT 1: Método POST válido');
+
+    // CHECKPOINT 2: Carregar Stripe
+    console.log('🔍 CHECKPOINT 2: Carregando biblioteca Stripe');
+    let Stripe;
+    try {
+      Stripe = require('stripe');
+      console.log('✅ CHECKPOINT 2: Stripe library carregada');
+    } catch (stripeLoadError) {
+      console.error('❌ CHECKPOINT 2: Erro ao carregar Stripe:', stripeLoadError);
+      return res.status(500).json({ 
+        error: 'Stripe library not available',
+        details: stripeLoadError.message,
+        checkpoint: 'STRIPE_LOAD'
+      });
+    }
+
+    // CHECKPOINT 3: Verificar variáveis de ambiente
+    console.log('🔍 CHECKPOINT 3: Verificando variáveis de ambiente');
+    const isTestMode = process.env.STRIPE_MODE === 'test';
+    console.log('🔧 Test Mode:', isTestMode);
+    console.log('🔧 STRIPE_MODE env:', process.env.STRIPE_MODE);
+
+    const stripeSecretKey = isTestMode 
+      ? process.env.STRIPE_SECRET_KEY_TEST 
+      : process.env.STRIPE_SECRET_KEY_LIVE;
+
+    console.log('🔑 Using key type:', isTestMode ? 'TEST' : 'LIVE');
+    console.log('🔑 Key exists:', !!stripeSecretKey);
+    console.log('🔑 Key prefix:', stripeSecretKey ? stripeSecretKey.substring(0, 10) + '...' : 'MISSING');
+
+    if (!stripeSecretKey) {
+      const missingKey = isTestMode ? 'STRIPE_SECRET_KEY_TEST' : 'STRIPE_SECRET_KEY_LIVE';
+      console.error('❌ CHECKPOINT 3: Chave ausente:', missingKey);
+      return res.status(500).json({ 
+        error: `Missing ${missingKey}`,
+        mode: isTestMode ? 'test' : 'live',
+        checkpoint: 'STRIPE_KEY_MISSING'
+      });
+    }
+    console.log('✅ CHECKPOINT 3: Chave Stripe disponível');
+
+    // CHECKPOINT 4: Inicializar Stripe
+    console.log('🔍 CHECKPOINT 4: Inicializando Stripe');
+    let stripe;
+    try {
+      stripe = new Stripe(stripeSecretKey, {
+        apiVersion: '2023-10-16',
+      });
+      console.log('✅ CHECKPOINT 4: Stripe inicializado com sucesso');
+    } catch (stripeInitError) {
+      console.error('❌ CHECKPOINT 4: Erro ao inicializar Stripe:', stripeInitError);
+      return res.status(500).json({
+        error: 'Failed to initialize Stripe',
+        details: stripeInitError.message,
+        checkpoint: 'STRIPE_INIT_ERROR'
+      });
+    }
+
+    // CHECKPOINT 5: Validar dados da requisição
+    console.log('🔍 CHECKPOINT 5: Validando dados da requisição');
+    const { planId, interval } = req.body;
+    console.log('📦 Plan ID:', planId);
+    console.log('📦 Interval:', interval);
+
+    if (!planId) {
+      console.log('❌ CHECKPOINT 5: Plan ID ausente');
+      return res.status(400).json({ 
+        error: 'Plan ID is required',
+        checkpoint: 'VALIDATION_ERROR'
+      });
+    }
+    console.log('✅ CHECKPOINT 5: Dados válidos');
+
+    // CHECKPOINT 6: Mapear Price IDs
+    console.log('🔍 CHECKPOINT 6: Mapeando Price IDs');
+    
+    // SUBSTITUA ESTES PRICE IDs PELOS SEUS REAIS DO STRIPE
+    const priceMapping = {
+      freemium: null,
+      start: {
+        monthly: isTestMode ? 'price_1234TEST_START_MONTHLY' : 'price_5678LIVE_START_MONTHLY',
+        yearly: isTestMode ? 'price_1234TEST_START_YEARLY' : 'price_5678LIVE_START_YEARLY'
+      },
+      pro: {
+        monthly: isTestMode ? 'price_1234TEST_PRO_MONTHLY' : 'price_5678LIVE_PRO_MONTHLY',
+        yearly: isTestMode ? 'price_1234TEST_PRO_YEARLY' : 'price_5678LIVE_PRO_YEARLY'
+      },
+      premium: {
+        monthly: isTestMode ? 'price_1234TEST_PREMIUM_MONTHLY' : 'price_5678LIVE_PREMIUM_MONTHLY',
+        yearly: isTestMode ? 'price_1234TEST_PREMIUM_YEARLY' : 'price_5678LIVE_PREMIUM_YEARLY'
+      }
+    };
+
+    if (planId === 'freemium') {
+      console.log('✅ CHECKPOINT 6: Plano freemium selecionado');
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Freemium plan activated',
+        redirect: false,
+        mode: isTestMode ? 'test' : 'live'
+      });
+    }
+
+    const priceId = priceMapping[planId]?.[interval || 'monthly'];
+    console.log('💰 Price ID selecionado:', priceId);
+
+    if (!priceId) {
+      console.log('❌ CHECKPOINT 6: Price ID inválido para plano:', planId);
+      return res.status(400).json({ 
+        error: 'Invalid plan or price ID not found',
+        planId,
+        interval,
+        checkpoint: 'PRICE_MAPPING_ERROR'
+      });
+    }
+    console.log('✅ CHECKPOINT 6: Price ID mapeado com sucesso');
+
+    // CHECKPOINT 7: Criar sessão Stripe
+    console.log('🔍 CHECKPOINT 7: Criando sessão Stripe');
+    console.log('📊 Session params:', {
+      priceId,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`
+    });
+
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [{
+          price: priceId,
+          quantity: 1,
+        }],
+        mode: 'subscription',
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
+        metadata: {
+          planId,
+          interval: interval || 'monthly',
+          mode: isTestMode ? 'test' : 'live'
+        },
+      });
+      console.log('✅ CHECKPOINT 7: Sessão criada com sucesso:', session.id);
+    } catch (sessionError) {
+      console.error('❌ CHECKPOINT 7: Erro ao criar sessão:', sessionError);
+      console.error('Session error type:', sessionError.type);
+      console.error('Session error code:', sessionError.code);
+      console.error('Session error message:', sessionError.message);
+      console.error('Session error details:', sessionError);
+      
+      return res.status(500).json({
+        error: 'Failed to create Stripe session',
+        details: sessionError.message,
+        type: sessionError.type,
+        code: sessionError.code,
+        checkpoint: 'STRIPE_SESSION_ERROR'
+      });
+    }
+
+    // CHECKPOINT 8: Retornar resposta
+    console.log('🔍 CHECKPOINT 8: Preparando resposta');
+    const response = {
+      success: true,
+      url: session.url,
+      sessionId: session.id,
+      mode: isTestMode ? 'test' : 'live'
+    };
+    console.log('📤 Response:', JSON.stringify(response, null, 2));
+    console.log('✅ CHECKPOINT 8: Resposta preparada');
+
+    console.log('🎉 === STRIPE CHECKOUT DEBUG SUCCESS ===');
+    return res.status(200).json(response);
+
+  } catch (globalError) {
+    console.error('💥 === STRIPE CHECKOUT GLOBAL ERROR ===');
+    console.error('Global error message:', globalError.message);
+    console.error('Global error name:', globalError.name);
+    console.error('Global error stack:', globalError.stack);
+    console.error('Global error object:', globalError);
+    
+    return res.status(500).json({
+      error: 'Internal server error',
+      details: globalError.message,
+      name: globalError.name,
+      checkpoint: 'GLOBAL_ERROR'
+    });
+  }
+}
+2. TESTAR COM PRICE IDs VÁLIDOS
+IMPORTANTE: Os Price IDs no código acima são placeholders. Você precisa:
+
+Ir ao Stripe Dashboard (modo teste)
+Copiar os Price IDs reais dos seus produtos
+Substituir no código os valores como:
+
+price_1234TEST_PRO_MONTHLY → seu price ID real de teste
+price_5678LIVE_PRO_MONTHLY → seu price ID real de produção
+
+
+
+3. VERIFICAR LOGS DETALHADOS
+Após implementar, faça um teste e verifique no console do Replit:
+
+Qual CHECKPOINT está falhando?
+Qual erro específico está aparecendo?
+Os Price IDs estão sendo encontrados?
+
+4. ENDPOINT DE VERIFICAÇÃO DE PRICE IDs
+Crie /api/stripe-prices.js para listar seus Price IDs:
+javascriptexport default async function handler(req, res) {
+  try {
+    const isTestMode = process.env.STRIPE_MODE === 'test';
+    const stripeSecretKey = isTestMode 
+      ? process.env.STRIPE_SECRET_KEY_TEST 
+      : process.env.STRIPE_SECRET_KEY_LIVE;
+
+    const Stripe = require('stripe');
+    const stripe = new Stripe(stripeSecretKey);
+
+    // Listar produtos e preços
+    const products = await stripe.products.list({ limit: 10 });
+    const prices = await stripe.prices.list({ limit: 20 });
+
+    return res.status(200).json({
+      mode: isTestMode ? 'test' : 'live',
+      products: products.data.map(p => ({
+        id: p.id,
+        name: p.name,
+        active: p.active
+      })),
+      prices: prices.data.map(p => ({
+        id: p.id,
+        product: p.product,
+        unit_amount: p.unit_amount,
+        currency: p.currency,
+        recurring: p.recurring?.interval
+      }))
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message,
+      type: error.type
+    });
+  }
+}
+
+🎯 PRÓXIMOS PASSOS
+
+Implementar logs detalhados no endpoint
+Testar e ver qual CHECKPOINT falha
+Acessar /api/stripe-prices para ver Price IDs disponíveis
+Substituir Price IDs reais no código
+Testar novamente
+
+Me mostre qual CHECKPOINT está falhando e qual erro específico aparece! 🔍
