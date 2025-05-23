@@ -1,0 +1,94 @@
+Olá! Estou enfrentando erros 400 (Bad Request) na minha API de checkout do Stripe. Preciso implementar correções para debuggar e resolver o problema.
+Problema atual:
+
+Erro 400 na rota /api/stripe/checkout
+Mensagem: "Itens inválidos para checkout"
+Não consigo identificar exatamente onde está o problema
+
+O que preciso implementar:
+1. Middleware de Debug
+Adicione um middleware ANTES da rota /api/stripe/checkout para capturar e logar todos os dados da requisição:
+javascriptapp.use('/api/stripe/checkout', (req, res, next) => {
+  console.log('🔍 === DEBUG STRIPE CHECKOUT ===');
+  console.log('📥 Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('📦 Body raw:', req.body);
+  console.log('📋 Body type:', typeof req.body);
+  console.log('📊 Body keys:', Object.keys(req.body || {}));
+  console.log('🔢 Content-Length:', req.headers['content-length']);
+  console.log('📝 Content-Type:', req.headers['content-type']);
+  console.log('================================');
+  next();
+});
+2. Rota de Checkout Melhorada
+Substitua a rota atual /api/stripe/checkout por uma versão com validação robusta e logs detalhados que:
+
+Valide se o body da requisição existe
+Verifique se items é um array válido
+Valide cada item individualmente (nome, preço, quantidade)
+Adicione logs em cada etapa do processo
+Retorne erros específicos e detalhados
+Verifique se a chave do Stripe está configurada
+Crie os line_items corretamente para o Stripe
+Implemente tratamento de erro completo
+
+3. Configuração de Middlewares
+Certifique-se de que estes middlewares estão configurados ANTES das rotas:
+javascriptapp.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+4. Estrutura de Dados Esperada
+A rota deve aceitar dados no formato:
+json{
+  "items": [
+    {
+      "name": "Nome do Produto",
+      "description": "Descrição opcional",
+      "price": 29.99,
+      "quantity": 1
+    }
+  ],
+  "successUrl": "url_opcional",
+  "cancelUrl": "url_opcional"
+}
+5. Requisitos de Validação
+
+Nome: string obrigatória, não vazia
+Preço: número maior que zero
+Quantidade: número inteiro maior que zero
+Items: array não vazio
+
+6. Resposta de Sucesso
+json{
+  "success": true,
+  "sessionId": "cs_session_id",
+  "url": "https://checkout.stripe.com/..."
+}
+7. Resposta de Erro
+json{
+  "error": "Descrição do erro",
+  "details": "Detalhes específicos",
+  "received": "dados que foram recebidos",
+  "timestamp": "2025-05-22T..."
+}
+Configuração Stripe
+Certifique-se de usar:
+
+Moeda: 'brl'
+Método de pagamento: ['card']
+Modo: 'payment'
+unit_amount: preço * 100 (centavos)
+
+Objetivos:
+
+Identificar exatamente onde está o erro 400
+Implementar validação robusta dos dados
+Adicionar logs detalhados para debug
+Melhorar tratamento de erros
+Manter compatibilidade com código existente
+
+Por favor, implemente essas correções mantendo a estrutura atual do projeto e sem quebrar funcionalidades existentes.
+Arquivos para modificar:
+
+server/routes.ts ou server/index.ts (onde está a rota atual)
+Adicionar logs apenas, sem alterar lógica de negócio existente
+
+Implemente as correções e me informe quando estiver pronto para testar!
