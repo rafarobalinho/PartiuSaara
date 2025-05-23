@@ -1,5 +1,5 @@
 
-const { exec } = require('child_process');
+import { exec } from 'child_process';
 
 function checkPortAndStart(port = 5000) {
   console.log(`Verificando se a porta ${port} está disponível...`);
@@ -30,9 +30,9 @@ function checkPortAndStart(port = 5000) {
 }
 
 // Exporta a função para uso em outros arquivos
-module.exports = { checkPortAndStart };
+export { checkPortAndStart };
 
 // Se for executado diretamente
-if (require.main === module) {
+if (import.meta.url === import.meta.main) {
   checkPortAndStart();
 }
