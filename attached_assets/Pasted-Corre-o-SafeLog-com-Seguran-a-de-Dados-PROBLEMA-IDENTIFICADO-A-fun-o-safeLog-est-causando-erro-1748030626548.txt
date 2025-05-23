@@ -1,0 +1,328 @@
+Correção SafeLog com Segurança de Dados
+🚨 PROBLEMA IDENTIFICADO
+A função safeLog está causando erro Console.js:61 e há risco de vazamento de dados sensíveis entre lojistas.
+🛡️ SOLUÇÃO SEGURA
+1. CORRIGIR E PROTEGER FUNÇÃO DE LOG
+Substitua sua função safeLog por esta versão segura:
+typescript// Função de log segura com proteção de dados sensíveis
+const secureLog = (message: string, data?: any, userId?: string) => {
+  try {
+    // Verificar se estamos em modo de desenvolvimento
+    const isDev = process.env.NODE_ENV === 'development';
+    const isTestMode = process.env.STRIPE_MODE === 'test';
+    
+    // Só fazer log detalhado em desenvolvimento
+    if (!isDev && !isTestMode) {
+      // Em produção, log mínimo sem dados sensíveis
+      console.log(`[${new Date().toISOString()}] ${message}`);
+      return;
+    }
+
+    // Em desenvolvimento, fazer log com dados sanitizados
+    if (data) {
+      const sanitizedData = sanitizeLogData(data, userId);
+      console.log(`[${new Date().toISOString()}] ${message}`, sanitizedData);
+    } else {
+      console.log(`[${new Date().toISOString()}] ${message}`);
+    }
+  } catch (error) {
+    // Log de fallback sem dados sensíveis
+    try {
+      console.error(`[LOG_ERROR] ${message} - Failed to log safely`);
+    } catch {
+      // Silencioso se tudo falhar
+    }
+  }
+};
+
+// Função para sanitizar dados sensíveis
+const sanitizeLogData = (data: any, userId?: string): any => {
+  if (!data || typeof data !== 'object') {
+    return data;
+  }
+
+  const sensitiveFields = [
+    'password', 'token', 'secret', 'key', 'authorization',
+    'cpf', 'cnpj', 'rg', 'phone', 'email', 'address',
+    'latitude', 'longitude', 'coordinates', 'location',
+    'price', 'cost', 'revenue', 'financial', 'payment',
+    'stripe_customer_id', 'stripe_account_id'
+  ];
+
+  const sanitized = Array.isArray(data) ? [] : {};
+
+  for (const [key, value] of Object.entries(data)) {
+    const keyLower = key.toLowerCase();
+    
+    // Remover campos sensíveis
+    if (sensitiveFields.some(field => keyLower.includes(field))) {
+      sanitized[key] = '[PROTECTED]';
+    }
+    // Sanitizar objetos aninhados
+    else if (value && typeof value === 'object') {
+      sanitized[key] = sanitizeLogData(value, userId);
+    }
+    // Manter dados não sensíveis
+    else {
+      sanitized[key] = value;
+    }
+  }
+
+  // Adicionar identificador do usuário para debug (sem dados pessoais)
+  if (userId && !Array.isArray(sanitized)) {
+    sanitized['_debug_user_hash'] = hashUserId(userId);
+  }
+
+  return sanitized;
+};
+
+// Função para criar hash anônimo do usuário
+const hashUserId = (userId: string): string => {
+  try {
+    // Criar hash simples para identificação de debug sem expor ID real
+    return `user_${userId.slice(-4)}${Date.now().toString().slice(-3)}`;
+  } catch {
+    return 'user_unknown';
+  }
+};
+2. IMPLEMENTAR AUTENTICAÇÃO E AUTORIZAÇÃO SEGURA
+typescript// Função para extrair e validar usuário da requisição
+const extractUserFromRequest = async (req: Request): Promise<{ userId: string; isLojista: boolean } | null> => {
+  try {
+    // Extrair token do header Authorization
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null;
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Validar token (substitua pela sua lógica de validação)
+    const decoded = await validateJWTToken(token); // Implementar esta função
+    
+    if (!decoded || !decoded.userId) {
+      return null;
+    }
+
+    // Verificar se é lojista
+    const user = await getUserById(decoded.userId); // Implementar esta função
+    
+    return {
+      userId: decoded.userId,
+      isLojista: user?.type === 'lojista' || user?.role === 'seller'
+    };
+
+  } catch (error) {
+    secureLog('❌ Erro na autenticação', null);
+    return null;
+  }
+};
+
+// Função para validar propriedade de dados
+const validateDataOwnership = async (userId: string, dataType: string, dataId?: string): Promise<boolean> => {
+  try {
+    // Implementar validação específica por tipo de dado
+    switch (dataType) {
+      case 'store':
+        return dataId ? await isStoreOwner(userId, dataId) : true;
+      case 'product':
+        return dataId ? await isProductOwner(userId, dataId) : true;
+      case 'subscription':
+        return await isSubscriptionOwner(userId);
+      default:
+        return false;
+    }
+  } catch (error) {
+    secureLog('❌ Erro na validação de propriedade', null, userId);
+    return false;
+  }
+};
+3. ENDPOINT STRIPE SEGURO
+typescriptexport const createCheckoutSession = async (req: Request, res: Response) => {
+  const startTime = Date.now();
+  let currentUser: { userId: string; isLojista: boolean } | null = null;
+
+  try {
+    secureLog('🚀 Stripe checkout iniciado');
+
+    // CHECKPOINT 1: Validar método
+    if (req.method !== 'POST') {
+      secureLog('❌ Método não permitido', { method: req.method });
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // CHECKPOINT 2: Autenticar usuário
+    currentUser = await extractUserFromRequest(req);
+    if (!currentUser) {
+      secureLog('❌ Usuário não autenticado');
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // CHECKPOINT 3: Verificar se é lojista
+    if (!currentUser.isLojista) {
+      secureLog('❌ Acesso negado - não é lojista', null, currentUser.userId);
+      return res.status(403).json({ error: 'Access denied - seller account required' });
+    }
+
+    secureLog('✅ Usuário autenticado como lojista', null, currentUser.userId);
+
+    // CHECKPOINT 4: Validar dados da requisição
+    const { planId, interval } = req.body;
+    
+    if (!planId) {
+      secureLog('❌ Plan ID ausente', null, currentUser.userId);
+      return res.status(400).json({ error: 'Plan ID is required' });
+    }
+
+    // CHECKPOINT 5: Validar se pode fazer upgrade/downgrade
+    const canChangePlan = await validatePlanChange(currentUser.userId, planId);
+    if (!canChangePlan) {
+      secureLog('❌ Mudança de plano não permitida', { planId }, currentUser.userId);
+      return res.status(403).json({ error: 'Plan change not allowed' });
+    }
+
+    // CHECKPOINT 6: Configurar Stripe
+    const isTestMode = process.env.STRIPE_MODE === 'test';
+    const stripeSecretKey = isTestMode 
+      ? process.env.STRIPE_SECRET_KEY_TEST 
+      : process.env.STRIPE_SECRET_KEY_LIVE;
+
+    if (!stripeSecretKey) {
+      secureLog('❌ Configuração Stripe ausente', null, currentUser.userId);
+      return res.status(500).json({ error: 'Payment system configuration error' });
+    }
+
+    const Stripe = require('stripe');
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
+
+    // CHECKPOINT 7: Mapear Price IDs (SUBSTITUA PELOS SEUS)
+    const priceMapping = {
+      freemium: null,
+      start: {
+        monthly: isTestMode ? 'price_TEST_START_MONTHLY' : 'price_LIVE_START_MONTHLY',
+        yearly: isTestMode ? 'price_TEST_START_YEARLY' : 'price_LIVE_START_YEARLY'
+      },
+      pro: {
+        monthly: isTestMode ? 'price_TEST_PRO_MONTHLY' : 'price_LIVE_PRO_MONTHLY',
+        yearly: isTestMode ? 'price_TEST_PRO_YEARLY' : 'price_LIVE_PRO_YEARLY'
+      },
+      premium: {
+        monthly: isTestMode ? 'price_TEST_PREMIUM_MONTHLY' : 'price_LIVE_PREMIUM_MONTHLY',
+        yearly: isTestMode ? 'price_TEST_PREMIUM_YEARLY' : 'price_LIVE_PREMIUM_YEARLY'
+      }
+    };
+
+    if (planId === 'freemium') {
+      // Ativar plano gratuito
+      await updateUserPlan(currentUser.userId, 'freemium');
+      secureLog('✅ Plano freemium ativado', null, currentUser.userId);
+      
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Freemium plan activated',
+        redirect: false
+      });
+    }
+
+    const priceId = priceMapping[planId]?.[interval || 'monthly'];
+    if (!priceId) {
+      secureLog('❌ Price ID não encontrado', { planId, interval }, currentUser.userId);
+      return res.status(400).json({ error: 'Invalid plan configuration' });
+    }
+
+    // CHECKPOINT 8: Criar sessão Stripe
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price: priceId,
+        quantity: 1,
+      }],
+      mode: 'subscription',
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
+      client_reference_id: currentUser.userId, // Para identificar o usuário no webhook
+      metadata: {
+        userId: currentUser.userId,
+        planId,
+        interval: interval || 'monthly',
+        userType: 'lojista'
+      },
+    });
+
+    // CHECKPOINT 9: Log de sucesso (sem dados sensíveis)
+    const processingTime = Date.now() - startTime;
+    secureLog('✅ Sessão Stripe criada', { 
+      sessionId: session.id.slice(-8) + '...', // Apenas parte do ID
+      processingTime: `${processingTime}ms`,
+      planId 
+    }, currentUser.userId);
+
+    return res.status(200).json({
+      success: true,
+      url: session.url,
+      sessionId: session.id // Frontend precisa do ID completo
+    });
+
+  } catch (error) {
+    const processingTime = Date.now() - startTime;
+    
+    secureLog('❌ Erro no checkout Stripe', {
+      error: error.message,
+      type: error.type,
+      processingTime: `${processingTime}ms`
+    }, currentUser?.userId);
+
+    return res.status(500).json({
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Payment processing failed'
+    });
+  }
+};
+4. FUNÇÕES DE VALIDAÇÃO (IMPLEMENTAR CONFORME SEU BANCO)
+typescript// Implementar estas funções conforme sua estrutura de banco de dados
+
+const validateJWTToken = async (token: string): Promise<{ userId: string } | null> => {
+  // Implementar validação de JWT
+  // return jwt.verify(token, process.env.JWT_SECRET);
+  throw new Error('Implementar validação JWT');
+};
+
+const getUserById = async (userId: string): Promise<{ type: string; role: string } | null> => {
+  // Implementar busca no banco
+  // return await db.user.findById(userId);
+  throw new Error('Implementar busca de usuário');
+};
+
+const isStoreOwner = async (userId: string, storeId: string): Promise<boolean> => {
+  // Verificar se o usuário é dono da loja
+  // return await db.store.findOne({ id: storeId, ownerId: userId });
+  throw new Error('Implementar validação de propriedade da loja');
+};
+
+const isProductOwner = async (userId: string, productId: string): Promise<boolean> => {
+  // Verificar se o usuário é dono do produto
+  // return await db.product.findOne({ id: productId, sellerId: userId });
+  throw new Error('Implementar validação de propriedade do produto');
+};
+
+const isSubscriptionOwner = async (userId: string): Promise<boolean> => {
+  // Verificar propriedade da assinatura
+  return true; // Implementar validação
+};
+
+const validatePlanChange = async (userId: string, newPlan: string): Promise<boolean> => {
+  // Implementar lógica de validação de mudança de plano
+  return true; // Por enquanto permitir todas
+};
+
+const updateUserPlan = async (userId: string, plan: string): Promise<void> => {
+  // Implementar atualização do plano no banco
+  // await db.user.update({ id: userId }, { plan });
+};
+🎯 PRÓXIMOS PASSOS
+
+Substituir sua função safeLog pela secureLog
+Implementar as funções de validação conforme seu banco de dados
+Testar com logs seguros
+Substituir os Price IDs pelos reais
+Validar isolamento entre lojistas
