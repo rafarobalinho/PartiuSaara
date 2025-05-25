@@ -262,8 +262,11 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     const baseUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || req.headers.origin;
     console.log('🔗 URL base para redirecionamentos:', baseUrl);
     
-    const successUrl = `${baseUrl}/seller/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${baseUrl}/seller/subscription?canceled=true`;
+    // Remover barras duplicadas que podem causar problemas
+    const formattedBaseUrl = baseUrl.replace(/\/+$/, '');
+    
+    const successUrl = `${formattedBaseUrl}/seller/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${formattedBaseUrl}/seller/subscription?canceled=true`;
     
     console.log('🔗 Success URL:', successUrl);
     console.log('🔗 Cancel URL:', cancelUrl);
