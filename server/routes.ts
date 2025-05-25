@@ -55,6 +55,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: 'API funcionando!' });
   });
 
+  // Endpoint simples e direto para teste do Stripe
+  app.post('/api/stripe-test', (req: Request, res: Response) => {
+    console.log('🎯 Stripe teste chamado com:', req.body);
+    res.json({ 
+      success: true, 
+      message: 'Stripe endpoint funcionando!',
+      data: req.body 
+    });
+  });
+
   // Stripe routes
   app.get('/api/stripe/plans', StripeController.getPlans);
   app.post('/api/stripe/create-checkout-session', StripeController.createCheckoutSession);
