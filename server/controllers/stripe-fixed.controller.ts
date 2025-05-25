@@ -129,7 +129,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       metadata: {
         storeId: storeId.toString(),
         plan: plan,
-        userId: req.user.id.toString()
+        userId: user.id.toString()
       },
       success_url: `${req.headers.origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.origin}/subscription/plans`,
