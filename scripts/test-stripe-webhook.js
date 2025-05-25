@@ -1,4 +1,3 @@
-
 /**
  * Script para testar a configuração de webhook do Stripe
  * Este script verifica se a URL do webhook está acessível e responde corretamente.
@@ -18,7 +17,7 @@ const webhookUrls = [
 function testWebhook(webhookUrl) {
   return new Promise((resolve) => {
     console.log(`\n🧪 Testando webhook URL: ${webhookUrl}`);
-    
+
     // Parse da URL
     const parsedUrl = url.parse(webhookUrl);
     const options = {
@@ -30,29 +29,29 @@ function testWebhook(webhookUrl) {
         'Stripe-Signature': 'test_signature'  // Assinatura de teste
       }
     };
-    
+
     // Escolher protocolo correto
     const requestLib = parsedUrl.protocol === 'https:' ? https : http;
-    
+
     // Fazer a requisição
     const req = requestLib.request(options, (res) => {
       let data = '';
-      
+
       res.on('data', (chunk) => {
         data += chunk;
       });
-      
+
       res.on('end', () => {
         console.log(`🔍 Status: ${res.statusCode}`);
         console.log(`🔍 Headers: ${JSON.stringify(res.headers)}`);
-        
+
         try {
           const responseData = data ? JSON.parse(data) : {};
           console.log(`🔍 Resposta: ${JSON.stringify(responseData)}`);
         } catch (e) {
           console.log(`🔍 Resposta (texto): ${data}`);
         }
-        
+
         // Avaliar o resultado
         const success = res.statusCode === 400; // Esperamos 400 pois a assinatura não é válida
         console.log(`${success ? '✅' : '❌'} ${success ? 'Sucesso' : 'Falha'}: ${
@@ -60,7 +59,7 @@ function testWebhook(webhookUrl) {
             ? 'O endpoint existe e está verificando a assinatura (erro 400 é esperado)' 
             : 'O endpoint não está verificando a assinatura corretamente'
         }`);
-        
+
         resolve({
           url: webhookUrl,
           status: res.statusCode,
@@ -69,7 +68,7 @@ function testWebhook(webhookUrl) {
         });
       });
     });
-    
+
     req.on('error', (error) => {
       console.error(`❌ Erro ao testar webhook: ${error.message}`);
       resolve({
@@ -79,7 +78,7 @@ function testWebhook(webhookUrl) {
         error: error.message
       });
     });
-    
+
     // Enviar uma carga útil de teste simples
     req.write(JSON.stringify({
       type: 'test.webhook',
@@ -89,7 +88,7 @@ function testWebhook(webhookUrl) {
         }
       }
     }));
-    
+
     req.end();
   });
 }
@@ -98,27 +97,27 @@ function testWebhook(webhookUrl) {
 async function testAllWebhooks() {
   console.log('🚀 Iniciando teste de webhooks do Stripe');
   console.log('=========================================');
-  
+
   const results = [];
-  
+
   for (const webhookUrl of webhookUrls) {
     const result = await testWebhook(webhookUrl);
     results.push(result);
   }
-  
+
   console.log('\n📊 Resumo dos testes:');
   console.log('=====================');
-  
+
   results.forEach((result, index) => {
     console.log(`URL ${index + 1}: ${result.url}`);
     console.log(`Status: ${result.status}`);
     console.log(`Resultado: ${result.success ? 'OK' : 'FALHA'}`);
     console.log('---------------------');
   });
-  
+
   const allSuccess = results.every(r => r.success);
   console.log(`\n${allSuccess ? '✅ Todos os' : '❌ Nem todos os'} webhooks estão configurados corretamente.`);
-  
+
   if (!allSuccess) {
     console.log('\n⚠️ Recomendações:');
     console.log('1. Verifique se o servidor está rodando');
