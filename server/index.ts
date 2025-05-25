@@ -58,17 +58,15 @@ app.use(cors({
 // Configurar o middleware CSP
 setupCSP(app);
 
-// Middleware para processar JSON e dados de formulário
-// Importante: o webhook do Stripe precisa do body no formato raw
+// Parse JSON bodies (exceto para a rota de webhook do Stripe)
 app.use((req, res, next) => {
-  if (req.originalUrl === '/api/stripe/webhook') {
-    // O middleware para webhook é configurado especificamente na rota
+  if (req.originalUrl === '/api/payment/webhook') {
     next();
   } else {
     express.json()(req, res, next);
   }
 });
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: false }));
 
 // Middleware para capturar erros de parsing JSON
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
