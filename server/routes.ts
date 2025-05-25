@@ -53,8 +53,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Stripe routes
   app.get('/api/stripe/plans', StripeController.getPlans);
   app.post('/api/stripe/create-checkout-session', authMiddleware, StripeController.createCheckoutSession);
-  app.post('/api/stripe/create-portal-session', authMiddleware, StripeController.createPortalSession);
-  app.post('/api/stripe/webhook', express.raw({type: 'application/json'}), StripeController.stripeWebhook);
+  app.post('/api/stripe/webhook', StripeController.handleWebhook);
+  app.get('/api/stripe/subscription/:storeId', authMiddleware, StripeController.getSubscriptionStatus);
 
   // Category routes
   app.get('/api/categories', async (req: Request, res: Response) => {
@@ -499,11 +499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/subscriptions/purchase', authMiddleware, SubscriptionController.purchaseSubscription);
   app.get('/api/subscriptions/my-plan', authMiddleware, SubscriptionController.getMySubscription);
 
-  // Stripe routes for payment processing
-  app.post('/api/stripe/create-checkout-session', authMiddleware, StripeController.createCheckoutSession);
-  app.get('/api/stripe/plans', StripeController.getPlans);
-  app.post('/api/stripe/webhook', StripeController.handleWebhook);
-  app.get('/api/stripe/subscription/:storeId', authMiddleware, StripeController.getSubscriptionStatus);
+  // Stripe routes for payment processing (already defined above)
 
   // Rotas de diagnóstico
   app.get('/api/debug', DebugController.getDiagnostics);
