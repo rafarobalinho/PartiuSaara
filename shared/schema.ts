@@ -58,8 +58,12 @@ export const stores = pgTable("stores", {
   address: jsonb("address").$type<StoreAddress | null>(), // { street, city, state, zipCode }
   location: jsonb("location").$type<StoreLocation | null>(), // { latitude, longitude, place_id }
   place_id: text("place_id"),
-  // Removida a coluna acceptLocationTerms que não existe no banco de dados
+  // Campos de assinatura e Stripe
   subscriptionPlan: text("subscription_plan").$type<"freemium" | "start" | "pro" | "premium">().default("freemium"),
+  subscriptionStatus: text("subscription_status").$type<"active" | "canceled" | "past_due" | "unpaid">().default("active"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  subscriptionStartDate: timestamp("subscription_start_date"),
   subscriptionEndDate: timestamp("subscription_end_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
@@ -70,6 +74,10 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
   rating: true,
   reviewCount: true,
   subscriptionPlan: true,
+  subscriptionStatus: true,
+  stripeCustomerId: true,
+  stripeSubscriptionId: true,
+  subscriptionStartDate: true,
   subscriptionEndDate: true,
   createdAt: true,
   updatedAt: true

@@ -32,6 +32,15 @@ export interface IStorage {
   getNearbyStores(lat: number, lng: number, radius?: number): Promise<Store[]>;
   createStore(store: InsertStore): Promise<Store>;
   updateStore(id: number, store: Partial<Store>): Promise<Store | undefined>;
+  updateStoreStripeInfo(id: number, stripeInfo: {
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId?: string | null;
+    subscriptionPlan?: 'freemium' | 'start' | 'pro' | 'premium';
+    subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'unpaid';
+    subscriptionStartDate?: Date | null;
+    subscriptionEndDate?: Date | null;
+  }): Promise<Store | undefined>;
+  getStoreByStripeCustomerId(stripeCustomerId: string): Promise<Store | undefined>;
   
   // Product operations
   getProduct(id: number): Promise<Product | undefined>;
@@ -489,6 +498,32 @@ export class MemStorage implements IStorage {
     
     this.stores.set(id, updatedStore);
     return updatedStore;
+  }
+
+  async updateStoreStripeInfo(id: number, stripeInfo: {
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId?: string | null;
+    subscriptionPlan?: 'freemium' | 'start' | 'pro' | 'premium';
+    subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'unpaid';
+    subscriptionStartDate?: Date | null;
+    subscriptionEndDate?: Date | null;
+  }): Promise<Store | undefined> {
+    const store = this.stores.get(id);
+    if (!store) return undefined;
+    
+    const updatedStore = {
+      ...store,
+      ...stripeInfo,
+      updatedAt: new Date()
+    };
+    
+    this.stores.set(id, updatedStore);
+    return updatedStore;
+  }
+
+  async getStoreByStripeCustomerId(stripeCustomerId: string): Promise<Store | undefined> {
+    const stores = Array.from(this.stores.values());
+    return stores.find(store => store.stripeCustomerId === stripeCustomerId);
   }
 
   // Product operations
@@ -2272,6 +2307,34 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query;
+  }
+
+  // Métodos para Stripe
+  async updateStoreStripeInfo(id: number, stripeInfo: {
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId?: string | null;
+    subscriptionPlan?: 'freemium' | 'start' | 'pro' | 'premium';
+    subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'unpaid';
+    subscriptionStartDate?: Date | null;
+    subscriptionEndDate?: Date | null;
+  }): Promise<Store | undefined> {
+    const [updatedStore] = await db
+      .update(stores)
+      .set({
+        ...stripeInfo,
+        updatedAt: new Date()
+      })
+      .where(eq(stores.id, id))
+      .returning();
+    return updatedStore;
+  }
+
+  async getStoreByStripeCustomerId(stripeCustomerId: string): Promise<Store | undefined> {
+    const [store] = await db
+      .select()
+      .from(stores)
+      .where(eq(stores.stripeCustomerId, stripeCustomerId));
+    return store;
   }
 
   // User statistics
