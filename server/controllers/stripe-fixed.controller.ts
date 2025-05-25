@@ -60,12 +60,17 @@ export const getPlans = async (req: Request, res: Response) => {
 
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
+    console.log('🚀 Função createCheckoutSession chamada');
+    console.log('📦 Dados recebidos:', req.body);
+    
     const { plan, storeId } = req.body;
     
-    console.log('🚀 Iniciando criação de sessão de checkout:', { plan, storeId });
+    console.log('🔍 Plan:', plan, 'StoreId:', storeId);
+    console.log('👤 Usuário autenticado:', !!req.user);
 
     // Verificar se o usuário está autenticado
     if (!req.user) {
+      console.log('❌ Usuário não autenticado');
       return res.status(401).json({
         success: false,
         error: 'Usuário não autenticado'
@@ -143,10 +148,16 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    console.error('❌ Erro ao criar sessão de checkout:', error);
+    console.error('❌ ERRO DETALHADO ao criar sessão de checkout:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code
+    });
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error.message || 'Erro interno do servidor',
+      details: error.stack
     });
   }
 };
