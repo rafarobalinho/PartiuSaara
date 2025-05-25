@@ -50,9 +50,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/users/update', authMiddleware, UserController.updateUser);
   app.post('/api/users/avatar', authMiddleware, AvatarController.uploadAvatarMiddleware, AvatarController.uploadAvatar);
 
+  // Teste básico da API
+  app.get('/api/test', (req: Request, res: Response) => {
+    res.json({ message: 'API funcionando!' });
+  });
+
   // Stripe routes
   app.get('/api/stripe/plans', StripeController.getPlans);
-  app.post('/api/stripe/create-checkout-session', authMiddleware, StripeController.createCheckoutSession);
+  app.post('/api/stripe/create-checkout-session', StripeController.createCheckoutSession);
   app.post('/api/stripe/webhook', StripeController.handleWebhook);
   app.get('/api/stripe/subscription/:storeId', authMiddleware, StripeController.getSubscriptionStatus);
 
