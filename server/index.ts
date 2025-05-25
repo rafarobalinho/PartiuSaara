@@ -139,17 +139,7 @@ app.use((req, res, next) => {
     console.error('❌ Erro ao inicializar tabelas personalizadas:', error);
   }
 
-  // Registrar as rotas da API ANTES do Vite para evitar interceptação
   const server = await registerRoutes(app);
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
 
   // Middleware para tratar erros e garantir que sempre retornamos JSON
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -167,6 +157,15 @@ app.use((req, res, next) => {
     });
     // Não lançar o erro novamente - isso pode causar comportamento inesperado
   });
+
+  // importantly only setup vite in development and after
+  // setting up all the other routes so the catch-all route
+  // doesn't interfere with the other routes
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
 
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client.

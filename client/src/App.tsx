@@ -43,8 +43,6 @@ import SimpleEditPromotion from "@/pages/seller/edit-promotion";
 import SellerAnalytics from "@/pages/seller/analytics";
 import SellerSubscription from "@/pages/seller/subscription";
 import SellerStores from "@/pages/seller/stores/index";
-import SubscriptionPlans from "@/pages/subscription/plans";
-import SubscriptionSuccess from "@/pages/subscription/success";
 import AddStore from "@/pages/seller/stores/add-store";
 import StoreDetail from "@/pages/seller/stores/store-detail";
 import StoreProducts from "@/pages/seller/stores/store-products";
@@ -87,8 +85,6 @@ function Router() {
           <Route path="/seller/stores/:id/products" component={StoreProducts} />
           <Route path="/seller/analytics" component={SellerAnalytics} />
           <Route path="/seller/subscription" component={SellerSubscription} />
-          <Route path="/subscription/plans" component={SubscriptionPlans} />
-          <Route path="/subscription/success" component={SubscriptionSuccess} />
           <Route path="/seller/settings/location" component={LocationSettingsPage} />
           <Route path="/admin/login" component={AdminLogin} />
           <Route path="/admin/setup" component={AdminSetup} />

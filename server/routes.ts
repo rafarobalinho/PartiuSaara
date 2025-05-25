@@ -14,7 +14,7 @@ import * as PromotionController from "./controllers/promotion.controller";
 import * as ReservationController from "./controllers/reservation.controller";
 import * as WishlistController from "./controllers/wishlist.controller";
 import * as SubscriptionController from "./controllers/subscription.controller";
-import * as StripeController from "./controllers/stripe-fixed.controller";
+import * as StripeController from "./controllers/stripe.controller";
 import * as MapController from "./controllers/map.controller";
 import * as AdminController from "./controllers/admin.controller";
 import * as AdminUserController from "./controllers/admin-user.controller";
@@ -49,27 +49,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/users/verify-password', authMiddleware, UserController.verifyPassword);
   app.put('/api/users/update', authMiddleware, UserController.updateUser);
   app.post('/api/users/avatar', authMiddleware, AvatarController.uploadAvatarMiddleware, AvatarController.uploadAvatar);
-
-  // Teste básico da API
-  app.get('/api/test', (req: Request, res: Response) => {
-    res.json({ message: 'API funcionando!' });
-  });
-
-  // Endpoint simples e direto para teste do Stripe
-  app.post('/api/stripe-test', (req: Request, res: Response) => {
-    console.log('🎯 Stripe teste chamado com:', req.body);
-    res.json({ 
-      success: true, 
-      message: 'Stripe endpoint funcionando!',
-      data: req.body 
-    });
-  });
-
-  // Stripe routes
-  app.get('/api/stripe/plans', StripeController.getPlans);
-  app.post('/api/stripe/create-checkout-session', StripeController.createCheckoutSession);
-  app.post('/api/stripe/webhook', StripeController.handleWebhook);
-  app.get('/api/stripe/subscription/:storeId', authMiddleware, StripeController.getSubscriptionStatus);
 
   // Category routes
   app.get('/api/categories', async (req: Request, res: Response) => {
@@ -514,7 +493,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/subscriptions/purchase', authMiddleware, SubscriptionController.purchaseSubscription);
   app.get('/api/subscriptions/my-plan', authMiddleware, SubscriptionController.getMySubscription);
 
-  // Stripe routes for payment processing (already defined above)
+  // Stripe routes for payment processing
+  app.post('/api/stripe/checkout', authMiddleware, StripeController.createCheckoutSession);
+  app.get('/api/stripe/checkout', (req, res) => res.json({ message: 'Stripe checkout endpoint is working' }));
+  app.post('/api/stripe/webhook', StripeController.handleWebhook);
+  app.get('/api/stripe/subscription', authMiddleware, StripeController.getSubscriptionDetails);
+  app.post('/api/stripe/cancel', authMiddleware, StripeController.cancelSubscription);
+
+  // Rotas para configuração e teste do Stripe
+  app.get('/api/stripe/config', StripeController.getStripeConfig);
+  app.get('/api/stripe/test', StripeController.testStripeConnection);
 
   // Rotas de diagnóstico
   app.get('/api/debug', DebugController.getDiagnostics);
