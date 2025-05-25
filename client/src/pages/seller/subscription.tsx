@@ -134,9 +134,9 @@ export default function SellerSubscription() {
       console.log('🚀 Iniciando checkout para:', selectedPlan);
 
       // Chamar o endpoint da sua API para iniciar o checkout do Stripe
-      const response = await apiRequest('POST', '/api/stripe/checkout', {
-        planId: selectedPlan,
-        interval: billingCycle,
+      const response = await apiRequest('POST', '/api/stripe/create-checkout-session', {
+        plan: selectedPlan,
+        storeId: 1, // TODO: Get actual store ID from user's stores
       });
 
       console.log('✅ Checkout data:', response);
