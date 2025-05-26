@@ -49,20 +49,23 @@ export const stores = pgTable("stores", {
   userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   description: text("description"),
-  category: text("category"),
-  tags: text("tags").array(),
+  category: text("category").notNull(),
+  tags: text("tags", { mode: 'array' }),
   rating: doublePrecision("rating").default(0),
   reviewCount: integer("review_count").default(0),
-  images: text("images").array(),
+  images: text("images", { mode: 'array' }),
   isOpen: boolean("is_open").default(true),
-  address: jsonb("address").$type<StoreAddress | null>(), // { street, city, state, zipCode }
-  location: jsonb("location").$type<StoreLocation | null>(), // { latitude, longitude, place_id }
+  address: jsonb("address").$type<StoreAddress | null>(),
+  location: jsonb("location").$type<StoreLocation | null>(),
   place_id: text("place_id"),
-  // Removida a coluna acceptLocationTerms que não existe no banco de dados
-  subscriptionPlan: text("subscription_plan").$type<"freemium" | "start" | "pro" | "premium">().default("freemium"),
-  subscriptionEndDate: timestamp("subscription_end_date"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
+  subscriptionPlan: text("subscription_plan").$type<"freemium" | "start" | "pro" | "premium">().default("freemium").notNull(),
+  subscriptionEndDate: timestamp("subscription_end_date", { mode: 'string' }),
+  subscriptionStatus: text("subscription_status").default("active").notNull(),
+  stripeCustomerId: text("stripe_customer_id").unique(),
+  stripeSubscriptionId: text("stripe_subscription_id").unique(),
+  subscriptionStartDate: timestamp("subscription_start_date", { mode: 'string' }),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull()
 });
 
 export const insertStoreSchema = createInsertSchema(stores).omit({
@@ -71,6 +74,10 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
   reviewCount: true,
   subscriptionPlan: true,
   subscriptionEndDate: true,
+  subscriptionStatus: true,
+  stripeCustomerId: true,
+  stripeSubscriptionId: true,
+  subscriptionStartDate: true,
   createdAt: true,
   updatedAt: true
 });

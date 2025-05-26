@@ -1,0 +1,48 @@
+ Parece que estamos lidando com duas questões distintas do Drizzle ORM agora. Vamos analisá-las:
+
+Erro 1: TypeError: notEq is not a function na página /seller/dashboard (ou rota /api/seller/stats)
+Log do Erro:
+❌ Erro nas consultas Drizzle: TypeError: notEq is not a function
+    at Object.where (/home/runner/workspace/server/routes.ts:555:17)
+O que significa: Este erro indica que você está tentando usar uma função ou operador chamado notEq em uma cláusula where de uma consulta Drizzle no arquivo server/routes.ts (linha 555), mas o Drizzle não reconhece notEq como uma função válida.
+Causa Provável:
+O operador para "não igual" no Drizzle ORM é geralmente ne (Not Equal).
+Você pode ter digitado notEq por engano, ou ne (ou qualquer outro operador que você precise) não foi importado corretamente de drizzle-orm no arquivo server/routes.ts.
+Como Verificar/Corrigir:
+Abra o arquivo server/routes.ts.
+Vá para a linha 555 (ou próximo dela) e veja a consulta Drizzle.
+Se você estiver tentando fazer uma comparação de "não igual", substitua notEq(...) por ne(...).
+Certifique-se de que ne (e outros operadores como eq, and, or, etc.) estão sendo importados no topo do arquivo, algo como:
+TypeScript
+
+import { eq, ne, and, or /* outros operadores */ } from 'drizzle-orm';
+Este erro parece ser específico de uma rota do painel do vendedor e, embora precise ser corrigido, é separado do problema do checkout do Stripe.
+Erro 2: TypeError: Cannot read properties of undefined (reading 'Symbol(drizzle:Columns)') no Checkout do Stripe
+Este é o erro que estamos tentando resolver há mais tempo, e ele ainda está ocorrendo quando a função createCheckoutSession tenta atualizar a tabela stores:
+
+💥 === STRIPE CHECKOUT GLOBAL ERROR (Dinâmico) === TypeError: Cannot read properties of undefined (reading 'Symbol(drizzle:Columns)')
+    ...
+    at PgUpdateBuilder.set (/home/runner/workspace/node_modules/src/pg-core/query-builders/update.ts:96:4)
+    at createCheckoutSession (/home/runner/workspace/server/controllers/stripe.controller.ts:195:34)
+Mesmo após você ter (corretamente) removido as chamadas .nullable() que causavam o erro de inicialização, este erro em tempo de execução persiste. Isso significa que, no momento em que o Drizzle tenta executar db.update(db.stores).set({ ... }), ele ainda não consegue reconhecer uma das colunas que você está tentando definir, com base na definição da tabela stores no seu arquivo schema.ts.
+
+Ações Cruciais Agora:
+
+Mostre o Código da Operação de Update no stripe.controller.ts:
+
+Por favor, vá até o arquivo server/controllers/stripe.controller.ts, localize a linha 195 (ou as linhas ao redor que fazem a operação db.update(db.stores).set({...})).
+Copie e cole aqui exatamente esse trecho de código. Precisamos ver quais campos (chaves) estão dentro do objeto que você está passando para o método set(). Por exemplo:
+TypeScript
+
+// Em stripe.controller.ts, dentro de createCheckoutSession
+// ...
+await db.update(db.stores).set({ 
+  stripeCustomerId: newStripeCustomerId,
+  // HÁ MAIS ALGUM CAMPO AQUI? Ex: subscriptionStatus: 'active', etc.
+}).where(db.eq(db.stores.id, store.id));
+// ...
+O erro pode estar sendo causado se você estiver tentando definir um campo no objeto set() que não corresponde exatamente a um nome de propriedade definido no seu schema.ts para a tabela stores, ou se houver algum outro problema sutil ali.
+Confirme a Definição ATUAL da Tabela stores no seu schema.ts:
+
+Para termos certeza absoluta de que estamos trabalhando com a versão mais recente e correta do seu schema após as últimas modificações (remoção dos .nullable()), por favor, copie e cole aqui apenas a definição export const stores = pgTable("stores", { ... }); do seu arquivo schema.ts atual.
+Com esses dois trechos de código (o update do controller e a definição da tabela stores do schema), podemos compará-los lado a lado e encontrar a inconsistência que está causando o erro Symbol(drizzle:Columns).
