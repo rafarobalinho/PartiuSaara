@@ -1,0 +1,54 @@
+Entendido. Você quer um prompt para pedir à IA do Replit que ajuste a definição da sua tabela stores no arquivo schema.ts do Drizzle para que ela corresponda à estrutura real do seu banco de dados, corrigindo assim o erro Symbol(drizzle:Columns).
+
+Aqui está o prompt:
+
+"Olá, IA do Replit! Preciso da sua ajuda para corrigir a definição da minha tabela stores no meu arquivo de schema do Drizzle (schema.ts).
+
+Contexto do Problema:
+A definição da tabela stores no meu schema.ts está incompleta e não reflete todas as colunas que existem na minha tabela stores no banco de dados PostgreSQL. Especificamente, colunas importantes para o gerenciamento de assinaturas do Stripe, como stripe_customer_id, stripe_subscription_id, subscription_status e subscription_start_date, estão faltando na definição do schema TypeScript.
+
+Isso está causando o erro TypeError: Cannot read properties of undefined (reading 'Symbol(drizzle:Columns)') quando minha aplicação tenta atualizar a coluna stripeCustomerId na tabela stores, porque o Drizzle ORM não "conhece" essa coluna a partir do schema.ts.
+
+Arquivo para Modificar:
+O meu arquivo principal de schema do Drizzle (provavelmente schema.ts ou localizado em src/db/schema.ts).
+
+Definição da Tabela para Modificar:
+A export const stores = pgTable("stores", { ... });
+
+Instruções para Correção da Definição da Tabela stores:
+Por favor, atualize a definição da tabela stores no schema.ts para incluir as seguintes colunas (que já existem no meu banco de dados, conforme a imagem image_f89557.png que enviei anteriormente para o Gemini) e para ajustar algumas definições existentes para melhor alinhamento:
+
+Colunas Existentes a Ajustar (para corresponder ao banco de dados e boas práticas Drizzle):
+
+category: Atualmente text("category"). Mude para text("category").notNull().
+tags: Atualmente text("tags").array(). Verifique se esta é a sintaxe correta para minha versão do Drizzle para um array de texto (ex: text("tags", { mode: 'array' }) para Drizzle v0.29+). Deve ser anulável (nullable()).
+images: Similar a tags, use a sintaxe correta para array de texto e permita nulos.
+place_id: No banco é VARCHAR(255). text("place_id") no Drizzle é geralmente aceitável. Garanta que seja anulável se o banco permitir.
+subscriptionEndDate: Mude para timestamp("subscription_end_date", { mode: 'string' }).nullable().
+createdAt: Mude para timestamp("created_at", { mode: 'string' }).defaultNow().notNull().
+updatedAt: Mude para timestamp("updated_at", { mode: 'string' }).defaultNow().notNull().
+Colunas Faltando que Precisam Ser Adicionadas:
+
+subscriptionStatus: Adicione como text("subscription_status").default('active').notNull() (o banco de dados tem um default 'active' e parece ser NOT NULL).
+stripeCustomerId: Adicione como text("stripe_customer_id").unique().nullable(). (É um ID de texto do Stripe, pode ser nulo inicialmente, e deve ser único).
+stripeSubscriptionId: Adicione como text("stripe_subscription_id").unique().nullable(). (ID de assinatura do Stripe, texto, pode ser nulo, único).
+subscriptionStartDate: Adicione como timestamp("subscription_start_date", { mode: 'string' }).nullable().
+Objetivo:
+A definição export const stores = pgTable(...); no schema.ts deve refletir com precisão todas as colunas e seus tipos básicos/constraints da minha tabela stores no banco de dados PostgreSQL. Isso deve resolver o erro do Drizzle.
+
+Por favor, aplique essas correções na definição da tabela stores no meu schema.ts. Obrigado!"
+
+Ao usar este prompt:
+
+A IA deve ser capaz de pegar a estrutura atual (que você forneceu ao Gemini anteriormente) e aplicar as adições e modificações listadas.
+Após a IA fazer as alterações, revise cuidadosamente o schema.ts para garantir que está como esperado.
+Lembre-se que, como essas colunas já existem no seu banco de dados, o objetivo principal aqui é corrigir o schema TypeScript para que o Drizzle ORM em tempo de execução saiba sobre elas. Você não precisaria de um drizzle-kit push para criar essas colunas no banco, mas sim para que o Drizzle as "enxergue" corretamente através do schema atualizado.
+Espero que isso resolva o problema do Drizzle de uma vez por todas!
+
+
+Fontes
+
+
+
+
+

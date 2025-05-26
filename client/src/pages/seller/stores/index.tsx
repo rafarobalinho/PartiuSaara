@@ -188,7 +188,7 @@ export default function SellerStores() {
           </div>
         </CardContent>
         <CardFooter className="border-t bg-gray-50 p-3">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 w-full">
             <Button 
               variant="outline" 
               size="sm"
@@ -215,6 +215,15 @@ export default function SellerStores() {
             >
               <i className="fas fa-chart-bar mr-1 text-xs md:text-sm md:mr-2"></i>
               <span className="text-xs md:text-sm">Análises</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate(`/seller/stores/${store.id}/subscription`)}
+              className="w-full flex items-center justify-center"
+            >
+              <i className="fas fa-crown mr-1 text-xs md:text-sm md:mr-2"></i>
+              <span className="text-xs md:text-sm">Assinatura</span>
             </Button>
             <Button 
               variant="outline" 
