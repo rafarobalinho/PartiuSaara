@@ -48,22 +48,22 @@ export const stores = pgTable("stores", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
-  description: text("description"),
+  description: text("description").nullable(),
   category: text("category").notNull(),
-  tags: text("tags", { mode: 'array' }),
+  tags: text("tags", { mode: 'array' }).nullable(),
   rating: doublePrecision("rating").default(0),
   reviewCount: integer("review_count").default(0),
-  images: text("images", { mode: 'array' }),
+  images: text("images", { mode: 'array' }).nullable(),
   isOpen: boolean("is_open").default(true),
-  address: jsonb("address").$type<StoreAddress | null>(), // { street, city, state, zipCode }
-  location: jsonb("location").$type<StoreLocation | null>(), // { latitude, longitude, place_id }
-  place_id: text("place_id"),
-  subscriptionPlan: text("subscription_plan").$type<"freemium" | "start" | "pro" | "premium">().default("freemium"),
-  subscriptionEndDate: timestamp("subscription_end_date", { mode: 'string' }),
+  address: jsonb("address").$type<StoreAddress | null>().nullable(), // { street, city, state, zipCode }
+  location: jsonb("location").$type<StoreLocation | null>().nullable(), // { latitude, longitude, place_id }
+  place_id: text("place_id").nullable(),
+  subscriptionPlan: text("subscription_plan").$type<"freemium" | "start" | "pro" | "premium">().default("freemium").notNull(),
+  subscriptionEndDate: timestamp("subscription_end_date", { mode: 'string' }).nullable(),
   subscriptionStatus: text("subscription_status").default("active").notNull(),
-  stripeCustomerId: text("stripe_customer_id").unique(),
-  stripeSubscriptionId: text("stripe_subscription_id").unique(),
-  subscriptionStartDate: timestamp("subscription_start_date", { mode: 'string' }),
+  stripeCustomerId: text("stripe_customer_id").unique().nullable(),
+  stripeSubscriptionId: text("stripe_subscription_id").unique().nullable(),
+  subscriptionStartDate: timestamp("subscription_start_date", { mode: 'string' }).nullable(),
   createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull()
 });
