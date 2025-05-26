@@ -197,7 +197,25 @@ function getQueryFn<T>({ on401 }: { on401: 'returnNull' | 'throw' }): () => Prom
         throw new Error(`${res.status}: ${res.statusText}`);
       }
 
-      return await res.json();
+      const userData = await res.json();
+
+      // Buscar as lojas do usuário se ele estiver autenticado
+      if (userData?.id) {
+        try {
+          const storesResponse = await fetch('/api/stores', {
+            credentials: 'include',
+          });
+          if (storesResponse.ok) {
+            const storesData = await storesResponse.json();
+            userData.stores = storesData;
+          }
+        } catch (storesError) {
+          console.error('Erro ao carregar lojas do usuário:', storesError);
+          userData.stores = [];
+        }
+      }
+
+      return userData;
     } catch (error) {
       console.error('Auth query error:', error);
       throw error;
