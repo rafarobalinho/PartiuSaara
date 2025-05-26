@@ -37,7 +37,7 @@ interface Subscription {
 }
 
 export default function SellerSubscription() {
-  const { isAuthenticated, isSeller } = useAuth();
+  const { isAuthenticated, isSeller, user } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -133,25 +133,72 @@ export default function SellerSubscription() {
 
       console.log('🚀 Iniciando checkout para:', selectedPlan);
 
-      // Chamar o endpoint da sua API para iniciar o checkout do Stripe
-      const response = await apiRequest('POST', '/api/stripe/checkout', {
-        planId: selectedPlan,
-        interval: billingCycle,
-      });
+      try {
+        // Obter storeId - com múltiplas estratégias de fallback
+        let storeId = null;
 
-      console.log('✅ Checkout data:', response);
-      if (response.mode === 'test') {
-        console.log('🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
+        // Estratégia 1: Verificar parâmetros da URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlStoreId = urlParams.get('storeId');
+        if (urlStoreId) {
+          storeId = parseInt(urlStoreId);
+        }
+
+        // Estratégia 2: Verificar se há uma loja no contexto do usuário
+        if (!storeId && user?.stores && user.stores.length > 0) {
+          storeId = user.stores[0].id; // Pegando a primeira loja do usuário
+        }
+
+        // Estratégia 3: Buscar lojas do usuário diretamente da API se necessário
+        if (!storeId) {
+          try {
+            const storesResponse = await fetch('/api/stores', {
+              credentials: 'include',
+            });
+            if (storesResponse.ok) {
+              const storesData = await storesResponse.json();
+              if (storesData && storesData.length > 0) {
+                storeId = storesData[0].id;
+              }
+            }
+          } catch (storesError) {
+            console.error('❌ Erro ao buscar lojas:', storesError);
+          }
+        }
+
+        // Validação final
+        if (!storeId) {
+          console.error('❌ Erro: Não foi possível encontrar um Store ID');
+          throw new Error('É necessário ter uma loja cadastrada para fazer assinatura. Por favor, cadastre uma loja primeiro.');
+        }
+
+        console.log('🏪 Store ID encontrado:', storeId);
+
+        // Chamar o endpoint da sua API para iniciar o checkout do Stripe
+        const response = await apiRequest('POST', '/api/stripe/checkout', {
+          planId: selectedPlan,
+          interval: billingCycle,
+          storeId: storeId,
+        });
+
+        console.log('✅ Checkout data:', response);
+        if (response.mode === 'test') {
+          console.log('🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
+        }
+
+        return response; // Retorna toda a resposta, não apenas a URL
+      } catch (error) {
+        console.error('❌ Erro de checkout:', error);
+        throw error;
       }
 
-      return response; // Retorna toda a resposta, não apenas a URL
     },
     onSuccess: (data) => {
       // Log do modo para usuário (apenas em desenvolvimento)
       if (data.mode === 'test') {
         console.log('🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
       }
-      
+
       if (data.url) {
         // Redirecionar o usuário para a página de checkout do Stripe
         window.location.href = data.url;
@@ -171,9 +218,9 @@ export default function SellerSubscription() {
     },
     onError: (error) => {
       console.error('❌ Erro de checkout:', error);
-      
+
       let errorMessage = 'Erro ao iniciar checkout';
-      
+
       if (error.message?.includes('failed to fetch')) {
         errorMessage = 'Erro de conexão. Verifique sua internet.';
       } else if (error.message?.includes('Invalid plan')) {
@@ -181,7 +228,7 @@ export default function SellerSubscription() {
       } else {
         errorMessage = error.message || 'Erro desconhecido';
       }
-      
+
       toast({
         title: 'Erro',
         description: errorMessage,
