@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { db } from '../db'; // Certifique-se que db está disponível
 import Stripe from 'stripe';
 import { stores } from "@shared/schema";
+import { eq } from 'drizzle-orm'; // <--- ADICIONE ESTA LINHA
 
 // FUNÇÕES AUXILIARES DINÂMICAS
 // Esta função lê as variáveis de ambiente atuais toda vez que é chamada.
@@ -192,9 +193,18 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       });
       customerId = customer.id;
 
-      // Atualizar a tabela stores com o novo stripeCustomerId
-      await db.update(stores).set({ stripeCustomerId: customerId }).where(eq(stores.id, store.id));
-      console.log('✅ Novo customer criado e loja atualizada (dinâmico):', customerId);
+      console.log('[DEBUG Drizzle] Chaves do objeto schema "stores":', Object.keys(stores));
+      console.log('[DEBUG Drizzle] Definição de stores.stripeCustomerId:', stores.stripeCustomerId);
+      console.log('[DEBUG Drizzle] Tentando atualizar storeId:', store.id, 'com stripeCustomerId:', customerId);
+
+      try {
+        await db.update(stores).set({ stripeCustomerId: customerId }).where(eq(stores.id, store.id));
+        console.log('✅ Novo customer criado e loja atualizada (dinâmico):', customerId);
+      } catch (drizzleError) {
+        console.error('❌ ERRO NA OPERAÇÃO DB.UPDATE:', drizzleError);
+        // Re-lançar o erro ou tratar conforme necessário para que ele ainda apareça no log global se não for pego
+        throw drizzleError; 
+      }
     } else {
       console.log('✅ Customer ID existente na loja (dinâmico):', customerId);
     }

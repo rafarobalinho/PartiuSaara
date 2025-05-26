@@ -808,7 +808,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/check-admins', AdminUserController.checkForAdminUsers);
   app.get('/api/admin/users', authMiddleware, adminMiddleware, AdminUserController.listAdminUsers);
   app.post('/api/admin/users', authMiddleware, adminMiddleware, AdminUserController.createAdminUser);
-  app.post('/api/admin/users/:userId/promote', authMiddleware, adminMiddleware, AdminUserController.promoteUserToAdmin);```text
+  app.post('/api/admin/users/:userId/promote', authMiddleware, adminMiddleware, AdminUserController.promoteUserToAdmin);
+  
   // Rotas administrativas para geocodificação
   app.get('/api/admin/stores-geocoding', authMiddleware, adminMiddleware, AdminController.getAllStoresGeocodingStatus);
   app.post('/api/admin/geocode-store/:id', authMiddleware, adminMiddleware, AdminController.geocodeStoreById);
