@@ -46,7 +46,7 @@ const dummyCategoryData = [
 const COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
 export default function SellerDashboard() {
-  const { isAuthenticated, isSeller } = useAuth();
+  const { isAuthenticated, isSeller, user } = useAuth();
   const [, navigate] = useLocation();
 
   // If not authenticated or not a seller, redirect
@@ -107,7 +107,7 @@ export default function SellerDashboard() {
             <h1 className="text-2xl font-bold mb-2">Dashboard do Lojista</h1>
             <p className="text-gray-600">Gerencie sua loja e acompanhe as estatísticas</p>
           </div>
-          
+
           {store && (
             <div className="mt-4 md:mt-0 flex flex-col items-end">
               <div className="flex items-center mb-1">
@@ -131,7 +131,7 @@ export default function SellerDashboard() {
             </div>
           )}
         </div>
-        
+
         {/* Resumo do plano atual */}
         {store && (
           <div className="mb-6 bg-white rounded-lg shadow-sm p-6">
@@ -159,7 +159,7 @@ export default function SellerDashboard() {
                     'Gerencie seu plano e considere um upgrade para acessar recursos adicionais.'}
                 </p>
               </div>
-              
+
               <Button asChild className="bg-primary text-white hover:bg-primary/90">
                 <Link href="/seller/subscription">
                   <a>Gerenciar Plano</a>
@@ -185,7 +185,7 @@ export default function SellerDashboard() {
           </Button>
         </div>
       </div>
-    
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="p-6">
@@ -200,7 +200,7 @@ export default function SellerDashboard() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -214,7 +214,7 @@ export default function SellerDashboard() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -228,7 +228,7 @@ export default function SellerDashboard() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -273,7 +273,7 @@ export default function SellerDashboard() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Produtos por Categoria</CardTitle>
@@ -303,7 +303,7 @@ export default function SellerDashboard() {
           </CardContent>
         </Card>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -363,7 +363,7 @@ export default function SellerDashboard() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Produtos Mais Vistos</CardTitle>

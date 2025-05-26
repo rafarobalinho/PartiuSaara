@@ -74,7 +74,7 @@ export default function StoreDetail() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
-  
+
   // Verificar autenticação
   const isAuthenticated = !!user;
   const isSeller = user?.role === 'seller';
@@ -197,7 +197,7 @@ export default function StoreDetail() {
         longitude: data.longitude
       }
     };
-    
+
     console.log("Enviando dados formatados:", formattedData);
     updateStoreMutation.mutate(formattedData as any);
   };
@@ -257,7 +257,7 @@ export default function StoreDetail() {
             </Link>
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="details">
           <Card>
             <CardHeader>

@@ -85,7 +85,7 @@ function Router() {
           <Route path="/seller/stores/:id/products" component={StoreProducts} />
           <Route path="/seller/analytics" component={SellerAnalytics} />
           <Route path="/seller/subscription" component={SellerSubscription} />
-              <Route path="/seller/stores/:storeId/subscription" component={SellerSubscription} />
+          <Route path="/seller/stores/:storeId/subscription" component={SellerSubscription} />
           <Route path="/seller/settings/location" component={LocationSettingsPage} />
           <Route path="/admin/login" component={AdminLogin} />
           <Route path="/admin/setup" component={AdminSetup} />
