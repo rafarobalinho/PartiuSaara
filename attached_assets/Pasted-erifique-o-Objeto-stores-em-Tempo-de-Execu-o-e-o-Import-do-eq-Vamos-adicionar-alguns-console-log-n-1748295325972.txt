@@ -1,0 +1,53 @@
+erifique o Objeto stores em Tempo de Execução e o Import do eq:
+Vamos adicionar alguns console.log no seu stripe.controller.ts imediatamente antes da linha que está causando o erro para ver o que o Drizzle "enxerga" e garantir que eq está importado.
+
+Modifique o topo do seu stripe.controller.ts para importar eq:
+
+TypeScript
+
+import { Request, Response } from 'express';
+import { db } from '../db';
+import Stripe from 'stripe';
+import { stores } from "@shared/schema";
+import { eq } from 'drizzle-orm'; // <--- ADICIONE ESTA LINHA
+E então, dentro de createCheckoutSession, antes da linha do db.update:
+
+TypeScript
+
+// Dentro de createCheckoutSession, antes da linha db.update(stores)...
+// ... (após customerId = customer.id;)
+
+console.log('[DEBUG Drizzle] Chaves do objeto schema "stores":', Object.keys(stores));
+console.log('[DEBUG Drizzle] Definição de stores.stripeCustomerId:', stores.stripeCustomerId);
+console.log('[DEBUG Drizzle] Tentando atualizar storeId:', store.id, 'com stripeCustomerId:', customerId);
+
+try {
+  await db.update(stores).set({ stripeCustomerId: customerId }).where(eq(stores.id, store.id));
+  console.log('✅ Novo customer criado e loja atualizada (dinâmico):', customerId);
+} catch (drizzleError) {
+  console.error('❌ ERRO NA OPERAÇÃO DB.UPDATE:', drizzleError);
+  // Re-lançar o erro ou tratar conforme necessário para que ele ainda apareça no log global se não for pego
+  throw drizzleError; 
+}
+// ...
+TRIPLE-VERIFIQUE SEU ARQUIVO @shared/schema.ts:
+
+Abra o arquivo que está em @shared/schema.ts no seu projeto Replit.
+Confirme VISUALMENTE, mais uma vez, que a definição da tabela stores (export const stores = pgTable("stores", { ... });) contém a linha:
+TypeScript
+
+stripeCustomerId: text("stripe_customer_id").unique(), // ou .unique().nullable()
+e que não há erros de digitação ou sintaxe nesta linha ou na definição da tabela stores como um todo. Certifique-se de que o arquivo foi salvo após qualquer correção.
+Execute Novamente e Compartilhe os Logs:
+
+Após adicionar os console.log de depuração e o import do eq, e verificar o schema.ts:
+Pare seu servidor (Ctrl+C).
+Rode npm run dev novamente.
+Tente o fluxo de "Atualizar Assinatura".
+Compartilhe todos os logs do console do Replit (backend), incluindo os novos logs de [DEBUG Drizzle].
+O que esperamos ver com os novos logs de depuração:
+
+[DEBUG Drizzle] Chaves do objeto schema "stores": deve listar todas as propriedades (colunas) que o Drizzle reconhece para a tabela stores a partir do seu @shared/schema.ts. stripeCustomerId precisa estar nessa lista.
+[DEBUG Drizzle] Definição de stores.stripeCustomerId: nos mostrará o objeto de definição da coluna. Se for undefined, então o problema é 100% que a definição não está no objeto stores que está sendo usado.
+O log ❌ ERRO NA OPERAÇÃO DB.UPDATE: nos dará o erro exato se ele ainda ocorrer.
+Se stores.stripeCustomerId aparecer como undefined nos logs de debug, isso significa que a versão do arquivo @shared/schema.ts que está sendo efetivamente carregada e usada pelo seu stripe.controller.ts no momento da execução ainda não tem essa coluna definida corretamente, apesar das edições que você acredita ter feito e salvo. Isso pode, em casos raros, estar relacionado a cache do builder (tsx ou Vite no Replit) ou algum problema de sincronização de arquivos no ambiente, mas o mais comum é um detalhe no arquivo não salvo ou um erro de importação.
