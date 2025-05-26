@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import Stripe from 'stripe';
-import { stores } from "@shared/schema";
+import { users, stores } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 
 // FUNÇÕES AUXILIARES DINÂMICAS
