@@ -1,0 +1,34 @@
+Claro! Aqui está um prompt que você pode usar para pedir ao agente de IA do Replit para te ajudar a corrigir o stripe.controller.ts com base na nossa discussão.
+
+Copie e cole o texto abaixo para o chat da IA do Replit:
+
+"Olá, IA do Replit! Preciso de ajuda para refatorar uma parte do meu arquivo server/controllers/stripe.controller.ts.
+
+Contexto do Problema:
+Minha função createCheckoutSession está tentando salvar o stripeCustomerId na tabela users, mas essa coluna não existe lá. A coluna stripeCustomerId na verdade existe e deve ser usada na minha tabela stores, pois cada loja (store) tem sua própria assinatura e cliente Stripe associado. Estou usando Drizzle ORM.
+
+Isso está causando um erro do Drizzle: TypeError: Cannot read properties of undefined (reading 'Symbol(drizzle:Columns)') quando o código tenta db.update(db.users).set({ stripeCustomerId: customerId }).
+
+Arquivo para Modificar:
+server/controllers/stripe.controller.ts
+
+Função Principal para Modificar:
+createCheckoutSession
+
+Requisitos para a Modificação em createCheckoutSession:
+
+Obter storeId: A função deve receber/obter o storeId da loja para a qual a assinatura está sendo criada (provavelmente do req.body.storeId).
+Buscar a Loja: Usar o storeId para buscar o registro da loja no banco de dados (ex: await db.query.stores.findFirst(...)). É importante também verificar se o usuário logado (req.session.userId) é o proprietário desta loja.
+Buscar Dono da Loja (Usuário): Buscar os dados do usuário proprietário da loja (ex: await db.query.users.findFirst(...) usando o store.userId) para obter email, firstName, lastName que podem ser usados ao criar um novo Customer no Stripe.
+Gerenciar stripeCustomerId na Tabela stores:
+Verificar se a loja (store.stripeCustomerId) já possui um stripeCustomerId.
+Se não possuir:
+Criar um novo Customer no Stripe (await localStripe.customers.create(...)). Para o novo customer, use o email e name do usuário dono. Nos metadados do customer Stripe, inclua o userId e o storeId.
+Salvar o id do novo Stripe Customer (ex: newStripeCustomerId) na coluna stripeCustomerId da tabela stores para o storeId correspondente. A operação com Drizzle deve ser algo como: await db.update(db.stores).set({ stripeCustomerId: newStripeCustomerId }).where(db.eq(db.stores.id, store.id));
+Se já possuir um store.stripeCustomerId, use-o.
+Usar o stripeCustomerId da Loja: O customerId final usado para criar a sessão de checkout do Stripe (await localStripe.checkout.sessions.create({ customer: customerId, ... })) deve ser o stripeCustomerId associado à loja.
+Informações Adicionais do Schema (Drizzle):
+
+Minha tabela stores já tem as colunas: id (SERIAL PK), user_id (INTEGER FK para users.id), stripe_customer_id (TEXT, nullable), stripe_subscription_id (TEXT, nullable), subscription_plan (TEXT), subscription_status (TEXT).
+Minha tabela users tem: id (SERIAL PK), email (TEXT), firstName (TEXT), lastName (TEXT).
+Por favor, ajuste a lógica dentro da função createCheckoutSession para refletir essa associação correta do stripeCustomerId com a tabela stores. Obrigado!"
