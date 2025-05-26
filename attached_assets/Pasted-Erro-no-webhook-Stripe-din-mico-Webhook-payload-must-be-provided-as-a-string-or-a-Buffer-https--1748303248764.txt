@@ -1,0 +1,91 @@
+Erro no webhook Stripe (dinâmico): Webhook payload must be provided as a string or a Buffer (https://nodejs.org/api/buffer.html) instance representing the _raw_ request body.Payload was provided as a parsed JavaScript object instead. 
+Signature verification is impossible without access to the original signed material.
+Este erro está impedindo que seu endpoint /api/stripe/webhook processe corretamente os eventos enviados pelo Stripe. Se ele não consegue processar o evento checkout.session.completed (ou um evento similar de atualização de assinatura), seu banco de dados não será atualizado.
+
+Próximos Passos (Prioridade Alta):
+Corrigir o Problema do "Raw Body" do Webhook:
+
+Esta é a prioridade número um para resolver o problema de atualização do plano.
+Volte ao seu arquivo server/index.ts (ou onde quer que seus middlewares principais do Express estejam configurados).
+Aplique a correção que discutimos para garantir que o corpo da requisição para a rota /api/stripe/webhook seja lido como "raw" (bruto) e não como JSON.
+A correção sugerida foi:
+
+TypeScript
+
+// Em server/index.ts
+// ... outros imports e configurações ...
+import express from 'express'; // Certifique-se que express está importado
+
+const app = express();
+
+// ... outros app.use() ...
+
+// Middleware para o corpo da requisição
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') { // Verifique se este é o caminho EXATO do seu webhook
+    // Para o webhook do Stripe, precisamos do corpo bruto (raw body)
+    express.raw({ type: 'application/json' })(req, res, (err) => {
+      if (err) {
+        console.error("Erro ao processar raw body para webhook:", err);
+        return res.status(400).send("Erro no corpo da requisição.");
+      }
+      next();
+    });
+  } else {
+    // Para todas as outras rotas, use o parser JSON padrão
+    express.json()(req, res, next);
+  }
+});
+
+// Parse de URL encoded bodies (para formulários HTML tradicionais, se necessário)
+app.use(express.urlencoded({ extended: true })); // 'true' permite objetos aninhados
+
+// ... suas rotas e o app.listen() ...
+Importante: Coloque este middleware app.use((req, res, next) => { ... }); antes de qualquer middleware global express.json() ou antes de suas rotas serem definidas, para que ele possa interceptar a requisição do webhook corretamente.
+
+Verificar a Lógica Dentro do handleWebhook:
+
+Uma vez que o erro do "raw body" seja corrigido e seu endpoint comece a receber eventos, você precisará garantir que a lógica dentro da função handleWebhook no seu stripe.controller.ts esteja correta.
+Ponto de Atenção: No código do stripe.controller.ts que você compartilhou anteriormente, o case checkout.session.completed estava tentando atualizar db.users. Isso precisa ser mudado para db.stores e usar o storeId (que você deve incluir nos metadata da sessão de checkout do Stripe) para identificar qual loja atualizar.
+Exemplo do que precisa ser ajustado no handleWebhook para checkout.session.completed:
+
+TypeScript
+
+// Dentro de handleWebhook em stripe.controller.ts
+case 'checkout.session.completed':
+  const session = event.data.object as Stripe.Checkout.Session;
+  console.log('[Webhook] Checkout Session Completed:', session.id);
+  console.log('[Webhook] Metadata:', session.metadata);
+
+  const storeId = session.metadata?.storeId; // Assumindo que você salvou storeId nos metadados
+  const newPlanId = session.metadata?.planId; // Este é o SEU planId interno, não o Price ID do Stripe
+                                             // Ou você pode precisar mapear o Price ID do Stripe (session.line_items) para o seu planId interno
+  const stripeSubscriptionId = session.subscription as string;
+  const stripeCustomerId = session.customer as string; // O customerId da sessão
+
+  if (storeId && newPlanId && stripeSubscriptionId) {
+    try {
+      console.log(`[Webhook] Atualizando loja ${storeId} para plano ${newPlanId}, subId: ${stripeSubscriptionId}, custId: ${stripeCustomerId}`);
+      await db.update(stores) // ATUALIZAR A TABELA 'stores'
+        .set({
+          stripeSubscriptionId: stripeSubscriptionId,
+          // Se você não armazenou seu planId interno nos metadados,
+          // você precisará de uma lógica para mapear o Price ID do Stripe (de session.line_items)
+          // para o seu planId interno (ex: 'premium', 'start', ou os IDs numéricos que você usa).
+          // Supondo que newPlanId nos metadados é o seu ID de plano interno:
+          subscriptionPlan: newPlanId, // Ou o nome/ID do plano correspondente
+          subscriptionStatus: 'active',
+          subscriptionStartDate: new Date(), // Data atual para início
+          subscriptionEndDate: null, // Ou calcular baseado no intervalo da assinatura, se aplicável
+          stripeCustomerId: stripeCustomerId // Atualizar/confirmar o customerId da loja também
+        })
+        .where(eq(stores.id, parseInt(storeId))); // Usar o storeId correto
+      console.log(`[Webhook] Loja ${storeId} atualizada com sucesso.`);
+    } catch (dbError) {
+      console.error(`[Webhook] Erro ao atualizar loja ${storeId} no banco:`, dbError);
+    }
+  } else {
+    console.warn('[Webhook] Metadados insuficientes na sessão de checkout para atualizar a loja:', session.metadata);
+  }
+  break;
+Lembre-se de incluir storeId e seu planId interno nos metadata quando você cria a sessão de checkout do Stripe para que o webhook possa usá-los.
