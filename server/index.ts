@@ -1,3 +1,13 @@
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
+
+// ---- ADICIONE ESTAS LINHAS PARA DEBUG ----
+console.log('--- DEBUG INÍCIO server/index.ts ---');
+console.log('process.env.STRIPE_MODE (após dotenv):', process.env.STRIPE_MODE);
+console.log('process.env.NODE_ENV (após dotenv):', process.env.NODE_ENV);
+console.log('process.env.FRONTEND_URL (após dotenv):', process.env.FRONTEND_URL);
+console.log('--- DEBUG FIM server/index.ts ---');
+// -----------------------------------------
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import { fileURLToPath } from 'url';
