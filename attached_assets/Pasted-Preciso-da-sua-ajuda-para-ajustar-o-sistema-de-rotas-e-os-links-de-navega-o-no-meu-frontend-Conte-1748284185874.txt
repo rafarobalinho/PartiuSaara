@@ -1,0 +1,34 @@
+Preciso da sua ajuda para ajustar o sistema de rotas e os links de navegação no meu frontend.
+
+Contexto Atual:
+Minha página de gerenciamento de assinaturas (provavelmente o componente em src/pages/seller/subscription.tsx ou similar) foi recentemente modificada. Ela agora espera receber o storeId através de um parâmetro na URL (ex: /seller/stores/:storeId/subscription). Se o storeId não estiver presente na URL, a página está corretamente redirecionando o usuário (por exemplo, para uma lista de lojas), o que é bom.
+
+O problema é que os links e botões na minha aplicação que deveriam levar o usuário para gerenciar a assinatura de uma loja específica ainda estão apontando para a URL antiga e genérica (ex: /seller/subscription), que não contém o storeId.
+
+Tarefa Principal:
+Preciso que você me ajude a modificar meu código do frontend para que:
+
+Exista uma rota definida que capture o storeId da URL e renderize o componente de gerenciamento de assinatura.
+Os links ou botões que o usuário clica para gerenciar a assinatura de uma loja específica sejam atualizados para navegar para essa nova URL parametrizada, incluindo o ID da loja correta.
+Arquivos do Frontend para Investigar e Modificar:
+
+Arquivo de Configuração de Rotas: O arquivo onde minhas rotas do frontend são definidas (pode ser App.tsx, Routes.tsx, ou onde eu uso componentes como <Route> do React Router ou Wouter – por favor, verifique minha estrutura).
+Componentes com Links de Navegação para Assinaturas: Componentes que listam as lojas do usuário (ex: em uma página "Minhas Lojas") ou exibem cards de lojas individuais, e que contêm botões/links como "Gerenciar Planos", "Editar Assinatura" ou similar.
+Mudanças Específicas Solicitadas:
+
+Na Configuração de Rotas:
+
+Verifique se já existe uma rota como /seller/stores/:storeId/subscription.
+Se não existir, por favor, adicione-a, garantindo que ela renderize o componente correto de gerenciamento de assinatura (o mesmo que subscription.tsx ou equivalente que foi modificado para ler o storeId da URL).
+Se eu estiver usando Wouter, por exemplo, seria algo como <Route path="/seller/stores/:storeId/subscription" component={PaginaDeAssinaturaDaLoja} />.
+Nos Componentes de Navegação (onde o usuário clica para ir para a assinatura):
+
+Encontre os componentes onde o usuário clica para gerenciar a assinatura de uma loja (ex: um botão em um StoreCard.tsx).
+Atualize os componentes <Link> (do React Router ou Wouter) ou as chamadas de navegação programática (ex: Maps(...)) para que eles construam a URL com o storeId da loja selecionada.
+Exemplo de como um link poderia ser atualizado (conceitual):
+Antes: <Link href="/seller/subscription">Gerenciar Plano</Link>
+Depois: <Link href={`/seller/stores/${store.id}/subscription`}>Gerenciar Plano</Link> (onde store.id é o ID da loja específica).
+Objetivo Final:
+Quando um usuário clicar para gerenciar a assinatura da Loja X (que tem ID, por exemplo, 1), ele deve ser direcionado para a URL /seller/stores/1/subscription. A página de assinatura então usará o 1 da URL como o storeId para todas as suas operações, incluindo a chamada à API /api/stripe/checkout.
+
+Por favor, me ajude a implementar essas mudanças no roteamento e nos links de navegação do frontend. Obrigado!"

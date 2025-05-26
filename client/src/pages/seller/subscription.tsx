@@ -1,7 +1,8 @@
+
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
-import { useLocation, Link } from 'wouter';
+import { useLocation, Link, useParams } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -44,16 +45,13 @@ export default function SellerSubscription() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
-  // Debug logs no carregamento do componente
-  console.log('[DEBUG-SUBSCRIPTION] 🏗️ Componente SellerSubscription carregado');
-  console.log('[DEBUG-SUBSCRIPTION] 📍 URL atual:', window.location.href);
-  console.log('[DEBUG-SUBSCRIPTION] 👤 Dados do usuário logado:', {
-    id: user?.id,
-    email: user?.email,
-    isAuthenticated,
-    isSeller,
-    stores: user?.stores
-  });
+  // Obter storeId dos parâmetros da URL
+  const params = useParams();
+  const storeIdFromUrl = params.storeId ? parseInt(params.storeId as string) : null;
+
+  console.log('[PaginaAssinaturaLoja] storeId obtido da URL:', storeIdFromUrl);
+  console.log('[PaginaAssinaturaLoja] Parâmetros da URL completos:', params);
+  console.log('[PaginaAssinaturaLoja] URL atual:', window.location.href);
 
   // If not authenticated or not a seller, redirect
   useEffect(() => {
@@ -64,7 +62,36 @@ export default function SellerSubscription() {
     }
   }, [isAuthenticated, isSeller, navigate]);
 
-  if (!isAuthenticated || !isSeller) {
+  // Verificar se storeId está presente na URL
+  useEffect(() => {
+    if (!storeIdFromUrl) {
+      console.log('[PaginaAssinaturaLoja] ❌ storeId não encontrado na URL, redirecionando para lista de lojas');
+      toast({
+        title: 'Loja não especificada',
+        description: 'Por favor, selecione uma loja para gerenciar assinatura.',
+        variant: 'destructive',
+      });
+      navigate('/seller/stores');
+      return;
+    }
+
+    // Verificar se o usuário tem acesso a esta loja
+    if (user?.stores && user.stores.length > 0) {
+      const userOwnsStore = user.stores.some(store => store.id === storeIdFromUrl);
+      if (!userOwnsStore) {
+        console.log('[PaginaAssinaturaLoja] ❌ Usuário não possui acesso à loja ID:', storeIdFromUrl);
+        toast({
+          title: 'Acesso negado',
+          description: 'Você não tem permissão para gerenciar esta loja.',
+          variant: 'destructive',
+        });
+        navigate('/seller/stores');
+        return;
+      }
+    }
+  }, [storeIdFromUrl, user, navigate, toast]);
+
+  if (!isAuthenticated || !isSeller || !storeIdFromUrl) {
     return null;
   }
 
@@ -85,12 +112,12 @@ export default function SellerSubscription() {
     }
   });
 
-  // Fetch current subscription
+  // Fetch current subscription for this specific store
   const { data: subscription, isLoading: isSubscriptionLoading } = useQuery({
-    queryKey: ['/api/subscriptions/my-plan'],
+    queryKey: ['/api/subscriptions/my-plan', storeIdFromUrl],
     queryFn: async () => {
       try {
-        const response = await fetch('/api/subscriptions/my-plan');
+        const response = await fetch(`/api/subscriptions/my-plan?storeId=${storeIdFromUrl}`);
         if (!response.ok) {
           throw new Error('Failed to fetch current subscription');
         }
@@ -99,7 +126,8 @@ export default function SellerSubscription() {
         console.error('Error fetching current subscription:', error);
         return null;
       }
-    }
+    },
+    enabled: !!storeIdFromUrl
   });
 
   useEffect(() => {
@@ -115,11 +143,12 @@ export default function SellerSubscription() {
 
       return apiRequest('POST', '/api/subscriptions/purchase', {
         planId: selectedPlan,
-        interval: billingCycle
+        interval: billingCycle,
+        storeId: storeIdFromUrl
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/subscriptions/my-plan'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/subscriptions/my-plan', storeIdFromUrl] });
       toast({
         title: 'Assinatura atualizada',
         description: 'Sua assinatura foi atualizada com sucesso!',
@@ -136,105 +165,36 @@ export default function SellerSubscription() {
     }
   });
 
-    const stripeCheckoutMutation = useMutation({
+  const stripeCheckoutMutation = useMutation({
     mutationFn: async () => {
       if (!selectedPlan) {
         throw new Error('Nenhum plano selecionado');
       }
 
-      console.log('[DEBUG-SUBSCRIPTION] 🚀 Iniciando checkout para plano:', selectedPlan);
-      console.log('[DEBUG-SUBSCRIPTION] 📍 URL atual:', window.location.href);
-      console.log('[DEBUG-SUBSCRIPTION] 👤 Usuário logado:', user?.id, user?.email);
-
-      try {
-        // Obter storeId - com múltiplas estratégias de fallback
-        let storeId = null;
-
-        // Estratégia 1: Verificar parâmetros da URL
-        console.log('[DEBUG-SUBSCRIPTION] 🔍 Estratégia 1: Verificando parâmetros da URL...');
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlStoreId = urlParams.get('storeId');
-        console.log('[DEBUG-SUBSCRIPTION] 📋 Parâmetros da URL completos:', Object.fromEntries(urlParams.entries()));
-        console.log('[DEBUG-SUBSCRIPTION] 🏪 storeId da URL:', urlStoreId);
-        if (urlStoreId) {
-          storeId = parseInt(urlStoreId);
-          console.log('[DEBUG-SUBSCRIPTION] ✅ Store ID obtido da URL:', storeId);
-        } else {
-          console.log('[DEBUG-SUBSCRIPTION] ❌ Nenhum storeId encontrado na URL');
-        }
-
-        // Estratégia 2: Verificar se há uma loja no contexto do usuário
-        console.log('[DEBUG-SUBSCRIPTION] 🔍 Estratégia 2: Verificando contexto do usuário...');
-        console.log('[DEBUG-SUBSCRIPTION] 👤 user.stores:', user?.stores);
-        console.log('[DEBUG-SUBSCRIPTION] 📊 Quantidade de lojas do usuário:', user?.stores?.length || 0);
-        if (!storeId && user?.stores && user.stores.length > 0) {
-          const firstStore = user.stores[0];
-          storeId = firstStore.id;
-          console.log('[DEBUG-SUBSCRIPTION] ✅ Store ID obtido do contexto do usuário (primeira loja):', storeId);
-          console.log('[DEBUG-SUBSCRIPTION] 🏪 Detalhes da primeira loja:', firstStore);
-        } else if (!storeId) {
-          console.log('[DEBUG-SUBSCRIPTION] ❌ Nenhuma loja encontrada no contexto do usuário');
-        }
-
-        // Estratégia 3: Buscar lojas do usuário diretamente da API se necessário
-        if (!storeId) {
-          console.log('[DEBUG-SUBSCRIPTION] 🔍 Estratégia 3: Buscando lojas via API...');
-          try {
-            const storesResponse = await fetch('/api/stores', {
-              credentials: 'include',
-            });
-            console.log('[DEBUG-SUBSCRIPTION] 📡 Resposta da API /api/stores - Status:', storesResponse.status);
-            if (storesResponse.ok) {
-              const storesData = await storesResponse.json();
-              console.log('[DEBUG-SUBSCRIPTION] 📋 Dados das lojas da API:', storesData);
-              console.log('[DEBUG-SUBSCRIPTION] 📊 Quantidade de lojas retornadas pela API:', storesData?.length || 0);
-              if (storesData && storesData.length > 0) {
-                const firstApiStore = storesData[0];
-                storeId = firstApiStore.id;
-                console.log('[DEBUG-SUBSCRIPTION] ✅ Store ID obtido da API (primeira loja):', storeId);
-                console.log('[DEBUG-SUBSCRIPTION] 🏪 Detalhes da primeira loja da API:', firstApiStore);
-              } else {
-                console.log('[DEBUG-SUBSCRIPTION] ❌ API retornou array vazio de lojas');
-              }
-            } else {
-              console.log('[DEBUG-SUBSCRIPTION] ❌ Erro na resposta da API /api/stores:', storesResponse.statusText);
-            }
-          } catch (storesError) {
-            console.error('[DEBUG-SUBSCRIPTION] ❌ Erro ao buscar lojas via API:', storesError);
-          }
-        }
-
-        // Validação final
-        console.log('[DEBUG-SUBSCRIPTION] 🔍 Validação final - storeId escolhido:', storeId);
-        if (!storeId) {
-          console.error('[DEBUG-SUBSCRIPTION] ❌ ERRO CRÍTICO: Não foi possível encontrar um Store ID');
-          throw new Error('É necessário ter uma loja cadastrada para fazer assinatura. Por favor, cadastre uma loja primeiro.');
-        }
-
-        console.log('[DEBUG-SUBSCRIPTION] 🏪 Store ID FINAL que será enviado para o backend:', storeId);
-
-        // Preparar payload
-        const payload = {
-          planId: selectedPlan,
-          interval: billingCycle,
-          storeId: storeId,
-        };
-        console.log('[DEBUG-SUBSCRIPTION] 📦 Payload COMPLETO para /api/stripe/checkout:', payload);
-
-        // Chamar o endpoint da sua API para iniciar o checkout do Stripe
-        const response = await apiRequest('POST', '/api/stripe/checkout', payload);
-
-        console.log('[DEBUG-SUBSCRIPTION] ✅ Resposta do checkout:', response);
-        if (response.mode === 'test') {
-          console.log('[DEBUG-SUBSCRIPTION] 🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
-        }
-
-        return response; // Retorna toda a resposta, não apenas a URL
-      } catch (error) {
-        console.error('[DEBUG-SUBSCRIPTION] ❌ Erro de checkout:', error);
-        throw error;
+      if (!storeIdFromUrl) {
+        throw new Error('ID da loja não encontrado na URL');
       }
 
+      console.log('[handlePurchase] Usando storeId da URL para API:', storeIdFromUrl);
+
+      // Preparar payload usando o storeId da URL
+      const payload = {
+        planId: selectedPlan,
+        interval: billingCycle,
+        storeId: storeIdFromUrl,
+      };
+
+      console.log('[handlePurchase] Payload final para /api/stripe/checkout:', payload);
+
+      // Chamar o endpoint da sua API para iniciar o checkout do Stripe
+      const response = await apiRequest('POST', '/api/stripe/checkout', payload);
+
+      console.log('[handlePurchase] ✅ Resposta do checkout:', response);
+      if (response.mode === 'test') {
+        console.log('[handlePurchase] 🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
+      }
+
+      return response;
     },
     onSuccess: (data) => {
       // Log do modo para usuário (apenas em desenvolvimento)
@@ -280,15 +240,14 @@ export default function SellerSubscription() {
     },
   });
 
-
   const handlePurchase = () => {
-    console.log('[DEBUG-SUBSCRIPTION] 🎯 handlePurchase chamado');
-    console.log('[DEBUG-SUBSCRIPTION] 📋 selectedPlan:', selectedPlan);
-    console.log('[DEBUG-SUBSCRIPTION] 📋 subscription atual:', subscription);
-    console.log('[DEBUG-SUBSCRIPTION] 📋 billingCycle:', billingCycle);
+    console.log('[handlePurchase] 🎯 handlePurchase chamado para loja ID:', storeIdFromUrl);
+    console.log('[handlePurchase] 📋 selectedPlan:', selectedPlan);
+    console.log('[handlePurchase] 📋 subscription atual:', subscription);
+    console.log('[handlePurchase] 📋 billingCycle:', billingCycle);
 
     if (selectedPlan === subscription?.plan?.id) {
-      console.log('[DEBUG-SUBSCRIPTION] ⚠️ Tentativa de comprar plano atual - ação bloqueada');
+      console.log('[handlePurchase] ⚠️ Tentativa de comprar plano atual - ação bloqueada');
       toast({
         title: 'Plano atual',
         description: 'Você já está inscrito neste plano.',
@@ -298,7 +257,7 @@ export default function SellerSubscription() {
     }
 
     if (!selectedPlan) {
-      console.log('[DEBUG-SUBSCRIPTION] ❌ Nenhum plano selecionado - ação bloqueada');
+      console.log('[handlePurchase] ❌ Nenhum plano selecionado - ação bloqueada');
       toast({
         title: 'Selecione um plano',
         description: 'Por favor, selecione um plano para continuar.',
@@ -307,8 +266,17 @@ export default function SellerSubscription() {
       return;
     }
 
-    console.log('[DEBUG-SUBSCRIPTION] ✅ Iniciando processo de compra via Stripe...');
-    //purchaseMutation.mutate();
+    if (!storeIdFromUrl) {
+      console.log('[handlePurchase] ❌ storeId não encontrado na URL - ação bloqueada');
+      toast({
+        title: 'Erro',
+        description: 'ID da loja não encontrado. Tente novamente.',
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log('[handlePurchase] ✅ Iniciando processo de compra via Stripe para loja:', storeIdFromUrl);
     stripeCheckoutMutation.mutate();
   };
 
@@ -327,10 +295,27 @@ export default function SellerSubscription() {
     }).format(value);
   };
 
+  // Obter informações da loja atual
+  const currentStore = user?.stores?.find(store => store.id === storeIdFromUrl);
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">Planos de Assinatura</h1>
+        <nav className="flex items-center space-x-2 text-gray-600 mb-4">
+          <Link href="/seller/stores" className="hover:text-gray-800">
+            Minhas Lojas
+          </Link>
+          <span>/</span>
+          <span className="text-gray-800 font-medium">
+            {currentStore?.name || `Loja #${storeIdFromUrl}`}
+          </span>
+          <span>/</span>
+          <span className="text-gray-800">Assinatura</span>
+        </nav>
+        
+        <h1 className="text-2xl font-bold mb-2">
+          Planos de Assinatura - {currentStore?.name || `Loja #${storeIdFromUrl}`}
+        </h1>
         <p className="text-gray-600">Escolha o plano ideal para sua loja</p>
       </div>
 
@@ -455,6 +440,9 @@ export default function SellerSubscription() {
                 {selectedPlan && (
                   <div className="space-y-1">
                     <p className="text-gray-600">
+                      Loja: <span className="font-medium">{currentStore?.name || `Loja #${storeIdFromUrl}`}</span>
+                    </p>
+                    <p className="text-gray-600">
                       Plano selecionado: <span className="font-medium">{plans.find(p => p.id === selectedPlan)?.name}</span>
                     </p>
                     <p className="text-gray-600">
@@ -473,16 +461,16 @@ export default function SellerSubscription() {
               <div className="flex space-x-2">
                 <Button 
                   variant="outline"
-                  onClick={() => navigate('/seller/dashboard')}
+                  onClick={() => navigate('/seller/stores')}
                 >
                   Voltar
                 </Button>
                 <Button 
                   className="bg-primary text-white hover:bg-primary/90"
                   onClick={handlePurchase}
-                  disabled={!selectedPlan || selectedPlan === subscription?.plan?.id || purchaseMutation.isPending}
+                  disabled={!selectedPlan || selectedPlan === subscription?.plan?.id || stripeCheckoutMutation.isPending}
                 >
-                  {purchaseMutation.isPending 
+                  {stripeCheckoutMutation.isPending 
                     ? 'Processando...' 
                     : selectedPlan === subscription?.plan?.id 
                       ? 'Plano Atual' 
