@@ -186,34 +186,81 @@ export default function SellerSubscription() {
 
       console.log('[handlePurchase] Payload final para /api/stripe/checkout:', payload);
 
-      // Chamar o endpoint da sua API para iniciar o checkout do Stripe
-      const response = await apiRequest('POST', '/api/stripe/checkout', payload);
+      try {
+        // Fazer requisição direta usando fetch para ter controle total
+        const response = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
 
-      console.log('[handlePurchase] ✅ Resposta do checkout:', response);
-      if (response.mode === 'test') {
-        console.log('[handlePurchase] 🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
+        console.log('[handlePurchase] 📡 Status da resposta:', response.status);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('[handlePurchase] ❌ Erro HTTP:', response.status, errorText);
+          throw new Error(`Erro ${response.status}: ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log('[handlePurchase] ✅ Resposta completa do checkout:', result);
+        
+        if (result.mode === 'test') {
+          console.log('[handlePurchase] 🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
+        }
+
+        return result;
+      } catch (error) {
+        console.error('[handlePurchase] ❌ Erro na requisição:', error);
+        throw error;
       }
-
-      return response;
     },
     onSuccess: (data) => {
-      console.log('[stripeCheckout] ✅ Resposta recebida:', data);
+      console.log('[stripeCheckout] ✅ Resposta recebida:', JSON.stringify(data, null, 2));
       
+      // Verificar estrutura da resposta
+      if (!data || typeof data !== 'object') {
+        console.error('[stripeCheckout] ❌ Resposta inválida - não é um objeto:', data);
+        toast({
+          title: 'Erro',
+          description: 'Resposta inválida do servidor. Tente novamente.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // Log do modo para usuário (apenas em desenvolvimento)
       if (data.mode === 'test') {
         console.log('🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
       }
 
       // Verificar se temos uma URL de checkout para redirecionamento
-      if (data.url) {
+      if (data.success && data.url) {
         console.log('[stripeCheckout] 🚀 Redirecionando para checkout URL:', data.url);
-        // Redirecionar o usuário para a página de checkout do Stripe
-        window.location.href = data.url;
-        return;
+        
+        // Validar se a URL é válida
+        try {
+          new URL(data.url);
+          console.log('[stripeCheckout] ✅ URL válida, iniciando redirecionamento...');
+          // Redirecionar o usuário para a página de checkout do Stripe
+          window.location.href = data.url;
+          return;
+        } catch (urlError) {
+          console.error('[stripeCheckout] ❌ URL inválida:', data.url, urlError);
+          toast({
+            title: 'Erro',
+            description: 'URL de checkout inválida. Contate o suporte.',
+            variant: 'destructive',
+          });
+          return;
+        }
       }
 
       // Se não temos URL mas temos success, mostrar mensagem de sucesso
-      if (data.success) {
+      if (data.success && !data.url) {
         console.log('[stripeCheckout] ✅ Operação bem-sucedida sem redirecionamento');
         toast({
           title: 'Sucesso!',
@@ -226,10 +273,10 @@ export default function SellerSubscription() {
       }
 
       // Se chegou até aqui, algo deu errado
-      console.error('[stripeCheckout] ❌ Resposta inesperada:', data);
+      console.error('[stripeCheckout] ❌ Resposta inesperada ou sem URL:', data);
       toast({
         title: 'Erro',
-        description: 'Resposta inesperada do servidor. Tente novamente.',
+        description: data.error || 'Falha ao iniciar checkout. Tente novamente.',
         variant: 'destructive',
       });
     },
