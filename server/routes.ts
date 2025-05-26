@@ -22,7 +22,7 @@ import * as PlaceDetailsController from "./controllers/place_details.controller"
 import * as DebugController from "./controllers/debug.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db, pool } from "./db";
-import { and, eq } from "drizzle-orm";
+import { eq, ne, and, like, or, gte, lte, desc, sql } from "drizzle-orm";
 import { storeImages, productImages, products, stores, users, reservations, promotions } from "@shared/schema";
 import imagesRoutes from "./routes/images";
 import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
@@ -549,10 +549,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (productIds.length > 0) {
           // Reservas totais (excluindo canceladas)
           const reservationsResult = await db.query.reservations.findMany({
-            where: (reservations, { and, eq, inArray, notEq }) => 
+            where: (reservations, { and, eq, inArray, ne }) => 
               and(
                 inArray(reservations.productId, productIds),
-                notEq(reservations.status, 'cancelled')
+                ne(reservations.status, 'cancelled')
               )
           });
           reservationsCount = reservationsResult.length;
@@ -808,8 +808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/check-admins', AdminUserController.checkForAdminUsers);
   app.get('/api/admin/users', authMiddleware, adminMiddleware, AdminUserController.listAdminUsers);
   app.post('/api/admin/users', authMiddleware, adminMiddleware, AdminUserController.createAdminUser);
-  app.post('/api/admin/users/:userId/promote', authMiddleware, adminMiddleware, AdminUserController.promoteUserToAdmin);
-
+  app.post('/api/admin/users/:userId/promote', authMiddleware, adminMiddleware, AdminUserController.promoteUserToAdmin);```text
   // Rotas administrativas para geocodificação
   app.get('/api/admin/stores-geocoding', authMiddleware, adminMiddleware, AdminController.getAllStoresGeocodingStatus);
   app.post('/api/admin/geocode-store/:id', authMiddleware, adminMiddleware, AdminController.geocodeStoreById);

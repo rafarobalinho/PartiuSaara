@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db'; // Certifique-se que db está disponível
 import Stripe from 'stripe';
+import { stores } from "@shared/schema";
 
 // FUNÇÕES AUXILIARES DINÂMICAS
 // Esta função lê as variáveis de ambiente atuais toda vez que é chamada.
@@ -160,7 +161,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     if (!store) {
       return res.status(404).json({ error: 'Loja não encontrada', checkpoint: 'STORE_NOT_FOUND', mode: isTestMode ? 'test' : 'live' });
     }
-    
+
     // Verificar se o usuário é o proprietário da loja
     if (store.userId !== req.session.userId) {
       return res.status(403).json({ error: 'Acesso negado: usuário não é proprietário da loja', checkpoint: 'STORE_OWNERSHIP_ERROR', mode: isTestMode ? 'test' : 'live' });
@@ -190,9 +191,9 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         }
       });
       customerId = customer.id;
-      
+
       // Atualizar a tabela stores com o novo stripeCustomerId
-      await db.update(db.stores).set({ stripeCustomerId: customerId }).where(db.eq(db.stores.id, store.id));
+      await db.update(stores).set({ stripeCustomerId: customerId }).where(eq(stores.id, store.id));
       console.log('✅ Novo customer criado e loja atualizada (dinâmico):', customerId);
     } else {
       console.log('✅ Customer ID existente na loja (dinâmico):', customerId);
@@ -301,7 +302,7 @@ export const getSubscriptionDetails = async (req: Request, res: Response) => {
     const store = await db.query.stores.findFirst({ 
       where: (stores, { eq }) => eq(stores.id, parseInt(storeId as string)) 
     });
-    
+
     if (!store) {
       return res.status(404).json({ error: 'Loja não encontrada', mode: isTestMode ? 'test' : 'live' });
     }
@@ -344,7 +345,7 @@ export const cancelSubscription = async (req: Request, res: Response) => {
     const store = await db.query.stores.findFirst({ 
       where: (stores, { eq }) => eq(stores.id, storeId) 
     });
-    
+
     if (!store) {
       return res.status(404).json({ error: 'Loja não encontrada', mode: isTestMode ? 'test' : 'live' });
     }
@@ -358,7 +359,7 @@ export const cancelSubscription = async (req: Request, res: Response) => {
     }
 
     await localStripe.subscriptions.cancel(store.stripeSubscriptionId);
-    
+
     // Atualizar status da assinatura na tabela stores
     await db.update(db.stores).set({ 
       subscriptionStatus: 'canceled', 
@@ -481,3 +482,4 @@ export const testStripeConnection = async (req: Request, res: Response) => {
     });
   }
 };
+```
