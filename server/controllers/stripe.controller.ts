@@ -394,18 +394,18 @@ export const checkFlashPromotionEligibility = async (req: Request, res: Response
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
-    
+
     const user = await db.query.users.findFirst({ 
       where: (users, { eq }) => eq(users.id, req.session.userId as number) 
     });
-    
+
     if (!user) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
-    
+
     // Assumindo que existe um campo planId ou similar para determinar o plano
     const isEligible = true; // Implementar lógica baseada no plano da loja
-    
+
     res.json({ isEligible });
   } catch (error) {
     console.error('Erro ao verificar elegibilidade:', error);
@@ -419,22 +419,22 @@ export const checkCouponEligibility = async (req: Request, res: Response) => {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
-    
+
     const user = await db.query.users.findFirst({ 
       where: (users, { eq }) => eq(users.id, req.session.userId as number) 
     });
-    
+
     if (!user) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
-    
+
     // Assumindo que existe um campo planId ou similar para determinar o plano
     const isEligible = true; // Implementar lógica baseada no plano da loja
     let couponLimit = 0;
-    
+
     // Implementar lógica baseada no plano
     couponLimit = -1; // Sem limite por enquanto
-    
+
     res.json({ isEligible, couponLimit });
   } catch (error) {
     console.error('Erro ao verificar elegibilidade:', error);
@@ -493,7 +493,18 @@ export const testStripeConnection = async (req: Request, res: Response) => {
       message: `Stripe conectado com sucesso em modo ${isTestMode ? 'TEST' : 'LIVE'}!`,
       mode: isTestMode ? 'test' : 'live',
       environment_STRIPE_MODE: rawStripeMode,
-      // ... (products e prices)
+      products: products.data.map(p => ({
+        id: p.id,
+        name: p.name,
+        active: p.active
+      })),
+      prices: prices.data.map(p => ({
+        id: p.id,
+        product: p.product,
+        unit_amount: p.unit_amount,
+        currency: p.currency,
+        recurring: p.recurring?.interval
+      }))
     });
   } catch (error) {
     console.error('Erro ao testar conexão com Stripe (dinâmico):', error);
@@ -505,4 +516,3 @@ export const testStripeConnection = async (req: Request, res: Response) => {
     });
   }
 };
-```
