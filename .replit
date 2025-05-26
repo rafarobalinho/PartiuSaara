@@ -60,8 +60,4 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "kill 1"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
 args = "npm run dev"
