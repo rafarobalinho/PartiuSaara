@@ -1,0 +1,30 @@
+Estou depurando um problema no meu frontend onde um storeId incorreto está sendo enviado para o backend, e preciso da sua ajuda para adicionar alguns console.log para rastreá-lo.
+
+Contexto do Problema:
+Quando um usuário (por exemplo, userId: 2) tenta atualizar a assinatura de uma loja que ele possui (por exemplo, storeId: 1), o frontend está enviando um storeId diferente (por exemplo, storeId: 3) para o endpoint /api/stripe/checkout. Meu backend (server/controllers/stripe.controller.ts) está funcionando corretamente e retorna um erro 403 (Acesso Negado) porque o userId: 2 não é dono da storeId: 3. O problema está em como o frontend está pegando e enviando o storeId.
+
+Tarefa Principal:
+Por favor, me ajude a adicionar instruções console.log() em locais estratégicos do meu código frontend (arquivos .tsx ou .ts) para que eu possa ver qual storeId está sendo usado em cada etapa do fluxo de "Atualizar Assinatura". Eu utilizarei a função "Preserve log" do console do meu navegador para capturar esses logs, mesmo que a página recarregue.
+
+Locais Sugeridos para Adicionar console.log() no Frontend:
+
+No componente/página que exibe os planos para uma loja específica:
+
+Quando este componente é carregado ou recebe os dados da loja, adicione um log para mostrar qual storeId ele acredita estar gerenciando.
+Exemplo de log: console.log('[PáginaDePlanosDaLoja] Store ID sendo exibido:', storeId); (Você precisará identificar como a variável storeId é acessada neste contexto – pode ser de props, estado, URL, etc.).
+Na função de evento do clique do botão "Atualizar Assinatura" (ou similar):
+
+Assim que a função for chamada, logue o storeId que ela tem disponível.
+Exemplo de log: console.log('[CliqueAtualizarAssinatura] storeId no momento do clique:', storeId);
+Antes de fazer a chamada à API para /api/stripe/checkout, logue o objeto payload completo que será enviado, para que possamos ver o storeId nele.
+Exemplo de log: console.log('[CliqueAtualizarAssinatura] Payload final para API /api/stripe/checkout:', payload);
+O que NÃO mudar:
+
+Por favor, não altere a lógica do backend (server/controllers/stripe.controller.ts) neste momento. O foco é apenas adicionar logs no frontend para depuração do storeId.
+Objetivo:
+Quero usar esses logs para entender de onde o storeId incorreto (como 3) está vindo no fluxo de atualização de assinatura, quando o storeId correto (como 1) deveria ser usado.
+
+Por favor, me ajude a inserir esses console.log() nos arquivos apropriados do frontend.
+
+Obrigado!"
+
