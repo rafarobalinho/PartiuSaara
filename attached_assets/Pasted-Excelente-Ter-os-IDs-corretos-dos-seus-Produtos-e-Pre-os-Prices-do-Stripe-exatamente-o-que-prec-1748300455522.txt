@@ -1,0 +1,60 @@
+Excelente! Ter os IDs corretos dos seus Produtos e Preços (Prices) do Stripe é exatamente o que precisamos para resolver o erro "No such price".
+
+Com base nos IDs que você forneceu, veja como você deve configurar as variáveis de ambiente no seu arquivo .env. Lembre-se que estes devem ser os IDs do seu Modo de Teste no Stripe, já que sua aplicação está rodando em STRIPE_MODE=test.
+
+Atualize seu Arquivo .env
+Adicione ou modifique as seguintes linhas no seu arquivo .env (localizado na raiz do seu projeto Replit), substituindo pelos IDs que você listou:
+
+Snippet de código
+
+# ... (outras variáveis como STRIPE_MODE, STRIPE_SECRET_KEY_TEST, etc.) ...
+
+# Price IDs para o Plano PREMIUM (Produto: prod_SMfwCpQx3v69yv)
+PRICE_ID_TEST_PREMIUM_MONTHLY=price_1RRwb3FhMbk7Rh8Ld9lhds2E
+PRICE_ID_TEST_PREMIUM_YEARLY=price_1RRwbOFhMbk7Rh8LshLKzlut
+
+# Price IDs para o Plano PRO (Produto: prod_SMfwCpQx3v69yv)
+PRICE_ID_TEST_PRO_MONTHLY=price_1RRwahFhMbk7Rh8LEiLZMkf0
+PRICE_ID_TEST_PRO_YEARLY=price_1RRwahFhMbk7Rh8LDApx6VuV
+
+# Price IDs para o Plano START (Produto: prod_SMfvJGI77kRjkd)
+PRICE_ID_TEST_START_MONTHLY=price_1RRwZOFhMbk7Rh8LqY8yq9ec
+PRICE_ID_TEST_START_YEARLY=price_1RRwZOFhMbk7Rh8LkUZGhWtu
+
+# ... (outras variáveis) ...
+Observações Importantes:
+
+Consistência no Nome das Variáveis: Certifique-se de que os nomes das variáveis de ambiente (ex: PRICE_ID_TEST_PREMIUM_MONTHLY) correspondem exatamente ao que sua função getPriceMapping no stripe.controller.ts espera ler de process.env. A estrutura que usei acima (PRICE_ID_TEST_<NOME_PLANO>_<INTERVALO>) é a que seu código getPriceMapping já tenta usar.
+Modo de Teste: Confirme que esses IDs (price_1RR...) são de fato do seu ambiente de Teste no Stripe Dashboard.
+Produto Compartilhado: É perfeitamente normal e comum que diferentes planos (como seu "Premium" e "Pro") possam estar associados ao mesmo ID de Produto no Stripe (prod_SMfwCpQx3v69yv), cada um com seus próprios Price IDs distintos.
+Como Isso Funciona com seu Código Atual
+Sua função getPriceMapping no stripe.controller.ts já está configurada para tentar usar essas variáveis de ambiente primeiro, antes de recorrer aos valores fixos (que estavam causando o erro):
+
+TypeScript
+
+// Em stripe.controller.ts
+const getPriceMapping = (isTestModeValue: boolean) => ({
+  // ...
+  premium: {
+    monthly: isTestModeValue ? process.env.PRICE_ID_TEST_PREMIUM_MONTHLY || 'price_TEST_PREMIUM_MONTHLY' : process.env.PRICE_ID_LIVE_PREMIUM_MONTHLY || 'price_LIVE_PREMIUM_MONTHLY',
+    // ... e assim por diante
+  },
+  // ...
+});
+Agora, como você definiu PRICE_ID_TEST_PREMIUM_MONTHLY (e os outros) no seu .env, o process.env.PRICE_ID_TEST_PREMIUM_MONTHLY não será mais indefinido, e o código usará o ID correto que você forneceu.
+
+Próximos Passos:
+Salve as alterações no seu arquivo .env.
+Reinicie o servidor do Replit (Ctrl+C para parar se estiver rodando, e depois npm run dev) para garantir que ele carregue as novas variáveis de ambiente do arquivo .env.
+Teste o Fluxo de Checkout Novamente:
+Use o fluxo que já estava funcionando em termos de navegação (clicando no botão "Assinaturas" no card da loja, que te leva para /seller/stores/ID_DA_LOJA_CORRETA/subscription).
+Selecione o plano "Premium" (ou qualquer outro para o qual você configurou o Price ID) e tente "Atualizar Assinatura".
+Observe os Logs do Backend (Console do Replit):
+O erro StripeInvalidRequestError: No such price: ... não deve mais aparecer para os planos que você configurou corretamente.
+Esperamos que a sessão de checkout do Stripe seja criada com sucesso e que seu backend retorne uma URL do Stripe para redirecionamento.
+Com os Price IDs corretos, este obstáculo deve ser superado! Depois disso, podemos focar nos outros pontos pendentes:
+
+Corrigir a navegação do botão "Gerenciar planos".
+Corrigir o erro Drizzle na rota /api/seller/stats.
+Corrigir o erro do webhook do Stripe.
+Estou ansioso para ver os resultados do seu próximo teste!
