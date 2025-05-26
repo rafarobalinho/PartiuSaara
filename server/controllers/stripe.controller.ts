@@ -91,7 +91,6 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
   const activePriceMapping = getPriceMapping(isTestMode); // Obtém o mapeamento de preços dinâmico
 
   console.log(`🚀 === STRIPE CHECKOUT DEBUG START (Modo Dinâmico: ${isTestMode ? "TESTE" : "PRODUÇÃO"}) ===`);
-  // ... seus logs de method, headers, body, query ...
 
   if (!localStripe) {
     console.error('❌ CHECKPOINT 3 (Dinâmico): Stripe não pôde ser inicializado.');
@@ -99,17 +98,17 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
   }
 
   try {
-    // CHECKPOINT 1: Método HTTP (sem alteração)
+    // CHECKPOINT 1: Método HTTP
     console.log('🔍 CHECKPOINT 1: Verificando método HTTP');
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method not allowed', checkpoint: 'HTTP_METHOD' });
     }
     console.log('✅ CHECKPOINT 1: Método POST válido');
 
-    // CHECKPOINT 2: Variáveis de ambiente (agora reflete o modo dinâmico)
+    // CHECKPOINT 2: Variáveis de ambiente
     console.log('🔍 CHECKPOINT 2: Verificando variáveis de ambiente (dinâmico)');
-    console.log('🔧 STRIPE_MODE env (lido agora):', process.env.STRIPE_MODE); // Valor atual
-    const { stripeSecretKey: currentStripeSecretKey } = getCurrentStripeConfig(); // Pega a chave atual
+    console.log('🔧 STRIPE_MODE env (lido agora):', process.env.STRIPE_MODE);
+    const { stripeSecretKey: currentStripeSecretKey } = getCurrentStripeConfig();
 
     if (!currentStripeSecretKey) {
       const missingKeyName = isTestMode ? 'STRIPE_SECRET_KEY_TEST' : 'STRIPE_SECRET_KEY_LIVE';
@@ -118,73 +117,96 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         error: `Missing ${missingKeyName}`,
         mode: isTestMode ? 'test' : 'live',
         checkpoint: 'STRIPE_KEY_MISSING_DYNAMIC',
-        // ... (outros detalhes do environment)
       });
     }
     console.log('✅ CHECKPOINT 2: Chave Stripe disponível (dinâmico)');
-    // CHECKPOINT 3 já foi coberto pela inicialização do localStripe
 
-    // CHECKPOINT 4: Validar dados da requisição (sem alteração)
+    // CHECKPOINT 4: Validar dados da requisição
     console.log('🔍 CHECKPOINT 4: Validando dados da requisição');
-    const { planId, interval = 'monthly' } = req.body;
+    const { planId, interval = 'monthly', storeId } = req.body;
     if (!planId) {
       return res.status(400).json({ error: 'Plan ID is required', checkpoint: 'VALIDATION_ERROR' });
     }
-    console.log('✅ CHECKPOINT 4: Dados válidos');
+    if (!storeId) {
+      return res.status(400).json({ error: 'Store ID is required', checkpoint: 'VALIDATION_ERROR' });
+    }
+    console.log('✅ CHECKPOINT 4: Dados válidos - planId:', planId, 'storeId:', storeId);
 
-    // CHECKPOINT 5: Verificar autenticação (sem alteração)
+    // CHECKPOINT 5: Verificar autenticação
     console.log('🔍 CHECKPOINT 5: Verificando autenticação');
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Usuário não autenticado', checkpoint: 'AUTH_ERROR', mode: isTestMode ? 'test' : 'live' });
     }
     console.log('✅ CHECKPOINT 5: Usuário autenticado, ID:', req.session.userId);
 
-    // CHECKPOINT 6: Mapear Price IDs (usando activePriceMapping)
+    // CHECKPOINT 6: Mapear Price IDs
     console.log('🔍 CHECKPOINT 6: Mapeando Price IDs (dinâmico)');
     if (planId === 'freemium') {
-        // ... (lógica do freemium) ...
-        return res.status(200).json({ success: true, message: 'Plano Freemium ativado', /* ... */ mode: isTestMode ? 'test' : 'live' });
+      console.log('✅ CHECKPOINT 6: Plano Freemium detectado - processando gratuitamente');
+      return res.status(200).json({ success: true, message: 'Plano Freemium ativado', mode: isTestMode ? 'test' : 'live' });
     }
     const priceId = activePriceMapping[planId]?.[interval];
     if (!priceId) {
       console.log('❌ CHECKPOINT 6: Price ID inválido (dinâmico) para plano:', planId);
-      return res.status(400).json({ error: 'Invalid plan or price ID not found', /* ... */ mode: isTestMode ? 'test' : 'live' });
+      return res.status(400).json({ error: 'Invalid plan or price ID not found', mode: isTestMode ? 'test' : 'live' });
     }
     console.log('✅ CHECKPOINT 6: Price ID mapeado com sucesso (dinâmico):', priceId);
 
-    // CHECKPOINT 7: Buscar dados do usuário (sem alteração)
-    console.log('🔍 CHECKPOINT 7: Buscando dados do usuário');
-    const user = await db.query.users.findFirst({ where: (users, { eq }) => eq(users.id, req.session.userId as number) });
-    if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado', checkpoint: 'USER_NOT_FOUND', mode: isTestMode ? 'test' : 'live' });
+    // CHECKPOINT 7: Buscar e validar a loja
+    console.log('🔍 CHECKPOINT 7: Buscando dados da loja');
+    const store = await db.query.stores.findFirst({ 
+      where: (stores, { eq }) => eq(stores.id, storeId as number) 
+    });
+    if (!store) {
+      return res.status(404).json({ error: 'Loja não encontrada', checkpoint: 'STORE_NOT_FOUND', mode: isTestMode ? 'test' : 'live' });
     }
-    console.log('✅ CHECKPOINT 7: Usuário encontrado');
+    
+    // Verificar se o usuário é o proprietário da loja
+    if (store.userId !== req.session.userId) {
+      return res.status(403).json({ error: 'Acesso negado: usuário não é proprietário da loja', checkpoint: 'STORE_OWNERSHIP_ERROR', mode: isTestMode ? 'test' : 'live' });
+    }
+    console.log('✅ CHECKPOINT 7: Loja encontrada e propriedade validada');
 
-    // CHECKPOINT 8: Criar ou recuperar o Customer no Stripe (usando localStripe)
-    console.log('🔍 CHECKPOINT 8: Gerenciando Customer Stripe (dinâmico)');
-    let customerId = user.stripeCustomerId;
+    // CHECKPOINT 8: Buscar dados do usuário proprietário
+    console.log('🔍 CHECKPOINT 8: Buscando dados do usuário proprietário');
+    const user = await db.query.users.findFirst({ 
+      where: (users, { eq }) => eq(users.id, store.userId) 
+    });
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário proprietário não encontrado', checkpoint: 'USER_NOT_FOUND', mode: isTestMode ? 'test' : 'live' });
+    }
+    console.log('✅ CHECKPOINT 8: Usuário proprietário encontrado');
+
+    // CHECKPOINT 9: Gerenciar Customer Stripe na tabela stores
+    console.log('🔍 CHECKPOINT 9: Gerenciando Customer Stripe (dinâmico)');
+    let customerId = store.stripeCustomerId;
     if (!customerId) {
       const customer = await localStripe.customers.create({
         email: user.email,
         name: `${user.firstName} ${user.lastName}`,
-        metadata: { userId: user.id.toString() }
+        metadata: { 
+          userId: user.id.toString(),
+          storeId: store.id.toString()
+        }
       });
       customerId = customer.id;
-      await db.update(db.users).set({ stripeCustomerId: customerId }).where(db.eq(db.users.id, user.id));
-      console.log('✅ Novo customer criado e usuário atualizado (dinâmico):', customerId);
+      
+      // Atualizar a tabela stores com o novo stripeCustomerId
+      await db.update(db.stores).set({ stripeCustomerId: customerId }).where(db.eq(db.stores.id, store.id));
+      console.log('✅ Novo customer criado e loja atualizada (dinâmico):', customerId);
     } else {
-      console.log('✅ Customer ID existente (dinâmico):', customerId);
+      console.log('✅ Customer ID existente na loja (dinâmico):', customerId);
     }
 
-    // CHECKPOINT 9: Configurar URLs para redirecionamento (sem alteração na lógica da URL base)
-    console.log('🔍 CHECKPOINT 9: Configurando URLs');
+    // CHECKPOINT 10: Configurar URLs para redirecionamento
+    console.log('🔍 CHECKPOINT 10: Configurando URLs');
     const baseUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || req.headers.origin;
     const successUrl = `${baseUrl}/seller/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/seller/subscription?canceled=true`;
-    console.log('✅ CHECKPOINT 9: URLs configuradas');
+    console.log('✅ CHECKPOINT 10: URLs configuradas');
 
-    // CHECKPOINT 10: Criar a sessão de checkout (usando localStripe)
-    console.log('🔍 CHECKPOINT 10: Criando sessão de checkout (dinâmico)');
+    // CHECKPOINT 11: Criar a sessão de checkout
+    console.log('🔍 CHECKPOINT 11: Criando sessão de checkout (dinâmico)');
     const session = await localStripe.checkout.sessions.create({
       customer: customerId,
       payment_method_types: ['card'],
@@ -194,20 +216,20 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       cancel_url: cancelUrl,
       metadata: {
         userId: user.id.toString(),
+        storeId: store.id.toString(),
         planId: planId.toString(),
         interval: interval,
-        mode: isTestMode ? 'test' : 'live' // isTestMode dinâmico
+        mode: isTestMode ? 'test' : 'live'
       }
     });
-    console.log('✅ CHECKPOINT 10: Sessão criada com sucesso (dinâmico):', session.id);
+    console.log('✅ CHECKPOINT 11: Sessão criada com sucesso (dinâmico):', session.id);
 
-    // CHECKPOINT 11: Retornar resposta
-    console.log('🔍 CHECKPOINT 11: Preparando resposta (dinâmico)');
+    // CHECKPOINT 12: Retornar resposta
+    console.log('🔍 CHECKPOINT 12: Preparando resposta (dinâmico)');
     return res.status(200).json({ success: true, url: session.url, sessionId: session.id, mode: isTestMode ? 'test' : 'live' });
 
-  } catch (error) { // Erro global dentro do try principal
+  } catch (error) {
     console.error('💥 === STRIPE CHECKOUT GLOBAL ERROR (Dinâmico) ===', error);
-    // isTestMode aqui ainda será o dinâmico do início da função
     return res.status(500).json({ error: 'Internal server error', details: error.message, mode: isTestMode ? 'test' : 'live', checkpoint: 'GLOBAL_ERROR_DYNAMIC' });
   }
 };
@@ -264,16 +286,35 @@ export const getSubscriptionDetails = async (req: Request, res: Response) => {
   if (!localStripe) {
     return res.status(500).json({ error: 'Serviço de pagamento não disponível', mode: isTestMode ? 'test' : 'live' });
   }
-  // ... resto da sua lógica usando localStripe e isTestMode ...
+
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Usuário não autenticado', mode: isTestMode ? 'test' : 'live' });
     }
-    const user = await db.query.users.findFirst({ where: (users, { eq }) => eq(users.id, req.session.userId as number) });
-    if (!user || !user.subscriptionId) {
-      return res.status(404).json({ error: 'Assinatura não encontrada', mode: isTestMode ? 'test' : 'live' });
+
+    const { storeId } = req.query;
+    if (!storeId) {
+      return res.status(400).json({ error: 'Store ID é obrigatório', mode: isTestMode ? 'test' : 'live' });
     }
-    const subscription = await localStripe.subscriptions.retrieve(user.subscriptionId);
+
+    // Buscar a loja e verificar propriedade
+    const store = await db.query.stores.findFirst({ 
+      where: (stores, { eq }) => eq(stores.id, parseInt(storeId as string)) 
+    });
+    
+    if (!store) {
+      return res.status(404).json({ error: 'Loja não encontrada', mode: isTestMode ? 'test' : 'live' });
+    }
+
+    if (store.userId !== req.session.userId) {
+      return res.status(403).json({ error: 'Acesso negado: usuário não é proprietário da loja', mode: isTestMode ? 'test' : 'live' });
+    }
+
+    if (!store.stripeSubscriptionId) {
+      return res.status(404).json({ error: 'Assinatura não encontrada para esta loja', mode: isTestMode ? 'test' : 'live' });
+    }
+
+    const subscription = await localStripe.subscriptions.retrieve(store.stripeSubscriptionId);
     res.json({ ...subscription, mode: isTestMode ? 'test' : 'live' });
   } catch (error) {
     console.error('Erro ao obter detalhes da assinatura (dinâmico):', error);
@@ -288,17 +329,42 @@ export const cancelSubscription = async (req: Request, res: Response) => {
   if (!localStripe) {
     return res.status(500).json({ error: 'Serviço de pagamento não disponível', mode: isTestMode ? 'test' : 'live' });
   }
-  // ... resto da sua lógica usando localStripe e isTestMode ...
+
   try {
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Usuário não autenticado', mode: isTestMode ? 'test' : 'live' });
     }
-    const user = await db.query.users.findFirst({ where: (users, { eq }) => eq(users.id, req.session.userId as number) });
-    if (!user || !user.subscriptionId) {
-      return res.status(404).json({ error: 'Assinatura não encontrada', mode: isTestMode ? 'test' : 'live' });
+
+    const { storeId } = req.body;
+    if (!storeId) {
+      return res.status(400).json({ error: 'Store ID é obrigatório', mode: isTestMode ? 'test' : 'live' });
     }
-    await localStripe.subscriptions.cancel(user.subscriptionId);
-    await db.update(db.users).set({ subscriptionStatus: 'canceled', planId: 1 }).where(db.eq(db.users.id, user.id));
+
+    // Buscar a loja e verificar propriedade
+    const store = await db.query.stores.findFirst({ 
+      where: (stores, { eq }) => eq(stores.id, storeId) 
+    });
+    
+    if (!store) {
+      return res.status(404).json({ error: 'Loja não encontrada', mode: isTestMode ? 'test' : 'live' });
+    }
+
+    if (store.userId !== req.session.userId) {
+      return res.status(403).json({ error: 'Acesso negado: usuário não é proprietário da loja', mode: isTestMode ? 'test' : 'live' });
+    }
+
+    if (!store.stripeSubscriptionId) {
+      return res.status(404).json({ error: 'Assinatura não encontrada para esta loja', mode: isTestMode ? 'test' : 'live' });
+    }
+
+    await localStripe.subscriptions.cancel(store.stripeSubscriptionId);
+    
+    // Atualizar status da assinatura na tabela stores
+    await db.update(db.stores).set({ 
+      subscriptionStatus: 'canceled', 
+      subscriptionPlan: 'freemium' 
+    }).where(db.eq(db.stores.id, store.id));
+
     res.json({ success: true, message: 'Assinatura cancelada com sucesso', mode: isTestMode ? 'test' : 'live' });
   } catch (error) {
     console.error('Erro ao cancelar assinatura (dinâmico):', error);

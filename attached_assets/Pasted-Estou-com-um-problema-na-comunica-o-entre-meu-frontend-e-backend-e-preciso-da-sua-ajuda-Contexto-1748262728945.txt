@@ -1,0 +1,33 @@
+Estou com um problema na comunicação entre meu frontend e backend, e preciso da sua ajuda.
+
+Contexto do Problema:
+Meu backend, especificamente o endpoint POST /api/stripe/checkout (controlado pela função createCheckoutSession em server/controllers/stripe.controller.ts), agora espera um storeId no corpo da requisição para processar a assinatura de uma loja.
+Atualmente, quando tento escolher um plano na interface do usuário, o backend retorna um erro 400 com a mensagem "Store ID is required", indicando que o storeId não está sendo enviado pelo frontend.
+
+Tarefa Principal:
+Preciso que você modifique meu código do frontend para garantir que o storeId seja incluído no corpo (body) da requisição POST enviada para /api/stripe/checkout.
+
+Possíveis Arquivos do Frontend para Investigar:
+Acredito que o código responsável por fazer essa chamada de API no frontend possa estar em arquivos como subscription.tsx (que apareceu em logs de erro do navegador anteriormente), ou em algum componente React relacionado à seleção de planos, ou talvez em alguma função utilitária de chamadas de API (como queryClient.ts, se for o caso). Por favor, ajude a localizar o local correto.
+
+Mudanças Específicas Necessárias no Código do Frontend:
+
+Obter o storeId no Contexto Correto: No componente ou lógica do frontend que dispara a chamada para /api/stripe/checkout, identifique como obter o storeId da loja para a qual o usuário está tentando criar/modificar a assinatura. Este storeId pode estar disponível através de:
+
+Parâmetros da URL.
+Props do componente React.
+Estado do React (useState, useReducer).
+Contexto do React (useContext).
+Outra forma de gerenciamento de estado. Por favor, encontre a maneira apropriada de acessar este storeId no escopo da função que faz a chamada API.
+Incluir storeId no Corpo da Requisição: Ao construir o objeto do corpo da requisição POST para /api/stripe/checkout, adicione o storeId obtido. O corpo da requisição deve ser um JSON e se parecer com algo assim:
+
+JSON
+
+{
+  "planId": "ID_DO_PLANO_ESCOLHIDO",
+  "interval": "monthly_ou_yearly",
+  "storeId": "VALOR_DO_STORE_ID_OBTIDO"
+}
+Por favor, me ajude a fazer essas modificações no código do frontend para que o storeId seja enviado corretamente ao backend.
+
+Obrigado!"
