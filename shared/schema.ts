@@ -55,10 +55,10 @@ export const stores = pgTable("stores", {
   reviewCount: integer("review_count").default(0),
   images: text("images", { mode: 'array' }),
   isOpen: boolean("is_open").default(true),
-  address: jsonb("address").$type<StoreAddress | null>(), // { street, city, state, zipCode }
-  location: jsonb("location").$type<StoreLocation | null>(), // { latitude, longitude, place_id }
+  address: jsonb("address").$type<StoreAddress | null>(),
+  location: jsonb("location").$type<StoreLocation | null>(),
   place_id: text("place_id"),
-  subscriptionPlan: text("subscription_plan").$type<"freemium" | "start" | "pro" | "premium">().default("freemium"),
+  subscriptionPlan: text("subscription_plan").$type<"freemium" | "start" | "pro" | "premium">().default("freemium").notNull(),
   subscriptionEndDate: timestamp("subscription_end_date", { mode: 'string' }),
   subscriptionStatus: text("subscription_status").default("active").notNull(),
   stripeCustomerId: text("stripe_customer_id").unique(),
