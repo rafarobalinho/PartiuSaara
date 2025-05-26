@@ -197,27 +197,41 @@ export default function SellerSubscription() {
       return response;
     },
     onSuccess: (data) => {
+      console.log('[stripeCheckout] ✅ Resposta recebida:', data);
+      
       // Log do modo para usuário (apenas em desenvolvimento)
       if (data.mode === 'test') {
         console.log('🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
       }
 
+      // Verificar se temos uma URL de checkout para redirecionamento
       if (data.url) {
+        console.log('[stripeCheckout] 🚀 Redirecionando para checkout URL:', data.url);
         // Redirecionar o usuário para a página de checkout do Stripe
         window.location.href = data.url;
-      } else if (data.success) {
+        return;
+      }
+
+      // Se não temos URL mas temos success, mostrar mensagem de sucesso
+      if (data.success) {
+        console.log('[stripeCheckout] ✅ Operação bem-sucedida sem redirecionamento');
         toast({
           title: 'Sucesso!',
           description: data.message || 'Plano ativado com sucesso',
           variant: 'default',
         });
-      } else {
-        toast({
-          title: 'Erro',
-          description: 'Ocorreu um erro ao iniciar o checkout. Tente novamente.',
-          variant: 'destructive',
-        });
+        // Invalidar queries para atualizar dados
+        queryClient.invalidateQueries({ queryKey: ['/api/subscriptions/my-plan', storeIdFromUrl] });
+        return;
       }
+
+      // Se chegou até aqui, algo deu errado
+      console.error('[stripeCheckout] ❌ Resposta inesperada:', data);
+      toast({
+        title: 'Erro',
+        description: 'Resposta inesperada do servidor. Tente novamente.',
+        variant: 'destructive',
+      });
     },
     onError: (error) => {
       console.error('❌ Erro de checkout:', error);
@@ -228,6 +242,8 @@ export default function SellerSubscription() {
         errorMessage = 'Erro de conexão. Verifique sua internet.';
       } else if (error.message?.includes('Invalid plan')) {
         errorMessage = 'Plano selecionado inválido.';
+      } else if (error.message?.includes('No such price')) {
+        errorMessage = 'Erro de configuração do plano. Contate o suporte.';
       } else {
         errorMessage = error.message || 'Erro desconhecido';
       }
