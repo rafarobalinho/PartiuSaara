@@ -201,18 +201,27 @@ function getQueryFn<T>({ on401 }: { on401: 'returnNull' | 'throw' }): () => Prom
 
       // Buscar as lojas do usuário se ele estiver autenticado
       if (userData?.id) {
+        console.log('[DEBUG-AUTH-CONTEXT] 🔍 Buscando lojas para usuário ID:', userData.id);
         try {
           const storesResponse = await fetch('/api/stores', {
             credentials: 'include',
           });
+          console.log('[DEBUG-AUTH-CONTEXT] 📡 Resposta /api/stores - Status:', storesResponse.status);
           if (storesResponse.ok) {
             const storesData = await storesResponse.json();
+            console.log('[DEBUG-AUTH-CONTEXT] 🏪 Lojas carregadas no contexto:', storesData);
+            console.log('[DEBUG-AUTH-CONTEXT] 📊 Quantidade de lojas:', storesData?.length || 0);
             userData.stores = storesData;
+          } else {
+            console.log('[DEBUG-AUTH-CONTEXT] ❌ Erro na resposta /api/stores:', storesResponse.statusText);
+            userData.stores = [];
           }
         } catch (storesError) {
-          console.error('Erro ao carregar lojas do usuário:', storesError);
+          console.error('[DEBUG-AUTH-CONTEXT] ❌ Erro ao carregar lojas do usuário:', storesError);
           userData.stores = [];
         }
+      } else {
+        console.log('[DEBUG-AUTH-CONTEXT] ❌ Usuário não autenticado, não buscando lojas');
       }
 
       return userData;

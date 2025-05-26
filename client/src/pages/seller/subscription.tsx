@@ -44,6 +44,17 @@ export default function SellerSubscription() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
+  // Debug logs no carregamento do componente
+  console.log('[DEBUG-SUBSCRIPTION] 🏗️ Componente SellerSubscription carregado');
+  console.log('[DEBUG-SUBSCRIPTION] 📍 URL atual:', window.location.href);
+  console.log('[DEBUG-SUBSCRIPTION] 👤 Dados do usuário logado:', {
+    id: user?.id,
+    email: user?.email,
+    isAuthenticated,
+    isSeller,
+    stores: user?.stores
+  });
+
   // If not authenticated or not a seller, redirect
   useEffect(() => {
     if (!isAuthenticated) {
@@ -131,64 +142,96 @@ export default function SellerSubscription() {
         throw new Error('Nenhum plano selecionado');
       }
 
-      console.log('🚀 Iniciando checkout para:', selectedPlan);
+      console.log('[DEBUG-SUBSCRIPTION] 🚀 Iniciando checkout para plano:', selectedPlan);
+      console.log('[DEBUG-SUBSCRIPTION] 📍 URL atual:', window.location.href);
+      console.log('[DEBUG-SUBSCRIPTION] 👤 Usuário logado:', user?.id, user?.email);
 
       try {
         // Obter storeId - com múltiplas estratégias de fallback
         let storeId = null;
 
         // Estratégia 1: Verificar parâmetros da URL
+        console.log('[DEBUG-SUBSCRIPTION] 🔍 Estratégia 1: Verificando parâmetros da URL...');
         const urlParams = new URLSearchParams(window.location.search);
         const urlStoreId = urlParams.get('storeId');
+        console.log('[DEBUG-SUBSCRIPTION] 📋 Parâmetros da URL completos:', Object.fromEntries(urlParams.entries()));
+        console.log('[DEBUG-SUBSCRIPTION] 🏪 storeId da URL:', urlStoreId);
         if (urlStoreId) {
           storeId = parseInt(urlStoreId);
+          console.log('[DEBUG-SUBSCRIPTION] ✅ Store ID obtido da URL:', storeId);
+        } else {
+          console.log('[DEBUG-SUBSCRIPTION] ❌ Nenhum storeId encontrado na URL');
         }
 
         // Estratégia 2: Verificar se há uma loja no contexto do usuário
+        console.log('[DEBUG-SUBSCRIPTION] 🔍 Estratégia 2: Verificando contexto do usuário...');
+        console.log('[DEBUG-SUBSCRIPTION] 👤 user.stores:', user?.stores);
+        console.log('[DEBUG-SUBSCRIPTION] 📊 Quantidade de lojas do usuário:', user?.stores?.length || 0);
         if (!storeId && user?.stores && user.stores.length > 0) {
-          storeId = user.stores[0].id; // Pegando a primeira loja do usuário
+          const firstStore = user.stores[0];
+          storeId = firstStore.id;
+          console.log('[DEBUG-SUBSCRIPTION] ✅ Store ID obtido do contexto do usuário (primeira loja):', storeId);
+          console.log('[DEBUG-SUBSCRIPTION] 🏪 Detalhes da primeira loja:', firstStore);
+        } else if (!storeId) {
+          console.log('[DEBUG-SUBSCRIPTION] ❌ Nenhuma loja encontrada no contexto do usuário');
         }
 
         // Estratégia 3: Buscar lojas do usuário diretamente da API se necessário
         if (!storeId) {
+          console.log('[DEBUG-SUBSCRIPTION] 🔍 Estratégia 3: Buscando lojas via API...');
           try {
             const storesResponse = await fetch('/api/stores', {
               credentials: 'include',
             });
+            console.log('[DEBUG-SUBSCRIPTION] 📡 Resposta da API /api/stores - Status:', storesResponse.status);
             if (storesResponse.ok) {
               const storesData = await storesResponse.json();
+              console.log('[DEBUG-SUBSCRIPTION] 📋 Dados das lojas da API:', storesData);
+              console.log('[DEBUG-SUBSCRIPTION] 📊 Quantidade de lojas retornadas pela API:', storesData?.length || 0);
               if (storesData && storesData.length > 0) {
-                storeId = storesData[0].id;
+                const firstApiStore = storesData[0];
+                storeId = firstApiStore.id;
+                console.log('[DEBUG-SUBSCRIPTION] ✅ Store ID obtido da API (primeira loja):', storeId);
+                console.log('[DEBUG-SUBSCRIPTION] 🏪 Detalhes da primeira loja da API:', firstApiStore);
+              } else {
+                console.log('[DEBUG-SUBSCRIPTION] ❌ API retornou array vazio de lojas');
               }
+            } else {
+              console.log('[DEBUG-SUBSCRIPTION] ❌ Erro na resposta da API /api/stores:', storesResponse.statusText);
             }
           } catch (storesError) {
-            console.error('❌ Erro ao buscar lojas:', storesError);
+            console.error('[DEBUG-SUBSCRIPTION] ❌ Erro ao buscar lojas via API:', storesError);
           }
         }
 
         // Validação final
+        console.log('[DEBUG-SUBSCRIPTION] 🔍 Validação final - storeId escolhido:', storeId);
         if (!storeId) {
-          console.error('❌ Erro: Não foi possível encontrar um Store ID');
+          console.error('[DEBUG-SUBSCRIPTION] ❌ ERRO CRÍTICO: Não foi possível encontrar um Store ID');
           throw new Error('É necessário ter uma loja cadastrada para fazer assinatura. Por favor, cadastre uma loja primeiro.');
         }
 
-        console.log('🏪 Store ID encontrado:', storeId);
+        console.log('[DEBUG-SUBSCRIPTION] 🏪 Store ID FINAL que será enviado para o backend:', storeId);
 
-        // Chamar o endpoint da sua API para iniciar o checkout do Stripe
-        const response = await apiRequest('POST', '/api/stripe/checkout', {
+        // Preparar payload
+        const payload = {
           planId: selectedPlan,
           interval: billingCycle,
           storeId: storeId,
-        });
+        };
+        console.log('[DEBUG-SUBSCRIPTION] 📦 Payload COMPLETO para /api/stripe/checkout:', payload);
 
-        console.log('✅ Checkout data:', response);
+        // Chamar o endpoint da sua API para iniciar o checkout do Stripe
+        const response = await apiRequest('POST', '/api/stripe/checkout', payload);
+
+        console.log('[DEBUG-SUBSCRIPTION] ✅ Resposta do checkout:', response);
         if (response.mode === 'test') {
-          console.log('🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
+          console.log('[DEBUG-SUBSCRIPTION] 🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
         }
 
         return response; // Retorna toda a resposta, não apenas a URL
       } catch (error) {
-        console.error('❌ Erro de checkout:', error);
+        console.error('[DEBUG-SUBSCRIPTION] ❌ Erro de checkout:', error);
         throw error;
       }
 
@@ -239,7 +282,13 @@ export default function SellerSubscription() {
 
 
   const handlePurchase = () => {
+    console.log('[DEBUG-SUBSCRIPTION] 🎯 handlePurchase chamado');
+    console.log('[DEBUG-SUBSCRIPTION] 📋 selectedPlan:', selectedPlan);
+    console.log('[DEBUG-SUBSCRIPTION] 📋 subscription atual:', subscription);
+    console.log('[DEBUG-SUBSCRIPTION] 📋 billingCycle:', billingCycle);
+
     if (selectedPlan === subscription?.plan?.id) {
+      console.log('[DEBUG-SUBSCRIPTION] ⚠️ Tentativa de comprar plano atual - ação bloqueada');
       toast({
         title: 'Plano atual',
         description: 'Você já está inscrito neste plano.',
@@ -249,6 +298,7 @@ export default function SellerSubscription() {
     }
 
     if (!selectedPlan) {
+      console.log('[DEBUG-SUBSCRIPTION] ❌ Nenhum plano selecionado - ação bloqueada');
       toast({
         title: 'Selecione um plano',
         description: 'Por favor, selecione um plano para continuar.',
@@ -257,6 +307,7 @@ export default function SellerSubscription() {
       return;
     }
 
+    console.log('[DEBUG-SUBSCRIPTION] ✅ Iniciando processo de compra via Stripe...');
     //purchaseMutation.mutate();
     stripeCheckoutMutation.mutate();
   };
