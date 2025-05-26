@@ -1,0 +1,38 @@
+Preciso da sua ajuda para refatorar a forma como o storeId é determinado na minha página de gerenciamento de assinaturas no frontend. Quero adotar uma abordagem mais clara e segura.
+
+Contexto do Problema:
+Minha página de assinatura (atualmente acessada via /seller/subscription, e o código principal parece estar em subscription.tsx) está pegando o storeId da primeira loja na lista do usuário quando não encontra um storeId na URL. Isso resultou no envio do storeId errado (ID 3, que não pertence ao usuário logado ID: 2) para o backend (/api/stripe/checkout), causando um erro 403. O usuário ID: 2 na verdade queria operar na storeId: 1, que lhe pertence.
+
+Abordagem Desejada (Mais Segura e Clara):
+Quero que a página de gerenciamento de assinatura sempre funcione no contexto de uma loja específica, obtendo o storeId diretamente de um parâmetro da URL.
+Por exemplo, o usuário navegaria para uma URL como /seller/stores/:storeId/subscription (ex: /seller/stores/1/subscription). O componente do frontend deve então usar este :storeId da URL.
+
+Arquivo do Frontend para Modificar:
+Provavelmente src/pages/seller/subscription.tsx (ou o arquivo que renderiza a rota /seller/subscription e contém a lógica de handlePurchase e a determinação do storeId que vimos nos logs anteriores).
+
+Mudanças Específicas Necessárias no Código do Frontend:
+
+Ler storeId do Parâmetro da URL:
+
+Modifique o componente React desta página para que ele leia o storeId dos parâmetros da rota da URL. Se estiver usando React Router, isso geralmente é feito com o hook useParams().
+Adicione um console.log() no início do componente (ou em um useEffect dependente do parâmetro da URL) para mostrar o storeId que foi extraído da URL.
+Exemplo de log: console.log('[PaginaAssinaturaLoja] storeId obtido da URL:', storeIdFromUrl);
+Usar o storeId da URL na Chamada API:
+
+Na função handlePurchase (ou qualquer função que monte e envie a requisição para /api/stripe/checkout):
+Utilize o storeId obtido do parâmetro da URL como o valor de storeId no payload da requisição.
+Remova a lógica de fallback atual que pega user.stores[0].id ou tenta outras estratégias se o storeId não estiver na URL. Com esta nova abordagem, o storeId da URL é a única fonte da verdade.
+Mantenha (ou adicione) um console.log() para mostrar o payload completo que está sendo enviado, confirmando que ele usa o storeId da URL.
+Exemplo de log: console.log('[handlePurchase] Usando storeId da URL para API:', storeIdFromUrl, 'Payload:', payload);
+Tratamento se storeId da URL estiver Ausente/Inválido (Boa Prática):
+
+Se o componente for renderizado mas o storeId não estiver presente na URL (ou for inválido), ele não deve tentar prosseguir com uma seleção de loja padrão. Em vez disso, poderia:
+Exibir uma mensagem como "ID da loja não especificado."
+Ou redirecionar para uma página de seleção de lojas (como a "Minhas Lojas").
+(Por agora, o foco principal é fazer com que ele use o storeId da URL quando presente).
+Observação sobre Rotas:
+Eu entendo que também precisarei garantir que minha configuração de rotas no React (React Router) tenha uma rota definida como /seller/stores/:storeId/subscription que aponte para este componente modificado.
+
+Por favor, me ajude a refatorar o componente do frontend para usar esta abordagem baseada em parâmetros de URL para determinar o storeId.
+
+Obrigado!"
