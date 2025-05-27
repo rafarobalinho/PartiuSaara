@@ -1,0 +1,20 @@
+ Estamos trabalhando na página de analytics específica da loja (`StoreAnalyticsPage.tsx`, acessada via `/seller/stores/:storeId/analytics`). A página já busca os dados corretos da API `/api/seller/stats?storeId={storeId}`, mas atualmente exibe esses dados como um texto JSON cru.
+
+Preciso da sua ajuda para formatar a aba "Visão Geral" desta página.
+
+Tarefa:
+1.  Localize o componente ou seção dentro de `StoreAnalyticsPage.tsx` que renderiza o conteúdo da aba "Visão Geral".
+2.  Nesta aba, identifique onde os dados brutos (o objeto JSON de estatísticas) estão sendo atualmente impressos na tela.
+3.  **Remova** a exibição desses dados brutos.
+4.  **Em vez disso, crie componentes de UI para exibir as seguintes informações de forma clara e organizada (use os valores correspondentes do objeto de dados que já está sendo buscado):**
+    * Um card ou item para "Total de Produtos" (usando o valor de `totalProducts` dos dados).
+    * Um card ou item para "Total de Produtos Ativos" (usando o valor de `totalActiveProducts`).
+    * Se houver outras métricas gerais nos dados que você considera importantes para uma visão geral (como "Total de Reservas" – se já estiver nos dados, ou "Avaliação Média da Loja"), por favor, crie cartões/itens para elas também.
+    * (Opcional, se simples de fazer): Se os dados buscados contiverem alguma informação que possa ser representada em um gráfico de pizza ou de barras simples para a visão geral (ex: distribuição de produtos por status, se disponível), tente implementá-lo. Caso contrário, focaremos nos cartões de estatísticas primeiro.
+
+5.  **Estilo:** Use um estilo limpo e profissional para esses cartões/itens, talvez similar ao que eu tinha no meu antigo dashboard genérico, se aplicável e fácil de replicar.
+
+O objetivo é transformar a aba "Visão Geral" de uma exibição de dados de debug em um conjunto de estatísticas chave legíveis e visualmente agradáveis, usando os dados que já estão sendo fornecidos pela API para esta loja específica.
+
+Por favor, foque apenas na aba "Visão Geral" por enquanto. Faremos as outras abas em seguida.
+Obrigado!
