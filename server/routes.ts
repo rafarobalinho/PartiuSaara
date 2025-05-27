@@ -526,7 +526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Nenhuma loja encontrada' });
       }
 
-      let storeId: number;
+      let targetStoreIds: number[];
 
       if (requestedStoreId) {
         // Se um storeId específico foi solicitado, verificar se o usuário é o proprietário
@@ -538,77 +538,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: 'Acesso negado: você não é proprietário desta loja' });
         }
         
-        storeId = requestedStoreIdNum;
-        console.log("🏪 Usando loja específica ID:", storeId);
+        targetStoreIds = [requestedStoreIdNum];
+        console.log("🏪 Usando loja específica ID:", requestedStoreIdNum);
       } else {
-        // Se nenhum storeId específico foi solicitado, usar a primeira loja
-        storeId = stores[0].id;
-        console.log("🏪 Usando primeira loja ID:", storeId);
+        // Se nenhum storeId específico foi solicitado, usar todas as lojas do usuário
+        targetStoreIds = stores.map(store => store.id);
+        console.log("🏪 Usando todas as lojas do usuário:", targetStoreIds);
       }
 
-      let productsCount = 0;
-      let reservationsCount = 0;
-      let pendingReservationsCount = 0;
-      let couponsCount = 0;
+      let totalProducts = 0;
+      let totalActiveProducts = 0;
+      let totalReservations = 0;
+      let pendingReservations = 0;
+      let totalCoupons = 0;
 
       try {
-        // Usando consultas drizzle corretas
-        const productsResult = await db.select()
-          .from(products)
-          .where(eq(products.storeId, storeId));
-        productsCount = productsResult.length;
-        console.log("📦 Produtos encontrados:", productsCount);
+        // Contar produtos por loja(s)
+        for (const storeId of targetStoreIds) {
+          const storeProducts = await db.select()
+            .from(products)
+            .where(eq(products.storeId, storeId));
+          
+          totalProducts += storeProducts.length;
+          totalActiveProducts += storeProducts.filter(p => p.isActive).length;
+          
+          const productIds = storeProducts.map(p => p.id);
+          
+          if (productIds.length > 0) {
+            // Reservas totais (excluindo canceladas) - usando inArray para sintaxe correta
+            const reservationsResult = await db.select()
+              .from(reservations)
+              .where(and(
+                sql`${reservations.productId} = ANY(${JSON.stringify(productIds)})`,
+                ne(reservations.status, 'cancelled')
+              ));
+            totalReservations += reservationsResult.length;
 
-        // Buscar IDs dos produtos para usar nas outras consultas
-        const productIds = productsResult.map(p => p.id);
+            // Reservas pendentes
+            const pendingReservationsResult = await db.select()
+              .from(reservations)
+              .where(and(
+                sql`${reservations.productId} = ANY(${JSON.stringify(productIds)})`,
+                eq(reservations.status, 'pending')
+              ));
+            pendingReservations += pendingReservationsResult.length;
 
-        if (productIds.length > 0) {
-          // Reservas totais (excluindo canceladas)
-          const reservationsResult = await db.select()
-            .from(reservations)
-            .where(and(
-              sql`${reservations.productId} IN (${productIds.join(',')})`,
-              ne(reservations.status, 'cancelled')
-            ));
-          reservationsCount = reservationsResult.length;
-          console.log("🔖 Reservas encontradas:", reservationsCount);
-
-          // Reservas pendentes
-          const pendingReservationsResult = await db.select()
-            .from(reservations)
-            .where(and(
-              sql`${reservations.productId} IN (${productIds.join(',')})`,
-              eq(reservations.status, 'pending')
-            ));
-          pendingReservationsCount = pendingReservationsResult.length;
-          console.log("⏳ Reservas pendentes:", pendingReservationsCount);
+            // Cupons/promoções dos produtos da loja
+            const couponsResult = await db.select()
+              .from(promotions)
+              .where(sql`${promotions.productId} = ANY(${JSON.stringify(productIds)})`);
+            totalCoupons += couponsResult.length;
+          }
         }
 
-        // Cupons/promoções dos produtos da loja
-        if (productIds.length > 0) {
-          const couponsResult = await db.select()
-            .from(promotions)
-            .where(sql`${promotions.productId} IN (${productIds.join(',')})`);
-          couponsCount = couponsResult.length;
-        }
-        console.log("🏷️ Cupons/promoções:", couponsCount);
+        console.log("📦 Total de produtos:", totalProducts);
+        console.log("✅ Produtos ativos:", totalActiveProducts);
+        console.log("🔖 Total de reservas:", totalReservations);
+        console.log("⏳ Reservas pendentes:", pendingReservations);
+        console.log("🏷️ Total de cupons/promoções:", totalCoupons);
 
       } catch (queryError) {
         console.error("❌ Erro nas consultas Drizzle:", queryError);
-        // Continuar com os valores padrão
+        // Continuar com os valores padrão (já inicializados em 0)
       }
 
       res.json({
-        totalProducts: productsCount,
-        totalReservations: reservationsCount,
-        pendingReservations: pendingReservationsCount,
-        totalCoupons: couponsCount
+        totalProducts,
+        totalActiveProducts,
+        totalReservations,
+        pendingReservations,
+        totalCoupons
       });
     } catch (error) {
       console.error('❌ Erro ao buscar estatísticas do vendedor:', error);
       res.status(500).json({ 
         message: 'Erro ao buscar estatísticas',
-        error: error.message
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
       });
     }
   });
