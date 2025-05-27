@@ -46,6 +46,7 @@ import SellerStores from "@/pages/seller/stores/index";
 import AddStore from "@/pages/seller/stores/add-store";
 import StoreDetail from "@/pages/seller/stores/store-detail";
 import StoreProducts from "@/pages/seller/stores/store-products";
+import StoreAnalyticsPage from "@/pages/seller/stores/store-analytics";
 import LocationSettingsPage from "@/pages/seller/settings/location";
 
 function Router() {
@@ -83,6 +84,7 @@ function Router() {
           <Route path="/seller/stores/add-store" component={AddStore} />
           <Route path="/seller/stores/:id" component={StoreDetail} />
           <Route path="/seller/stores/:id/products" component={StoreProducts} />
+          <Route path="/seller/stores/:storeId/analytics" component={StoreAnalyticsPage} />
           <Route path="/seller/analytics" component={SellerAnalytics} />
           <Route path="/seller/subscription" component={SellerSubscription} />
           <Route path="/seller/stores/:storeId/subscription" component={SellerSubscription} />

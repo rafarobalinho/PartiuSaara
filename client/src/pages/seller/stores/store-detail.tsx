@@ -245,6 +245,18 @@ export default function StoreDetail() {
         </div>
         <p className="text-gray-600">Edite as informações da sua loja e gerencie sua presença no marketplace</p>
       </div>
+            <div className="flex space-x-2">
+              <Button asChild>
+                <Link href={`/seller/stores/${store.id}/products`}>
+                  Ver Produtos
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href={`/seller/stores/${store.id}/analytics`}>
+                  Ver Analytics
+                </Link>
+              </Button>
+            </div>
 
       <Tabs defaultValue="details">
         <TabsList>
