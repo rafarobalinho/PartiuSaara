@@ -514,9 +514,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!user) return res.status(401).json({ message: 'Unauthorized' });
 
     try {
+      const { storeId: requestedStoreId } = req.query;
       console.log("📊 Buscando estatísticas para o vendedor ID:", user.id);
+      console.log("🏪 StoreId solicitado:", requestedStoreId);
 
-      // Buscar a loja do vendedor
+      // Buscar todas as lojas do vendedor
       const stores = await storage.getStoresByUserId(user.id);
       console.log("🏪 Lojas encontradas:", stores.length);
 
@@ -524,8 +526,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Nenhuma loja encontrada' });
       }
 
-      const storeId = stores[0].id;
-      console.log("🏪 Usando loja ID:", storeId);
+      let storeId: number;
+
+      if (requestedStoreId) {
+        // Se um storeId específico foi solicitado, verificar se o usuário é o proprietário
+        const requestedStoreIdNum = parseInt(requestedStoreId as string);
+        const isOwner = stores.some(store => store.id === requestedStoreIdNum);
+        
+        if (!isOwner) {
+          console.log("❌ Usuário não é proprietário da loja solicitada");
+          return res.status(403).json({ message: 'Acesso negado: você não é proprietário desta loja' });
+        }
+        
+        storeId = requestedStoreIdNum;
+        console.log("🏪 Usando loja específica ID:", storeId);
+      } else {
+        // Se nenhum storeId específico foi solicitado, usar a primeira loja
+        storeId = stores[0].id;
+        console.log("🏪 Usando primeira loja ID:", storeId);
+      }
 
       let productsCount = 0;
       let reservationsCount = 0;
