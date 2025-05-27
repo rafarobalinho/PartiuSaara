@@ -1,0 +1,83 @@
+Preciso da sua ajuda para corrigir meu manipulador de webhooks do Stripe. Atualmente, após um pagamento bem-sucedido, o plano da loja não está sendo atualizado no meu banco de dados, e estou vendo erros relacionados ao processamento do webhook.
+
+Há duas correções principais necessárias:
+
+Parte 1: Corrigir o Parsing do Corpo da Requisição do Webhook
+
+Problema Atual: Meu endpoint de webhook (/api/stripe/webhook) está falhando com um erro que diz Webhook payload must be provided as a string or a Buffer ... Payload was provided as a parsed JavaScript object instead. Isso acontece porque um middleware global express.json() está processando o corpo da requisição antes que a verificação de assinatura do Stripe (que precisa do corpo bruto) possa ocorrer.
+
+Arquivo para Modificar: server/index.ts (ou meu arquivo principal de configuração do aplicativo Express).
+
+Tarefa:
+
+Por favor, modifique a configuração dos middlewares do Express para garantir que, para a rota específica /api/stripe/webhook (confirme se este é o caminho exato), o corpo da requisição seja processado como um buffer bruto (express.raw({ type: 'application/json' })).
+Para todas as outras rotas, o parsing de JSON (express.json()) deve continuar funcionando normalmente.
+Este middleware condicional para o corpo da requisição deve ser colocado antes da definição das minhas rotas principais e antes de qualquer parser JSON global.
+Exemplo da lógica do middleware que preciso em server/index.ts:
+
+TypeScript
+
+// Antes das definições de rota (app.use('/api', routes); etc.)
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') {
+    express.raw({ type: 'application/json' })(req, res, (err) => {
+      if (err) {
+        console.error("Erro ao processar raw body para webhook:", err);
+        return res.status(400).send("Erro no corpo da requisição do webhook.");
+      }
+      next();
+    });
+  } else {
+    express.json()(req, res, next);
+  }
+});
+Parte 2: Corrigir a Lógica de Atualização do Banco de Dados no handleWebhook
+
+Problema Atual: Uma vez que o corpo bruto seja recebido corretamente, a lógica dentro da minha função handleWebhook (no arquivo server/controllers/stripe.controller.ts), especificamente para o evento checkout.session.completed, precisa garantir que a tabela stores (e não users) seja atualizada com os detalhes corretos da assinatura.
+
+Arquivo para Modificar: server/controllers/stripe.controller.ts
+
+Função para Modificar: handleWebhook, dentro do case 'checkout.session.completed':
+
+Tarefa:
+
+Dentro do manipulador do evento checkout.session.completed:
+Extraia o storeId e o planId (meu ID de plano interno, não o Price ID do Stripe) dos metadata da session do Stripe. (Eu preciso garantir que estou adicionando storeId e planId aos metadados quando crio a sessão de checkout na função createCheckoutSession).
+Extraia o stripeSubscriptionId (de session.subscription) e o stripeCustomerId (de session.customer).
+Se todos esses dados estiverem presentes:
+Execute uma operação de atualização na tabela stores usando Drizzle ORM (await db.update(stores).set({...}).where(...)).
+O set deve atualizar as seguintes colunas na loja correspondente ao storeId:
+subscriptionPlan: para o planId interno dos metadados.
+subscriptionStatus: para 'active'.
+stripeSubscriptionId: para o stripeSubscriptionId obtido.
+stripeCustomerId: para o stripeCustomerId obtido (para garantir que está correto/atualizado na loja).
+subscriptionStartDate: para a data/hora atual (ex: new Date()).
+subscriptionEndDate: pode ser definido como null por enquanto, ou calculado se aplicável.
+A cláusula where deve identificar a loja pelo storeId.
+Adicione logs claros para indicar o processamento do webhook, os dados recebidos e o resultado da operação de atualização do banco de dados.
+Certifique-se de que eq de drizzle-orm e a tabela stores do schema Drizzle estão corretamente importados neste arquivo.
+Exemplo da lógica de atualização do Drizzle que preciso para a tabela stores:
+
+TypeScript
+
+// Dentro do case 'checkout.session.completed':
+// ... após extrair storeId, internalPlanId, stripeSubscriptionId, stripeCustomerIdFromSession ...
+if (storeId && internalPlanId && stripeSubscriptionId) {
+  await db.update(stores)
+    .set({
+      subscriptionPlan: internalPlanId,
+      subscriptionStatus: 'active',
+      stripeSubscriptionId: stripeSubscriptionId,
+      stripeCustomerId: stripeCustomerIdFromSession,
+      subscriptionStartDate: new Date(),
+      subscriptionEndDate: null // Ajustar conforme necessidade
+    })
+    .where(eq(stores.id, parseInt(storeId))); // 'stores.id' e 'eq'
+  console.log(`[Webhook] Loja ${storeId} atualizada para plano ${internalPlanId}.`);
+} else {
+  console.warn('[Webhook] Dados insuficientes nos metadados para atualizar loja via checkout.session.completed:', session.metadata);
+}
+Por favor, aplique essas duas correções para que meu sistema de webhooks do Stripe funcione corretamente e as assinaturas sejam refletidas no meu banco de dados.
+
+Obrigado!"
+
