@@ -1,0 +1,42 @@
+Perfeito! Agora que a base da sua nova página de analytics específica da loja (StoreAnalyticsPage.tsx ou similar) está funcionando (ou seja, ela consegue pegar o storeId da URL e, esperamos, buscar os dados corretos do backend para esse storeId), podemos focar em torná-la visualmente útil e informativa.
+
+Aqui está um prompt detalhado para a IA do Replit para a Fase 3: Popular a Interface Gráfica (UI) da Nova Página de Analytics Específica da Loja.
+
+"Olá, IA do Replit! Seguindo com a refatoração do meu painel do vendedor, preciso da sua ajuda para construir a interface do usuário da nova página de analytics específica da loja.
+
+Contexto (Situação Atual - Pós Fase 2):
+
+Tenho um novo componente React (vamos chamá-lo de StoreAnalyticsPage.tsx, provavelmente em src/pages/seller/StoreAnalyticsPage.tsx ou um caminho similar) que é renderizado pela rota /seller/stores/:storeId/analytics.
+Este componente StoreAnalyticsPage.tsx já consegue ler o storeId corretamente dos parâmetros da URL.
+Ele também já está configurado para buscar dados de analytics específicos para esse storeId de um endpoint da API (por exemplo, /api/seller/stats?storeId={storeId}). Esses dados, por enquanto, estão provavelmente apenas sendo exibidos com console.log() no navegador.
+Visualmente, esta página StoreAnalyticsPage.tsx ainda está muito básica (talvez mostrando apenas um título como "Analytics para Loja ID: X").
+Tarefa Principal para a Fase 3:
+Quero que a página StoreAnalyticsPage.tsx exiba os dados de analytics específicos da loja de uma forma visualmente rica e informativa, reutilizando o layout, os tipos de gráficos e os componentes de exibição de estatísticas que eu tinha na minha antiga página de dashboard genérico (o componente que era renderizado em /seller/dashboard, que pode se chamar SellerDashboard.tsx ou similar).
+
+Mudanças Específicas Solicitadas no Componente StoreAnalyticsPage.tsx:
+
+Replicar/Adaptar Estrutura e Layout da UI:
+
+Por favor, analise a estrutura JSX, o layout geral e os principais componentes de UI que eram usados no meu antigo componente de dashboard genérico (o que renderizava /seller/dashboard).
+Recrie ou adapte uma estrutura de layout similar dentro do StoreAnalyticsPage.tsx.
+Integrar Componentes de Exibição de Dados (Gráficos, Cartões de Estatísticas, etc.):
+
+Identifique os sub-componentes React que eram responsáveis por mostrar gráficos (ex: usando uma biblioteca como Recharts, Chart.js, etc.), cartões com números de estatísticas, tabelas, etc., no antigo dashboard.
+Copie ou adapte esses sub-componentes para serem usados dentro do StoreAnalyticsPage.tsx. Se eles forem componentes reutilizáveis, talvez você possa importá-los diretamente.
+Conectar Componentes de UI aos Dados Específicos da Loja:
+
+O mais importante: modifique esses componentes de UI (ou a forma como são chamados em StoreAnalyticsPage.tsx) para que eles agora consumam e exibam os dados de analytics específicos da loja que o StoreAnalyticsPage.tsx está buscando da API.
+Isso envolverá passar os dados buscados (que antes estavam apenas no console.log) como props para os sub-componentes de gráficos e estatísticas.
+Certifique-se de que os dados sejam mapeados corretamente para as props que esses componentes de UI esperam (ex: data para um gráfico, value para um cartão de estatística).
+Informações que Gostaria de Ver Exibidas (similar ao dashboard antigo, mas agora específicas da loja):
+
+Número total de produtos desta loja.
+Número total de reservas desta loja.
+Gráficos de vendas ou visualizações desta loja.
+Qualquer outra estatística ou gráfico que fazia sentido no dashboard genérico, agora filtrado para a loja atual (storeId da URL).
+Objetivo Final:
+Quando eu navegar para /seller/stores/1/analytics, a página deve ter uma aparência e funcionalidade informativa semelhante ao meu antigo dashboard, mas todas as estatísticas, gráficos e dados exibidos devem ser exclusivamente para a loja com ID 1. O título da página também deve refletir a loja específica, se possível (ex: "Dashboard da Loja: [Nome da Loja]" ou "Analytics: [Nome da Loja]").
+
+Por favor, me ajude a implementar essa interface no StoreAnalyticsPage.tsx, conectando-a aos dados específicos da loja que já estão sendo buscados. Se precisar do nome exato do arquivo do meu antigo componente de dashboard genérico, me avise.
+
+Obrigado!"
