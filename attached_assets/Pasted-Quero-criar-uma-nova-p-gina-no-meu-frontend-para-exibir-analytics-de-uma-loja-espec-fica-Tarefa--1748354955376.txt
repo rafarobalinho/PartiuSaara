@@ -1,0 +1,26 @@
+Quero criar uma nova página no meu frontend para exibir analytics de uma loja específica.
+
+Tarefa:
+
+1.  **Criar Novo Componente React e Rota:**
+    * Crie um novo arquivo de componente em `src/pages/seller/StoreAnalyticsPage.tsx` (ou um local similar que você julgue apropriado).
+    * Defina uma nova rota no meu sistema de roteamento do frontend (provavelmente Wouter ou React Router, em arquivos como App.tsx ou Routes.tsx) para o caminho `/seller/stores/:storeId/analytics`. Esta rota deve renderizar o novo componente `StoreAnalyticsPage.tsx`.
+    * Dentro do `StoreAnalyticsPage.tsx`:
+        * Faça com que ele leia o parâmetro `storeId` da URL (ex: usando `useParams()` do React Router ou o hook equivalente do Wouter).
+        * Adicione um `console.log` para mostrar este `storeId` quando o componente for montado.
+        * Por enquanto, o componente pode apenas exibir um título simples como: `<h1>Analytics para Loja ID: {storeId}</h1>`.
+
+2.  **Adaptar/Criar Endpoint de API para Estatísticas Específicas da Loja:**
+    * Localize o handler do endpoint `GET /api/seller/stats` no arquivo `server/routes.ts` (que esperamos já estar com a sintaxe Drizzle corrigida da Fase 1).
+    * Modifique este handler para que ele possa aceitar um `storeId` como um parâmetro de query string (ex: `/api/seller/stats?storeId=ID_DA_LOJA`).
+    * Se um `storeId` for fornecido na query string:
+        * A lógica Drizzle dentro deste endpoint deve filtrar os dados para calcular e retornar estatísticas (como total de produtos, total de reservas, etc., ou quaisquer estatísticas que ele já calcule) *apenas para essa `storeId` específica*.
+        * **Importante:** Adicione uma verificação para garantir que o usuário autenticado (`req.session.userId`) seja o proprietário da `storeId` solicitada antes de retornar as estatísticas. Se não for, retorne um erro 403 ou 404.
+    * Se nenhum `storeId` for fornecido na query string, o endpoint pode, por enquanto, retornar uma resposta vazia, um erro, ou as estatísticas agregadas (se você já tiver essa lógica). O foco principal é fazê-lo funcionar para um `storeId` específico.
+
+3.  **Buscar Dados no Componente `StoreAnalyticsPage.tsx`:**
+    * No `StoreAnalyticsPage.tsx`, use o `storeId` obtido da URL para fazer uma chamada à API para o endpoint `/api/seller/stats?storeId={storeId}`.
+    * Receba a resposta e, por enquanto, apenas use `console.log()` para mostrar os dados recebidos no console do navegador. Não se preocupe em exibir gráficos ou formatar os dados na UI ainda.
+
+O objetivo desta fase é ter uma nova página que possa ser acessada com um ID de loja na URL e que busque (e logue no console) os dados de estatísticas correspondentes a essa loja do backend.
+Obrigado!

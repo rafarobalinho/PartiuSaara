@@ -527,19 +527,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const storeId = stores[0].id;
       console.log("🏪 Usando loja ID:", storeId);
 
-      // Corrija - use o nome correto da coluna
-      // De acordo com o schema, a coluna deve ser "store_id" mas parece que há um problema
-      // Verificando o schema primeiro para determinar o nome correto
       let productsCount = 0;
       let reservationsCount = 0;
       let pendingReservationsCount = 0;
       let couponsCount = 0;
 
       try {
-        // Usando consultas drizzle em vez de SQL direto para evitar erros de nome de coluna
-        const productsResult = await db.query.products.findMany({
-          where: (products, { eq }) => eq(products.storeId, storeId)
-        });
+        // Usando consultas drizzle corretas
+        const productsResult = await db.select()
+          .from(products)
+          .where(eq(products.storeId, storeId));
         productsCount = productsResult.length;
         console.log("📦 Produtos encontrados:", productsCount);
 
@@ -548,33 +545,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (productIds.length > 0) {
           // Reservas totais (excluindo canceladas)
-          const reservationsResult = await db.query.reservations.findMany({
-            where: (reservations, { and, eq, inArray, ne }) => 
-              and(
-                inArray(reservations.productId, productIds),
-                ne(reservations.status, 'cancelled')
-              )
-          });
+          const reservationsResult = await db.select()
+            .from(reservations)
+            .where(and(
+              sql`${reservations.productId} IN (${productIds.join(',')})`,
+              ne(reservations.status, 'cancelled')
+            ));
           reservationsCount = reservationsResult.length;
           console.log("🔖 Reservas encontradas:", reservationsCount);
 
           // Reservas pendentes
-          const pendingReservationsResult = await db.query.reservations.findMany({
-            where: (reservations, { and, eq, inArray }) => 
-              and(
-                inArray(reservations.productId, productIds),
-                eq(reservations.status, 'pending')
-              )
-          });
+          const pendingReservationsResult = await db.select()
+            .from(reservations)
+            .where(and(
+              sql`${reservations.productId} IN (${productIds.join(',')})`,
+              eq(reservations.status, 'pending')
+            ));
           pendingReservationsCount = pendingReservationsResult.length;
           console.log("⏳ Reservas pendentes:", pendingReservationsCount);
         }
 
-        // Cupons/promoções da loja
-        const couponsResult = await db.query.promotions.findMany({
-          where: (promotions, { eq }) => eq(promotions.storeId, storeId)
-        });
-        couponsCount = couponsResult.length;
+        // Cupons/promoções dos produtos da loja
+        if (productIds.length > 0) {
+          const couponsResult = await db.select()
+            .from(promotions)
+            .where(sql`${promotions.productId} IN (${productIds.join(',')})`);
+          couponsCount = couponsResult.length;
+        }
         console.log("🏷️ Cupons/promoções:", couponsCount);
 
       } catch (queryError) {
