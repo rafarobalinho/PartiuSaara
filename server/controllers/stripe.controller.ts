@@ -272,19 +272,113 @@ export const handleWebhook = async (req: Request, res: Response) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle the event (lógica do switch case permanece a mesma)
+  // Handle the event
+  console.log(`[Webhook] Processando evento: ${event.type} (modo: ${isTestMode ? 'test' : 'live'})`);
+  
   switch (event.type) {
     case 'checkout.session.completed':
-      // ... sua lógica ...
+      try {
+        const session = event.data.object;
+        console.log('[Webhook] checkout.session.completed - Session ID:', session.id);
+        console.log('[Webhook] Metadados da sessão:', session.metadata);
+        
+        // Extrair dados dos metadados
+        const storeId = session.metadata?.storeId;
+        const planId = session.metadata?.planId; // ID interno do plano
+        const stripeSubscriptionId = session.subscription;
+        const stripeCustomerId = session.customer;
+        
+        console.log('[Webhook] Dados extraídos:', {
+          storeId,
+          planId,
+          stripeSubscriptionId,
+          stripeCustomerId
+        });
+        
+        if (storeId && planId && stripeSubscriptionId && stripeCustomerId) {
+          // Atualizar a tabela stores
+          await db.update(stores)
+            .set({
+              subscriptionPlan: planId,
+              subscriptionStatus: 'active',
+              stripeSubscriptionId: stripeSubscriptionId,
+              stripeCustomerId: stripeCustomerId,
+              subscriptionStartDate: new Date().toISOString(),
+              subscriptionEndDate: null
+            })
+            .where(eq(stores.id, parseInt(storeId)));
+          
+          console.log(`[Webhook] ✅ Loja ${storeId} atualizada para plano ${planId} com sucesso`);
+        } else {
+          console.warn('[Webhook] ⚠️ Dados insuficientes nos metadados para atualizar loja:', {
+            storeId,
+            planId,
+            stripeSubscriptionId,
+            stripeCustomerId,
+            metadata: session.metadata
+          });
+        }
+      } catch (error) {
+        console.error('[Webhook] ❌ Erro ao processar checkout.session.completed:', error);
+      }
       break;
+      
     case 'customer.subscription.updated':
-      // ... sua lógica ...
+      try {
+        const subscription = event.data.object;
+        console.log('[Webhook] customer.subscription.updated - Subscription ID:', subscription.id);
+        
+        // Encontrar a loja pelo stripeSubscriptionId
+        const store = await db.query.stores.findFirst({
+          where: (stores, { eq }) => eq(stores.stripeSubscriptionId, subscription.id)
+        });
+        
+        if (store) {
+          await db.update(stores)
+            .set({
+              subscriptionStatus: subscription.status === 'active' ? 'active' : subscription.status
+            })
+            .where(eq(stores.id, store.id));
+          
+          console.log(`[Webhook] ✅ Status da assinatura da loja ${store.id} atualizado para ${subscription.status}`);
+        } else {
+          console.warn('[Webhook] ⚠️ Loja não encontrada para subscription ID:', subscription.id);
+        }
+      } catch (error) {
+        console.error('[Webhook] ❌ Erro ao processar customer.subscription.updated:', error);
+      }
       break;
+      
     case 'customer.subscription.deleted':
-      // ... sua lógica ...
+      try {
+        const subscription = event.data.object;
+        console.log('[Webhook] customer.subscription.deleted - Subscription ID:', subscription.id);
+        
+        // Encontrar a loja pelo stripeSubscriptionId
+        const store = await db.query.stores.findFirst({
+          where: (stores, { eq }) => eq(stores.stripeSubscriptionId, subscription.id)
+        });
+        
+        if (store) {
+          await db.update(stores)
+            .set({
+              subscriptionPlan: 'freemium',
+              subscriptionStatus: 'canceled',
+              stripeSubscriptionId: null
+            })
+            .where(eq(stores.id, store.id));
+          
+          console.log(`[Webhook] ✅ Assinatura da loja ${store.id} cancelada, revertida para freemium`);
+        } else {
+          console.warn('[Webhook] ⚠️ Loja não encontrada para subscription ID:', subscription.id);
+        }
+      } catch (error) {
+        console.error('[Webhook] ❌ Erro ao processar customer.subscription.deleted:', error);
+      }
       break;
+      
     default:
-      console.log(`Evento não tratado (dinâmico): ${event.type}`);
+      console.log(`[Webhook] Evento não tratado (dinâmico): ${event.type}`);
   }
 
   res.json({ received: true, mode: isTestMode ? 'test' : 'live' });
