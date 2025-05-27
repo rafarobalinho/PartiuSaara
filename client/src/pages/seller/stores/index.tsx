@@ -27,7 +27,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Store, MapPin, Phone, Clock, Plus, BarChart3 } from "lucide-react";
 
 export default function SellerStores() {
   const [, navigate] = useLocation();
@@ -193,15 +192,6 @@ export default function SellerStores() {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => navigate(`/seller/stores/${store.id}/analytics`)}
-              className="w-full flex items-center justify-center"
-            >
-              <i className="fas fa-chart-bar mr-1 text-xs md:text-sm md:mr-2"></i>
-              <span className="text-xs md:text-sm">Análises</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
               onClick={() => navigate(`/seller/stores/${store.id}`)}
               className="w-full flex items-center justify-center"
             >
@@ -216,6 +206,15 @@ export default function SellerStores() {
             >
               <i className="fas fa-box mr-1 text-xs md:text-sm md:mr-2"></i>
               <span className="text-xs md:text-sm">Produtos</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate(`/seller/stores/${store.id}/analytics`)}
+              className="w-full flex items-center justify-center"
+            >
+              <i className="fas fa-chart-bar mr-1 text-xs md:text-sm md:mr-2"></i>
+              <span className="text-xs md:text-sm">Análises</span>
             </Button>
             <Button 
               variant="outline" 

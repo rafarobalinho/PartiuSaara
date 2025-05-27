@@ -1,207 +1,405 @@
-import { useAuth } from "@/hooks/use-auth";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Store, BarChart3, Settings, Plus } from "lucide-react";
-import { Link } from "wouter";
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/context/auth-context';
+import { useLocation, Link } from 'wouter';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { 
+  LineChart, Line, BarChart, Bar, PieChart, Pie, XAxis, YAxis, 
+  CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
+} from 'recharts';
+
+interface Store {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  subscriptionPlan: string;
+  subscriptionEndDate?: string;
+}
+
+interface Stats {
+  totalProducts: number;
+  totalReservations: number;
+  totalCoupons: number;
+  pendingReservations: number;
+}
+
+const dummyVisitData = [
+  { day: 'Segunda', visits: 120 },
+  { day: 'Terça', visits: 150 },
+  { day: 'Quarta', visits: 180 },
+  { day: 'Quinta', visits: 190 },
+  { day: 'Sexta', visits: 220 },
+  { day: 'Sábado', visits: 250 },
+  { day: 'Domingo', visits: 130 },
+];
+
+const dummyCategoryData = [
+  { name: 'Moda', value: 35 },
+  { name: 'Eletrônicos', value: 25 },
+  { name: 'Acessórios', value: 20 },
+  { name: 'Casa', value: 15 },
+  { name: 'Outros', value: 5 },
+];
+
+const COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
 export default function SellerDashboard() {
-  const { user } = useAuth();
+  const { isAuthenticated, isSeller, user } = useAuth();
+  const [, navigate] = useLocation();
 
-  // Lógica condicional para o botão "Gerenciar Planos"
-  const getManagePlansLink = () => {
-    if (!user?.stores || user.stores.length === 0) {
-      return "/seller/stores"; // Usuário sem lojas vai para a lista
-    } else if (user.stores.length === 1) {
-      return `/seller/stores/${user.stores[0].id}/subscription`; // Uma loja vai direto para assinatura
-    } else {
-      return "/seller/stores"; // Múltiplas lojas vai para a lista
+  // If not authenticated or not a seller, redirect
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+    } else if (!isSeller) {
+      navigate('/account');
     }
-  };
+  }, [isAuthenticated, isSeller, navigate]);
 
-  const getManagePlansText = () => {
-    if (!user?.stores || user.stores.length === 0) {
-      return "Criar Primeira Loja";
-    } else if (user.stores.length === 1) {
-      return "Gerenciar Plano";
-    } else {
-      return "Gerenciar Lojas";
+  if (!isAuthenticated || !isSeller) {
+    return null;
+  }
+
+  // Fetch seller's store data
+  const { data: store, isLoading: isStoreLoading } = useQuery({
+    queryKey: ['/api/stores/my-stores'],
+    queryFn: async () => {
+      try {
+        const stores = await fetch('/api/stores/my-stores').then(res => res.json());
+        return stores[0] || null; // Get the first store (assuming one store per seller)
+      } catch (error) {
+        console.error('Error fetching store:', error);
+        return null;
+      }
     }
-  };
+  });
+
+  // Fetch store statistics
+  const { data: stats, isLoading: isStatsLoading } = useQuery({
+    queryKey: ['/api/seller/stats'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/seller/stats');
+        if (!response.ok) {
+          throw new Error('Falha ao carregar estatísticas');
+        }
+        return await response.json() as Stats;
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+        return {
+          totalProducts: 0,
+          totalReservations: 0,
+          totalCoupons: 0,
+          pendingReservations: 0
+        } as Stats;
+      }
+    },
+    enabled: !!store
+  });
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Painel do Vendedor</h1>
-          <p className="text-gray-600">Visão geral das suas lojas e negócios</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href={getManagePlansLink()}>
-            <Button>
-              <Settings className="w-4 h-4 mr-2" />
-              {getManagePlansText()}
-            </Button>
-          </Link>
-          <Link href="/seller/stores/add">
-            <Button variant="outline">
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Loja
-            </Button>
-          </Link>
-        </div>
-      </div>
+    <>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold mb-2">Dashboard do Lojista</h1>
+            <p className="text-gray-600">Gerencie sua loja e acompanhe as estatísticas</p>
+          </div>
 
-      {/* Resumo Geral */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Lojas</CardTitle>
-            <Store className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{user?.stores?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Lojas ativas em sua conta
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Status Geral</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {user?.stores?.filter(store => store.isOpen).length || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Lojas abertas de {user?.stores?.length || 0} total
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Planos Ativos</CardTitle>
-            <Settings className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {user?.stores?.filter(store => store.subscriptionPlan !== 'freemium').length || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Lojas com planos pagos
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Lista de Lojas */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Suas Lojas</CardTitle>
-          <CardDescription>
-            Gerencie cada uma das suas lojas individualmente
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {user?.stores && user.stores.length > 0 ? (
-            <div className="space-y-4">
-              {user.stores.map((store) => (
-                <div
-                  key={store.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                      <Store className="w-6 h-6 text-gray-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">{store.name}</h3>
-                      <p className="text-sm text-gray-600">
-                        {store.category} • Plano: {store.subscriptionPlan}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Status: {store.isOpen ? 'Aberta' : 'Fechada'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Link href={`/seller/stores/${store.id}/analytics`}>
-                      <Button variant="outline" size="sm">
-                        <BarChart3 className="w-4 h-4 mr-2" />
-                        Analytics
-                      </Button>
-                    </Link>
-                    <Link href={`/seller/stores/${store.id}/subscription`}>
-                      <Button variant="outline" size="sm">
-                        <Settings className="w-4 h-4 mr-2" />
-                        Assinatura
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <Store className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-600 mb-2">
-                Nenhuma loja encontrada
-              </h3>
-              <p className="text-gray-500 mb-4">
-                Crie sua primeira loja para começar a vender
-              </p>
-              <Link href="/seller/stores/add">
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Criar Primeira Loja
+          {store && (
+            <div className="mt-4 md:mt-0 flex flex-col items-end">
+              <div className="flex items-center mb-1">
+                <span className="font-medium">{store.name}</span>
+                <span className="ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                  {store.subscriptionPlan === 'freemium' ? 'Plano Gratuito' : 'Plano ' + store.subscriptionPlan.charAt(0).toUpperCase() + store.subscriptionPlan.slice(1)}
+                </span>
+              </div>
+              {store.subscriptionPlan !== 'freemium' && store.subscriptionEndDate && (
+                <span className="text-xs text-gray-500">
+                  Assinatura válida até {new Date(store.subscriptionEndDate).toLocaleDateString('pt-BR')}
+                </span>
+              )}
+              {store.subscriptionPlan === 'freemium' && (
+                <Button asChild size="sm" className="mt-2 bg-primary text-white hover:bg-primary/90">
+                  <Link href="/seller/subscription">
+                    <a>Fazer upgrade do plano</a>
+                  </Link>
                 </Button>
-              </Link>
+              )}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Ações Rápidas */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Ações Rápidas</CardTitle>
-          <CardDescription>
-            Acesso rápido às funcionalidades principais
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Link href="/seller/stores">
-              <Button variant="outline" className="w-full">
-                <Store className="w-4 h-4 mr-2" />
-                Ver Todas as Lojas
+        {/* Resumo do plano atual */}
+        {store && (
+          <div className="mb-6 bg-white rounded-lg shadow-sm p-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold mb-2">Seu Plano Atual</h2>
+                <div className="flex items-center mb-2">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    store.subscriptionPlan === 'premium' ? 'bg-purple-100 text-purple-800' :
+                    store.subscriptionPlan === 'pro' ? 'bg-blue-100 text-blue-800' :
+                    store.subscriptionPlan === 'start' ? 'bg-green-100 text-green-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    Plano {store.subscriptionPlan.charAt(0).toUpperCase() + store.subscriptionPlan.slice(1)}
+                  </span>
+                  {store.subscriptionEndDate && store.subscriptionPlan !== 'freemium' && (
+                    <span className="ml-3 text-sm text-gray-500">
+                      Válido até {new Date(store.subscriptionEndDate).toLocaleDateString('pt-BR')}
+                    </span>
+                  )}
+                </div>
+                <p className="text-gray-600 text-sm mb-4">
+                  {store.subscriptionPlan === 'freemium' ? 
+                    'Seu plano atual tem recursos limitados. Faça upgrade para desbloquear mais funcionalidades.' :
+                    'Gerencie seu plano e considere um upgrade para acessar recursos adicionais.'}
+                </p>
+              </div>
+
+              <Button asChild className="bg-primary text-white hover:bg-primary/90">
+                <Link href="/seller/subscription">
+                  <a>Gerenciar Plano</a>
+                </Link>
               </Button>
-            </Link>
-            <Link href="/seller/stores/add">
-              <Button variant="outline" className="w-full">
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Loja
-              </Button>
-            </Link>
-            <Link href="/seller/products">
-              <Button variant="outline" className="w-full">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Todos os Produtos
-              </Button>
-            </Link>
-            <Link href="/seller/promotions">
-              <Button variant="outline" className="w-full">
-                <Settings className="w-4 h-4 mr-2" />
-                Todas as Promoções
-              </Button>
-            </Link>
+            </div>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+      </div>
+
+      <div className="flex justify-between items-center my-4">
+        <h2 className="text-xl font-bold">Resumo</h2>
+        <div className="flex space-x-2">
+          <Button asChild size="sm" className="bg-primary text-white hover:bg-primary/90">
+            <Link href="/seller/products/add">
+              <a>Adicionar Produto</a>
+            </Link>
+          </Button>
+          <Button asChild size="sm" className="bg-primary text-white hover:bg-primary/90">
+            <Link href="/seller/promotions/add">
+              <a>Criar Promoção</a>
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm">Produtos</p>
+                <h3 className="text-2xl font-bold">{isStatsLoading ? '-' : stats?.totalProducts}</h3>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <i className="fas fa-box"></i>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm">Reservas</p>
+                <h3 className="text-2xl font-bold">{isStatsLoading ? '-' : stats?.totalReservations}</h3>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <i className="fas fa-bookmark"></i>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm">Promoções Ativas</p>
+                <h3 className="text-2xl font-bold">{isStatsLoading ? '-' : stats?.totalCoupons}</h3>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <i className="fas fa-ticket-alt"></i>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm">Reservas Pendentes</p>
+                <h3 className="text-2xl font-bold">{isStatsLoading ? '-' : stats?.pendingReservations}</h3>
+              </div>
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <i className="fas fa-clock"></i>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Visitas na Loja</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={dummyVisitData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="day" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="visits" 
+                    name="Visitas" 
+                    stroke="hsl(var(--chart-1))" 
+                    activeDot={{ r: 8 }} 
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Produtos por Categoria</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={dummyCategoryData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {dummyCategoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Reservas Recentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="relative overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3">Produto</th>
+                    <th className="px-6 py-3">Cliente</th>
+                    <th className="px-6 py-3">Data</th>
+                    <th className="px-6 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="bg-white border-b">
+                    <td className="px-6 py-4 font-medium">Smartphone XYZ</td>
+                    <td className="px-6 py-4">João Silva</td>
+                    <td className="px-6 py-4">10/05/2023</td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                        Pendente
+                      </span>
+                    </td>
+                  </tr>
+                  <tr className="bg-white border-b">
+                    <td className="px-6 py-4 font-medium">Tênis Runner</td>
+                    <td className="px-6 py-4">Maria Souza</td>
+                    <td className="px-6 py-4">09/05/2023</td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                        Finalizada
+                      </span>
+                    </td>
+                  </tr>
+                  <tr className="bg-white border-b">
+                    <td className="px-6 py-4 font-medium">Bolsa Elite</td>
+                    <td className="px-6 py-4">Carlos Oliveira</td>
+                    <td className="px-6 py-4">08/05/2023</td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                        Finalizada
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 text-center">
+              <Button asChild variant="outline" size="sm">
+                <Link href="/seller/reservations">
+                  <a>Ver todas as reservas</a>
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Produtos Mais Vistos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={[
+                    { name: 'Produto A', views: 400 },
+                    { name: 'Produto B', views: 300 },
+                    { name: 'Produto C', views: 250 },
+                    { name: 'Produto D', views: 200 },
+                    { name: 'Produto E', views: 150 },
+                  ]}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="views" name="Visualizações" fill="hsl(var(--chart-2))" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 text-center">
+              <Button asChild variant="outline" size="sm">
+                <Link href="/seller/analytics">
+                  <a>Ver analytics completo</a>
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </>
   );
 }
