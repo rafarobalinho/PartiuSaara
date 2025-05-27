@@ -1,0 +1,52 @@
+Gostaria da sua ajuda para realizar uma refatoração significativa na seção do painel do vendedor da minha aplicação. O objetivo é criar dashboards específicos por loja e melhorar a navegação.
+
+Contexto Geral:
+Atualmente, tenho um dashboard genérico em /seller/dashboard. Isso está causando confusão para usuários com múltiplas lojas, especialmente com ações como "Gerenciar planos". Quero que cada loja tenha seu próprio painel de análise/dashboard e que o dashboard genérico seja adaptado ou substituído. Estou usando Drizzle ORM para o backend e React (provavelmente com Wouter ou React Router) para o frontend.
+
+Por favor, me ajude com as seguintes tarefas, em etapas:
+
+Parte 1: Corrigir Erro Drizzle Existente na API de Estatísticas
+
+Arquivo: server/routes.ts
+Problema: Tenho um erro Drizzle error: syntax error at or near "=" ocorrendo próximo à linha 574, no endpoint que lida com /api/seller/stats (usado pelo dashboard atual).
+Tarefa para a IA:
+Analise a consulta Drizzle na (ou próxima à) linha 574 do arquivo server/routes.ts.
+Identifique e corrija o erro de sintaxe SQL que está causando a falha. (Lembre-se que estou usando Drizzle com PostgreSQL/Neon).
+Parte 2: Criar a Nova Página de Analytics/Dashboard Específica da Loja
+
+Nova Rota no Frontend: Defina uma nova rota como /seller/stores/:storeId/analytics.
+Novo Componente React: Crie um novo arquivo de componente (ex: src/pages/seller/StoreAnalyticsPage.tsx ou similar).
+Tarefa para a IA:
+Configure a rota /seller/stores/:storeId/analytics no meu sistema de roteamento do frontend para renderizar o novo componente StoreAnalyticsPage.tsx.
+No componente StoreAnalyticsPage.tsx:
+Implemente a lógica para ler o storeId dos parâmetros da URL (ex: usando useParams() do React Router ou o equivalente do Wouter).
+Adicione um console.log para mostrar o storeId obtido da URL quando o componente carregar.
+Estruture o componente para, eventualmente, buscar e exibir dados de analytics apenas para este storeId.
+Adaptação da API de Estatísticas (Conceitual): Para buscar os dados, o endpoint /api/seller/stats (após ser corrigido na Parte 1) precisará ser modificado no backend para aceitar um storeId (como query param, ex: /api/seller/stats?storeId=ID_DA_LOJA) e retornar dados filtrados para essa loja. Ou, alternativamente, um novo endpoint como /api/stores/:storeId/stats pode ser criado. Por agora, para esta Parte 2, apenas prepare o componente frontend para passar o storeId em uma chamada de API. A modificação do endpoint da API backend para usar este storeId pode ser um passo seguinte.
+Inicialmente, você pode copiar a estrutura de layout (sem a lógica de dados ainda, se for mais fácil) da minha página /seller/dashboard atual como base para o novo componente.
+Parte 3: Refatorar a Página Genérica /seller/dashboard para ser uma Visão Geral
+
+Arquivo: O componente React que atualmente renderiza a rota /seller/dashboard.
+Novo Propósito: Esta página não mostrará mais detalhes de uma única loja (a menos que o usuário só tenha uma), mas sim uma visão geral.
+Tarefa para a IA:
+Modifique este componente para:
+Buscar e listar as lojas do usuário logado (provavelmente do AuthContext, como user.stores).
+Para cada loja na lista, exibir seu nome e criar dois links:
+Um link para a nova página de analytics específica da loja: `/seller/stores/${store.id}/analytics`.
+Um link para a página de gerenciamento de assinatura específica da loja: `/seller/stores/${store.id}/subscription` (esta navegação para assinaturas já deve estar funcionando bem).
+Botão "Gerenciar planos" Geral: Se houver um botão "Gerenciar planos" geral nesta página de dashboard/overview:
+Implemente a lógica condicional que discutimos:
+Se user.stores.length === 1, o botão deve navegar para `/seller/stores/${user.stores[0].id}/subscription`.
+Se user.stores.length !== 1 (0 ou múltiplas lojas), o botão deve navegar para /seller/stores (a página que lista todas as lojas).
+Parte 4: Atualizar Navegação da Lista Principal de Lojas (/seller/stores)
+
+Arquivo: O componente React que renderiza a lista de todas as lojas do usuário (provavelmente em /seller/stores).
+Tarefa para a IA:
+Em cada item da lista de lojas nesta página, além dos links/botões existentes (como "Editar", "Assinaturas"), adicione ou modifique um link/botão para "Ver Analytics" (ou "Ver Dashboard") que aponte para a nova rota específica da loja: `/seller/stores/${store.id}/analytics`.
+Considerações:
+
+Por favor, tente fazer essas mudanças de forma incremental, se possível, para facilitar os testes.
+Lembre-se de usar as funções de navegação apropriadas do meu roteador frontend (Wouter ou React Router).
+Este é um conjunto de mudanças maior, então, por favor, me avise se precisar de mais informações ou se preferir dividir em prompts menores para cada parte. O objetivo principal é ter dashboards individuais por loja e uma navegação clara.
+
+Obrigado!"
