@@ -184,38 +184,121 @@ export default function StoreAnalyticsPage() {
           <TabsContent value="overview" className="space-y-6">
             {/* Cards de Estatísticas Principais */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatCard
-                title="Total de Produtos"
-                value={stats.totalProducts}
-                icon={Package}
-                trend="up"
-                trendValue={12}
-                color="text-blue-600"
-              />
-              <StatCard
-                title="Total de Reservas"
-                value={stats.totalReservations}
-                icon={ShoppingCart}
-                trend="up"
-                trendValue={8}
-                color="text-green-600"
-              />
-              <StatCard
-                title="Reservas Pendentes"
-                value={stats.pendingReservations}
-                icon={Clock}
-                trend="down"
-                trendValue={3}
-                color="text-orange-600"
-              />
-              <StatCard
-                title="Cupons Ativos"
-                value={stats.totalCoupons}
-                icon={Tag}
-                trend="up"
-                trendValue={15}
-                color="text-purple-600"
-              />
+              <Card className="border-l-4 border-l-blue-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Total de Produtos</CardTitle>
+                  <Package className="h-5 w-5 text-blue-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-blue-700">{stats.totalProducts}</div>
+                  <p className="text-xs text-gray-500 mt-1">Produtos cadastrados na loja</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-green-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Total de Reservas</CardTitle>
+                  <ShoppingCart className="h-5 w-5 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-green-700">{stats.totalReservations}</div>
+                  <p className="text-xs text-gray-500 mt-1">Reservas realizadas</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-orange-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Reservas Pendentes</CardTitle>
+                  <Clock className="h-5 w-5 text-orange-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-orange-700">{stats.pendingReservations}</div>
+                  <p className="text-xs text-gray-500 mt-1">Aguardando confirmação</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-purple-500">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">Cupons Ativos</CardTitle>
+                  <Tag className="h-5 w-5 text-purple-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-purple-700">{stats.totalCoupons}</div>
+                  <p className="text-xs text-gray-500 mt-1">Cupons disponíveis</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Informações Resumidas da Loja */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Eye className="h-5 w-5 text-blue-600" />
+                    Resumo da Loja
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Nome da Loja</span>
+                    <span className="text-sm font-bold">{store?.name || 'Carregando...'}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Categoria</span>
+                    <span className="text-sm">{store?.category || 'Não informado'}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Status</span>
+                    <span className={`text-sm font-medium ${store?.isOpen ? "text-green-600" : "text-red-600"}`}>
+                      {store?.isOpen ? "🟢 Aberta" : "🔴 Fechada"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm font-medium text-gray-600">Avaliação</span>
+                    <span className="text-sm font-bold text-yellow-600">
+                      {store?.rating || 0} ⭐ ({store?.reviewCount || 0} avaliações)
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-green-600" />
+                    Métricas de Performance
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Taxa de Reservas</span>
+                    <span className="text-sm font-bold text-green-600">
+                      {stats.totalProducts > 0 ? 
+                        ((stats.totalReservations / stats.totalProducts) * 100).toFixed(1) + '%' : 
+                        '0%'
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Reservas Pendentes</span>
+                    <span className="text-sm font-bold text-orange-600">
+                      {stats.pendingReservations} de {stats.totalReservations}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Produtos com Cupons</span>
+                    <span className="text-sm font-bold text-purple-600">
+                      {stats.totalCoupons > 0 ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm font-medium text-gray-600">Data de Criação</span>
+                    <span className="text-sm">
+                      {store?.createdAt ? new Date(store.createdAt).toLocaleDateString('pt-BR') : 'Não informado'}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Gráficos da Semana */}
@@ -414,17 +497,7 @@ export default function StoreAnalyticsPage() {
         </Tabs>
       )}
 
-      {/* Seção de Debug (pode ser removida em produção) */}
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle>Dados de Debug</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="bg-gray-100 p-4 rounded text-sm overflow-auto">
-            {JSON.stringify({ storeId, stats, store: store ? { id: store.id, name: store.name } : null }, null, 2)}
-          </pre>
-        </CardContent>
-      </Card>
+      
     </div>
   );
 }
