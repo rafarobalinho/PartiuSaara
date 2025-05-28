@@ -95,16 +95,43 @@ export default function AddPromotion() {
   const { data: productsData = [], isLoading: isProductsLoading } = useQuery({
     queryKey: ['/api/seller/products'],
     queryFn: async () => {
+      console.log('[AddPromotionPage] 🔍 Iniciando busca de produtos...');
       const response = await fetch('/api/seller/products');
+      
+      console.log('[AddPromotionPage] 📡 Response status:', response.status);
+      console.log('[AddPromotionPage] 📡 Response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (!response.ok) {
+        console.error('[AddPromotionPage] ❌ Erro na resposta:', response.status, response.statusText);
         if (response.status === 401) {
           throw new Error('Usuário não autenticado');
         }
         throw new Error('Failed to fetch products');
       }
+      
       const data = await response.json();
-      console.log('✅ Produtos do vendedor carregados:', data.products?.length || 0);
-      return data.products || [];
+      console.log('[AddPromotionPage] 📦 Dados brutos de /api/seller/products:', data);
+      console.log('[AddPromotionPage] 📦 Estrutura completa:', JSON.stringify(data, null, 2));
+      console.log('[AddPromotionPage] 📦 Array de produtos:', data.products);
+      console.log('[AddPromotionPage] 📦 Quantidade de produtos:', data.products?.length || 0);
+      
+      if (data.products && Array.isArray(data.products)) {
+        console.log('[AddPromotionPage] 📦 Primeiro produto (exemplo):', data.products[0]);
+        data.products.forEach((product, index) => {
+          console.log(`[AddPromotionPage] 📦 Produto ${index}:`, {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            store_id: product.store_id,
+            store: product.store
+          });
+        });
+      }
+      
+      const finalProducts = data.products || [];
+      console.log('[AddPromotionPage] ✅ Produtos finais para dropdown:', finalProducts);
+      console.log('✅ Produtos do vendedor carregados:', finalProducts.length);
+      return finalProducts;
     }
   });
 
@@ -133,7 +160,14 @@ export default function AddPromotion() {
   // Watch form values for conditional rendering
   const promotionType = form.watch('type');
   const productId = form.watch('productId');
+  
+  console.log('[AddPromotionPage] 🎯 Estado atual do form:');
+  console.log('[AddPromotionPage] 🎯 - promotionType:', promotionType);
+  console.log('[AddPromotionPage] 🎯 - productId:', productId);
+  console.log('[AddPromotionPage] 🎯 - productsData disponível:', productsData.length, 'produtos');
+  
   const selectedProduct = productsData.find((p: Product) => p.id.toString() === productId);
+  console.log('[AddPromotionPage] 🎯 - selectedProduct:', selectedProduct);
 
   // Create promotion mutation
   const createPromotionMutation = useMutation({
@@ -377,19 +411,41 @@ export default function AddPromotion() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {isProductsLoading ? (
-                              <div className="p-2 text-center text-sm text-gray-500">Carregando produtos...</div>
-                            ) : productsData.length === 0 ? (
-                              <div className="p-2 text-center text-sm text-gray-500">Nenhum produto encontrado</div>
-                            ) : (
-                              productsData
-                                //  .filter((product: Product) => product.store_id === 1) // Filtrar apenas produtos da loja 1 -- this is no longer needed as the api returns just the sellers products now.
-                                .map((product: Product) => (
+                            {(() => {
+                              console.log('[AddPromotionPage] 🎯 Renderizando SelectContent...');
+                              console.log('[AddPromotionPage] 🎯 isProductsLoading:', isProductsLoading);
+                              console.log('[AddPromotionPage] 🎯 productsData:', productsData);
+                              console.log('[AddPromotionPage] 🎯 productsData.length:', productsData.length);
+                              console.log('[AddPromotionPage] 🎯 Array.isArray(productsData):', Array.isArray(productsData));
+                              
+                              if (isProductsLoading) {
+                                console.log('[AddPromotionPage] 🎯 Exibindo loading...');
+                                return <div className="p-2 text-center text-sm text-gray-500">Carregando produtos...</div>;
+                              }
+                              
+                              if (productsData.length === 0) {
+                                console.log('[AddPromotionPage] 🎯 Nenhum produto encontrado...');
+                                return <div className="p-2 text-center text-sm text-gray-500">Nenhum produto encontrado</div>;
+                              }
+                              
+                              console.log('[AddPromotionPage] 🎯 Mapeando produtos para SelectItems...');
+                              const selectItems = productsData.map((product: Product) => {
+                                console.log('[AddPromotionPage] 🎯 Criando SelectItem para produto:', {
+                                  id: product.id,
+                                  name: product.name,
+                                  price: product.price
+                                });
+                                
+                                return (
                                   <SelectItem key={product.id} value={product.id.toString()}>
                                     {product.name} - R$ {product.price.toFixed(2)}
                                   </SelectItem>
-                                ))
-                            )}
+                                );
+                              });
+                              
+                              console.log('[AddPromotionPage] 🎯 SelectItems criados:', selectItems.length);
+                              return selectItems;
+                            })()}
                           </SelectContent>
                         </Select>
                         <FormMessage />
