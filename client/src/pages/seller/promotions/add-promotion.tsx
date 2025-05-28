@@ -91,31 +91,20 @@ export default function AddPromotion() {
     setSubscriptionPlan('freemium');
   }, []);
 
-  // Fetch products from store with ID 1
-  const { data: products = [], isLoading: productsLoading } = useQuery({
-    queryKey: ['/api/products?store_id=1'],
+  // Query para buscar produtos disponíveis (apenas do vendedor autenticado)
+  const { data: productsData = [], isLoading: isProductsLoading } = useQuery({
+    queryKey: ['/api/seller/products'],
     queryFn: async () => {
-      try {
-        const response = await fetch('/api/products?store_id=1');
-        if (!response.ok) {
-          throw new Error('Failed to fetch products');
+      const response = await fetch('/api/seller/products');
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Usuário não autenticado');
         }
-        const data = await response.json();
-        
-        // Map the products to the format we need
-        return data.products.map((product: any) => ({
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          category: product.category,
-          images: product.images || [],
-          store_id: product.store_id,
-          store: product.store
-        }));
-      } catch (error) {
-        console.error('Error fetching products:', error);
-        return [];
+        throw new Error('Failed to fetch products');
       }
+      const data = await response.json();
+      console.log('✅ Produtos do vendedor carregados:', data.products?.length || 0);
+      return data.products || [];
     }
   });
 
@@ -144,50 +133,50 @@ export default function AddPromotion() {
   // Watch form values for conditional rendering
   const promotionType = form.watch('type');
   const productId = form.watch('productId');
-  const selectedProduct = products.find((p: Product) => p.id.toString() === productId);
+  const selectedProduct = productsData.find((p: Product) => p.id.toString() === productId);
 
   // Create promotion mutation
   const createPromotionMutation = useMutation({
     mutationFn: async (data: PromotionFormValues) => {
       // Transform the data for API - garantir que corresponda exatamente ao schema esperado
       let discountPercentage = 0;
-      
+
       if (data.discountType === 'percentage') {
         discountPercentage = Number(data.discountValue);
       } else {
         // Se for do tipo 'amount', precisamos converter para percentagem
         // Primeiro encontramos o produto selecionado
-        const selectedProd = products.find((p: Product) => p.id.toString() === data.productId);
+        const selectedProd = productsData.find((p: Product) => p.id.toString() === data.productId);
         if (selectedProd) {
           // Calculamos a percentagem com base no valor de desconto e no preço do produto
           discountPercentage = Math.round((Number(data.discountValue) / selectedProd.price) * 100);
         }
       }
-      
+
       // O backend espera "regular" em vez de "normal"
       const promotionType = data.type === 'normal' ? 'regular' : data.type;
-      
+
       // Vamos preservar os campos originais do formulário conforme solicitado
       const apiData = {
         // Campo type precisa ser "regular" ou "flash", não "normal"
         type: data.type === 'normal' ? 'regular' : data.type,
-        
+
         // Campos de desconto conforme originais no formulário
         discountType: data.discountType,
         discountValue: Number(data.discountValue),
-        
+
         // ID do produto
         productId: Number(data.productId),
-        
+
         // Datas no formato original
         startTime: data.startTime,
         endTime: data.endTime
       };
-      
+
       console.log("======= DADOS ENVIADOS PARA API =======");
       console.log(JSON.stringify(apiData, null, 2));
       console.log("=======================================");
-      
+
       return apiRequest('POST', '/api/promotions', apiData);
     },
     onSuccess: () => {
@@ -209,7 +198,7 @@ export default function AddPromotion() {
       } else {
         // Tentar extrair detalhes do erro de validação
         let errorMessage = 'Ocorreu um erro ao criar a promoção. Tente novamente.';
-        
+
         if (error.response && error.response.data) {
           if (error.response.data.message === 'Validation error' && error.response.data.errors) {
             errorMessage = `Erro de validação: ${error.response.data.errors.map((e: any) => e.message).join(', ')}`;
@@ -217,7 +206,7 @@ export default function AddPromotion() {
             errorMessage = error.response.data.message;
           }
         }
-        
+
         toast({
           title: 'Erro',
           description: errorMessage,
@@ -226,13 +215,13 @@ export default function AddPromotion() {
       }
       console.error("======= ERRO COMPLETO =======");
       console.error(error);
-      
+
       if (error.response) {
         console.error("Status:", error.response.status);
         console.error("Dados:", JSON.stringify(error.response.data, null, 2));
         console.error("Headers:", JSON.stringify(error.response.headers, null, 2));
       }
-      
+
       console.error("=============================");
     }
   });
@@ -243,7 +232,7 @@ export default function AddPromotion() {
     console.log("======= DADOS DO FORMULÁRIO =======");
     console.log(JSON.stringify(data, null, 2));
     console.log("===================================");
-    
+
     // Check if trying to create flash promotion with freemium plan
     if (data.type === 'flash' && subscriptionPlan === 'freemium') {
       toast({
@@ -253,7 +242,7 @@ export default function AddPromotion() {
       });
       return;
     }
-    
+
     // Verificar se o valor de desconto em reais não é maior que o preço do produto
     if (data.discountType === 'amount' && selectedProduct) {
       const discountValue = Number(data.discountValue);
@@ -266,7 +255,7 @@ export default function AddPromotion() {
         return;
       }
     }
-    
+
     // Verificar se a percentagem de desconto não é 100% ou maior
     if (data.discountType === 'percentage') {
       const discountValue = Number(data.discountValue);
@@ -279,18 +268,18 @@ export default function AddPromotion() {
         return;
       }
     }
-    
+
     createPromotionMutation.mutate(data);
   }
 
   // Calculate discounted price preview
   const calculateDiscountedPrice = () => {
     if (!selectedProduct || !form.getValues('discountValue')) return null;
-    
+
     const discountType = form.getValues('discountType');
     const discountValue = parseFloat(form.getValues('discountValue'));
     const originalPrice = selectedProduct.price;
-    
+
     if (discountType === 'percentage') {
       return originalPrice - (originalPrice * (discountValue / 100));
     } else {
@@ -383,18 +372,18 @@ export default function AddPromotion() {
                           defaultValue={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger disabled={productsLoading}>
-                              <SelectValue placeholder={productsLoading ? "Carregando produtos..." : "Selecione um produto"} />
+                            <SelectTrigger disabled={isProductsLoading}>
+                              <SelectValue placeholder={isProductsLoading ? "Carregando produtos..." : "Selecione um produto"} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {productsLoading ? (
+                            {isProductsLoading ? (
                               <div className="p-2 text-center text-sm text-gray-500">Carregando produtos...</div>
-                            ) : products.length === 0 ? (
+                            ) : productsData.length === 0 ? (
                               <div className="p-2 text-center text-sm text-gray-500">Nenhum produto encontrado</div>
                             ) : (
-                              products
-                                .filter((product: Product) => product.store_id === 1) // Filtrar apenas produtos da loja 1
+                              productsData
+                                //  .filter((product: Product) => product.store_id === 1) // Filtrar apenas produtos da loja 1 -- this is no longer needed as the api returns just the sellers products now.
                                 .map((product: Product) => (
                                   <SelectItem key={product.id} value={product.id.toString()}>
                                     {product.name} - R$ {product.price.toFixed(2)}
@@ -527,22 +516,22 @@ export default function AddPromotion() {
                       className="w-full h-40 object-cover"
                     />
                   </div>
-                  
+
                   <h3 className="font-medium mb-1">{selectedProduct.name}</h3>
                   <p className="text-sm text-gray-500 mb-3">{selectedProduct.category}</p>
-                  
+
                   <div className="flex items-center space-x-2 mb-1">
                     <span className="text-sm text-gray-500">Preço Original:</span>
                     <span className="font-medium">R$ {selectedProduct.price.toFixed(2)}</span>
                   </div>
-                  
+
                   {discountedPrice !== null && (
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-gray-500">Preço Promocional:</span>
                       <span className="font-bold text-primary">R$ {discountedPrice.toFixed(2)}</span>
                     </div>
                   )}
-                  
+
                   {form.watch('type') === 'flash' && (
                     <div className="mt-4 p-2 bg-yellow-50 rounded-md border border-yellow-100">
                       <i className="fas fa-bolt text-yellow-600 mr-1"></i>
@@ -556,7 +545,7 @@ export default function AddPromotion() {
                   <p>Selecione um produto para visualizar como ficará a promoção</p>
                 </div>
               )}
-              
+
               <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-100">
                 <div className="flex items-center mb-2">
                   <i className="fas fa-info-circle text-blue-500 mr-2"></i>
