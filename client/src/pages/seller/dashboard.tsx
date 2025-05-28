@@ -182,17 +182,65 @@ export default function SellerDashboard() {
       </div>
 
       <Tabs value={activeStoreId || ''} onValueChange={setActiveStoreId} className="w-full">
-        <TabsList className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-6">
+        {/* Mobile: Scrollable horizontal tabs */}
+        <div className="mb-6 md:hidden">
+          <div className="overflow-x-auto scrollbar-hide">
+            <TabsList className="inline-flex w-max min-w-full px-2">
+              {stores.map((store) => (
+                <TabsTrigger 
+                  key={store.id} 
+                  value={store.id.toString()}
+                  className="flex flex-col items-center p-3 min-w-[120px] mx-1 relative
+                    data-[state=active]:bg-[#F2600C] data-[state=active]:text-white 
+                    data-[state=active]:font-bold data-[state=active]:shadow-lg
+                    data-[state=active]:border-b-4 data-[state=active]:border-[#C24A00]
+                    hover:bg-orange-50 transition-all duration-300
+                    before:content-[''] before:absolute before:top-0 before:left-1/2 before:transform before:-translate-x-1/2
+                    data-[state=active]:before:w-2 data-[state=active]:before:h-2 
+                    data-[state=active]:before:bg-white data-[state=active]:before:rounded-full
+                    data-[state=active]:before:-mt-1"
+                >
+                  <span className="font-medium text-sm truncate max-w-[100px]">{store.name}</span>
+                  <Badge 
+                    variant="secondary" 
+                    className={`mt-1 text-xs ${
+                      activeStoreId === store.id.toString() ? 'bg-white/20 text-white border-white/30' :
+                      store.subscriptionPlan === 'premium' ? 'bg-purple-100 text-purple-800' :
+                      store.subscriptionPlan === 'pro' ? 'bg-blue-100 text-blue-800' :
+                      store.subscriptionPlan === 'start' ? 'bg-green-100 text-green-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}
+                  >
+                    {store.subscriptionPlan === 'freemium' ? 'Gratuito' : store.subscriptionPlan}
+                  </Badge>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+        </div>
+
+        {/* Desktop: Grid layout */}
+        <TabsList className="hidden md:grid w-full grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-6 gap-2">
           {stores.map((store) => (
             <TabsTrigger 
               key={store.id} 
               value={store.id.toString()}
-              className="flex flex-col items-center p-3 data-[state=active]:border-b-2 data-[state=active]:border-[#F2600C] data-[state=active]:text-[#F2600C] data-[state=active]:font-bold data-[state=active]:bg-orange-50/50 transition-all duration-200"
+              className="flex flex-col items-center p-4 relative h-auto
+                data-[state=active]:bg-[#F2600C] data-[state=active]:text-white 
+                data-[state=active]:font-bold data-[state=active]:shadow-xl
+                data-[state=active]:border-b-4 data-[state=active]:border-[#C24A00]
+                data-[state=active]:transform data-[state=active]:scale-105
+                hover:bg-orange-50 hover:shadow-md transition-all duration-300
+                before:content-['✓'] before:absolute before:top-1 before:right-1
+                data-[state=active]:before:opacity-100 before:opacity-0
+                data-[state=active]:before:text-white data-[state=active]:before:text-sm
+                data-[state=active]:before:font-bold before:transition-opacity before:duration-300"
             >
-              <span className="font-medium">{store.name}</span>
+              <span className="font-medium text-center leading-tight">{store.name}</span>
               <Badge 
                 variant="secondary" 
-                className={`mt-1 text-xs ${
+                className={`mt-2 text-xs ${
+                  activeStoreId === store.id.toString() ? 'bg-white/20 text-white border-white/30' :
                   store.subscriptionPlan === 'premium' ? 'bg-purple-100 text-purple-800' :
                   store.subscriptionPlan === 'pro' ? 'bg-blue-100 text-blue-800' :
                   store.subscriptionPlan === 'start' ? 'bg-green-100 text-green-800' :
