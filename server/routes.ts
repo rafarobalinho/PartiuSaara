@@ -164,6 +164,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/products/:id', ProductController.getProduct);
   app.get('/api/products/:id/related', ProductController.getRelatedProducts);
 
+  // Rota segura para vendedores obterem apenas seus produtos
+  app.get('/api/seller/products', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ 
+          products: [],
+          error: 'Unauthorized',
+          message: 'Usuário não autenticado'
+        });
+      }
+
+      const { storeId } = req.query;
+      
+      let query = `
+        SELECT p.*, s.name as store_name 
+        FROM products p 
+        INNER JOIN stores s ON p.store_id = s.id 
+        WHERE s.user_id = $1
+      `;
+      let params = [user.id];
+      
+      // Se um storeId específico for fornecido, filtrar por ele
+      if (storeId) {
+        query += ' AND p.store_id = $2';
+        params.push(storeId);
+      }
+      
+      query += ' ORDER BY p.created_at DESC';
+      
+      const { rows } = await pool.query(query, params);
+      
+      // Buscar imagens para cada produto
+      const productsWithImages = await Promise.all(
+        rows.map(async (product) => {
+          try {
+            const imagesQuery = 'SELECT * FROM product_images WHERE product_id = $1 ORDER BY is_primary DESC, display_order ASC';
+            const imagesResult = await pool.query(imagesQuery, [product.id]);
+            
+            return {
+              ...product,
+              images: imagesResult.rows.map(img => img.image_url),
+              store: {
+                id: product.store_id,
+                name: product.store_name
+              }
+            };
+          } catch (err) {
+            console.error(`Erro ao buscar imagens do produto ${product.id}:`, err);
+            return {
+              ...product,
+              images: [],
+              store: {
+                id: product.store_id,
+                name: product.store_name
+              }
+            };
+          }
+        })
+      );
+      
+      console.log(`✅ Produtos do vendedor ${user.id}: ${productsWithImages.length} produtos encontrados`);
+      
+      return res.json({
+        products: productsWithImages,
+        count: productsWithImages.length,
+        success: true
+      });
+    } catch (error) {
+      console.error('❌ Erro ao buscar produtos do vendedor:', error);
+      return res.status(500).json({
+        products: [],
+        error: 'Erro interno do servidor',
+        message: 'Erro ao buscar produtos'
+      });
+    }
+  });
+
   // Rotas de produtos que requerem autenticação e verificação de propriedade
   app.post('/api/products', authMiddleware, ProductController.createProduct);
   app.put('/api/products/:id', authMiddleware, verifyProductOwnership, ProductController.updateProduct);

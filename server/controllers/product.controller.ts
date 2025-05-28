@@ -18,20 +18,62 @@ export async function getProducts(req: Request, res: Response) {
       maxPrice, 
       sortBy,
       promotion,
-      limit
+      limit,
+      storeId,
+      ownerOnly // Parâmetro para filtrar apenas produtos do usuário autenticado
     } = req.query;
     
     console.log('Fetching products with filters:', { 
-      category, categoryId, categorySlug, search, minPrice, maxPrice, sortBy, promotion, limit 
+      category, categoryId, categorySlug, search, minPrice, maxPrice, sortBy, promotion, limit, storeId, ownerOnly 
     });
     
-    let query = 'SELECT * FROM products WHERE is_active = true';
+    let query = 'SELECT p.* FROM products p';
     let params = [];
     let paramIndex = 1;
+    let whereConditions = ['p.is_active = true'];
+
+    // Se ownerOnly=true, filtrar apenas produtos das lojas do usuário autenticado
+    if (ownerOnly === 'true' && req.session?.userId) {
+      query += ' INNER JOIN stores s ON p.store_id = s.id';
+      whereConditions.push(`s.user_id = $${paramIndex}`);
+      params.push(req.session.userId);
+      paramIndex++;
+      console.log('Filtering products for authenticated user:', req.session.userId);
+    }
+    
+    // Se um storeId específico foi fornecido, validar propriedade se o usuário estiver autenticado
+    if (storeId && req.session?.userId) {
+      // Verificar se o usuário é proprietário da loja
+      const storeOwnerQuery = 'SELECT user_id FROM stores WHERE id = $1';
+      const storeOwnerResult = await pool.query(storeOwnerQuery, [storeId]);
+      
+      if (storeOwnerResult.rows.length === 0) {
+        return res.status(404).json({ 
+          products: [],
+          error: 'Loja não encontrada',
+          message: 'A loja especificada não existe'
+        });
+      }
+      
+      if (storeOwnerResult.rows[0].user_id !== req.session.userId) {
+        return res.status(403).json({ 
+          products: [],
+          error: 'Acesso negado',
+          message: 'Você não tem permissão para acessar produtos desta loja'
+        });
+      }
+      
+      whereConditions.push(`p.store_id = $${paramIndex}`);
+      params.push(storeId);
+      paramIndex++;
+      console.log('Filtering products for specific store:', storeId);
+    }
+
+    query += ` WHERE ${whereConditions.join(' AND ')}`;
     
     // Adicionar filtro por categoria se fornecido
     if (category) {
-      query += ` AND LOWER(category) = LOWER($${paramIndex})`;
+      query += ` AND LOWER(p.category) = LOWER($${paramIndex})`;
       params.push(category);
       paramIndex++;
     } else if (categorySlug) {
@@ -41,7 +83,7 @@ export async function getProducts(req: Request, res: Response) {
       
       if (categoryResult.rows.length > 0) {
         const categoryName = categoryResult.rows[0].name;
-        query += ` AND LOWER(category) = LOWER($${paramIndex})`;
+        query += ` AND LOWER(p.category) = LOWER($${paramIndex})`;
         params.push(categoryName);
         paramIndex++;
       }
@@ -49,38 +91,38 @@ export async function getProducts(req: Request, res: Response) {
     
     // Filtros de preço
     if (minPrice) {
-      query += ` AND price >= $${paramIndex}`;
+      query += ` AND p.price >= $${paramIndex}`;
       params.push(minPrice);
       paramIndex++;
     }
     
     if (maxPrice) {
-      query += ` AND price <= $${paramIndex}`;
+      query += ` AND p.price <= $${paramIndex}`;
       params.push(maxPrice);
       paramIndex++;
     }
     
     // Filtro de busca
     if (search) {
-      query += ` AND (LOWER(name) LIKE LOWER($${paramIndex}) OR LOWER(description) LIKE LOWER($${paramIndex}))`;
+      query += ` AND (LOWER(p.name) LIKE LOWER($${paramIndex}) OR LOWER(p.description) LIKE LOWER($${paramIndex}))`;
       params.push(`%${search}%`);
       paramIndex++;
     }
     
     // Ordenação
     if (sortBy === 'price_asc') {
-      query += ' ORDER BY price ASC';
+      query += ' ORDER BY p.price ASC';
     } else if (sortBy === 'price_desc') {
-      query += ' ORDER BY price DESC';
+      query += ' ORDER BY p.price DESC';
     } else if (sortBy === 'newest') {
-      query += ' ORDER BY created_at DESC';
+      query += ' ORDER BY p.created_at DESC';
     } else if (sortBy === 'name_asc') {
-      query += ' ORDER BY name ASC';
+      query += ' ORDER BY p.name ASC';
     } else if (sortBy === 'name_desc') {
-      query += ' ORDER BY name DESC';
+      query += ' ORDER BY p.name DESC';
     } else {
       // Default ordering
-      query += ' ORDER BY created_at DESC';
+      query += ' ORDER BY p.created_at DESC';
     }
     
     // Adicionar limite se fornecido

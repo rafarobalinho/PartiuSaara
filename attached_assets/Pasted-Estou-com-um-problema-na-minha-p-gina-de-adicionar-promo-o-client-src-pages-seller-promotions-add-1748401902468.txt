@@ -1,0 +1,21 @@
+Estou com um problema na minha página de adicionar promoção (`client/src/pages/seller/promotions/add-promotion.tsx`). O backend (`/api/seller/products`) parece estar funcionando e retornando 200 OK, mas o dropdown para selecionar um produto para a promoção está aparecendo vazio.
+
+Tarefa:
+Por favor, me ajude a depurar e corrigir o componente em `client/src/pages/seller/promotions/add-promotion.tsx`.
+
+1.  **Localize a Chamada à API:** Encontre a parte do código que faz a chamada `fetch` (ou usa uma biblioteca de cliente API) para o endpoint `/api/seller/products`.
+2.  **Logar a Resposta da API:**
+    * Imediatamente após receber a resposta da API e convertê-la para JSON, adicione um `console.log` para mostrar os dados brutos recebidos.
+        * Exemplo: `console.log('[AddPromotionPage] Dados brutos de /api/seller/products:', productsDataFromApi);`
+3.  **Logar os Dados Processados para o Dropdown:**
+    * Se houver alguma etapa onde esses dados são transformados ou mapeados antes de serem usados no dropdown (por exemplo, para criar um array de objetos com `value` e `label`), adicione um `console.log` para mostrar o array final que está sendo preparado para o dropdown.
+        * Exemplo: `console.log('[AddPromotionPage] Opções formatadas para o dropdown:', formattedProductOptions);`
+4.  **Verificar a Passagem de Props para o Dropdown:**
+    * Se você estiver usando um componente de UI reutilizável para o dropdown, logue as props que estão sendo passadas para ele, especialmente a prop que contém as opções.
+        * Exemplo: `console.log('[AddPromotionPage] Props enviadas para o componente Dropdown:', dropdownProps);`
+5.  **Revisar a Lógica de Renderização do Dropdown:**
+    * Analise como o componente de dropdown está iterando sobre as opções e renderizando cada `<option>` (ou item equivalente). Verifique se os nomes das propriedades acessadas (ex: `option.id`, `option.name`) correspondem aos nomes das propriedades nos dados dos produtos.
+
+O objetivo é descobrir por que os produtos (especialmente o produto com ID 8, que sabemos que existe para este usuário) não estão aparecendo como opções selecionáveis no dropdown. A correção pode envolver ajustar como os dados são mapeados ou como o estado é atualizado no frontend.
+
+Obrigado!
