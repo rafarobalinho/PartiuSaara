@@ -187,7 +187,7 @@ export default function SellerDashboard() {
             <TabsTrigger 
               key={store.id} 
               value={store.id.toString()}
-              className="flex flex-col items-center p-3"
+              className="flex flex-col items-center p-3 data-[state=active]:border-b-2 data-[state=active]:border-[#F2600C] data-[state=active]:text-[#F2600C] data-[state=active]:font-bold data-[state=active]:bg-orange-50/50 transition-all duration-200"
             >
               <span className="font-medium">{store.name}</span>
               <Badge 
