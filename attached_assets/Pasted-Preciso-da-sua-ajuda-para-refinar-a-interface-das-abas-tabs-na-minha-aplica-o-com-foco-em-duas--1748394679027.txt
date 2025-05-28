@@ -1,0 +1,37 @@
+Preciso da sua ajuda para refinar a interface das abas (tabs) na minha aplicação, com foco em duas áreas: responsividade em dispositivos móveis e um destaque visual mais forte para a aba ativa. Idealmente, essas melhorias seriam aplicadas de forma consistente onde quer que eu use este tipo de navegação por abas, especialmente no /seller/dashboard.
+
+Contexto:
+
+Já temos uma funcionalidade de abas (por exemplo, na página /seller/dashboard para cada loja do usuário).
+Já tentamos um destaque inicial para a aba ativa usando a cor #F2600C.
+Tarefa 1: Melhorar a Responsividade das Abas para Dispositivos Móveis
+
+Problema: O layout atual das abas não se adapta bem a telas menores de dispositivos móveis, resultando em uma experiência de usuário ruim (ex: abas que transbordam, ficam muito pequenas ou quebram o layout).
+Arquivos para Investigar:
+O(s) componente(s) React (.tsx) responsável(eis) por renderizar as abas (pode ser o SellerDashboard.tsx diretamente, ou um componente reutilizável como TabsComponent.tsx ou similar, se existir).
+Arquivos CSS/SCSS ou configurações de bibliotecas de UI (como Tailwind CSS, Shadcn/ui, Styled Components) associados a essas abas.
+Mudanças Específicas Solicitadas:
+Analise a estrutura HTML e o CSS atual das abas.
+Implemente as alterações de CSS necessárias (usando media queries, propriedades do Flexbox como flex-wrap ou overflow-x: auto, etc.) para que as abas se ajustem de forma elegante a diferentes tamanhos de tela.
+Considere e, se apropriado, implemente um dos seguintes padrões para mobile:
+Abas Roláveis Horizontalmente: Permitir que o usuário deslize horizontalmente para ver todas as abas se não couberem na tela.
+Abas como Menu Dropdown: Em telas pequenas, transformar a navegação por abas em um menu suspenso (dropdown/select).
+Abas Empilhadas/Quebra de Linha: Permitir que as abas quebrem para a próxima linha ou se empilhem verticalmente (esta opção requer cuidado com o design para não ocupar muito espaço vertical).
+O objetivo é que as abas sejam sempre fáceis de visualizar e interagir em dispositivos móveis.
+Tarefa 2: Tornar o Destaque da Aba Ativa Mais Prominente
+
+Problema: O destaque atual para a aba ativa, mesmo usando a cor #F2600C, precisa ser mais forte para que o usuário identifique imediatamente qual aba está selecionada.
+Arquivos para Investigar: Os mesmos da Tarefa 1.
+Mudanças Específicas de Estilo Solicitadas (ainda usando #F2600C como cor principal de destaque ou acento):
+Avalie o estilo atual da aba ativa.
+Implemente um diferencial visual mais significativo. Algumas ideias:
+Um fundo de cor mais distinto para a aba ativa (talvez um tom claro de laranja relacionado ao #F2600C, ou um contraste com as abas inativas).
+Uma borda inferior (ou superior) mais espessa e na cor #F2600C.
+Combinar a mudança da cor do texto (para #F2600C se o fundo for claro, ou branco/preto se o fundo da aba ativa for #F2600C) com um aumento no peso da fonte (bold).
+Adicionar um pequeno ícone ou um indicador gráfico que só apareça na aba ativa.
+A aba ativa deve se destacar claramente das demais.
+Aplicação Geral ("Em todas as telas"):
+
+Se estas abas são implementadas como um componente React reutilizável em meu projeto, por favor, faça estas alterações de responsividade e estilo diretamente nesse componente compartilhado. Isso garantirá que as melhorias sejam refletidas em todas as páginas que o utilizam.
+Se o estilo das abas for específico para o /seller/dashboard (ou outras páginas individualmente), aplique as mudanças lá. Se você identificar um componente de abas reutilizável que seria melhor modificar, por favor, me informe.
+Por favor, me ajude a implementar essas melhorias na interface das minhas abas. Obrigado!
