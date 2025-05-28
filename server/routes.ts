@@ -166,17 +166,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Rota segura para vendedores obterem apenas seus produtos
   app.get('/api/seller/products', authMiddleware, async (req: Request, res: Response) => {
+    console.log('[API /api/seller/products] Handler atingido');
+    
+    // Garantir que sempre retornamos JSON
+    res.setHeader('Content-Type', 'application/json');
+    
     try {
       const user = req.user;
+      console.log('[API /api/seller/products] Usuário autenticado:', user ? `ID ${user.id}` : 'Nenhum');
+      
       if (!user) {
+        console.log('[API /api/seller/products] ❌ Usuário não autenticado');
         return res.status(401).json({ 
           products: [],
           error: 'Unauthorized',
-          message: 'Usuário não autenticado'
+          message: 'Usuário não autenticado',
+          success: false
         });
       }
 
       const { storeId } = req.query;
+      console.log('[API /api/seller/products] StoreId solicitado:', storeId);
       
       let query = `
         SELECT p.*, s.name as store_name 
@@ -190,11 +200,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (storeId) {
         query += ' AND p.store_id = $2';
         params.push(storeId);
+        console.log('[API /api/seller/products] Filtrando por storeId:', storeId);
       }
       
       query += ' ORDER BY p.created_at DESC';
       
+      console.log('[API /api/seller/products] Executando query no banco...');
       const { rows } = await pool.query(query, params);
+      console.log('[API /api/seller/products] Produtos encontrados no banco:', rows.length);
       
       // Buscar imagens para cada produto
       const productsWithImages = await Promise.all(
@@ -212,7 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             };
           } catch (err) {
-            console.error(`Erro ao buscar imagens do produto ${product.id}:`, err);
+            console.error(`[API /api/seller/products] Erro ao buscar imagens do produto ${product.id}:`, err);
             return {
               ...product,
               images: [],
@@ -225,19 +238,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
       
-      console.log(`✅ Produtos do vendedor ${user.id}: ${productsWithImages.length} produtos encontrados`);
+      console.log(`[API /api/seller/products] ✅ Produtos processados: ${productsWithImages.length}`);
       
-      return res.json({
+      return res.status(200).json({
         products: productsWithImages,
         count: productsWithImages.length,
         success: true
       });
+      
     } catch (error) {
-      console.error('❌ Erro ao buscar produtos do vendedor:', error);
+      console.error('[API /api/seller/products] ❌ Erro crítico no handler:', error);
+      
+      // Garantir que mesmo erros retornem JSON
       return res.status(500).json({
         products: [],
         error: 'Erro interno do servidor',
-        message: 'Erro ao buscar produtos'
+        message: 'Erro ao buscar produtos do vendedor',
+        details: error instanceof Error ? error.message : 'Erro desconhecido',
+        success: false
       });
     }
   });
