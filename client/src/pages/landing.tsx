@@ -96,7 +96,7 @@ export default function Landing() {
             
             {/* Hero Image */}
             <div className="relative">
-              <div className="relative z-20">
+              <div className="relative z-10">
                 <div className="w-full max-w-lg mx-auto bg-gradient-to-br from-orange-200 to-orange-300 rounded-lg shadow-2xl p-8 flex items-center justify-center">
                   <div className="text-center">
                     <ShoppingBag className="h-32 w-32 text-primary mx-auto mb-4" />
@@ -106,7 +106,7 @@ export default function Landing() {
               </div>
               
               {/* Floating Discount Cards */}
-              <div className="absolute -top-4 -right-4 lg:right-8 space-y-3 -z-10">
+              <div className="absolute -top-4 -right-4 lg:right-8 space-y-3">
                 <div className="bg-white text-primary rounded-lg p-4 shadow-lg transform rotate-3">
                   <div className="text-3xl font-bold">20%</div>
                   <div className="text-sm">off</div>
