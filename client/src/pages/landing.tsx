@@ -11,7 +11,7 @@ import {
   Star, 
   Package, 
   MapPin, 
-  Zap 
+  Zap
 } from 'lucide-react';
 
 export default function Landing() {
@@ -97,14 +97,12 @@ export default function Landing() {
             {/* Hero Image */}
             <div className="relative">
               <div className="relative z-10">
-                <img 
-                  src="/uploads/hero-shopping-woman.jpg" 
-                  alt="Mulher feliz com sacolas de compras"
-                  className="w-full max-w-lg mx-auto rounded-lg shadow-2xl"
-                  onError={(e) => {
-                    e.currentTarget.src = '/placeholder-hero.jpg';
-                  }}
-                />
+                <div className="w-full max-w-lg mx-auto bg-gradient-to-br from-orange-200 to-orange-300 rounded-lg shadow-2xl p-8 flex items-center justify-center">
+                  <div className="text-center">
+                    <ShoppingBag className="h-32 w-32 text-primary mx-auto mb-4" />
+                    <p className="text-primary font-semibold text-lg">Experiência de compras única na Saara</p>
+                  </div>
+                </div>
               </div>
               
               {/* Floating Discount Cards */}
@@ -184,14 +182,22 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="relative">
-              <img 
-                src="/uploads/shopping-experience.jpg" 
-                alt="Experiência de compras"
-                className="w-full rounded-lg shadow-xl"
-                onError={(e) => {
-                  e.currentTarget.src = '/placeholder-shopping.jpg';
-                }}
-              />
+              <div className="w-full bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-xl p-12 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="bg-primary/10 rounded-lg p-4">
+                      <ShoppingBag className="h-12 w-12 text-primary mx-auto" />
+                    </div>
+                    <div className="bg-primary/10 rounded-lg p-4">
+                      <Heart className="h-12 w-12 text-primary mx-auto" />
+                    </div>
+                    <div className="bg-primary/10 rounded-lg p-4">
+                      <MapPin className="h-12 w-12 text-primary mx-auto" />
+                    </div>
+                  </div>
+                  <p className="text-gray-700 font-medium">Conectando você às melhores lojas da Saara</p>
+                </div>
+              </div>
             </div>
             
             <div className="space-y-8">
