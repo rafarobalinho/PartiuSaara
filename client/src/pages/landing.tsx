@@ -106,7 +106,7 @@ export default function Landing() {
               </div>
               
               {/* Floating Discount Cards */}
-              <div className="absolute -top-4 -right-4 lg:right-8 space-y-3 z-0">
+              <div className="absolute -top-4 -right-4 lg:right-8 space-y-3 -z-10">
                 <div className="bg-white text-primary rounded-lg p-4 shadow-lg transform rotate-3">
                   <div className="text-3xl font-bold">20%</div>
                   <div className="text-sm">off</div>
