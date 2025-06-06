@@ -13,6 +13,7 @@ import MobileNavigation from "@/components/layout/mobile-navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 
 import Home from "@/pages/home";
+import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
@@ -55,6 +56,7 @@ function Router() {
       <Header />
       <div className="flex-grow">
         <Switch>
+          <Route path="/landing" component={Landing} />
           <Route path="/" component={Home} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
