@@ -78,7 +78,22 @@ export default function Landing() {
               <div className="mb-8">
                 <Button 
                   size="lg" 
-                  className="bg-white text-primary hover:bg-gray-100 text-lg px-8 py-4 shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="
+                    bg-white 
+                    text-primary 
+                    hover:bg-gray-100 
+                    text-lg 
+                    px-8 
+                    py-4 
+                    shadow-lg 
+                    hover:shadow-xl 
+                    transition-all 
+                    duration-300 
+                    ease-in-out
+                    transform
+                    hover:scale-105
+                    active:scale-95
+                  "
                 >
                   Cadastrar Agora
                 </Button>
