@@ -35,18 +35,18 @@
   --destructive-foreground: 210 40% 98%;
   --ring: 20 89% 50%;
   --radius: 0.5rem;
-  
+
   /* Background and text color */
   --background-color: 0 0% 95%; /* #F2F2F2 - Background */
   --text-color: 0 0% 5%; /* #0D0D0D - Subtitles and text */
-  
+
   /* Chart colors */
   --chart-1: 20 89% 50%;
   --chart-2: 23 85% 63%;
   --chart-3: 23 76% 76%;
   --chart-4: 20 89% 90%;
   --chart-5: 10 80% 70%;
-  
+
   /* Sidebar colors (for seller dashboard) */
   --sidebar-background: 0 0% 100%;
   --sidebar-foreground: 224 71.4% 4.1%;
@@ -80,14 +80,14 @@
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 20% 98%;
   --ring: 20 89% 50%;
-  
+
   /* Chart colors */
   --chart-1: 20 89% 50%;
   --chart-2: 23 85% 63%;
   --chart-3: 23 76% 76%;
   --chart-4: 20 89% 90%;
   --chart-5: 10 80% 70%;
-  
+
   /* Sidebar colors (for seller dashboard) */
   --sidebar-background: 224 71.4% 8%;
   --sidebar-foreground: 210 20% 98%;
@@ -133,4 +133,24 @@
   100% {
     box-shadow: 0 0 0 0 rgba(242, 96, 12, 0);
   }
+}
+
+/* Styled element component */
+.styled-element {
+  --wwi-ar: unset;
+  --wwi-of: cover;
+  margin: 0px;
+  padding: 0px;
+  z-index: 999;
+  position: relative;
+  align-self: unset;
+  display: block;
+  width: 50%;
+  max-width: unset;
+  min-width: unset;
+  height: auto;
+  max-height: unset;
+  min-height: unset;
+  background: none;
+  border-radius: 16px;
 }
