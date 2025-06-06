@@ -70,33 +70,69 @@ export default function Landing() {
                 <span className="text-orange-200">NA PALMA DA SUA MÃO</span>
               </h1>
               <p className="text-xl text-orange-100 leading-relaxed">
-                Veja centenas de lojas, aproveite descontos exclusivos e
+            Veja centenas de lojas, aproveite descontos exclusivos e
                 encontre tudo o que precisa com facilidade na Saara.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
+
+              {/* Seção Principal - CLIENTES */}
+              <div className="mb-8">
                 <Button 
                   size="lg" 
-                  className="bg-white text-primary hover:bg-gray-100 text-lg px-8 py-4"
+                  className="bg-white text-primary hover:bg-gray-100 text-lg px-8 py-4 shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   Cadastrar Agora
                 </Button>
-                <div className="flex items-center space-x-4">
-                  <span className="text-orange-200 text-lg">
+              </div>
+
+              {/* Separador Visual */}
+              <div className="w-full h-px bg-orange-300/30 mb-6"></div>
+
+             {/* Seção Secundária - LOJISTAS */}
+            <div className="bg-[#0D0D0D] backdrop-blur-sm rounded-2xl p-6 border border-gray-700/30 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-[#F2600C] rounded-full animate-pulse"></div>
+                    <span className="text-[#F2600C] text-sm font-semibold uppercase tracking-wide">
+                      Especial para Lojistas
+                    </span>
+                  </div>
+                  <p className="text-white text-lg leading-relaxed">
                     Você tem um comércio na Saara e quer conhecer as vantagens do Partiu Saara?
-                  </span>
+                  </p>
+                </div>
+                <div className="flex-shrink-0">
                   <Button 
-                    variant="outline" 
-                    className="border-white text-white hover:bg-white hover:text-primary"
+                    className="
+                      bg-[#F2600C] 
+                      text-[#F2F2F2] 
+                      border-0
+                      font-semibold 
+                      px-6 
+                      py-3 
+                      transition-all 
+                      duration-300 
+                      ease-in-out
+                      hover:bg-[#F2F2F2] 
+                      hover:text-[#F2600C] 
+                      hover:scale-110
+                      hover:shadow-2xl
+                      active:scale-105
+                      active:bg-[#F2F2F2] 
+                      active:text-[#F2600C]
+                      transform
+                    "
                   >
                     Clique Aqui
                   </Button>
                 </div>
               </div>
             </div>
+          </div>
             
             {/* Hero Image */}
             <div className="relative">
-              <div className="relative z-20">
+              <div className="relative z-00">
                 <div className="w-full max-w-lg mx-auto bg-gradient-to-br from-orange-200 to-orange-300 rounded-lg shadow-2xl p-8 flex items-center justify-center">
                   <div className="text-center">
                     <ShoppingBag className="h-32 w-32 text-primary mx-auto mb-4" />
@@ -106,7 +142,7 @@ export default function Landing() {
               </div>
               
               {/* Floating Discount Cards */}
-              <div className="absolute -top-4 -right-4 lg:right-8 space-y-3 z-0">
+              <div className="absolute -top-4 -right-4 lg:right-8 space-y-3">
                 <div className="bg-white text-primary rounded-lg p-4 shadow-lg transform rotate-3">
                   <div className="text-3xl font-bold">20%</div>
                   <div className="text-sm">off</div>
