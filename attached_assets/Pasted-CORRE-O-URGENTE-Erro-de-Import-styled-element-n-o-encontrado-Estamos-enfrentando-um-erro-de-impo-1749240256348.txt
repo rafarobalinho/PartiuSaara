@@ -1,0 +1,77 @@
+CORREÇÃO URGENTE: Erro de Import - styled-element não encontrado
+Estamos enfrentando um erro de importação que está impedindo o build da aplicação. Preciso que você resolva imediatamente:
+🚨 Erro Identificado:
+Failed to resolve import "@/components/ui/styled-element" from "client/src/pages/landing.tsx"
+🔍 Diagnóstico Necessário:
+1. Verificar se o arquivo existe:
+bash# Execute estes comandos para verificar:
+find . -name "*styled-element*" -type f
+ls -la client/src/components/ui/
+2. Verificar imports no arquivo landing.tsx:
+Abra client/src/pages/landing.tsx e localize a linha:
+typescriptimport ... from "@/components/ui/styled-element"
+✅ Soluções Possíveis:
+Solução 1 - Se o arquivo não existe:
+Remova ou comente a importação problemática em landing.tsx:
+typescript// import { StyledElement } from "@/components/ui/styled-element"; // REMOVER ESTA LINHA
+Solução 2 - Se o arquivo existe em outro local:
+Atualize o caminho correto:
+typescript// Possíveis caminhos alternativos:
+import { StyledElement } from "@/components/styled-element";
+import { StyledElement } from "@/components/ui/StyledElement";
+import { StyledElement } from "./components/styled-element";
+Solução 3 - Criar o arquivo se necessário:
+Se o componente é necessário, crie client/src/components/ui/styled-element.tsx:
+typescriptimport React from 'react';
+
+interface StyledElementProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const StyledElement: React.FC<StyledElementProps> = ({ 
+  children, 
+  className = "" 
+}) => {
+  return (
+    <div className={className}>
+      {children}
+    </div>
+  );
+};
+
+export default StyledElement;
+Solução 4 - Verificar configuração do alias @:
+Confirme se o alias @ está configurado no vite.config.ts ou tsconfig.json:
+vite.config.ts:
+typescriptexport default defineConfig({
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./client/src"),
+    },
+  },
+});
+tsconfig.json:
+json{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./client/src/*"]
+    }
+  }
+}
+🚀 Ação Imediata Requerida:
+
+Primeiro: Localize e examine o arquivo client/src/pages/landing.tsx
+Segundo: Identifique todas as importações que referenciam styled-element
+Terceiro: Aplique uma das soluções acima conforme o caso
+Quarto: Execute npm run dev para verificar se o erro foi resolvido
+
+📝 Para Debug Adicional:
+Se o problema persistir, forneça:
+
+Conteúdo do arquivo landing.tsx (primeiras 20 linhas)
+Estrutura de pastas em client/src/components/
+Conteúdo do vite.config.ts
+
+Esta correção é prioritária para que o desenvolvimento possa continuar normalmente.
