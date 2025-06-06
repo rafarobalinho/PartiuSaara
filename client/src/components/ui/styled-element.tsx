@@ -11,6 +11,6 @@ const baseStyles = {
     minHeight: 'unset',
     background: 'none',
     borderRadius: '16px',
-    zIndex: 999,
+    zIndex: 1200,
     position: 'relative',
   };
