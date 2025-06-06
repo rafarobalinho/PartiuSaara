@@ -49,7 +49,7 @@ export default function Landing() {
                   Entrar
                 </Button>
               </Link>
-              <Link href="/auth">
+              <Link href="/register">
                 <Button className="bg-primary text-white hover:bg-primary/90">
                   Cadastrar
                 </Button>
@@ -76,27 +76,29 @@ export default function Landing() {
 
               {/* Seção Principal - CLIENTES */}
               <div className="mb-8">
-                <Button 
-                  size="lg" 
-                  className="
-                    bg-white 
-                    text-primary 
-                    hover:bg-gray-100 
-                    text-lg 
-                    px-8 
-                    py-4 
-                    shadow-lg 
-                    hover:shadow-xl 
-                    transition-all 
-                    duration-300 
-                    ease-in-out
-                    transform
-                    hover:scale-105
-                    active:scale-95
-                  "
-                >
-                  Cadastrar Agora
-                </Button>
+                <Link href="/register">
+                  <Button 
+                    size="lg" 
+                    className="
+                      bg-white 
+                      text-primary 
+                      hover:bg-gray-100 
+                      text-lg 
+                      px-8 
+                      py-4 
+                      shadow-lg 
+                      hover:shadow-xl 
+                      transition-all 
+                      duration-300 
+                      ease-in-out
+                      transform
+                      hover:scale-105
+                      active:scale-95
+                    "
+                  >
+                    Cadastrar Agora
+                  </Button>
+                </Link>
               </div>
 
               {/* Separador Visual */}
@@ -189,9 +191,11 @@ export default function Landing() {
               Veja centenas de lojas, aproveite descontos exclusivos e
               encontre tudo o que precisa com facilidade na Saara.
             </p>
-            <Button size="lg" className="bg-primary text-white hover:bg-primary/90">
-              Cadastrar Agora
-            </Button>
+            <Link href="/register">
+              <Button size="lg" className="bg-primary text-white hover:bg-primary/90">
+                Cadastrar Agora
+              </Button>
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
@@ -344,7 +348,7 @@ export default function Landing() {
           <p className="text-xl text-orange-100 mb-8 max-w-2xl mx-auto">
             Cadastre-se na Partiu SAARA e descubra um novo jeito de fazer compras
           </p>
-          <Link href="/auth">
+          <Link href="/register">
             <Button 
               size="lg" 
               className="bg-white text-primary hover:bg-gray-100 text-lg px-8 py-4"
