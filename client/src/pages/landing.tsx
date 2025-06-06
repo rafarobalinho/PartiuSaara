@@ -182,22 +182,11 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="relative">
-              <div className="w-full bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg shadow-xl p-12 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="bg-primary/10 rounded-lg p-4">
-                      <ShoppingBag className="h-12 w-12 text-primary mx-auto" />
-                    </div>
-                    <div className="bg-primary/10 rounded-lg p-4">
-                      <Heart className="h-12 w-12 text-primary mx-auto" />
-                    </div>
-                    <div className="bg-primary/10 rounded-lg p-4">
-                      <MapPin className="h-12 w-12 text-primary mx-auto" />
-                    </div>
-                  </div>
-                  <p className="text-gray-700 font-medium">Conectando você às melhores lojas da Saara</p>
-                </div>
-              </div>
+              <img 
+                src="https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
+                alt="Pessoa escolhendo roupas em um closet organizado"
+                className="w-full rounded-lg shadow-xl"
+              />
             </div>
             
             <div className="space-y-8">
