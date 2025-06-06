@@ -1,0 +1,16 @@
+const baseStyles = {
+    margin: '0px',
+    padding: '0px',
+    alignSelf: 'unset',
+    display: 'block',
+    width: '50%',
+    maxWidth: 'unset',
+    minWidth: 'unset',
+    height: 'auto',
+    maxHeight: 'unset',
+    minHeight: 'unset',
+    background: 'none',
+    borderRadius: '16px',
+    zIndex: 999,
+    position: 'relative',
+  };
