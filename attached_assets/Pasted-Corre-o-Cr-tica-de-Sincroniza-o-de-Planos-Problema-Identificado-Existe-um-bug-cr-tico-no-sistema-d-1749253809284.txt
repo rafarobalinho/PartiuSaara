@@ -1,0 +1,91 @@
+Correção Crítica de Sincronização de Planos
+Problema Identificado
+Existe um bug crítico no sistema de assinaturas onde um lojista com múltiplas lojas tem os planos sendo sincronizados incorretamente. Quando uma loja muda de plano, TODAS as lojas do mesmo user_id são afetadas, quando deveria ser apenas a loja específica (store_id).
+Cenário do Bug
+
+Lojista tem 2 lojas: Loja A (Premium) e Loja B (Free)
+Lojista assina plano Start para Loja B
+ERRO: Loja A também muda para Start (deveria continuar Premium)
+CORRETO: Apenas Loja B deveria mudar para Start
+
+Root Cause Analisado
+Problema na URL de retorno do Stripe: O storeId está sendo perdido durante o redirecionamento do checkout, causando perda de contexto sobre qual loja específica deve ter o plano atualizado.
+URL Incorreta de Retorno: /seller/subscription?success=true&session_id=...
+URL Correta Esperada: /seller/stores/{storeId}/subscription?success=true&session_id=...
+Arquivos que Precisam de Correção
+1. Controller de Checkout do Stripe
+Localização: Arquivo que cria sessões de checkout (provavelmente stripe.controller.ts ou similar)
+Problemas a Corrigir:
+
+URLs success_url e cancel_url não incluem o storeId
+Metadata do Stripe não está preservando corretamente a relação userId:storeId
+Campo client_reference_id deve usar formato ${userId}:${storeId}
+
+Correções Necessárias:
+
+Modificar success_url para incluir o storeId: ${baseUrl}/seller/stores/${storeId}/subscription?success=true&session_id={CHECKOUT_SESSION_ID}
+Modificar cancel_url para incluir o storeId: ${baseUrl}/seller/stores/${storeId}/subscription?canceled=true
+Adicionar metadata completa: { userId, storeId, plan, interval }
+Validar se storeId foi enviado no body da requisição
+
+2. Webhook do Stripe
+Localização: Arquivo de webhook (provavelmente webhook.controller.ts ou stripe-webhook.controller.ts)
+Problemas a Corrigir:
+
+Lógica está atualizando baseada apenas em userId
+Não está isolando atualizações por storeId
+Funções de storage podem estar fazendo UPDATE em todas as lojas do usuário
+
+Correções Necessárias:
+
+Extrair storeId do metadata do evento Stripe
+Todas as atualizações de plano devem filtrar por WHERE store_id = $storeId AND user_id = $userId
+Funções handleCheckoutCompleted, handlePaymentSucceeded, etc. devem receber e usar storeId
+
+3. Funções de Storage/Database
+Localização: Arquivo de storage (provavelmente storage/index.ts ou similar)
+Problemas a Corrigir:
+
+Queries SQL podem estar usando apenas WHERE user_id = $userId
+Falta isolamento por store_id nas operações de subscription
+
+Correções Necessárias:
+
+Função de atualizar assinatura deve usar: WHERE store_id = $storeId AND user_id = $userId
+Criar função específica updateStoreSubscription(storeId, userId, planData)
+Garantir que UPDATE na tabela stores filtre por WHERE id = $storeId AND user_id = $userId
+UPDATE na tabela subscriptions deve filtrar por WHERE store_id = $storeId AND user_id = $userId
+
+Validações Críticas a Implementar
+No Controller de Checkout:
+1. Validar se storeId foi enviado no body
+2. Validar se a loja pertence ao usuário autenticado  
+3. Preservar storeId nas URLs de retorno
+4. Incluir storeId no metadata da sessão Stripe
+No Webhook:
+1. Extrair storeId do metadata do evento
+2. Validar se storeId existe antes de processar
+3. Todas as queries devem filtrar por store_id E user_id
+4. Logging deve mostrar qual loja específica foi atualizada
+Nas Funções de Storage:
+1. Parâmetro storeId obrigatório em funções de subscription
+2. Todas as queries SQL devem incluir filtro por store_id
+3. Verificação de ownership (store pertence ao user) antes de updates
+4. Retorno deve confirmar qual loja foi afetada
+Teste de Validação
+Após as correções, testar:
+
+Lojista com 2+ lojas em planos diferentes
+Fazer upgrade de uma loja específica
+Verificar se apenas a loja correta mudou de plano
+Confirmar que outras lojas mantiveram seus planos originais
+Verificar se URL de retorno mantém o storeId correto
+
+Resultado Esperado
+
+✅ URLs de retorno preservam storeId: /seller/stores/4/subscription?success=true
+✅ Apenas a loja específica tem o plano atualizado
+✅ Outras lojas do mesmo usuário mantêm seus planos inalterados
+✅ Logs mostram claramente qual loja foi processada
+
+Por favor, implemente essas correções mantendo a estrutura atual do código, focando em adicionar os filtros por store_id onde estão faltando e preservar o storeId no fluxo completo do Stripe.
