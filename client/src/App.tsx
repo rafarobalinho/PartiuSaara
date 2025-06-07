@@ -28,6 +28,7 @@ import StoresMapPage from "@/pages/stores/map-page";
 import Account from "@/pages/account/index";
 import Wishlist from "@/pages/account/wishlist";
 import Reservations from "@/pages/account/reservations";
+import PaymentCallback from "@/pages/payment/callback";
 import SellerDashboard from "@/pages/seller/dashboard";
 import GeocodingPanel from "@/pages/admin/GeocodingPanel";
 import PlaceDetailsPage from "@/pages/admin/PlaceDetailsPage";
@@ -58,6 +59,7 @@ function Router() {
         <Switch>
           <Route path="/landing" component={Landing} />
           <Route path="/" component={Home} />
+          <Route path="/payment/callback" component={PaymentCallback} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
           <Route path="/categories" component={Categories} />

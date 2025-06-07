@@ -39,10 +39,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api', imagesRoutes);
 
   // Auth routes
-  app.post('/api/auth/register', AuthController.register);
   app.post('/api/auth/login', AuthController.login);
-  app.post('/api/auth/logout', AuthController.logout);
+  app.post('/api/auth/register', AuthController.register);
+  app.post('/api/auth/logout', authMiddleware, AuthController.logout);
   app.get('/api/auth/me', authMiddleware, AuthController.getCurrentUser);
+  app.get('/api/auth/verify', authMiddleware, AuthController.verify);
 
   // User routes
   app.get('/api/users/me', authMiddleware, UserController.getCurrentUser);
@@ -682,7 +683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Cupons/promoções dos produtos da loja
             const couponsResult = await db.select()
               .from(promotions)
-              .where(sql`${promotions.productId} = ANY(${JSON.stringify(productIds)})`);
+              .where(sql`${promotions.productId} = ANY(${JSON.stringify(productIds)}`);
             totalCoupons += couponsResult.length;
           }
         }
