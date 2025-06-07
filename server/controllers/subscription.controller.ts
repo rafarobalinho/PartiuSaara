@@ -468,4 +468,17 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         error: 'Loja não encontrada ou não pertence ao usuário' 
       });
     }
+
+    // TODO: Implementar criação da sessão Stripe
+    res.status(501).json({ 
+      success: false, 
+      error: 'Funcionalidade não implementada' 
+    });
+  } catch (error) {
+    console.error('Erro ao criar sessão de checkout:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno do servidor' 
+    });
+  }
 };
