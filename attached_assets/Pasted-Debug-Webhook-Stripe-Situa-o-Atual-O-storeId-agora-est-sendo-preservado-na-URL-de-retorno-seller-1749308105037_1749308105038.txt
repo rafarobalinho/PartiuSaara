@@ -1,0 +1,58 @@
+Debug Webhook Stripe
+Situação Atual
+O storeId agora está sendo preservado na URL de retorno (/seller/stores/4/subscription?success=true), MAS o problema de sincronização entre lojas ainda persiste. Isso indica que o webhook do Stripe não está processando corretamente o isolamento por store_id.
+Debug Necessário
+1. Verificar se o Webhook está Recebendo Dados Corretos
+Por favor, adicione logs detalhados no webhook do Stripe para verificar:
+No arquivo do webhook (provavelmente webhook.controller.ts ou stripe-webhook.controller.ts):
+typescript// Adicionar estes logs na função que processa checkout.session.completed
+console.log('=== WEBHOOK DEBUG ===');
+console.log('Event type:', event.type);
+console.log('Session metadata:', event.data.object.metadata);
+console.log('Client reference ID:', event.data.object.client_reference_id);
+console.log('Session ID:', event.data.object.id);
+console.log('===================');
+2. Verificar Metadata da Sessão Stripe
+O webhook deve receber metadata contendo:
+
+userId
+storeId
+plan
+interval
+
+Se metadata estiver vazio ou incompleto: O problema está na criação da sessão Stripe (checkout controller).
+Se metadata estiver correto: O problema está na lógica de processamento do webhook.
+3. Verificar Queries de Atualização
+Após identificar se o metadata está correto, verificar se as queries de atualização estão filtrando por store_id:
+Query INCORRETA (atualiza todas as lojas do usuário):
+sqlUPDATE stores SET subscription_plan = $1 WHERE user_id = $2
+Query CORRETA (atualiza apenas a loja específica):
+sqlUPDATE stores SET subscription_plan = $1 WHERE id = $2 AND user_id = $3
+4. Teste de Validação
+Após adicionar os logs, fazer um novo teste de assinatura e verificar:
+
+No console do servidor: Se o webhook está recebendo o storeId correto
+No banco de dados: Se apenas a loja específica está sendo atualizada
+No frontend: Se as outras lojas mantêm seus planos originais
+
+Ações Solicitadas:
+
+Adicionar logs detalhados no webhook para debug
+Fazer novo teste de assinatura
+Verificar logs no console do servidor
+Reportar resultados dos logs para identificar onde está o problema
+
+Possíveis Problemas e Soluções:
+Se metadata vazio:
+
+Corrigir criação da sessão Stripe para incluir metadata completo
+
+Se metadata correto mas query errada:
+
+Corrigir queries para filtrar por store_id E user_id
+
+Se webhook não está sendo chamado:
+
+Verificar configuração dos webhooks no painel do Stripe
+
+Por favor, adicione os logs de debug e execute um novo teste para identificarmos exatamente onde está o problema na cadeia de processamento.
