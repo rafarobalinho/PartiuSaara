@@ -682,7 +682,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Cupons/promoções dos produtos da loja
             const couponsResult = await db.select()
               .from(promotions)
-              .where(sql`${promotions.productId} = ANY(${JSON.stringify(productIds})`);
+              .where(sql`${promotions.productId} = ANY(${JSON.stringify(productIds)})`);
             totalCoupons += couponsResult.length;
           }
         }
