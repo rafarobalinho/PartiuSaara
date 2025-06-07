@@ -36,6 +36,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // DIAGNÓSTICO: Log de inicialização do AuthProvider
+  console.log('🔍 [AUTH-CONTEXT]', {
+    function: 'AuthProvider-init',
+    url: window.location.href,
+    timestamp: new Date().toISOString()
+  });
+
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [error, setError] = useState<Error | null>(null);
@@ -184,6 +191,14 @@ export function useAuth() {
 // Helper function for auth queries
 function getQueryFn<T>({ on401 }: { on401: 'returnNull' | 'throw' }): () => Promise<T | null> {
   return async () => {
+    // DIAGNÓSTICO: Log de verificação de autenticação
+    console.log('🔍 [AUTH-CONTEXT]', {
+      function: 'getQueryFn-check',
+      url: window.location.href,
+      on401Strategy: on401,
+      timestamp: new Date().toISOString()
+    });
+
     try {
       const res = await fetch('/api/auth/me', {
         credentials: 'include',

@@ -37,6 +37,15 @@ interface Subscription {
 }
 
 export default function SellerSubscription() {
+  // DIAGNÓSTICO: Log de carregamento da página de assinatura
+  console.log('💳 [SUBSCRIPTION-PAGE]', {
+    url: window.location.href,
+    reason: 'página de assinatura carregada',
+    hasSuccess: new URLSearchParams(window.location.search).has('success'),
+    hasSessionId: new URLSearchParams(window.location.search).has('session_id'),
+    timestamp: new Date().toISOString()
+  });
+
   const { isAuthenticated, isSeller, user, refreshStores } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
