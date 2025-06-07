@@ -466,12 +466,25 @@ function extractSessionData(session: any) {
 }
 
 export const handleWebhook = async (req: Request, res: Response) => {
+  // === LOGS DETALHADOS DE DEBUG DO WEBHOOK ===
+  console.log('🚨 WEBHOOK STRIPE CHAMADO! 🚨');
+  console.log('=== WEBHOOK DEBUG COMPLETO ===');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Headers completos:', JSON.stringify(req.headers, null, 2));
+  console.log('Body type:', typeof req.body);
+  console.log('Body length:', req.body ? req.body.length : 'undefined');
+  console.log('Content-Type:', req.headers['content-type']);
+  console.log('Stripe-Signature presente:', !!req.headers['stripe-signature']);
+  console.log('===============================');
+
   const localStripe = getStripeClient();
   const { isTestMode } = getCurrentStripeConfig(); // Pega o modo atual
   const sig = req.headers['stripe-signature'] as string;
 
   if (!localStripe) {
-    console.error('Webhook: Stripe não pôde ser inicializado.');
+    console.error('❌ Webhook: Stripe não pôde ser inicializado.');
     return res.status(500).send('Webhook Error: Payment service not available');
   }
 
@@ -481,14 +494,38 @@ export const handleWebhook = async (req: Request, res: Response) => {
       ? process.env.STRIPE_WEBHOOK_SECRET_TEST
       : process.env.STRIPE_WEBHOOK_SECRET_LIVE;
 
+    console.log(`🔑 Webhook Secret para modo ${isTestMode ? 'TEST' : 'LIVE'}:`, webhookSecret ? 'PRESENTE' : 'AUSENTE');
+
     if (!webhookSecret) {
-      console.error(`Webhook Error: Webhook secret para modo ${isTestMode ? 'TESTE' : 'LIVE'} não encontrado.`);
+
+
+// Endpoint de teste para verificar se o webhook está acessível
+export const testWebhook = async (req: Request, res: Response) => {
+  console.log('🧪 TESTE DE WEBHOOK CHAMADO!');
+  console.log('Method:', req.method);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  
+  res.json({ 
+    success: true, 
+    message: 'Webhook endpoint está acessível',
+    timestamp: new Date().toISOString(),
+    method: req.method
+  });
+};
+
+      console.error(`❌ Webhook Error: Webhook secret para modo ${isTestMode ? 'TESTE' : 'LIVE'} não encontrado.`);
       throw new Error('Webhook secret não configurado para o modo atual');
     }
 
+    console.log('🔄 Tentando construir evento do Stripe...');
     event = localStripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    console.log('✅ Evento construído com sucesso!', event.type);
   } catch (err: any) {
-    console.error('Erro no webhook Stripe (dinâmico):', err.message);
+    console.error('❌ ERRO CRÍTICO no webhook Stripe (dinâmico):', err.message);
+    console.error('❌ Stack trace:', err.stack);
+    console.error('❌ Signature recebida:', sig);
+    console.error('❌ Body recebido (primeiros 200 chars):', req.body ? req.body.toString().substring(0, 200) : 'VAZIO');
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
