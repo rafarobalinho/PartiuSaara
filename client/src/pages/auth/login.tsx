@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Link } from 'wouter';
@@ -19,19 +20,14 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
+  password: z.string().min(1, 'Senha é obrigatória'),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  // DIAGNÓSTICO: Log de carregamento da página de login
-  console.log('🚪 [LOGIN-PAGE]', {
-    url: window.location.href,
-    reason: 'página de login carregada',
-    timestamp: new Date().toISOString()
-  });
-
+  console.log('🚪 [LOGIN] Página de login carregada');
+  
   const { login, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,31 +41,30 @@ export default function Login() {
   });
 
   // Redirect if already authenticated
-  // Movemos este código para depois da declaração de todos os hooks
   if (isAuthenticated) {
     navigate('/');
     return null;
   }
 
-  const onSubmit = async (data: LoginFormValues) => {
+  const onSubmit = async (values: LoginFormValues) => {
     try {
       setIsSubmitting(true);
-      await login(data.email, data.password);
+      await login(values.email, values.password);
       navigate('/');
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Erro no login:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-10 flex justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Entrar</CardTitle>
-          <CardDescription>
-            Entre com seu email e senha para acessar sua conta
+          <CardTitle className="text-2xl text-center">Entrar</CardTitle>
+          <CardDescription className="text-center">
+            Entre com sua conta para acessar o Partiu Saara
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -82,7 +77,7 @@ export default function Login() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="seu@email.com" {...field} />
+                      <Input placeholder="seu@email.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -95,7 +90,7 @@ export default function Login() {
                   <FormItem>
                     <FormLabel>Senha</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
+                      <Input type="password" placeholder="Sua senha" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
