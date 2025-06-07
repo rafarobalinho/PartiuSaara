@@ -1,0 +1,85 @@
+CORREÇÃO EMERGENCIAL - Sistema de Autenticação Quebrado
+🚨 SITUAÇÃO CRÍTICA
+O sistema de autenticação parou de funcionar após as modificações. Usuário não consegue mais fazer login.
+DIAGNÓSTICO DOS LOGS:
+
+❌ Nenhum token encontrado
+❌ Usuário não autenticado
+❌ Loop infinito de verificação
+❌ Login impossível
+
+🆘 CORREÇÃO IMEDIATA NECESSÁRIA
+OPÇÃO A: Reverter AuthContext (RECOMENDADA)
+Desfazer as modificações no auth-context.tsx e voltar ao código original que funcionava:
+
+Fazer backup das alterações atuais
+Restaurar a versão anterior do auth-context.tsx
+Testar se login volta a funcionar
+Após login funcionando, implementar correção gradual
+
+OPÇÃO B: Correção Rápida no AuthContext
+Se não tiver backup, corrigir manualmente:
+typescript// REMOVER toda a lógica nova de verificação de token
+// VOLTAR para a lógica simples que funcionava antes
+
+const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    console.log('🔍 [AUTH-CONTEXT] Verificação simples de auth');
+    
+    // Lógica SIMPLES que funcionava antes
+    const token = localStorage.getItem('authToken');
+    
+    if (token) {
+      console.log('✅ [AUTH-CONTEXT] Token encontrado');
+      // Aqui deveria ter a lógica original de validar token
+      // POR ENQUANTO, apenas confiar no token
+      setIsAuthenticated(true);
+      setUser({ id: 'temp' }); // dados temporários
+    } else {
+      console.log('❌ [AUTH-CONTEXT] Nenhum token');
+      setIsAuthenticated(false);
+      setUser(null);
+    }
+    
+    setIsLoading(false);
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+🔧 INSTRUÇÕES PARA IA DO REPLIT:
+PRIORIDADE MÁXIMA:
+
+IMEDIATAMENTE reverter ou corrigir o auth-context.tsx
+RESTAURAR funcionalidade de login
+TESTAR se usuário consegue fazer login novamente
+REPORTAR se autenticação voltou a funcionar
+
+Se necessário:
+
+Comentar toda lógica nova de verificação de token
+Usar apenas verificação básica de localStorage
+Focar em fazer login funcionar primeiro
+
+🎯 OBJETIVO IMEDIATO:
+
+✅ Login funcionando - Usuário consegue entrar
+✅ Token sendo salvo - localStorage funcionando
+✅ Navegação livre - Sem loops de autenticação
+
+APÓS CORREÇÃO:
+
+Confirmar que login funciona
+Confirmar que navegação funciona
+Então implementar correção do Stripe gradualmente
+
+⚠️ IMPORTANTE:
+NÃO fazer mais mudanças no sistema de auth até que o login básico esteja funcionando 100%.
+FOCO TOTAL: Restaurar funcionalidade básica de login AGORA.

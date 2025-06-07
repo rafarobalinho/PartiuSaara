@@ -46,14 +46,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Função para navegar (pode ser implementada com useLocation se necessário)
+  const navigate = (path: string) => {
+    window.location.href = path;
+  };
+
+  // Verificação inteligente de autenticação
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      console.log('🔍 [AUTH-CONTEXT] Iniciando verificação de auth');
+      
+      setIsLoading(true);
+      
+      const { isValid, user } = await verifyAuthToken();
+      
+      if (isValid && user) {
+        setUser(user);
+        setIsAuthenticated(true);
+        console.log('✅ [AUTH-CONTEXT] Usuário autenticado:', user.id);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+        console.log('❌ [AUTH-CONTEXT] Usuário não autenticado');
+        
+        // APENAS redirecionar se não estiver em páginas públicas
+        const publicRoutes = ['/', '/login', '/register', '/payment/callback'];
+        const currentPath = window.location.pathname;
+        
+        if (!publicRoutes.some(route => currentPath.startsWith(route))) {
+          console.log('🔄 [AUTH-CONTEXT] Redirecionando para login');
+          navigate('/login');
+        }
+      }
+      
+      setIsLoading(false);
+    };
+    
+    checkAuthStatus();
+  }, []);
 
   const {
-    data: user,
-    isLoading,
+    data: queryUser,
+    isLoading: queryLoading,
     error: queryError,
   } = useQuery({
     queryKey: ['/api/auth/me'],
     queryFn: getQueryFn({ on401: 'returnNull' }),
+    enabled: false, // Desabilitar query automática, usar verificação manual
   });
 
   useEffect(() => {
@@ -166,11 +209,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const value = {
-    user,
-    isAuthenticated: !!user,
-    isSeller: user?.role === 'seller',
-    isAdmin: user?.role === 'admin',
-    isLoading,
+    user: user || queryUser,
+    isAuthenticated: isAuthenticated || !!queryUser,
+    isSeller: (user || queryUser)?.role === 'seller',
+    isAdmin: (user || queryUser)?.role === 'admin',
+    isLoading: isLoading || queryLoading,
     error,
     login,
     register,
@@ -187,6 +230,43 @@ export function useAuth() {
   }
   return context;
 }
+
+// Função melhorada de verificação de token
+const verifyAuthToken = async () => {
+  console.log('🔐 [AUTH-CONTEXT] Verificando token...');
+  
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+  
+  if (!token) {
+    console.log('❌ [AUTH-CONTEXT] Nenhum token encontrado');
+    return { isValid: false, user: null };
+  }
+  
+  try {
+    const response = await fetch('/api/auth/verify', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      const userData = await response.json();
+      console.log('✅ [AUTH-CONTEXT] Token válido', { userId: userData.id });
+      return { isValid: true, user: userData };
+    } else {
+      console.log('❌ [AUTH-CONTEXT] Token inválido - status:', response.status);
+      // Remover token inválido
+      localStorage.removeItem('authToken');
+      sessionStorage.removeItem('authToken');
+      return { isValid: false, user: null };
+    }
+  } catch (error) {
+    console.error('🚨 [AUTH-CONTEXT] Erro na verificação:', error);
+    return { isValid: false, user: null };
+  }
+};
 
 // Helper function for auth queries
 function getQueryFn<T>({ on401 }: { on401: 'returnNull' | 'throw' }): () => Promise<T | null> {

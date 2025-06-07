@@ -364,7 +364,15 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
     // CHECKPOINT 10: Configurar URLs para redirecionamento
     console.log('🔍 CHECKPOINT 10: Configurando URLs');
-    const baseUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || req.headers.origin;
+    // Configurar URLs de sucesso e cancelamento
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? process.env.FRONTEND_URL || req.get('origin')
+        : req.get('origin') || 'http://localhost:5000';
+
+      const successUrl = `${baseUrl}/payment/callback?storeId=${storeId}&success=true&session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl = `${baseUrl}/payment/callback?storeId=${storeId}&success=false`;
+
+      console.log('🔗 [STRIPE] URLs configuradas:', { successUrl, cancelUrl });
     // Validar se storeId foi enviado
 
     // Validar se a loja pertence ao usuário
@@ -377,8 +385,8 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         quantity: 1,
       }],
       mode: 'subscription',
-      success_url: `${baseUrl}/seller/stores/${storeId}/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/seller/stores/${storeId}/subscription?canceled=true`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       client_reference_id: `${userId}:${storeId}`,
       metadata: {
         userId: userId.toString(),
