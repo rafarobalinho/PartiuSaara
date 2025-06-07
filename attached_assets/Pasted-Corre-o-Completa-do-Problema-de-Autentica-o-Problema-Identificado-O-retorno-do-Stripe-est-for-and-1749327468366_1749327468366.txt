@@ -1,0 +1,88 @@
+Correção Completa do Problema de Autenticação
+Problema Identificado
+O retorno do Stripe está forçando re-autenticação, interferindo no processamento do callback e impedindo a atualização correta dos planos por loja.
+Análise do Fluxo Problemático:
+
+Stripe redireciona → /seller/stores/4/subscription?success=true&session_id=...
+App detecta "falta de autenticação" → Força re-login
+Usuário é re-logado → Estado recarrega → Contexto perde informações
+Webhook pode ser chamado, mas frontend não reflete mudanças
+
+3 Opções de Solução (Escolha a Melhor)
+🥇 OPÇÃO 1: Bypass de Re-autenticação (RECOMENDADA)
+Modificar o contexto de autenticação para NÃO forçar re-login em retornos do Stripe:
+Localizar onde está a lógica de autenticação forçada (provavelmente auth-context.tsx ou similar) e adicionar:
+typescriptuseEffect(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const isStripeReturn = urlParams.has('success') && urlParams.has('session_id');
+  
+  if (isStripeReturn) {
+    console.log('🔄 Retorno do Stripe detectado - mantendo autenticação atual');
+    return; // Não force re-autenticação
+  }
+  
+  // Lógica normal de verificação de autenticação
+  checkAuthStatus();
+}, []);
+Vantagens: Simples, pontual, mantém fluxo atual
+🥈 OPÇÃO 2: Página de Callback Dedicada
+Criar rota específica para processar retornos do Stripe:
+
+Modificar URLs no controller do Stripe:
+
+typescriptconst successUrl = `${baseUrl}/payment/callback?storeId=${storeId}&session_id={CHECKOUT_SESSION_ID}`;
+
+Criar página /src/pages/payment/callback.tsx que processa e redireciona
+
+Vantagens: Controle total, não interfere na autenticação
+🥉 OPÇÃO 3: Verificação de Token
+Verificar se token ainda é válido antes de forçar re-login:
+typescriptconst isTokenValid = async () => {
+  const token = getStoredToken();
+  if (!token) return false;
+  
+  try {
+    const response = await fetch('/api/auth/verify', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+};
+Vantagens: Mais robusto, melhora autenticação geral
+Implementação Adicional (Para Qualquer Opção)
+1. Adicionar Logs de Debug no Webhook
+Localizar o webhook do Stripe e adicionar no início:
+typescriptexport function handleStripeWebhook(req, res) {
+  console.log('🚨 WEBHOOK STRIPE CHAMADO! 🚨');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('Event Type:', req.body?.type);
+  console.log('Headers:', req.headers);
+  
+  // resto do código...
+}
+2. Log de Verificação de Autenticação
+No contexto de autenticação, adicionar:
+typescriptconsole.log('🔍 Verificando autenticação...', {
+  url: window.location.href,
+  hasSuccess: urlParams.has('success'),
+  hasSessionId: urlParams.has('session_id'),
+  currentUser: user?.id
+});
+Instrução para IA do Replit:
+
+Analise a estrutura atual do código de autenticação
+Escolha a opção mais adequada baseada na arquitetura existente
+Implemente a solução escolhida
+Adicione os logs de debug do webhook e autenticação
+Teste o fluxo completo e reporte se o webhook é chamado
+
+Resultado Esperado:
+
+✅ Usuário não é forçado a re-logar no retorno do Stripe
+✅ Webhook é processado corretamente (logs aparecem)
+✅ Planos são atualizados apenas para a loja específica
+✅ Estado da aplicação permanece consistente
+
+Por favor, escolha e implemente a melhor opção baseada na estrutura atual do projeto.

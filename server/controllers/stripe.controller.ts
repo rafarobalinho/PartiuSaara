@@ -497,23 +497,6 @@ export const handleWebhook = async (req: Request, res: Response) => {
     console.log(`🔑 Webhook Secret para modo ${isTestMode ? 'TEST' : 'LIVE'}:`, webhookSecret ? 'PRESENTE' : 'AUSENTE');
 
     if (!webhookSecret) {
-
-
-// Endpoint de teste para verificar se o webhook está acessível
-export const testWebhook = async (req: Request, res: Response) => {
-  console.log('🧪 TESTE DE WEBHOOK CHAMADO!');
-  console.log('Method:', req.method);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  
-  res.json({ 
-    success: true, 
-    message: 'Webhook endpoint está acessível',
-    timestamp: new Date().toISOString(),
-    method: req.method
-  });
-};
-
       console.error(`❌ Webhook Error: Webhook secret para modo ${isTestMode ? 'TESTE' : 'LIVE'} não encontrado.`);
       throw new Error('Webhook secret não configurado para o modo atual');
     }
@@ -694,6 +677,20 @@ export const testWebhook = async (req: Request, res: Response) => {
   }
 
   res.json({ received: true, mode: isTestMode ? 'test' : 'live' });
+};
+
+export const testWebhook = async (req: Request, res: Response) => {
+  console.log('🧪 TESTE DE WEBHOOK CHAMADO!');
+  console.log('Method:', req.method);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+
+  res.json({ 
+    success: true, 
+    message: 'Webhook endpoint está acessível',
+    timestamp: new Date().toISOString(),
+    method: req.method
+  });
 };
 
 export const getSubscriptionDetails = async (req: Request, res: Response) => {
