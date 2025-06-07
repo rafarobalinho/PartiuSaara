@@ -25,6 +25,13 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function Login() {
+  // DIAGNÓSTICO: Log de carregamento da página de login
+  console.log('🚪 [LOGIN-PAGE]', {
+    url: window.location.href,
+    reason: 'página de login carregada',
+    timestamp: new Date().toISOString()
+  });
+
   const { login, isAuthenticated } = useAuth();
   const [, navigate] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);

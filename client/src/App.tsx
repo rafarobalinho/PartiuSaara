@@ -121,6 +121,16 @@ function Router() {
 }
 
 function App() {
+  // DIAGNÓSTICO: Log de inicialização do App
+  console.log('🎯 [APP-INIT]', {
+    url: window.location.href,
+    pathname: window.location.pathname,
+    search: window.location.search,
+    hasSuccess: new URLSearchParams(window.location.search).has('success'),
+    hasSessionId: new URLSearchParams(window.location.search).has('session_id'),
+    timestamp: new Date().toISOString()
+  });
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

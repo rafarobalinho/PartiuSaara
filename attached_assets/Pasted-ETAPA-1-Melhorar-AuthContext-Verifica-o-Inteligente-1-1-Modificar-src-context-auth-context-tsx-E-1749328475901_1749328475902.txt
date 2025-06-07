@@ -1,0 +1,246 @@
+ETAPA 1: Melhorar AuthContext (Verificação Inteligente)
+1.1 Modificar src/context/auth-context.tsx
+Encontrar a lógica atual de verificação de auth e SUBSTITUIR por:
+typescript// Função melhorada de verificação de token
+const verifyAuthToken = async () => {
+  console.log('🔐 [AUTH-CONTEXT] Verificando token...');
+  
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+  
+  if (!token) {
+    console.log('❌ [AUTH-CONTEXT] Nenhum token encontrado');
+    return { isValid: false, user: null };
+  }
+  
+  try {
+    const response = await fetch('/api/auth/verify', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.ok) {
+      const userData = await response.json();
+      console.log('✅ [AUTH-CONTEXT] Token válido', { userId: userData.id });
+      return { isValid: true, user: userData };
+    } else {
+      console.log('❌ [AUTH-CONTEXT] Token inválido - status:', response.status);
+      // Remover token inválido
+      localStorage.removeItem('authToken');
+      sessionStorage.removeItem('authToken');
+      return { isValid: false, user: null };
+    }
+  } catch (error) {
+    console.error('🚨 [AUTH-CONTEXT] Erro na verificação:', error);
+    return { isValid: false, user: null };
+  }
+};
+
+// Modificar o useEffect principal do AuthContext
+useEffect(() => {
+  const checkAuthStatus = async () => {
+    console.log('🔍 [AUTH-CONTEXT] Iniciando verificação de auth');
+    
+    setIsLoading(true);
+    
+    const { isValid, user } = await verifyAuthToken();
+    
+    if (isValid && user) {
+      setUser(user);
+      setIsAuthenticated(true);
+      console.log('✅ [AUTH-CONTEXT] Usuário autenticado:', user.id);
+    } else {
+      setUser(null);
+      setIsAuthenticated(false);
+      console.log('❌ [AUTH-CONTEXT] Usuário não autenticado');
+      
+      // APENAS redirecionar se não estiver em páginas públicas
+      const publicRoutes = ['/', '/login', '/register', '/payment/callback'];
+      const currentPath = window.location.pathname;
+      
+      if (!publicRoutes.some(route => currentPath.startsWith(route))) {
+        console.log('🔄 [AUTH-CONTEXT] Redirecionando para login');
+        navigate('/login');
+      }
+    }
+    
+    setIsLoading(false);
+  };
+  
+  checkAuthStatus();
+}, [navigate]);
+1.2 Verificar se existe endpoint /api/auth/verify
+Se NÃO existir, criar no backend:
+typescript// Em server/routes.ts ou arquivo de rotas
+app.get('/api/auth/verify', authenticateToken, (req, res) => {
+  // Se chegou até aqui, token é válido (passou pelo middleware)
+  res.json({
+    id: req.user.id,
+    email: req.user.email,
+    role: req.user.role,
+    isValid: true
+  });
+});
+
+// Middleware de verificação de token (se não existir)
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Token não fornecido' });
+  }
+  
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Token inválido' });
+    }
+    req.user = user;
+    next();
+  });
+}
+ETAPA 2: Criar Rota de Callback Dedicada
+2.1 Criar src/pages/payment/callback.tsx
+typescriptimport { useEffect, useState } from 'react';
+import { useLocation } from 'wouter'; // ou seu sistema de rotas
+
+export function PaymentCallback() {
+  const [status, setStatus] = useState('processing');
+  const [, navigate] = useLocation();
+  
+  useEffect(() => {
+    const processCallback = async () => {
+      console.log('💳 [PAYMENT-CALLBACK] Processando callback do Stripe');
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const storeId = urlParams.get('storeId');
+      const sessionId = urlParams.get('session_id');
+      const success = urlParams.get('success');
+      
+      console.log('💳 [PAYMENT-CALLBACK] Parâmetros:', { storeId, sessionId, success });
+      
+      if (!storeId || !sessionId) {
+        console.error('❌ [PAYMENT-CALLBACK] Parâmetros inválidos');
+        setStatus('error');
+        return;
+      }
+      
+      if (success === 'true') {
+        // Aguardar webhook processar (dar tempo para webhook do Stripe)
+        console.log('⏳ [PAYMENT-CALLBACK] Aguardando webhook processar...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        setStatus('success');
+        
+        // Redirecionar para página da loja
+        console.log('🎯 [PAYMENT-CALLBACK] Redirecionando para loja:', storeId);
+        navigate(`/seller/stores/${storeId}/subscription?updated=true`);
+      } else {
+        setStatus('cancelled');
+        setTimeout(() => {
+          navigate(`/seller/stores/${storeId}/subscription?cancelled=true`);
+        }, 2000);
+      }
+    };
+    
+    processCallback();
+  }, [navigate]);
+  
+  const getStatusMessage = () => {
+    switch (status) {
+      case 'processing':
+        return {
+          title: '⏳ Processando Pagamento',
+          message: 'Aguarde enquanto confirmamos sua assinatura...',
+          color: 'text-blue-600'
+        };
+      case 'success':
+        return {
+          title: '✅ Pagamento Confirmado',
+          message: 'Sua assinatura foi ativada com sucesso!',
+          color: 'text-green-600'
+        };
+      case 'cancelled':
+        return {
+          title: '❌ Pagamento Cancelado',
+          message: 'O pagamento foi cancelado.',
+          color: 'text-red-600'
+        };
+      case 'error':
+        return {
+          title: '🚨 Erro no Processamento',
+          message: 'Ocorreu um erro. Tente novamente.',
+          color: 'text-red-600'
+        };
+      default:
+        return { title: '', message: '', color: '' };
+    }
+  };
+  
+  const statusInfo = getStatusMessage();
+  
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+        <h1 className={`text-2xl font-bold mb-4 ${statusInfo.color}`}>
+          {statusInfo.title}
+        </h1>
+        <p className="text-gray-600 mb-6">{statusInfo.message}</p>
+        
+        {status === 'processing' && (
+          <div className="flex justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+2.2 Adicionar rota no sistema de rotas
+No arquivo de rotas principal (App.tsx ou routes.tsx):
+typescript// Adicionar a rota ANTES das rotas protegidas
+<Route path="/payment/callback" component={PaymentCallback} />
+ETAPA 3: Modificar URLs do Stripe
+3.1 Atualizar server/controllers/stripe.controller.ts
+Modificar as URLs de sucesso e cancelamento:
+typescript// ENCONTRAR onde são definidas as URLs e ALTERAR para:
+const baseUrl = process.env.NODE_ENV === 'production' 
+  ? 'https://seu-dominio.com' 
+  : req.get('origin');
+
+const successUrl = `${baseUrl}/payment/callback?storeId=${storeId}&success=true&session_id={CHECKOUT_SESSION_ID}`;
+const cancelUrl = `${baseUrl}/payment/callback?storeId=${storeId}&success=false`;
+
+console.log('🔗 [STRIPE] URLs configuradas:', { successUrl, cancelUrl });
+ETAPA 4: Testes e Validação
+4.1 Verificar logs após implementação
+Fluxo esperado nos logs:
+🔐 [AUTH-CONTEXT] Verificando token...
+✅ [AUTH-CONTEXT] Token válido
+💳 [PAYMENT-CALLBACK] Processando callback do Stripe
+⏳ [PAYMENT-CALLBACK] Aguardando webhook processar...
+🎯 [PAYMENT-CALLBACK] Redirecionando para loja: 4
+🔍 [AUTH-CONTEXT] Usuário autenticado: 6
+4.2 Testes a realizar:
+
+Teste de pagamento - Verificar se vai para /payment/callback
+Teste de auth - Verificar se não força re-login desnecessariamente
+Teste de webhook - Verificar se plano é atualizado corretamente
+
+Instruções para IA:
+
+Implementar ETAPA 1 - Melhorar AuthContext
+Implementar ETAPA 2 - Criar página de callback
+Implementar ETAPA 3 - Modificar URLs do Stripe
+Testar fluxo completo - Fazer teste de pagamento
+Reportar logs - Confirmar se funciona conforme esperado
+
+Resultado Esperado:
+
+✅ Auth mais inteligente (verifica token validity)
+✅ Callback isolado (não interfere com auth)
+✅ UX melhor (usuário vê "processando")
+✅ Webhook tem tempo para processar
+✅ Planos atualizados corretamente por loja
