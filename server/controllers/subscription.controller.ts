@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import { storage } from '../storage';
 import { z } from 'zod';
 import { sellerMiddleware } from '../middleware/auth';
+import { db } from '../db';
+import { stores } from '../../shared/schema';
+import { and, eq } from 'drizzle-orm';
 
 // Subscription plans data
 const subscriptionPlans = [
@@ -205,9 +208,6 @@ export async function getMySubscription(req: Request, res: Response) {
     res.status(500).json({ message: 'Internal server error' });
   }
 }
-import { Request, Response } from 'express';
-import { db } from '../db';
-
 // Definir planos estáticos de acordo com o PRD
 const plans = [
   {
@@ -437,8 +437,7 @@ export const checkPlanLimits = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Erro ao verificar limites do plano' });
   }
 };
-import { and, eq } from 'drizzle-orm';
-import { stores } from '../db/schema';
+
 
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
