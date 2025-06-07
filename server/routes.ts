@@ -682,7 +682,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Cupons/promoções dos produtos da loja
             const couponsResult = await db.select()
               .from(promotions)
-              .where(sql`${promotions.productId} = ANY(${JSON.stringify(productIds)})`);
+              .where(sql`${promotions.productId} = ANY(${JSON.stringify(productIds})`);
             totalCoupons += couponsResult.length;
           }
         }
@@ -810,9 +810,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         result 
       });
     } catch (error) {
-      console.error('Erro ao limpar URLs blob:', error);
-      ```tool_code
-return res.status(500).json({ 
+      console.error('Erro ao limpar URLs blob:',error);
+      return res.status(500).json({ 
         success: false, 
         message: 'Erro ao executar limpeza de URLs blob.',
         error: error instanceof Error ? error.message : String(error)
