@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
@@ -38,7 +37,7 @@ interface Subscription {
 }
 
 export default function SellerSubscription() {
-  const { isAuthenticated, isSeller, user } = useAuth();
+  const { isAuthenticated, isSeller, user, refreshStores } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -113,7 +112,7 @@ export default function SellerSubscription() {
   });
 
   // Fetch current subscription for this specific store
-  const { data: subscription, isLoading: isSubscriptionLoading } = useQuery({
+  const { data: subscription, isLoading: isSubscriptionLoading, refetch: refetchSubscription } = useQuery({
     queryKey: ['/api/subscriptions/my-plan', storeIdFromUrl],
     queryFn: async () => {
       try {
@@ -207,7 +206,7 @@ export default function SellerSubscription() {
 
         const result = await response.json();
         console.log('[handlePurchase] ✅ Resposta completa do checkout:', result);
-        
+
         if (result.mode === 'test') {
           console.log('[handlePurchase] 🧪 MODO TESTE ATIVO - Nenhum pagamento real será processado');
         }
@@ -220,7 +219,7 @@ export default function SellerSubscription() {
     },
     onSuccess: (data) => {
       console.log('[stripeCheckout] ✅ Resposta recebida:', JSON.stringify(data, null, 2));
-      
+
       // Verificar estrutura da resposta
       if (!data || typeof data !== 'object') {
         console.error('[stripeCheckout] ❌ Resposta inválida - não é um objeto:', data);
@@ -240,7 +239,7 @@ export default function SellerSubscription() {
       // Verificar se temos uma URL de checkout para redirecionamento
       if (data.success && data.url) {
         console.log('[stripeCheckout] 🚀 Redirecionando para checkout URL:', data.url);
-        
+
         // Validar se a URL é válida
         try {
           new URL(data.url);
@@ -361,6 +360,39 @@ export default function SellerSubscription() {
   // Obter informações da loja atual
   const currentStore = user?.stores?.find(store => store.id === storeIdFromUrl);
 
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const sessionId = urlParams.get('session_id');
+
+    if (success === 'true' && sessionId) {
+      console.log('✅ Retorno do Stripe detectado - Checkout realizado com sucesso!', { 
+        sessionId,
+        storeId: storeIdFromUrl,
+        url: window.location.href 
+      });
+
+      toast({
+        title: "Pagamento realizado com sucesso!",
+        description: "Sua assinatura foi ativada. Atualizando informações...",
+      });
+
+      // Aguardar um pouco para o webhook processar
+      setTimeout(() => {
+        console.log('🔄 Recarregando dados após retorno do Stripe...');
+        refetchSubscription();
+
+        // Também recarregar as lojas no contexto
+        if (refreshStores) {
+          refreshStores();
+        }
+      }, 2000);
+
+      // Limpar URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [storeIdFromUrl, refetchSubscription, refreshStores]);
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
@@ -375,7 +407,7 @@ export default function SellerSubscription() {
           <span>/</span>
           <span className="text-gray-800">Assinatura</span>
         </nav>
-        
+
         <h1 className="text-2xl font-bold mb-2">
           Planos de Assinatura - {currentStore?.name || `Loja #${storeIdFromUrl}`}
         </h1>

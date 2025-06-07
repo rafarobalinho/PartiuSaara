@@ -1,0 +1,57 @@
+Apenas Diagnóstico
+Objetivo: APENAS ADICIONAR LOGS (SEM MODIFICAR FUNCIONALIDADE)
+⚠️ IMPORTANTE: NÃO MODIFICAR NENHUMA LÓGICA EXISTENTE - APENAS ADICIONAR LOGS
+Logs Seguros para Adicionar
+1. No Arquivo Principal (App.tsx ou similar)
+Adicionar NO INÍCIO do componente, sem modificar nada:
+typescript// ADICIONAR apenas no início do componente App
+console.log('🎯 [APP-INIT]', {
+  url: window.location.href,
+  pathname: window.location.pathname,
+  search: window.location.search,
+  hasSuccess: new URLSearchParams(window.location.search).has('success'),
+  hasSessionId: new URLSearchParams(window.location.search).has('session_id'),
+  timestamp: new Date().toISOString()
+});
+2. No Context de Autenticação
+Encontrar o arquivo auth-context.tsx e adicionar logs:
+typescript// ADICIONAR no início de qualquer função que verifica autenticação
+console.log('🔍 [AUTH-CONTEXT]', {
+  function: 'nome-da-funcao-atual',
+  url: window.location.href,
+  user: user?.id || 'não autenticado',
+  timestamp: new Date().toISOString()
+});
+3. Na Página de Login
+No arquivo login.tsx, adicionar:
+typescript// ADICIONAR no início do componente Login
+console.log('🚪 [LOGIN-PAGE]', {
+  url: window.location.href,
+  reason: 'página de login carregada',
+  timestamp: new Date().toISOString()
+});
+4. Em Componentes de Rota Protegida (se existir)
+Procurar por ProtectedRoute ou similar:
+typescript// ADICIONAR no início do componente
+console.log('🛡️ [PROTECTED-ROUTE]', {
+  url: window.location.href,
+  timestamp: new Date().toISOString()
+});
+Instruções para IA:
+
+APENAS ADICIONAR os logs acima nos arquivos correspondentes
+NÃO MODIFICAR nenhuma lógica existente
+NÃO ALTERAR imports, exports ou estrutura
+NÃO TOCAR em verificações de autenticação
+APENAS colocar os console.log() no início dos componentes/funções
+
+Arquivos para Procurar:
+
+src/App.tsx
+src/context/auth-context.tsx
+src/pages/auth/login.tsx
+Qualquer arquivo com "ProtectedRoute" ou "AuthGuard"
+
+Resultado Esperado:
+Logs no console mostrando a ordem de execução durante o retorno do Stripe, sem alterar nenhuma funcionalidade.
+⚠️ REFORÇANDO: APENAS LOGS - NÃO MODIFICAR LÓGICA
