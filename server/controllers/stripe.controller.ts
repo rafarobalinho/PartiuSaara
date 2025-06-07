@@ -477,6 +477,8 @@ export const handleWebhook = async (req: Request, res: Response) => {
   console.log('Body length:', req.body ? req.body.length : 'undefined');
   console.log('Content-Type:', req.headers['content-type']);
   console.log('Stripe-Signature presente:', !!req.headers['stripe-signature']);
+  console.log('Event Type (se disponível):', req.body?.type || 'N/A');
+  console.log('🔍 DEBUGGING: Webhook foi chamado após checkout!');
   console.log('===============================');
 
   const localStripe = getStripeClient();
@@ -676,6 +678,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
       console.log(`[Webhook] Evento não tratado (dinâmico): ${event.type}`);
   }
 
+  console.log(`🏁 WEBHOOK PROCESSADO COMPLETAMENTE - Modo: ${isTestMode ? 'test' : 'live'}`);
   res.json({ received: true, mode: isTestMode ? 'test' : 'live' });
 };
 
