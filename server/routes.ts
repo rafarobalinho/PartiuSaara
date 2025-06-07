@@ -167,14 +167,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota segura para vendedores obterem apenas seus produtos
   app.get('/api/seller/products', authMiddleware, async (req: Request, res: Response) => {
     console.log('[API /api/seller/products] Handler atingido');
-    
+
     // Garantir que sempre retornamos JSON
     res.setHeader('Content-Type', 'application/json');
-    
+
     try {
       const user = req.user;
       console.log('[API /api/seller/products] Usuário autenticado:', user ? `ID ${user.id}` : 'Nenhum');
-      
+
       if (!user) {
         console.log('[API /api/seller/products] ❌ Usuário não autenticado');
         return res.status(401).json({ 
@@ -187,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { storeId } = req.query;
       console.log('[API /api/seller/products] StoreId solicitado:', storeId);
-      
+
       let query = `
         SELECT p.*, s.name as store_name 
         FROM products p 
@@ -195,27 +195,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE s.user_id = $1
       `;
       let params = [user.id];
-      
+
       // Se um storeId específico for fornecido, filtrar por ele
       if (storeId) {
         query += ' AND p.store_id = $2';
         params.push(storeId);
         console.log('[API /api/seller/products] Filtrando por storeId:', storeId);
       }
-      
+
       query += ' ORDER BY p.created_at DESC';
-      
+
       console.log('[API /api/seller/products] Executando query no banco...');
       const { rows } = await pool.query(query, params);
       console.log('[API /api/seller/products] Produtos encontrados no banco:', rows.length);
-      
+
       // Buscar imagens para cada produto
       const productsWithImages = await Promise.all(
         rows.map(async (product) => {
           try {
             const imagesQuery = 'SELECT * FROM product_images WHERE product_id = $1 ORDER BY is_primary DESC, display_order ASC';
             const imagesResult = await pool.query(imagesQuery, [product.id]);
-            
+
             return {
               ...product,
               images: imagesResult.rows.map(img => img.image_url),
@@ -237,18 +237,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         })
       );
-      
+
       console.log(`[API /api/seller/products] ✅ Produtos processados: ${productsWithImages.length}`);
-      
+
       return res.status(200).json({
         products: productsWithImages,
         count: productsWithImages.length,
         success: true
       });
-      
+
     } catch (error) {
       console.error('[API /api/seller/products] ❌ Erro crítico no handler:', error);
-      
+
       // Garantir que mesmo erros retornem JSON
       return res.status(500).json({
         products: [],
@@ -592,7 +592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Stripe routes for payment processing
   app.post('/api/stripe/checkout', authMiddleware, StripeController.createCheckoutSession);
   app.get('/api/stripe/checkout', (req, res) => res.json({ message: 'Stripe checkout endpoint is working' }));
-  app.post('/api/stripe/webhook', StripeController.handleWebhook);
+  app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), StripeController.handleWebhook);
   app.get('/api/stripe/subscription', authMiddleware, StripeController.getSubscriptionDetails);
   app.post('/api/stripe/cancel', authMiddleware, StripeController.cancelSubscription);
 
@@ -628,12 +628,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Se um storeId específico foi solicitado, verificar se o usuário é o proprietário
         const requestedStoreIdNum = parseInt(requestedStoreId as string);
         const isOwner = stores.some(store => store.id === requestedStoreIdNum);
-        
+
         if (!isOwner) {
           console.log("❌ Usuário não é proprietário da loja solicitada");
           return res.status(403).json({ message: 'Acesso negado: você não é proprietário desta loja' });
         }
-        
+
         targetStoreIds = [requestedStoreIdNum];
         console.log("🏪 Usando loja específica ID:", requestedStoreIdNum);
       } else {
@@ -654,12 +654,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const storeProducts = await db.select()
             .from(products)
             .where(eq(products.storeId, storeId));
-          
+
           totalProducts += storeProducts.length;
           totalActiveProducts += storeProducts.filter(p => p.isActive).length;
-          
+
           const productIds = storeProducts.map(p => p.id);
-          
+
           if (productIds.length > 0) {
             // Reservas totais (excluindo canceladas) - usando inArray para sintaxe correta
             const reservationsResult = await db.select()
@@ -811,7 +811,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Erro ao limpar URLs blob:', error);
-      return res.status(500).json({ 
+      ```tool_code
+return res.status(500).json({ 
         success: false, 
         message: 'Erro ao executar limpeza de URLs blob.',
         error: error instanceof Error ? error.message : String(error)
@@ -926,7 +927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/users', authMiddleware, adminMiddleware, AdminUserController.listAdminUsers);
   app.post('/api/admin/users', authMiddleware, adminMiddleware, AdminUserController.createAdminUser);
   app.post('/api/admin/users/:userId/promote', authMiddleware, adminMiddleware, AdminUserController.promoteUserToAdmin);
-  
+
   // Rotas administrativas para geocodificação
   app.get('/api/admin/stores-geocoding', authMiddleware, adminMiddleware, AdminController.getAllStoresGeocodingStatus);
   app.post('/api/admin/geocode-store/:id', authMiddleware, adminMiddleware, AdminController.geocodeStoreById);
@@ -1043,6 +1044,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Rota de teste do webhook (para debug)
+  //app.get('/api/stripe/webhook-test', StripeController.testWebhook);
+  //app.post('/api/stripe/webhook-test', StripeController.testWebhook);
 
   const httpServer = createServer(app);
   return httpServer;
