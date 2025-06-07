@@ -91,6 +91,9 @@ async function updateStoreSubscription(userId: number, storeId: number, subscrip
   try {
     console.log(`🔄 Atualizando assinatura - User: ${userId}, Store: ${storeId}, Plan: ${subscriptionData.plan}`);
 
+    // === VALIDAÇÃO E DEBUG DA LOJA ===
+    console.log(`[updateStoreSubscription] 🔍 Procurando loja com ID: ${storeId} para usuário: ${userId}`);
+
     // Validar se a loja pertence ao usuário
     const store = await db.query.stores.findFirst({
       where: and(eq(stores.id, storeId), eq(stores.userId, userId))
@@ -98,28 +101,69 @@ async function updateStoreSubscription(userId: number, storeId: number, subscrip
 
     if (!store) {
       console.error(`❌ Loja ${storeId} não encontrada ou não pertence ao usuário ${userId}`);
-      return false;
+
+      // === DEBUG: Listar todas as lojas do usuário ===
+      const userStores = await db.query.stores.findMany({
+        where: eq(stores.userId, userId),
+        columns: { id: true, name: true, subscriptionPlan: true }
+      });
+      console.log(`[DEBUG] Lojas encontradas para usuário ${userId}:`, userStores);
+
+      throw new Error(`Loja ${storeId} não encontrada ou não pertence ao usuário ${userId}`);
     }
 
-    // Atualizar dados da assinatura APENAS na loja específica
-    const result = await db.update(stores)
+    console.log(`[updateStoreSubscription] ✅ Loja encontrada:`, {
+      id: store.id,
+      name: store.name,
+      currentPlan: store.subscriptionPlan,
+      newPlan: subscriptionData.plan
+    });
+
+    // Calcular data de término da assinatura
+    const now = new Date();
+    const endDate = new Date(now);
+    if (subscriptionData.interval === 'yearly') {
+      endDate.setFullYear(endDate.getFullYear() + 1);
+    } else {
+      endDate.setMonth(endDate.getMonth() + 1);
+    }
+
+    // === LOG DA QUERY DE ATUALIZAÇÃO ===
+    console.log(`[updateStoreSubscription] 📝 Executando UPDATE para:`, {
+      storeId,
+      userId,
+      newPlan: subscriptionData.plan,
+      endDate: endDate.toISOString()
+    });
+
+    // Atualizar apenas a loja específica
+    const updateResult = await db.update(stores)
       .set({
         subscriptionPlan: subscriptionData.plan,
-        subscriptionStatus: subscriptionData.status,
-        subscriptionStartDate: subscriptionData.startDate,
-        subscriptionEndDate: subscriptionData.endDate,
+        subscriptionStatus: 'active',
+        subscriptionEndDate: endDate.toISOString(),
+        subscriptionStartDate: now.toISOString(),
         stripeCustomerId: subscriptionData.customerId,
         stripeSubscriptionId: subscriptionData.subscriptionId,
-        updatedAt: new Date().toISOString()
+        updatedAt: now.toISOString()
       })
-      .where(and(eq(stores.id, storeId), eq(stores.userId, userId)));
+      .where(and(eq(stores.id, storeId), eq(stores.userId, userId)))
+      .returning();
 
-    console.log(`✅ Assinatura atualizada APENAS para loja ${storeId} do usuário ${userId}`);
-    console.log(`📊 Plano aplicado: ${subscriptionData.plan}, Status: ${subscriptionData.status}`);
-    return true;
+    console.log(`✅ Assinatura atualizada com sucesso para loja ${storeId}`);
+    console.log('📊 Resultado da atualização:', updateResult);
+
+    // === VERIFICAÇÃO PÓS-ATUALIZAÇÃO ===
+    const updatedStores = await db.query.stores.findMany({
+      where: eq(stores.userId, userId),
+      columns: { id: true, name: true, subscriptionPlan: true }
+    });
+    console.log(`[VERIFICAÇÃO] Estado de todas as lojas do usuário ${userId} após atualização:`, updatedStores);
+
+    return updateResult[0];
   } catch (error) {
-    console.error(`❌ Erro ao atualizar assinatura da loja ${storeId}:`, error);
-    return false;
+    console.error(`❌ Erro ao atualizar assinatura:`, error);
+    throw error;
   }
 }
 
@@ -325,24 +369,39 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
     // Validar se a loja pertence ao usuário
 
-    // Criar sessão de checkout do Stripe
-    const session = await localStripe.checkout.sessions.create({
-      customer: customerId,
+    // === LOGS ANTES DA CRIAÇÃO DA SESSÃO ===
+    const sessionData = {
       payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{
+        price: priceId,
+        quantity: 1,
+      }],
       mode: 'subscription',
       success_url: `${baseUrl}/seller/stores/${storeId}/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/seller/stores/${storeId}/subscription?canceled=true`,
       client_reference_id: `${userId}:${storeId}`,
       metadata: {
-        userId: user.id.toString(),
+        userId: userId.toString(),
         storeId: store.id.toString(),
-        plan: planId.toString(),
-        interval: interval,
-        mode: isTestMode ? 'test' : 'live'
+        plan: planId,
+        interval: interval
       }
+    };
+
+    console.log(`[createCheckout] 📝 Dados da sessão que será criada:`, {
+      client_reference_id: sessionData.client_reference_id,
+      metadata: sessionData.metadata,
+      success_url: sessionData.success_url,
+      cancel_url: sessionData.cancel_url
     });
-    console.log('✅ CHECKPOINT 11: Sessão criada com sucesso (dinâmico):', session.id);
+
+    // Criar sessão de checkout
+    const session = await localStripe.checkout.sessions.create(sessionData);
+
+    // === LOGS APÓS CRIAÇÃO DA SESSÃO ===
+    console.log(`[createCheckout] ✅ Sessão criada com ID: ${session.id}`);
+    console.log(`[createCheckout] 📋 Metadata da sessão criada:`, session.metadata);
+    console.log(`[createCheckout] 📋 Client reference ID da sessão criada:`, session.client_reference_id);
 
     // CHECKPOINT 12: Retornar resposta
     console.log('🔍 CHECKPOINT 12: Preparando resposta (dinâmico)');
@@ -353,6 +412,58 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Internal server error', details: error.message, mode: isTestMode ? 'test' : 'live', checkpoint: 'GLOBAL_ERROR_DYNAMIC' });
   }
 };
+
+function extractSessionData(session: any) {
+  console.log(`[extractSessionData] 🔍 Iniciando extração de dados da sessão`);
+  console.log(`[extractSessionData] client_reference_id:`, session.client_reference_id);
+  console.log(`[extractSessionData] metadata:`, session.metadata);
+
+  // Primeiro, tentar extrair do client_reference_id (formato: userId:storeId)
+  if (session.client_reference_id) {
+    console.log(`[extractSessionData] 📋 Processando client_reference_id: ${session.client_reference_id}`);
+    const parts = session.client_reference_id.split(':');
+    console.log(`[extractSessionData] 📋 Parts do split:`, parts);
+
+    if (parts.length >= 2) {
+      const userId = parseInt(parts[0]);
+      const storeId = parseInt(parts[1]);
+      const metadata = session.metadata || {};
+
+      console.log(`[extractSessionData] ✅ Dados extraídos do client_reference_id:`, {
+        userId: !isNaN(userId) ? userId : null,
+        storeId: !isNaN(storeId) ? storeId : null,
+        plan: metadata.plan || null,
+        interval: metadata.interval || null
+      });
+
+      return {
+        userId: !isNaN(userId) ? userId : null,
+        storeId: !isNaN(storeId) ? storeId : null,
+        plan: metadata.plan || null,
+        interval: metadata.interval || null
+      };
+    } else {
+      console.log(`[extractSessionData] ⚠️ client_reference_id não tem formato esperado (userId:storeId)`);
+    }
+  } else {
+    console.log(`[extractSessionData] ⚠️ client_reference_id não encontrado`);
+  }
+
+  // Fallback: tentar extrair apenas do metadata
+  console.log(`[extractSessionData] 📋 Fallback: tentando extrair apenas do metadata`);
+  const metadata = session.metadata || {};
+
+  const fallbackData = {
+    userId: metadata.userId ? parseInt(metadata.userId) : null,
+    storeId: metadata.storeId ? parseInt(metadata.storeId) : null,
+    plan: metadata.plan || null,
+    interval: metadata.interval || null
+  };
+
+  console.log(`[extractSessionData] 📋 Dados do fallback:`, fallbackData);
+
+  return fallbackData;
+}
 
 export const handleWebhook = async (req: Request, res: Response) => {
   const localStripe = getStripeClient();
@@ -385,28 +496,59 @@ export const handleWebhook = async (req: Request, res: Response) => {
   console.log(`[Webhook] Processando evento: ${event.type} (modo: ${isTestMode ? 'test' : 'live'})`);
 
   switch (event.type) {
-    case 'checkout.session.completed': {
-      const session = event.data.object as Stripe.Checkout.Session;
-      console.log('💳 Checkout session completed:', session.id);
+    case 'checkout.session.completed':
+      try {
+        const session = event.data.object;
 
-      // Extrair userId e storeId do client_reference_id (formato: "userId:storeId")
-      const clientRefId = session.client_reference_id || '';
-      const [userIdStr, storeIdStr] = clientRefId.split(':');
+        // === LOGS DE DEBUG DETALHADOS ===
+        console.log('=== WEBHOOK DEBUG ===');
+        console.log('Event type:', event.type);
+        console.log('Session metadata:', session.metadata);
+        console.log('Client reference ID:', session.client_reference_id);
+        console.log('Session ID:', session.id);
+        console.log('Customer ID:', session.customer);
+        console.log('Subscription ID:', session.subscription);
+        console.log('Session object completo:', JSON.stringify(session, null, 2));
+        console.log('===================');
 
-      const userId = parseInt(userIdStr);
-      const storeId = parseInt(storeIdStr);
+        console.log('[Webhook] checkout.session.completed - Session ID:', session.id);
 
-      if (!userId || !storeId) {
-        console.error('❌ UserId ou StoreId não encontrado na sessão:', { userId, storeId, clientRefId });
-        return res.status(400).json({ error: 'UserId ou StoreId não encontrado' });
+        // Extrair informações da sessão
+        const { userId, storeId, plan, interval } = extractSessionData(session);
+
+        // === LOGS DE DEBUG PARA DADOS EXTRAÍDOS ===
+        console.log('=== DADOS EXTRAÍDOS DEBUG ===');
+        console.log('userId extraído:', userId);
+        console.log('storeId extraído:', storeId);
+        console.log('plan extraído:', plan);
+        console.log('interval extraído:', interval);
+        console.log('==============================');
+
+        if (!userId || !storeId || !plan) {
+          console.error('[Webhook] ❌ Dados incompletos na sessão:', { userId, storeId, plan });
+          console.error('[Webhook] ❌ Session metadata era:', session.metadata);
+          console.error('[Webhook] ❌ Client reference ID era:', session.client_reference_id);
+          break;
+        }
+
+        // === LOG ANTES DA ATUALIZAÇÃO ===
+        console.log(`[Webhook] 🔄 INICIANDO atualização - User: ${userId}, Store: ${storeId}, Plan: ${plan}`);
+
+        // Atualizar assinatura da loja específica
+        await updateStoreSubscription(userId, storeId, {
+          plan,
+          interval,
+          subscriptionId: session.subscription,
+          customerId: session.customer
+        });
+
+        // === LOG APÓS A ATUALIZAÇÃO ===
+        console.log(`[Webhook] ✅ CONCLUÍDA atualização - User: ${userId}, Store: ${storeId}, Plan: ${plan}`);
+      } catch (error) {
+        console.error('[Webhook] ❌ Erro ao processar checkout.session.completed:', error);
+        console.error('[Webhook] ❌ Stack trace:', error.stack);
       }
-
-      console.log(`🎯 Processando checkout para loja específica - User: ${userId}, Store: ${storeId}`);
-
-      // Processar o checkout completo para a loja específica
-      await handleCheckoutCompleted(session, userId, storeId);
       break;
-    }
 
     case 'customer.subscription.updated':
       try {
@@ -465,7 +607,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice;
         console.log('💰 Payment succeeded for invoice:', invoice.id);
-  
+
         if (invoice.subscription) {
           const localStripe = getStripeClient();
           if (!localStripe) {
@@ -475,7 +617,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
           const subscription = await localStripe.subscriptions.retrieve(invoice.subscription as string);
           const userId = parseInt(subscription.metadata?.userId || '');
           const storeId = parseInt(subscription.metadata?.storeId || '');
-  
+
           if (userId && storeId) {
             console.log(`💰 Processando pagamento bem-sucedido - User: ${userId}, Store: ${storeId}`);
             await handlePaymentSucceeded(subscription, userId, storeId);
@@ -485,11 +627,11 @@ export const handleWebhook = async (req: Request, res: Response) => {
         }
         break;
       }
-  
+
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
         console.log('❌ Payment failed for invoice:', invoice.id);
-  
+
         if (invoice.subscription) {
           const localStripe = getStripeClient();
           if (!localStripe) {
@@ -499,7 +641,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
           const subscription = await localStripe.subscriptions.retrieve(invoice.subscription as string);
           const userId = parseInt(subscription.metadata?.userId || '');
           const storeId = parseInt(subscription.metadata?.storeId || '');
-  
+
           if (userId && storeId) {
             console.log(`❌ Processando falha de pagamento - User: ${userId}, Store: ${storeId}`);
             await handlePaymentFailed(subscription, userId, storeId);

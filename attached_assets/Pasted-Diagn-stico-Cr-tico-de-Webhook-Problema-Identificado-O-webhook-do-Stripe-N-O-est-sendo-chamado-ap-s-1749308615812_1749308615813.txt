@@ -1,0 +1,84 @@
+Diagnóstico Crítico de Webhook
+Problema Identificado
+O webhook do Stripe NÃO está sendo chamado após o pagamento. O storeId está correto, mas não há logs do webhook no console do servidor, indicando que os eventos do Stripe não estão chegando.
+Diagnóstico Necessário
+1. Verificar se o Webhook Existe e Está Ativo
+Por favor, verifique se existe um arquivo de webhook no projeto:
+
+server/controllers/webhook.controller.ts
+server/controllers/stripe-webhook.controller.ts
+Ou similar
+
+2. Verificar Rota do Webhook
+Verifique se existe uma rota configurada para o webhook, algo como:
+typescript// No arquivo de rotas (app.ts, index.ts, ou routes/)
+app.post('/api/stripe/webhook', webhookController);
+// ou
+app.post('/webhook/stripe', webhookController);
+3. Verificar Configuração no Painel do Stripe
+Se o webhook existe no código, o problema pode estar na configuração do Stripe:
+Passos para verificar no Stripe Dashboard:
+
+Acesse o painel do Stripe (dashboard.stripe.com)
+Vá em "Developers" > "Webhooks"
+Verifique se existe um webhook configurado
+A URL deve apontar para: https://seu-replit-url.replit.dev/api/stripe/webhook
+Verifique se os eventos estão configurados:
+
+checkout.session.completed
+invoice.payment_succeeded
+customer.subscription.updated
+customer.subscription.deleted
+
+
+
+4. Teste de Conectividade do Webhook
+Se o webhook existe, adicione um log básico no início da função:
+typescriptexport async function handleStripeWebhook(req: Request, res: Response) {
+  console.log('🚨 WEBHOOK CHAMADO! 🚨');
+  console.log('Headers:', req.headers);
+  console.log('Body type:', typeof req.body);
+  
+  // resto do código...
+}
+5. Verificar Middleware de Body Parser
+O webhook precisa de configuração especial para receber dados do Stripe:
+typescript// Deve ter algo assim no app.ts ou index.ts
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+Possíveis Cenários:
+Cenário A: Webhook não existe no código
+
+Solução: Criar o webhook controller
+Prioridade: Alta
+
+Cenário B: Webhook existe mas rota não configurada
+
+Solução: Adicionar rota no arquivo principal
+Prioridade: Alta
+
+Cenário C: Webhook configurado mas URL errada no Stripe
+
+Solução: Corrigir URL no painel do Stripe
+Prioridade: Média
+
+Cenário D: Webhook configurado mas eventos não selecionados
+
+Solução: Adicionar eventos necessários no Stripe
+Prioridade: Média
+
+Ação Imediata Solicitada:
+
+Verificar se existe arquivo de webhook
+Verificar se rota está configurada
+Adicionar log básico no webhook (se existir)
+Fazer novo teste de pagamento
+Reportar se aparecem logs do webhook
+
+Resultado Esperado:
+Após as verificações, deveremos ver logs como:
+🚨 WEBHOOK CHAMADO! 🚨
+Event type: checkout.session.completed
+Session ID: cs_test_...
+Se não aparecerem logs, o problema é de configuração de webhook.
+Se aparecerem logs, o problema é na lógica de processamento.
+Por favor, execute estes diagnósticos e reporte os resultados para identificarmos a causa raiz.
