@@ -110,14 +110,14 @@ export async function purchaseSubscription(req: Request, res: Response) {
     // Ensure user is a seller
     sellerMiddleware(req, res, async () => {
       const user = req.user!;
-      
+
       // Validate request body
       const purchaseSchema = z.object({
         planId: z.enum(['freemium', 'start', 'pro', 'premium']),
         interval: z.enum(['monthly', 'yearly']),
         // In a real app, we would have payment details here
       });
-      
+
       const validationResult = purchaseSchema.safeParse(req.body);
       if (!validationResult.success) {
         return res.status(400).json({ 
@@ -125,25 +125,25 @@ export async function purchaseSubscription(req: Request, res: Response) {
           errors: validationResult.error.errors 
         });
       }
-      
+
       const { planId, interval } = validationResult.data;
-      
+
       // Get the plan
       const plan = subscriptionPlans.find(p => p.id === planId);
       if (!plan) {
         return res.status(404).json({ message: 'Subscription plan not found' });
       }
-      
+
       // In a real app, we would process payment here
-      
+
       // Get the user's store
       const stores = await storage.getStores({ search: '' });
       const userStore = stores.find(store => store.userId === user.id);
-      
+
       if (!userStore) {
         return res.status(404).json({ message: 'Store not found. Please create a store first.' });
       }
-      
+
       // Calculate end date (1 month or 1 year from now)
       const now = new Date();
       const endDate = new Date(now);
@@ -152,13 +152,13 @@ export async function purchaseSubscription(req: Request, res: Response) {
       } else {
         endDate.setFullYear(endDate.getFullYear() + 1);
       }
-      
+
       // Update the store's subscription
       const updatedStore = await storage.updateStore(userStore.id, {
         subscriptionPlan: planId,
         subscriptionEndDate: endDate
       });
-      
+
       res.json({
         message: 'Subscription purchased successfully',
         plan: planId,
@@ -179,18 +179,18 @@ export async function getMySubscription(req: Request, res: Response) {
     // Ensure user is a seller
     sellerMiddleware(req, res, async () => {
       const user = req.user!;
-      
+
       // Get the user's store
       const stores = await storage.getStores({ search: '' });
       const userStore = stores.find(store => store.userId === user.id);
-      
+
       if (!userStore) {
         return res.status(404).json({ message: 'Store not found. Please create a store first.' });
       }
-      
+
       // Get the plan
       const plan = subscriptionPlans.find(p => p.id === userStore.subscriptionPlan);
-      
+
       res.json({
         plan,
         endDate: userStore.subscriptionEndDate,
@@ -359,7 +359,7 @@ export const getCurrentPlan = async (req: Request, res: Response) => {
     }
 
     const userPlan = plans.find(plan => plan.id === user.planId) || plans[0];
-    
+
     res.json({
       ...userPlan,
       subscriptionStatus: user.subscriptionStatus || 'inactive'
@@ -378,7 +378,7 @@ export const checkPlanLimits = async (req: Request, res: Response) => {
     }
 
     const { type } = req.params; // 'products', 'promotions', 'coupons'
-    
+
     const user = await db.query.users.findFirst({
       where: (users, { eq }) => eq(users.id, req.session.userId as number),
       columns: {
@@ -392,10 +392,10 @@ export const checkPlanLimits = async (req: Request, res: Response) => {
     }
 
     const userPlan = plans.find(plan => plan.id === user.planId) || plans[0];
-    
+
     let currentCount = 0;
     let limit = 0;
-    
+
     // Buscar contagem atual
     switch (type) {
       case 'products':
@@ -405,7 +405,7 @@ export const checkPlanLimits = async (req: Request, res: Response) => {
         currentCount = products.length;
         limit = userPlan.productLimit;
         break;
-        
+
       case 'promotions':
         const promotions = await db.query.promotions.findMany({
           where: (promotions, { eq }) => eq(promotions.userId, user.id)
@@ -413,19 +413,19 @@ export const checkPlanLimits = async (req: Request, res: Response) => {
         currentCount = promotions.length;
         limit = userPlan.promotionLimit;
         break;
-        
+
       case 'coupons':
         // Implementação futura - quando tabela de cupons for criada
         limit = userPlan.couponLimit;
         break;
-        
+
       default:
         return res.status(400).json({ error: 'Tipo inválido' });
     }
-    
+
     // -1 significa ilimitado
     const isWithinLimit = limit === -1 || currentCount < limit;
-    
+
     res.json({
       currentCount,
       limit: limit === -1 ? 'Ilimitado' : limit,
@@ -436,4 +436,36 @@ export const checkPlanLimits = async (req: Request, res: Response) => {
     console.error('Erro ao verificar limites do plano:', error);
     res.status(500).json({ error: 'Erro ao verificar limites do plano' });
   }
+};
+import { and, eq } from 'drizzle-orm';
+import { stores } from '../db/schema';
+
+export const createCheckoutSession = async (req: Request, res: Response) => {
+  try {
+    const { planId, interval, storeId } = req.body;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Usuário não autenticado' });
+    }
+
+    // Validações
+    if (!planId || !interval || !storeId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'planId, interval e storeId são obrigatórios' 
+      });
+    }
+
+    // Validar se a loja pertence ao usuário
+    const store = await db.query.stores.findFirst({
+      where: and(eq(stores.id, storeId), eq(stores.userId, userId))
+    });
+
+    if (!store) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Loja não encontrada ou não pertence ao usuário' 
+      });
+    }
 };
