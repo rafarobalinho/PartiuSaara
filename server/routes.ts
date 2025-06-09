@@ -590,6 +590,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/subscriptions/purchase', authMiddleware, SubscriptionController.purchaseSubscription);
   app.get('/api/subscriptions/my-plan', authMiddleware, SubscriptionController.getMySubscription);
 
+  // === DIAGNÓSTICO: Rota de teste ===
+  app.get('/api/test-logs', (req: Request, res: Response) => {
+    console.log('[SERVER-TEST] Rota de teste funcionando');
+    res.json({
+      message: 'Console funcionando',
+      time: new Date(),
+      method: req.method,
+      path: req.path
+    });
+  });
+
   // Stripe routes for payment processing
   app.post('/api/stripe/checkout', authMiddleware, StripeController.createCheckoutSession);
   app.get('/api/stripe/checkout', (req, res) => res.json({ message: 'Stripe checkout endpoint is working' }));

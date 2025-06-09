@@ -237,6 +237,12 @@ async function handlePaymentFailed(subscription: Stripe.Subscription, userId: nu
 
 
 export const createCheckoutSession = async (req: Request, res: Response) => {
+  // === DIAGNÓSTICO: Verificar se a função é chamada ===
+  console.log('[SERVER-TEST] === FUNÇÃO createCheckoutSession CHAMADA ===', new Date());
+  console.log('[SERVER-TEST] Request method:', req.method);
+  console.log('[SERVER-TEST] Request body present:', !!req.body);
+  console.log('[SERVER-TEST] User session:', !!req.session?.userId);
+  
   // === DEBUG CRÍTICO DE CHECKOUT ===
   console.log('[DEBUG] === STRIPE CHECKOUT DEBUG ===');
   console.log('[DEBUG] NODE_ENV:', process.env.NODE_ENV);
