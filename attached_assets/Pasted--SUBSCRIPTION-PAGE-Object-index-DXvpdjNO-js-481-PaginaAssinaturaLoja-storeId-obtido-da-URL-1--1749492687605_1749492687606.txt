@@ -1,0 +1,38 @@
+💳 [SUBSCRIPTION-PAGE] Object
+index-DXvpdjNO.js:481 [PaginaAssinaturaLoja] storeId obtido da URL: 1
+index-DXvpdjNO.js:481 [PaginaAssinaturaLoja] Parâmetros da URL completos: Object
+index-DXvpdjNO.js:481 [PaginaAssinaturaLoja] URL atual: https://partiusaara.replit.app/seller/stores/1/subscription
+index-DXvpdjNO.js:481 💳 [SUBSCRIPTION-PAGE] ObjecthasSessionId: falsehasSuccess: falsereason: "página de assinatura carregada"timestamp: "2025-06-09T18:09:03.650Z"url: "https://partiusaara.replit.app/seller/stores/1/subscription"[[Prototype]]: Object
+index-DXvpdjNO.js:481 [PaginaAssinaturaLoja] storeId obtido da URL: 1
+index-DXvpdjNO.js:481 [PaginaAssinaturaLoja] Parâmetros da URL completos: Object
+index-DXvpdjNO.js:481 [PaginaAssinaturaLoja] URL atual: https://partiusaara.replit.app/seller/stores/1/subscription
+index-DXvpdjNO.js:481 [handlePurchase] 🎯 handlePurchase chamado para loja ID: 1
+index-DXvpdjNO.js:481 [handlePurchase] 📋 selectedPlan: pro
+index-DXvpdjNO.js:481 [handlePurchase] 📋 subscription atual: ObjectendDate: nullplan: {id: 'premium', name: 'Premium', description: 'Para lojistas que querem dominar o mercado', price: {…}, features: Array(5), …}store: {id: 1, name: 'Balisun'}storeId: 1storeName: "Balisun"[[Prototype]]: Object
+index-DXvpdjNO.js:481 [handlePurchase] 📋 billingCycle: monthly
+index-DXvpdjNO.js:481 [handlePurchase] ✅ Iniciando processo de compra via Stripe para loja: 1
+index-DXvpdjNO.js:481 [handlePurchase] Usando storeId da URL para API: 1
+index-DXvpdjNO.js:481 [handlePurchase] Payload final para /api/stripe/checkout: Objectinterval: "monthly"planId: "pro"storeId: 1[[Prototype]]: Object
+index-DXvpdjNO.js:481 💳 [SUBSCRIPTION-PAGE] ObjecthasSessionId: falsehasSuccess: falsereason: "página de assinatura carregada"timestamp: "2025-06-09T18:09:04.786Z"url: "https://partiusaara.replit.app/seller/stores/1/subscription"[[Prototype]]: Object
+index-DXvpdjNO.js:481 [PaginaAssinaturaLoja] storeId obtido da URL: 1
+index-DXvpdjNO.js:481 [PaginaAssinaturaLoja] Parâmetros da URL completos: Object
+index-DXvpdjNO.js:481 [PaginaAssinaturaLoja] URL atual: https://partiusaara.replit.app/seller/stores/1/subscription
+/api/stripe/checkout:1 
+            
+            
+           Failed to load resource: the server responded with a status of 500 ()Understand this error
+index-DXvpdjNO.js:481 [handlePurchase] 📡 Status da resposta: 500
+index-DXvpdjNO.js:481 [handlePurchase] ❌ Erro HTTP: 500 {"error":"Serviço de pagamento indisponível.","checkpoint":"STRIPE_CLIENT_INIT_ERROR","mode":"live"}
+mutationFn @ index-DXvpdjNO.js:481Understand this error
+index-DXvpdjNO.js:481 [handlePurchase] ❌ Erro na requisição: Error: Erro 500: {"error":"Serviço de pagamento indisponível.","checkpoint":"STRIPE_CLIENT_INIT_ERROR","mode":"live"}
+    at Object.mutationFn (index-DXvpdjNO.js:481:58967)
+mutationFn @ index-DXvpdjNO.js:481Understand this error
+index-DXvpdjNO.js:481 ❌ Erro de checkout: Error: Erro 500: {"error":"Serviço de pagamento indisponível.","checkpoint":"STRIPE_CLIENT_INIT_ERROR","mode":"live"}
+    at Object.mutationFn (index-DXvpdjNO.js:481:58967)
+onError @ index-DXvpdjNO.js:481Understand this error
+index-DXvpdjNO.js:283 🔍 [AUTH-CONTEXT] Inicializando AuthProvider (versão simplificada)
+index-DXvpdjNO.js:283 ✅ [AUTH-CONTEXT] Estado atual: Object
+index-DXvpdjNO.js:481 💳 [SUBSCRIPTION-PAGE] Object
+index-DXvpdjNO.js:481 [PaginaAssinaturaLoja] storeId obtido da URL: 1
+index-DXvpdjNO.js:481 [PaginaAssinaturaLoja] Parâmetros da URL completos: Object
+index-DXvpdjNO.js:481 [PaginaAssinaturaLoja] URL atual: https://partiusaara.replit.app/seller/stores/1/subscription
