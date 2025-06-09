@@ -6,7 +6,6 @@ import fs from "fs";
 import { storage } from "./storage";
 import { authMiddleware, adminMiddleware } from "./middleware/auth";
 import * as AuthController from "./controllers/auth.controller";
-import { verify } from "./controllers/auth.controller";
 import * as UserController from "./controllers/user.controller";
 import * as AvatarController from "./controllers/avatar.controller";
 import * as ProductController from "./controllers/product.controller";
@@ -44,7 +43,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/register', AuthController.register);
   app.post('/api/auth/logout', authMiddleware, AuthController.logout);
   app.get('/api/auth/me', authMiddleware, AuthController.getCurrentUser);
-  app.get('/api/auth/verify', authMiddleware, verify);
+  app.get('/api/auth/verify', authMiddleware, AuthController.verify);
 
   // User routes
   app.get('/api/users/me', authMiddleware, UserController.getCurrentUser);
