@@ -1,0 +1,111 @@
+Debug Crítico - Deploy de Produção Falhando
+Análise dos Erros
+Todas as requisições para produção retornam 500:
+
+❌ https://partiusaara.replit.app/ → 500
+❌ https://partiusaara.replit.app/favicon.ico → 500
+✅ https://28e4b557-...replit.dev/ → 200 (preview funciona)
+
+Root Cause
+O servidor de PRODUÇÃO não está iniciando ou está crashando imediatamente.
+🚨 Diagnóstico Urgente
+1. Verificar Logs de Produção no Replit
+No painel do Replit:
+
+Ir em "Deployments" (aba de deploys)
+Clicar no deploy atual
+Verificar "Logs" de produção
+Procurar por erros de startup
+
+2. Possíveis Causas
+A. Diferença de Variáveis de Ambiente
+bash# Desenvolvimento tem:
+NODE_ENV=development
+STRIPE_MODE=test
+
+# Produção pode ter:
+NODE_ENV=production  
+STRIPE_MODE=live
+B. Banco de Dados de Produção Diferente
+
+Preview usa um banco
+Deploy usa outro banco (com estrutura diferente?)
+
+C. Erro no Build de Produção
+
+Código não compila para produção
+Dependências faltando
+
+D. Porta/Configuração de Servidor
+typescript// Pode estar hardcoded para desenvolvimento
+const PORT = 5000; // ❌ Fixo
+
+// Deveria ser
+const PORT = process.env.PORT || 5000; // ✅ Flexível
+🔧 Ações Imediatas
+1. Verificar Logs de Deploy
+bash# No terminal do Replit
+replit deploy --logs
+
+# Ou via interface web
+# Deployments > Current Deploy > Logs
+2. Verificar Variáveis de Ambiente
+No painel do Replit, verificar se estão definidas:
+
+DATABASE_URL
+STRIPE_SECRET_KEY
+JWT_SECRET
+NODE_ENV
+PORT
+
+3. Comparar Configurações
+Preview vs Deploy:
+ConfiguraçãoPreviewDeployNode ENVdevelopmentproductionDatabasedevprodStripetestlivePort5000?
+4. Verificar servidor/index.ts
+Procurar por problemas de produção:
+typescript// ❌ Pode estar causando erro em produção
+if (process.env.NODE_ENV === 'production') {
+  // Configurações que podem falhar
+}
+
+// ❌ Caminhos absolutos
+const path = '/home/runner/workspace/...'
+
+// ❌ Configurações hardcoded
+const corsOrigins = ['http://localhost:3000']
+5. Teste de Build Local
+bash# Testar se compila para produção
+NODE_ENV=production npm run build
+
+# Se der erro, é problema de build
+📋 Checklist de Debugging
+Verificar no Replit:
+
+ Logs de deploy (Deployments > Logs)
+ Variáveis de ambiente configuradas
+ Build successful vs failed
+ Diferenças de configuração
+
+Verificar no código:
+
+ server/index.ts - configurações de produção
+ package.json - scripts de produção
+ Hardcoded paths ou URLs
+ Error handling em produção
+
+🎯 Instruções para IA
+
+Acessar os logs de deploy no painel do Replit
+Identificar erro específico de startup
+Verificar se variáveis de ambiente estão configuradas
+Comparar configurações de dev vs prod
+Reportar erro exato encontrado nos logs
+
+Resultado Esperado
+
+📋 Erro específico identificado nos logs
+🔧 Causa raiz do problema de deploy
+✅ Correção direcionada para fazer produção funcionar
+
+⚠️ Importante
+Este é um problema de deploy/infraestrutura, não do código de autenticação que modificamos.
