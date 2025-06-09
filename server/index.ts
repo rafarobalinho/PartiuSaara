@@ -13,6 +13,12 @@ console.log('process.env.STRIPE_MODE (após dotenv):', process.env.STRIPE_MODE);
 console.log('process.env.NODE_ENV (após dotenv):', process.env.NODE_ENV);
 console.log('process.env.FRONTEND_URL (após dotenv):', process.env.FRONTEND_URL);
 console.log('--- DEBUG FIM server/index.ts ---');
+
+console.log('🔍 STRIPE DEBUG:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('STRIPE_SECRET_KEY exists:', !!process.env.STRIPE_SECRET_KEY);
+console.log('STRIPE_PUBLISHABLE_KEY exists:', !!process.env.STRIPE_PUBLISHABLE_KEY);
+console.log('GOOGLE_MAPS_API_KEY exists:', !!process.env.GOOGLE_MAPS_API_KEY);
 // -----------------------------------------
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
