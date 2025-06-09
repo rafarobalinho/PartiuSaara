@@ -1,0 +1,94 @@
+Correção de Export/Import AuthController
+Problema Identificado
+A função verify está exportada individualmente (export async function verify), mas o routes.ts está importando como namespace (import * as AuthController) e tentando acessar como AuthController.verify.
+Diagnóstico Completo
+bash✅ Arquivo existe: server/controllers/auth.controller.ts
+✅ Função implementada: export async function verify
+❌ Export/Import incompatível: namespace vs named export
+Soluções Possíveis
+OPÇÃO 1: Padronizar Export Individual (Recomendado)
+Modificar routes.ts:
+typescript// ANTES (PROBLEMÁTICO)
+import * as AuthController from "./controllers/auth.controller";
+app.get('/api/auth/verify', authMiddleware, AuthController.verify);
+
+// DEPOIS (CORRETO)
+import { verify } from "./controllers/auth.controller";
+app.get('/api/auth/verify', authMiddleware, verify);
+OPÇÃO 2: Padronizar Export de Objeto
+Modificar auth.controller.ts:
+typescript// No final do arquivo, adicionar:
+export const AuthController = {
+  login,
+  register,
+  logout,
+  getCurrentUser,
+  verify
+  // ... outras funções
+};
+
+// E manter os exports individuais para compatibilidade:
+export { login, register, logout, getCurrentUser, verify };
+OPÇÃO 3: Correção Mínima (Mais Segura)
+Verificar se outras funções têm o mesmo problema:
+bashgrep -E "AuthController\.(login|register|logout|getCurrentUser)" server/routes.ts
+Se outras funções funcionam, o problema pode ser específico da função verify.
+Prompt para IA do Replit
+Diagnóstico Adicional:
+DIAGNÓSTICO: Verificar consistência de exports
+
+COMANDOS:
+1. grep -E "export.*function" server/controllers/auth.controller.ts | head -5
+2. grep -E "AuthController\." server/routes.ts | head -5
+
+OBJETIVO: Verificar se outras funções têm mesmo padrão de export/import
+Correção Segura:
+CORREÇÃO: Export/Import incompatível em auth.controller.ts
+
+PROBLEMA: Function verify exportada individualmente mas importada como namespace
+
+LOCALIZAR: server/routes.ts linha com AuthController.verify
+
+SUBSTITUIR:
+import * as AuthController from "./controllers/auth.controller";
+// ... outras linhas ...
+app.get('/api/auth/verify', authMiddleware, AuthController.verify);
+
+POR:
+import * as AuthController from "./controllers/auth.controller";
+import { verify } from "./controllers/auth.controller";
+// ... outras linhas ...
+app.get('/api/auth/verify', authMiddleware, verify);
+
+TESTE: Deploy deve funcionar após esta mudança
+Verificação de Consistência:
+VERIFICAR: Padrão de exports em auth.controller.ts
+
+SE todas funções usam "export async function":
+- Modificar routes.ts para imports individuais
+
+SE algumas funções usam padrão diferente:
+- Padronizar todas para mesmo formato
+
+OBJETIVO: Consistência de export/import em todo controller
+Validação da Correção
+Após implementar a correção:
+
+Comando de teste:
+bashNODE_ENV=production timeout 5s node dist/index.js 2>&1 | head -10
+
+Deploy deve funcionar:
+https://partiusaara.replit.app/ → Status 200 ✅
+
+Endpoint deve responder:
+GET /api/auth/verify → Retorna dados do usuário
+
+
+Observações
+
+🎯 Problema específico: export/import mismatch
+✅ Função implementada corretamente
+🔧 Correção simples no import
+🚀 Deploy funcionará após correção
+
+PRIORIDADE: Corrigir import para resolver erro 500 no deploy.
