@@ -8,24 +8,26 @@ import { eq, and } from 'drizzle-orm';
 // Esta função lê as variáveis de ambiente atuais toda vez que é chamada.
 function getCurrentStripeConfig() {
   const currentEnvStripeMode = process.env.STRIPE_MODE;
+  const nodeEnv = process.env.NODE_ENV;
   
   // Auto-detecção: se STRIPE_MODE não estiver definido, usar NODE_ENV
   let isTest: boolean;
-  if (currentEnvStripeMode) {
-    isTest = currentEnvStripeMode === 'test';
-  } else {
+    if (process.env.NODE_ENV === 'development') {
+      isTest = true;  // SEMPRE test em development
+      console.log('[DEBUG] Forçando test mode em development');
+    } else {
     // Se NODE_ENV for development, usar test mode
     // Se NODE_ENV for production, usar live mode
-    isTest = process.env.NODE_ENV === 'development';
-  }
+      isTest = currentEnvStripeMode === 'test';
+    }
 
   const secretKey = isTest
     ? process.env.STRIPE_SECRET_KEY_TEST
-    : process.env.STRIPE_SECRET_KEY_LIVE; // Usando _LIVE para clareza
+    : process.env.STRIPE_SECRET_KEY; // Padronizando para SECRET
 
   const publishableKey = isTest
     ? process.env.STRIPE_PUBLISHABLE_KEY_TEST // Padronizando para PUBLISHABLE
-    : process.env.STRIPE_PUBLISHABLE_KEY_LIVE;
+    : process.env.STRIPE_PUBLISHABLE_KEY;
 
   // Log para depuração detalhada
   console.log(
