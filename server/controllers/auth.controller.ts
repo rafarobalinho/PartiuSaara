@@ -247,30 +247,33 @@ export async function getCurrentUser(req: Request, res: Response) {
   }
 }
 
-// The below code was not present in the original file. Adding it to the end.
 export async function verify(req: Request, res: Response) {
-    try {
-      const userId = req.user?.id;
+  try {
+    // Definir Content-Type para garantir resposta JSON
+    res.setHeader('Content-Type', 'application/json');
 
-      if (!userId) {
-        return res.status(401).json({ error: 'Token não fornecido' });
-      }
-
-      // Se chegou até aqui, token é válido (passou pelo middleware)
-      const userResult = await storage.getUserById(userId);
-
-      if (!userResult) {
-        return res.status(404).json({ error: 'Usuário não encontrado' });
-      }
-
-      res.json({
-        id: userResult.id,
-        email: userResult.email,
-        role: userResult.role,
-        isValid: true
+    // Verificar se o usuário está autenticado através do middleware
+    if (!req.user) {
+      return res.status(401).json({ 
+        error: 'Não autenticado',
+        isValid: false 
       });
-    } catch (error) {
-      console.error('Erro ao verificar token:', error);
-      res.status(500).json({ error: 'Erro interno do servidor' });
     }
+
+    // Se chegou até aqui, o usuário é válido (passou pelo authMiddleware)
+    res.json({
+      id: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+      firstName: req.user.firstName,
+      lastName: req.user.lastName,
+      isValid: true
+    });
+  } catch (error) {
+    console.error('Erro ao verificar autenticação:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      isValid: false 
+    });
   }
+}
