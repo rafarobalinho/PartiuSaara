@@ -1,3 +1,4 @@
+
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -123,16 +124,8 @@ function Router() {
 }
 
 function App() {
-  // DIAGNÓSTICO: Log de inicialização do App
-  console.log('🎯 [APP-INIT]', {
-    url: window.location.href,
-    pathname: window.location.pathname,
-    search: window.location.search,
-    hasSuccess: new URLSearchParams(window.location.search).has('success'),
-    hasSessionId: new URLSearchParams(window.location.search).has('session_id'),
-    timestamp: new Date().toISOString()
-  });
-
+  console.log('🚀 [APP] Inicializando aplicação');
+  
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
