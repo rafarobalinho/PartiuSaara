@@ -271,6 +271,11 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       });
     }
     console.log('✅ CHECKPOINT 2: Chave Stripe disponível (dinâmico)');
+    console.log('🔍 STRIPE VARS:');
+    console.log('STRIPE_SECRET_KEY:', !!process.env.STRIPE_SECRET_KEY);
+    console.log('STRIPE_SECRET_KEY_LIVE:', !!process.env.STRIPE_SECRET_KEY_LIVE);
+    console.log('STRIPE_PUBLISHABLE_KEY:', !!process.env.STRIPE_PUBLISHABLE_KEY);
+    console.log('STRIPE_PUBLISHABLE_KEY_LIVE:', !!process.env.STRIPE_PUBLISHABLE_KEY_LIVE);
 
     // CHECKPOINT 4: Validar dados da requisição
     console.log('🔍 CHECKPOINT 4: Validando dados da requisição');
@@ -658,7 +663,8 @@ export const handleWebhook = async (req: Request, res: Response) => {
         break;
       }
 
-      case 'invoice.payment_failed': {
+      case 'invoice.payment_failed':```typescript
+      {
         const invoice = event.data.object as Stripe.Invoice;
         console.log('❌ Payment failed for invoice:', invoice.id);
 
