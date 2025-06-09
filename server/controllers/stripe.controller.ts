@@ -8,7 +8,16 @@ import { eq, and } from 'drizzle-orm';
 // Esta função lê as variáveis de ambiente atuais toda vez que é chamada.
 function getCurrentStripeConfig() {
   const currentEnvStripeMode = process.env.STRIPE_MODE;
-  const isTest = currentEnvStripeMode === 'test';
+  
+  // Auto-detecção: se STRIPE_MODE não estiver definido, usar NODE_ENV
+  let isTest: boolean;
+  if (currentEnvStripeMode) {
+    isTest = currentEnvStripeMode === 'test';
+  } else {
+    // Se NODE_ENV for development, usar test mode
+    // Se NODE_ENV for production, usar live mode
+    isTest = process.env.NODE_ENV === 'development';
+  }
 
   const secretKey = isTest
     ? process.env.STRIPE_SECRET_KEY_TEST
@@ -18,16 +27,18 @@ function getCurrentStripeConfig() {
     ? process.env.STRIPE_PUBLISHABLE_KEY_TEST // Padronizando para PUBLISHABLE
     : process.env.STRIPE_PUBLISHABLE_KEY_LIVE;
 
-  // Log para depuração (pode ser removido ou comentado em produção)
-  // console.log(
-  //   `[getCurrentStripeConfig] Mode: ${currentEnvStripeMode}, isTest: ${isTest}, SecretKey Loaded: ${!!secretKey}, PublishableKey Loaded: ${!!publishableKey}`
-  // );
+  // Log para depuração detalhada
+  console.log(
+    `[getCurrentStripeConfig] STRIPE_MODE: ${currentEnvStripeMode || 'undefined'}, NODE_ENV: ${process.env.NODE_ENV}, Final isTest: ${isTest}, SecretKey Loaded: ${!!secretKey}, PublishableKey Loaded: ${!!publishableKey}`
+  );
 
   if (!secretKey || secretKey.trim() === '') {
     console.error(`ALERTA DINÂMICO: Chave Secreta Stripe ${isTest ? 'TEST' : 'LIVE'} não está definida!`);
+    console.error(`[DEBUG] Procurando por: ${isTest ? 'STRIPE_SECRET_KEY_TEST' : 'STRIPE_SECRET_KEY_LIVE'}`);
   }
   if (!publishableKey || publishableKey.trim() === '') {
     console.error(`ALERTA DINÂMICO: Chave Publicável Stripe ${isTest ? 'TEST' : 'LIVE'} não está definida!`);
+    console.error(`[DEBUG] Procurando por: ${isTest ? 'STRIPE_PUBLISHABLE_KEY_TEST' : 'STRIPE_PUBLISHABLE_KEY_LIVE'}`);
   }
 
   return {
@@ -80,9 +91,11 @@ const getPriceMapping = (isTestModeValue: boolean) => ({
 // LOGS DE INICIALIZAÇÃO DO MÓDULO (APENAS PARA INFORMAÇÃO DO CARREGAMENTO INICIAL)
 // As decisões de modo e chaves para operações Stripe NÃO dependerão mais destes valores iniciais.
 const initialModuleLoadStripeMode = process.env.STRIPE_MODE;
+const initialNodeEnv = process.env.NODE_ENV;
 console.log("Stripe Controller: Módulo CARREGANDO...");
-console.log("STRIPE_MODE no carregamento inicial do módulo:", initialModuleLoadStripeMode || "(não definido)");
-console.log("Modo Inicial (baseado no carregamento do módulo):", (initialModuleLoadStripeMode === 'test') ? "TESTE" : "PRODUÇÃO");
+console.log("STRIPE_MODE no carregamento inicial do módulo:", initialModuleLoadStripeMode || "(não definido - será auto-detectado)");
+console.log("NODE_ENV:", initialNodeEnv);
+console.log("Modo que será usado:", initialModuleLoadStripeMode ? (initialModuleLoadStripeMode === 'test' ? "TESTE" : "PRODUÇÃO") : (initialNodeEnv === 'development' ? "TESTE (auto)" : "PRODUÇÃO (auto)"));
 console.log("FRONTEND_URL no carregamento inicial do módulo:", process.env.FRONTEND_URL || process.env.CLIENT_URL || "(não definido)");
 // Fim dos logs de inicialização do módulo
 
