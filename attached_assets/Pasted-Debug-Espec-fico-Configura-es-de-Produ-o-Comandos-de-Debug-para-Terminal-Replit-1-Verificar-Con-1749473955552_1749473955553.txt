@@ -1,0 +1,80 @@
+Debug Específico - Configurações de Produção
+Comandos de Debug para Terminal Replit
+1. Verificar Configuração CORS
+bashgrep -A 10 -B 2 "cors(" server/index.ts
+2. Verificar Configuração de Porta
+bashgrep -A 5 -B 5 "listen\|PORT" server/index.ts
+3. Verificar Configurações de Produção
+bashgrep -A 5 -B 5 "isProduction" server/index.ts
+4. Verificar Variáveis de Ambiente
+bash# Verificar quais variáveis estão sendo usadas
+grep -r "process\.env\." server/ | head -20
+5. Verificar se há Erros no Package.json
+bashcat package.json | grep -A 5 -B 5 "scripts"
+6. Testar Build de Produção Localmente
+bashNODE_ENV=production npm run build
+echo "Exit code: $?"
+7. Verificar Dependências
+bashnpm list --production --depth=0 2>&1 | grep -E "(missing|UNMET|ERROR)"
+Possíveis Problemas Identificados
+A. CORS Muito Restritivo em Produção
+typescript// Se CORS estiver assim:
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? 'https://specific-domain.com'  // ❌ Pode estar errado
+    : 'http://localhost:3000'
+}));
+B. Porta Hardcoded
+typescript// Problemático:
+app.listen(5000); // ❌ Fixo
+
+// Correto:
+app.listen(process.env.PORT || 5000); // ✅ Flexível
+C. Variáveis de Ambiente Faltando
+bash# Verificar se estão definidas no Replit:
+DATABASE_URL=?
+STRIPE_SECRET_KEY=?
+JWT_SECRET=?
+FRONTEND_URL=?
+🔧 Comandos para Executar
+Execute estes comandos UM POR VEZ e envie os resultados:
+bash# 1. CORS config
+grep -A 10 -B 2 "cors(" server/index.ts
+
+# 2. Porta config  
+grep -A 5 -B 5 "listen\|PORT" server/index.ts
+
+# 3. Produção config
+grep -A 10 -B 5 "isProduction" server/index.ts
+
+# 4. Variáveis críticas
+grep -E "(DATABASE_URL|STRIPE|JWT_SECRET)" server/
+
+# 5. Package scripts
+cat package.json | grep -A 10 "scripts"
+Verificação de Deploy
+No Painel Web do Replit:
+
+Ir em "Deployments" (aba lateral)
+Clicar no deploy ativo
+Verificar "Build Log"
+Verificar "Runtime Log"
+Capturar screenshot dos erros
+
+Variáveis de Ambiente:
+
+Settings > Environment Variables
+Verificar se estão definidas:
+
+DATABASE_URL
+STRIPE_SECRET_KEY
+JWT_SECRET
+NODE_ENV
+PORT
+
+
+
+🎯 Objetivo
+Identificar exatamente qual configuração está causando o erro 500 em produção.
+Instruções
+Execute os comandos acima e me envie os resultados para identificarmos o problema específico.

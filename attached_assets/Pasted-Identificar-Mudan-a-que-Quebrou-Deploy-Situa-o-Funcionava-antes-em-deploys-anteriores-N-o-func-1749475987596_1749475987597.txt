@@ -1,0 +1,99 @@
+Identificar Mudança que Quebrou Deploy
+Situação
+
+✅ Funcionava antes em deploys anteriores
+❌ Não funciona agora após mudanças recentes
+✅ Preview funciona (desenvolvimento)
+❌ Deploy falha (produção)
+
+🔍 Identificar Mudanças Recentes
+1. Verificar Últimas Modificações
+bash# Ver últimos arquivos modificados
+find server/ -type f -name "*.ts" -mtime -1 -exec ls -la {} \;
+
+# Ou verificar por data
+ls -la server/ | grep "$(date '+%b %d')"
+2. Verificar Diferenças Críticas Dev vs Prod
+Execute estes comandos:
+bash# 1. Verificar se há imports problemáticos em produção
+grep -r "from ['\"]\./" server/ | head -10
+
+# 2. Verificar imports relativos
+grep -r "import.*\.\." server/ | head -10
+
+# 3. Verificar se há código específico de desenvolvimento
+grep -r "localhost\|127\.0\.0\.1" server/
+
+# 4. Verificar se há console.logs excessivos
+grep -r "console\." server/ | wc -l
+3. Mudanças que Podem Quebrar Produção
+A. AuthContext com fetch() no servidor
+O código que adicionamos pode estar executando no servidor:
+typescript// ❌ PROBLEMÁTICO em produção
+const response = await fetch('/api/auth/verify', {
+  headers: { Authorization: `Bearer ${token}` }
+});
+B. Novos imports ou dependências
+bash# Verificar se adicionamos imports que não funcionam em produção
+grep -A 5 -B 5 "fetch\|window\|document" server/
+C. Rotas ou middlewares novos
+bash# Verificar se adicionamos rotas problemáticas
+grep -A 5 -B 5 "/api/auth/verify" server/
+🎯 Correção Focada
+Hipótese 1: Endpoint /api/auth/verify Problemático
+Verificar se foi adicionado e está causando erro:
+bashgrep -r "auth/verify" server/
+Se encontrar, comentar temporariamente:
+typescript// Comentar esta rota temporariamente
+// app.get('/api/auth/verify', authenticateToken, (req, res) => {
+//   res.json({ id: req.user.id, isValid: true });
+// });
+Hipótese 2: AuthContext Executando no Servidor
+Verificar se o código de fetch está em arquivos do servidor:
+bashgrep -r "verifyAuthToken\|fetch.*auth" server/
+Hipótese 3: Import Path Issues
+Verificar imports relativos que podem falhar em produção:
+bash# Procurar imports problemáticos
+grep -E "from ['\"][\.\/]" server/ | grep -v node_modules
+🚨 Teste de Reversão Rápida
+Comentar Mudanças Recentes
+typescript// Em server/routes.ts - comentar rota nova se existir
+// app.get('/api/auth/verify', ...
+
+// Em qualquer middleware novo
+// app.use('/payment/callback', ...
+Teste Mínimo
+bash# Fazer build e testar
+NODE_ENV=production npm run build
+echo "Build exit code: $?"
+
+# Se build OK, testar start local
+NODE_ENV=production timeout 10s node dist/index.js || echo "Server crashed"
+📋 Comandos Específicos para Executar
+Execute estes na ordem:
+bash# 1. Últimas modificações
+find server/ -name "*.ts" -mtime -1 -ls
+
+# 2. Verificar auth/verify
+grep -r "auth/verify" server/
+
+# 3. Verificar fetch no servidor
+grep -r "fetch.*api" server/
+
+# 4. Imports problemáticos
+grep -E "from ['\"][\.\/]" server/ | head -10
+
+# 5. Teste de start local em produção
+NODE_ENV=production timeout 5s node dist/index.js 2>&1 | head -20
+🎯 Objetivo
+Identificar exatamente qual mudança recente está causando o erro 500 em produção.
+Estratégia
+
+Identificar mudanças recentes
+Comentar temporariamente código suspeito
+Testar deploy
+Isolar problema específico
+Corrigir de forma direcionada
+
+⚠️ Foco
+Como funcionava antes, o problema é uma mudança específica, não configuração geral.
