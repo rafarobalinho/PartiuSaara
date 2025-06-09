@@ -1,0 +1,106 @@
+Correção de Deploy - Erro de Array no Banco de Dados
+Problema Identificado
+
+✅ App funciona no preview (desenvolvimento)
+❌ Deploy falha com erro 500 (produção)
+🐛 Erro específico: malformed array literal: "[8]" na linha 666 do routes.ts
+
+Root Cause
+O erro indica problema com arrays no PostgreSQL, provavelmente na query de estatísticas do vendedor.
+🔧 Correção Necessária
+1. Localizar Problema no Arquivo routes.ts
+Ir para server/routes.ts linha 666 e procurar por:
+
+Queries que usam arrays
+Campos JSON que podem conter arrays
+Operações de stats/estatísticas
+
+2. Corrigir Query Problemática
+O erro sugere problema com format de array PostgreSQL. Provavelmente algo como:
+typescript// ❌ PROBLEMÁTICO (formato incorreto)
+const result = await db.query(`
+  SELECT * FROM table WHERE array_field = $1
+`, ['[8]']); // String com formato de array
+
+// ✅ CORRETO (array real ou JSON)
+const result = await db.query(`
+  SELECT * FROM table WHERE array_field = $1
+`, [[8]]); // Array real
+
+// OU usar JSON se for campo JSON
+const result = await db.query(`
+  SELECT * FROM table WHERE json_field::jsonb @> $1
+`, [JSON.stringify([8])]);
+3. Verificação Específica
+Procurar na linha 666 de routes.ts por:
+
+stats (estatísticas)
+Array operations
+JSON field queries
+Queries relacionadas a storeId: 3
+
+4. Possíveis Correções
+A. Se for campo JSON:
+typescript// Em vez de passar array como string
+WHERE json_field = '[8]'
+
+// Usar operador JSON correto
+WHERE json_field::jsonb @> '[8]'::jsonb
+B. Se for array PostgreSQL:
+typescript// Em vez de string
+WHERE array_field = '[8]'
+
+// Usar array real
+WHERE array_field = ARRAY[8]
+// OU
+WHERE 8 = ANY(array_field)
+C. Verificar diferenças entre desenvolvimento e produção:
+typescript// Adicionar logs para debug
+console.log('🔍 Query data type:', typeof arrayData);
+console.log('🔍 Query data value:', arrayData);
+
+// Garantir formato correto antes da query
+const formattedArray = Array.isArray(arrayData) 
+  ? arrayData 
+  : JSON.parse(arrayData);
+🆘 Correção Emergencial
+Opção A: Comentar Query Problemática
+typescript// Comentar temporariamente a query que está falhando na linha 666
+// para fazer deploy funcionar
+try {
+  // const result = await problematicQuery();
+  const result = { fallback: 'data' }; // dados temporários
+} catch (error) {
+  console.error('Query error:', error);
+  return defaultStatsData;
+}
+Opção B: Detectar Ambiente
+typescript// Tratamento diferente para produção vs desenvolvimento
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction) {
+  // Lógica simplificada para produção
+  return await getSimpleStats(storeId);
+} else {
+  // Lógica completa para desenvolvimento
+  return await getDetailedStats(storeId);
+}
+📋 Instruções para IA:
+
+Abrir server/routes.ts
+Ir para linha 666 (onde está o erro)
+Identificar a query problemática com arrays
+Corrigir formato do array/JSON conforme exemplos acima
+Testar se deploy funciona após correção
+Reportar qual era o problema específico
+
+🎯 Objetivo:
+
+✅ Deploy funcionando sem erro 500
+✅ App acessível na URL de produção
+✅ Queries corrigidas para produção
+
+⚠️ Nota Importante:
+Este não é um problema das mudanças de autenticação, mas sim uma incompatibilidade de SQL entre desenvolvimento e produção.
+Resultado Esperado:
+Deploy funcionando corretamente com app acessível na URL pública do Replit.
