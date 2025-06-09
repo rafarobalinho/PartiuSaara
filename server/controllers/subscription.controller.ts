@@ -182,13 +182,36 @@ export async function getMySubscription(req: Request, res: Response) {
     // Ensure user is a seller
     sellerMiddleware(req, res, async () => {
       const user = req.user!;
+      const { storeId } = req.query;
 
-      // Get the user's store
+      // Validar se storeId foi fornecido
+      if (!storeId) {
+        return res.status(400).json({ 
+          message: 'Store ID is required',
+          error: 'storeId query parameter is mandatory'
+        });
+      }
+
+      // Converter storeId para número
+      const storeIdNum = parseInt(storeId as string);
+      if (isNaN(storeIdNum)) {
+        return res.status(400).json({ 
+          message: 'Invalid store ID',
+          error: 'storeId must be a valid number'
+        });
+      }
+
+      // Buscar a loja específica que pertence ao usuário
       const stores = await storage.getStores({ search: '' });
-      const userStore = stores.find(store => store.userId === user.id);
+      const userStore = stores.find(store => 
+        store.id === storeIdNum && store.userId === user.id
+      );
 
       if (!userStore) {
-        return res.status(404).json({ message: 'Store not found. Please create a store first.' });
+        return res.status(404).json({ 
+          message: 'Store not found or access denied',
+          error: `Store with ID ${storeIdNum} not found or does not belong to user ${user.id}`
+        });
       }
 
       // Get the plan
@@ -200,7 +223,9 @@ export async function getMySubscription(req: Request, res: Response) {
         store: {
           id: userStore.id,
           name: userStore.name
-        }
+        },
+        storeId: userStore.id,
+        storeName: userStore.name
       });
     });
   } catch (error) {
@@ -346,23 +371,56 @@ export const getCurrentPlan = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
 
-    const user = await db.query.users.findFirst({
-      where: (users, { eq }) => eq(users.id, req.session.userId as number),
+    const { storeId } = req.query;
+
+    // Validar se storeId foi fornecido
+    if (!storeId) {
+      return res.status(400).json({ 
+        error: 'Store ID é obrigatório',
+        message: 'storeId query parameter is mandatory'
+      });
+    }
+
+    // Converter storeId para número
+    const storeIdNum = parseInt(storeId as string);
+    if (isNaN(storeIdNum)) {
+      return res.status(400).json({ 
+        error: 'Store ID inválido',
+        message: 'storeId must be a valid number'
+      });
+    }
+
+    // Buscar a loja específica que pertence ao usuário
+    const store = await db.query.stores.findFirst({
+      where: and(eq(stores.id, storeIdNum), eq(stores.userId, req.session.userId as number)),
       columns: {
-        planId: true,
+        id: true,
+        name: true,
+        subscriptionPlan: true,
         subscriptionStatus: true
       }
     });
 
-    if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (!store) {
+      return res.status(404).json({ 
+        error: 'Loja não encontrada ou acesso negado',
+        message: `Store with ID ${storeIdNum} not found or does not belong to user ${req.session.userId}`
+      });
     }
 
-    const userPlan = plans.find(plan => plan.id === user.planId) || plans[0];
+    // Mapear subscriptionPlan para planId (assumindo que são equivalentes)
+    const planId = store.subscriptionPlan === 'freemium' ? 1 :
+                   store.subscriptionPlan === 'start' ? 2 :
+                   store.subscriptionPlan === 'pro' ? 3 :
+                   store.subscriptionPlan === 'premium' ? 4 : 1;
+
+    const userPlan = plans.find(plan => plan.id === planId) || plans[0];
 
     res.json({
       ...userPlan,
-      subscriptionStatus: user.subscriptionStatus || 'inactive'
+      subscriptionStatus: store.subscriptionStatus || 'inactive',
+      storeId: store.id,
+      storeName: store.name
     });
   } catch (error) {
     console.error('Erro ao obter plano atual:', error);
