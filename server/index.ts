@@ -35,6 +35,17 @@ const __dirname = dirname(__filename);
 const isProduction = process.env.NODE_ENV === 'production';
 console.log(`[Server] Inicializando no ambiente: ${isProduction ? 'Produção' : 'Desenvolvimento'}`);
 
+// ---- DEBUG ASSETS ----
+console.log('🔍 ENV:', process.env.NODE_ENV, 'isProduction:', isProduction);
+if (isProduction) {
+  console.log('🔍 ASSETS PATH:', path.join(__dirname, 'public/assets'));
+  console.log('🔍 ASSETS EXISTS:', fs.existsSync(path.join(__dirname, 'public/assets')));
+  console.log('🔍 PUBLIC PATH:', path.join(__dirname, 'public'));
+  console.log('🔍 PUBLIC EXISTS:', fs.existsSync(path.join(__dirname, 'public')));
+  console.log('🔍 __dirname:', __dirname);
+}
+// ---- FIM DEBUG ASSETS ----
+
 // Configurar CORS
 const allowedOrigins = isProduction 
   ? [process.env.FRONTEND_URL || '*.replit.app', '*.replit.dev', '*.replit.co'] // URLs de produção (pode ser configurada via env)
@@ -104,7 +115,9 @@ app.use('/uploads/thumbnails', express.static(path.join(__dirname, '../public/up
 // Assets middleware condicional
 if (isProduction) {
   // Produção: __dirname = dist/
-  app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
+  const assetsPath = path.join(__dirname, 'public/assets');
+  console.log('🔍 Configurando middleware /assets para:', assetsPath);
+  app.use('/assets', express.static(assetsPath));
 }
 
 // Definir content-type padrão para rotas API
