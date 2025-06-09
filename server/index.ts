@@ -1,3 +1,9 @@
+// Auto-detecção de ambiente de produção no Replit
+if (!process.env.NODE_ENV && process.env.REPL_SLUG) {
+  process.env.NODE_ENV = 'production';
+  console.log('🚀 Auto-detectado ambiente de PRODUÇÃO via REPL_SLUG');
+}
+
 import dotenv from 'dotenv';
 dotenv.config({ override: true });
 
