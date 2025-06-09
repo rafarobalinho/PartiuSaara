@@ -48,10 +48,16 @@ if (isProduction) {
 
 // Configurar CORS
 const allowedOrigins = isProduction 
-  ? [process.env.FRONTEND_URL || '*.replit.app', '*.replit.dev', '*.replit.co'] // URLs de produção (pode ser configurada via env)
-  : ['http://localhost:5000', 'http://localhost:3000', 'https://*.replit.dev', 'https://*.replit.co']; // URLs de desenvolvimento
+  ? [
+      'https://partiusaara.replit.app',
+      process.env.FRONTEND_URL,
+      /https:\/\/.*\.replit\.app$/,
+      /https:\/\/.*\.replit\.dev$/,
+      /https:\/\/.*\.replit\.co$/
+    ]
+  : ['http://localhost:5000', 'http://localhost:3000', 'https://*.replit.dev', 'https://*.replit.co'];
 
-console.log(`[Server] CORS configurado para origens: ${allowedOrigins.join(', ')}`);
+console.log(`[Server] CORS configurado para origens:`, allowedOrigins);
 
 const app = express();
 
@@ -61,9 +67,12 @@ app.use(cors({
     // Permitir requisições sem origem (como chamadas diretas da API)
     if (!origin) return callback(null, true);
 
-    // Verificar se a origem está na lista de permitidas ou se corresponde a um padrão wildcard
+    // Verificar se a origem está na lista de permitidas ou se corresponde a um padrão wildcard/regex
     const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (allowedOrigin.includes('*')) {
+      if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      if (typeof allowedOrigin === 'string' && allowedOrigin.includes('*')) {
         const pattern = allowedOrigin.replace(/\*/g, '.*');
         return new RegExp(pattern).test(origin);
       }
