@@ -89,10 +89,10 @@ console.log("FRONTEND_URL no carregamento inicial do módulo:", process.env.FRON
 // Função para atualizar assinatura de uma loja específica
 async function updateStoreSubscription(userId: number, storeId: number, subscriptionData: any) {
   try {
-    console.log(`🔄 Atualizando assinatura - User: ${userId}, Store: ${storeId}, Plan: ${subscriptionData.plan}`);
+    console.log(`[DEBUG] Atualizando assinatura - User: ${userId}, Store: ${storeId}, Plan: ${subscriptionData.plan}`);
 
     // === VALIDAÇÃO E DEBUG DA LOJA ===
-    console.log(`[updateStoreSubscription] 🔍 Procurando loja com ID: ${storeId} para usuário: ${userId}`);
+    console.log(`[updateStoreSubscription] [DEBUG] Procurando loja com ID: ${storeId} para usuário: ${userId}`);
 
     // Validar se a loja pertence ao usuário
     const store = await db.query.stores.findFirst({
@@ -100,7 +100,7 @@ async function updateStoreSubscription(userId: number, storeId: number, subscrip
     });
 
     if (!store) {
-      console.error(`❌ Loja ${storeId} não encontrada ou não pertence ao usuário ${userId}`);
+      console.error(`[ERROR] Loja ${storeId} não encontrada ou não pertence ao usuário ${userId}`);
 
       // === DEBUG: Listar todas as lojas do usuário ===
       const userStores = await db.query.stores.findMany({
@@ -112,7 +112,7 @@ async function updateStoreSubscription(userId: number, storeId: number, subscrip
       throw new Error(`Loja ${storeId} não encontrada ou não pertence ao usuário ${userId}`);
     }
 
-    console.log(`[updateStoreSubscription] ✅ Loja encontrada:`, {
+    console.log(`[updateStoreSubscription] [SUCCESS] Loja encontrada:`, {
       id: store.id,
       name: store.name,
       currentPlan: store.subscriptionPlan,
@@ -150,8 +150,8 @@ async function updateStoreSubscription(userId: number, storeId: number, subscrip
       .where(and(eq(stores.id, storeId), eq(stores.userId, userId)))
       .returning();
 
-    console.log(`✅ Assinatura atualizada com sucesso para loja ${storeId}`);
-    console.log('📊 Resultado da atualização:', updateResult);
+    console.log(`[SUCCESS] Assinatura atualizada com sucesso para loja ${storeId}`);
+    console.log('[DEBUG] Resultado da atualização:', updateResult);
 
     // === VERIFICAÇÃO PÓS-ATUALIZAÇÃO ===
     const updatedStores = await db.query.stores.findMany({
@@ -162,14 +162,14 @@ async function updateStoreSubscription(userId: number, storeId: number, subscrip
 
     return updateResult[0];
   } catch (error) {
-    console.error(`❌ Erro ao atualizar assinatura:`, error);
+    console.error(`[ERROR] Erro ao atualizar assinatura:`, error);
     throw error;
   }
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session, userId: number, storeId: number) {
   try {
-    console.log(`🔍 Processando checkout completo para usuário ${userId}, loja ${storeId}`);
+    console.log(`[DEBUG] Processando checkout completo para usuário ${userId}, loja ${storeId}`);
 
     // Buscar detalhes da assinatura
     const localStripe = getStripeClient();
@@ -191,15 +191,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, userId:
     // Atualizar assinatura APENAS da loja específica
     await updateStoreSubscription(userId, storeId, subscriptionData);
 
-    console.log(`✅ Checkout processado com sucesso para loja ${storeId} do usuário ${userId}`);
+    console.log(`[SUCCESS] Checkout processado com sucesso para loja ${storeId} do usuário ${userId}`);
   } catch (error) {
-    console.error(`❌ Erro ao processar checkout da loja ${storeId}:`, error);
+    console.error(`[ERROR] Erro ao processar checkout da loja ${storeId}:`, error);
   }
 }
 
 async function handlePaymentSucceeded(subscription: Stripe.Subscription, userId: number, storeId: number) {
   try {
-    console.log(`✅ Renovação bem-sucedida para usuário ${userId}, loja ${storeId}`);
+    console.log(`[SUCCESS] Renovação bem-sucedida para usuário ${userId}, loja ${storeId}`);
 
     const subscriptionData = {
       plan: subscription.metadata?.plan || 'unknown',
@@ -212,13 +212,13 @@ async function handlePaymentSucceeded(subscription: Stripe.Subscription, userId:
 
     await updateStoreSubscription(userId, storeId, subscriptionData);
   } catch (error) {
-    console.error(`❌ Erro ao processar renovação da loja ${storeId}:`, error);
+    console.error(`[ERROR] Erro ao processar renovação da loja ${storeId}:`, error);
   }
 }
 
 async function handlePaymentFailed(subscription: Stripe.Subscription, userId: number, storeId: number) {
   try {
-    console.log(`❌ Falha no pagamento para usuário ${userId}, loja ${storeId}`);
+    console.log(`[ERROR] Falha no pagamento para usuário ${userId}, loja ${storeId}`);
 
     const subscriptionData = {
       plan: subscription.metadata?.plan || 'unknown',
@@ -231,7 +231,7 @@ async function handlePaymentFailed(subscription: Stripe.Subscription, userId: nu
 
     await updateStoreSubscription(userId, storeId, subscriptionData);
   } catch (error) {
-    console.error(`❌ Erro ao processar falha de pagamento da loja ${storeId}:`, error);
+    console.error(`[ERROR] Erro ao processar falha de pagamento da loja ${storeId}:`, error);
   }
 }
 
@@ -241,44 +241,44 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
   const localStripe = getStripeClient(); // Obtém o cliente Stripe dinamicamente
   const activePriceMapping = getPriceMapping(isTestMode); // Obtém o mapeamento de preços dinâmico
 
-  console.log(`🚀 === STRIPE CHECKOUT DEBUG START (Modo Dinâmico: ${isTestMode ? "TESTE" : "PRODUÇÃO"}) ===`);
+  console.log(`[INFO] === STRIPE CHECKOUT DEBUG START (Modo Dinâmico: ${isTestMode ? "TESTE" : "PRODUÇÃO"}) ===`);
 
   if (!localStripe) {
-    console.error('❌ CHECKPOINT 3 (Dinâmico): Stripe não pôde ser inicializado.');
+    console.error('[ERROR] CHECKPOINT 3 (Dinâmico): Stripe não pôde ser inicializado.');
     return res.status(500).json({ error: 'Serviço de pagamento indisponível.', checkpoint: 'STRIPE_CLIENT_INIT_ERROR', mode: isTestMode ? 'test' : 'live' });
   }
 
   try {
     // CHECKPOINT 1: Método HTTP
-    console.log('🔍 CHECKPOINT 1: Verificando método HTTP');
+    console.log('[DEBUG] CHECKPOINT 1: Verificando método HTTP');
     if (req.method !== 'POST') {
       return res.status(405).json({ error: 'Method not allowed', checkpoint: 'HTTP_METHOD' });
     }
-    console.log('✅ CHECKPOINT 1: Método POST válido');
+    console.log('[SUCCESS] CHECKPOINT 1: Método POST válido');
 
     // CHECKPOINT 2: Variáveis de ambiente
-    console.log('🔍 CHECKPOINT 2: Verificando variáveis de ambiente (dinâmico)');
-    console.log('🔧 STRIPE_MODE env (lido agora):', process.env.STRIPE_MODE);
+    console.log('[DEBUG] CHECKPOINT 2: Verificando variáveis de ambiente (dinâmico)');
+    console.log('[DEBUG] STRIPE_MODE env (lido agora):', process.env.STRIPE_MODE);
     const { stripeSecretKey: currentStripeSecretKey } = getCurrentStripeConfig();
 
     if (!currentStripeSecretKey) {
       const missingKeyName = isTestMode ? 'STRIPE_SECRET_KEY_TEST' : 'STRIPE_SECRET_KEY_LIVE';
-      console.error('❌ CHECKPOINT 2: Chave ausente (dinâmico):', missingKeyName);
+      console.error('[ERROR] CHECKPOINT 2: Chave ausente (dinâmico):', missingKeyName);
       return res.status(500).json({
         error: `Missing ${missingKeyName}`,
         mode: isTestMode ? 'test' : 'live',
         checkpoint: 'STRIPE_KEY_MISSING_DYNAMIC',
       });
     }
-    console.log('✅ CHECKPOINT 2: Chave Stripe disponível (dinâmico)');
-    console.log('🔍 STRIPE VARS:');
+    console.log('[SUCCESS] CHECKPOINT 2: Chave Stripe disponível (dinâmico)');
+    console.log('[DEBUG] STRIPE VARS:');
     console.log('STRIPE_SECRET_KEY:', !!process.env.STRIPE_SECRET_KEY);
     console.log('STRIPE_SECRET_KEY_LIVE:', !!process.env.STRIPE_SECRET_KEY_LIVE);
     console.log('STRIPE_PUBLISHABLE_KEY:', !!process.env.STRIPE_PUBLISHABLE_KEY);
     console.log('STRIPE_PUBLISHABLE_KEY_LIVE:', !!process.env.STRIPE_PUBLISHABLE_KEY_LIVE);
 
     // CHECKPOINT 4: Validar dados da requisição
-    console.log('🔍 CHECKPOINT 4: Validando dados da requisição');
+    console.log('[DEBUG] CHECKPOINT 4: Validando dados da requisição');
     const { planId, interval = 'monthly', storeId } = req.body;
     const userId = req.session.userId;
     if (!planId) {
@@ -290,30 +290,30 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     if (!userId) {
       return res.status(401).json({ error: 'Usuário não autenticado', checkpoint: 'AUTH_ERROR', mode: isTestMode ? 'test' : 'live' });
     }
-    console.log('✅ CHECKPOINT 4: Dados válidos - planId:', planId, 'storeId:', storeId);
+    console.log('[SUCCESS] CHECKPOINT 4: Dados válidos - planId:', planId, 'storeId:', storeId);
 
     // CHECKPOINT 5: Verificar autenticação
-    console.log('🔍 CHECKPOINT 5: Verificando autenticação');
+    console.log('[DEBUG] CHECKPOINT 5: Verificando autenticação');
     if (!req.session.userId) {
       return res.status(401).json({ error: 'Usuário não autenticado', checkpoint: 'AUTH_ERROR', mode: isTestMode ? 'test' : 'live' });
     }
-    console.log('✅ CHECKPOINT 5: Usuário autenticado, ID:', req.session.userId);
+    console.log('[SUCCESS] CHECKPOINT 5: Usuário autenticado, ID:', req.session.userId);
 
     // CHECKPOINT 6: Mapear Price IDs
-    console.log('🔍 CHECKPOINT 6: Mapeando Price IDs (dinâmico)');
+    console.log('[DEBUG] CHECKPOINT 6: Mapeando Price IDs (dinâmico)');
     if (planId === 'freemium') {
-      console.log('✅ CHECKPOINT 6: Plano Freemium detectado - processando gratuitamente');
+      console.log('[SUCCESS] CHECKPOINT 6: Plano Freemium detectado - processando gratuitamente');
       return res.status(200).json({ success: true, message: 'Plano Freemium ativado', mode: isTestMode ? 'test' : 'live' });
     }
     const priceId = activePriceMapping[planId]?.[interval];
     if (!priceId) {
-      console.log('❌ CHECKPOINT 6: Price ID inválido (dinâmico) para plano:', planId);
+      console.log('[ERROR] CHECKPOINT 6: Price ID inválido (dinâmico) para plano:', planId);
       return res.status(400).json({ error: 'Invalid plan or price ID not found', mode: isTestMode ? 'test' : 'live' });
     }
-    console.log('✅ CHECKPOINT 6: Price ID mapeado com sucesso (dinâmico):', priceId);
+    console.log('[SUCCESS] CHECKPOINT 6: Price ID mapeado com sucesso (dinâmico):', priceId);
 
     // CHECKPOINT 7: Buscar e validar a loja
-    console.log('🔍 CHECKPOINT 7: Buscando dados da loja');
+    console.log('[DEBUG] CHECKPOINT 7: Buscando dados da loja');
     const store = await db.query.stores.findFirst({ 
       where: (stores, { eq }) => eq(stores.id, storeId as number) 
     });
@@ -325,20 +325,20 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     if (store.userId !== req.session.userId) {
       return res.status(403).json({ error: 'Acesso negado: usuário não é proprietário da loja', checkpoint: 'STORE_OWNERSHIP_ERROR', mode: isTestMode ? 'test' : 'live' });
     }
-    console.log('✅ CHECKPOINT 7: Loja encontrada e propriedade validada');
+    console.log('[SUCCESS] CHECKPOINT 7: Loja encontrada e propriedade validada');
 
     // CHECKPOINT 8: Buscar dados do usuário proprietário
-    console.log('🔍 CHECKPOINT 8: Buscando dados do usuário proprietário');
+    console.log('[DEBUG] CHECKPOINT 8: Buscando dados do usuário proprietário');
     const user = await db.query.users.findFirst({ 
       where: (users, { eq }) => eq(users.id, store.userId) 
     });
     if (!user) {
       return res.status(404).json({ error: 'Usuário proprietário não encontrado', checkpoint: 'USER_NOT_FOUND', mode: isTestMode ? 'test' : 'live' });
     }
-    console.log('✅ CHECKPOINT 8: Usuário proprietário encontrado');
+    console.log('[SUCCESS] CHECKPOINT 8: Usuário proprietário encontrado');
 
     // CHECKPOINT 9: Gerenciar Customer Stripe na tabela stores
-    console.log('🔍 CHECKPOINT 9: Gerenciando Customer Stripe (dinâmico)');
+    console.log('[DEBUG] CHECKPOINT 9: Gerenciando Customer Stripe (dinâmico)');
     let customerId = store.stripeCustomerId;
     if (!customerId) {
       const customer = await localStripe.customers.create({
@@ -357,18 +357,18 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
       try {
         await db.update(stores).set({ stripeCustomerId: customerId }).where(eq(stores.id, store.id));
-        console.log('✅ Novo customer criado e loja atualizada (dinâmico):', customerId);
+        console.log('[SUCCESS] Novo customer criado e loja atualizada (dinâmico):', customerId);
       } catch (drizzleError) {
-        console.error('❌ ERRO NA OPERAÇÃO DB.UPDATE:', drizzleError);
+        console.error('[ERROR] ERRO NA OPERAÇÃO DB.UPDATE:', drizzleError);
         // Re-lançar o erro ou tratar conforme necessário para que ele ainda apareça no log global se não for pego
         throw drizzleError; 
       }
     } else {
-      console.log('✅ Customer ID existente na loja (dinâmico):', customerId);
+      console.log('[SUCCESS] Customer ID existente na loja (dinâmico):', customerId);
     }
 
     // CHECKPOINT 10: Configurar URLs para redirecionamento
-    console.log('🔍 CHECKPOINT 10: Configurando URLs');
+    console.log('[DEBUG] CHECKPOINT 10: Configurando URLs');
     // Configurar URLs de sucesso e cancelamento
       const baseUrl = process.env.NODE_ENV === 'production' 
         ? process.env.FRONTEND_URL || req.get('origin')
@@ -377,7 +377,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
       const successUrl = `${baseUrl}/payment/callback?storeId=${storeId}&success=true&session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${baseUrl}/payment/callback?storeId=${storeId}&success=false`;
 
-      console.log('🔗 [STRIPE] URLs configuradas:', { successUrl, cancelUrl });
+      console.log('[DEBUG] [STRIPE] URLs configuradas:', { successUrl, cancelUrl });
     // Validar se storeId foi enviado
 
     // Validar se a loja pertence ao usuário
@@ -417,11 +417,11 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     console.log(`[createCheckout] 📋 Client reference ID da sessão criada:`, session.client_reference_id);
 
     // CHECKPOINT 12: Retornar resposta
-    console.log('🔍 CHECKPOINT 12: Preparando resposta (dinâmico)');
+    console.log('[DEBUG] CHECKPOINT 12: Preparando resposta (dinâmico)');
     return res.status(200).json({ success: true, url: session.url, sessionId: session.id, mode: isTestMode ? 'test' : 'live' });
 
   } catch (error) {
-    console.error('💥 === STRIPE CHECKOUT GLOBAL ERROR (Dinâmico) ===', error);
+    console.error('[ERROR] === STRIPE CHECKOUT GLOBAL ERROR (Dinâmico) ===', error);
     return res.status(500).json({ error: 'Internal server error', details: error.message, mode: isTestMode ? 'test' : 'live', checkpoint: 'GLOBAL_ERROR_DYNAMIC' });
   }
 };
@@ -480,7 +480,7 @@ function extractSessionData(session: any) {
 
 export const handleWebhook = async (req: Request, res: Response) => {
   // === LOGS DETALHADOS DE DEBUG DO WEBHOOK ===
-  console.log('🚨 WEBHOOK STRIPE CHAMADO! 🚨');
+  console.log('[WARNING] WEBHOOK STRIPE CHAMADO!');
   console.log('=== WEBHOOK DEBUG COMPLETO ===');
   console.log('Timestamp:', new Date().toISOString());
   console.log('Method:', req.method);
@@ -491,7 +491,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
   console.log('Content-Type:', req.headers['content-type']);
   console.log('Stripe-Signature presente:', !!req.headers['stripe-signature']);
   console.log('Event Type (se disponível):', req.body?.type || 'N/A');
-  console.log('🔍 DEBUGGING: Webhook foi chamado após checkout!');
+  console.log('[DEBUG] DEBUGGING: Webhook foi chamado após checkout!');
   console.log('===============================');
 
   const localStripe = getStripeClient();
@@ -499,7 +499,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
   const sig = req.headers['stripe-signature'] as string;
 
   if (!localStripe) {
-    console.error('❌ Webhook: Stripe não pôde ser inicializado.');
+    console.error('[ERROR] Webhook: Stripe não pôde ser inicializado.');
     return res.status(500).send('Webhook Error: Payment service not available');
   }
 
@@ -509,21 +509,21 @@ export const handleWebhook = async (req: Request, res: Response) => {
       ? process.env.STRIPE_WEBHOOK_SECRET_TEST
       : process.env.STRIPE_WEBHOOK_SECRET_LIVE;
 
-    console.log(`🔑 Webhook Secret para modo ${isTestMode ? 'TEST' : 'LIVE'}:`, webhookSecret ? 'PRESENTE' : 'AUSENTE');
+    console.log(`[DEBUG] Webhook Secret para modo ${isTestMode ? 'TEST' : 'LIVE'}:`, webhookSecret ? 'PRESENTE' : 'AUSENTE');
 
     if (!webhookSecret) {
-      console.error(`❌ Webhook Error: Webhook secret para modo ${isTestMode ? 'TESTE' : 'LIVE'} não encontrado.`);
+      console.error(`[ERROR] Webhook Error: Webhook secret para modo ${isTestMode ? 'TESTE' : 'LIVE'} não encontrado.`);
       throw new Error('Webhook secret não configurado para o modo atual');
     }
 
-    console.log('🔄 Tentando construir evento do Stripe...');
+    console.log('[DEBUG] Tentando construir evento do Stripe...');
     event = localStripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-    console.log('✅ Evento construído com sucesso!', event.type);
+    console.log('[SUCCESS] Evento construído com sucesso!', event.type);
   } catch (err: any) {
-    console.error('❌ ERRO CRÍTICO no webhook Stripe (dinâmico):', err.message);
-    console.error('❌ Stack trace:', err.stack);
-    console.error('❌ Signature recebida:', sig);
-    console.error('❌ Body recebido (primeiros 200 chars):', req.body ? req.body.toString().substring(0, 200) : 'VAZIO');
+    console.error('[ERROR] ERRO CRÍTICO no webhook Stripe (dinâmico):', err.message);
+    console.error('[ERROR] Stack trace:', err.stack);
+    console.error('[ERROR] Signature recebida:', sig);
+    console.error('[ERROR] Body recebido (primeiros 200 chars):', req.body ? req.body.toString().substring(0, 200) : 'VAZIO');
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -560,14 +560,14 @@ export const handleWebhook = async (req: Request, res: Response) => {
         console.log('==============================');
 
         if (!userId || !storeId || !plan) {
-          console.error('[Webhook] ❌ Dados incompletos na sessão:', { userId, storeId, plan });
-          console.error('[Webhook] ❌ Session metadata era:', session.metadata);
-          console.error('[Webhook] ❌ Client reference ID era:', session.client_reference_id);
+          console.error('[Webhook] [ERROR] Dados incompletos na sessão:', { userId, storeId, plan });
+          console.error('[Webhook] [ERROR] Session metadata era:', session.metadata);
+          console.error('[Webhook] [ERROR] Client reference ID era:', session.client_reference_id);
           break;
         }
 
         // === LOG ANTES DA ATUALIZAÇÃO ===
-        console.log(`[Webhook] 🔄 INICIANDO atualização - User: ${userId}, Store: ${storeId}, Plan: ${plan}`);
+        console.log(`[Webhook] [DEBUG] INICIANDO atualização - User: ${userId}, Store: ${storeId}, Plan: ${plan}`);
 
         // Atualizar assinatura da loja específica
         await updateStoreSubscription(userId, storeId, {
@@ -578,10 +578,10 @@ export const handleWebhook = async (req: Request, res: Response) => {
         });
 
         // === LOG APÓS A ATUALIZAÇÃO ===
-        console.log(`[Webhook] ✅ CONCLUÍDA atualização - User: ${userId}, Store: ${storeId}, Plan: ${plan}`);
+        console.log(`[Webhook] [SUCCESS] CONCLUÍDA atualização - User: ${userId}, Store: ${storeId}, Plan: ${plan}`);
       } catch (error) {
-        console.error('[Webhook] ❌ Erro ao processar checkout.session.completed:', error);
-        console.error('[Webhook] ❌ Stack trace:', error.stack);
+        console.error('[Webhook] [ERROR] Erro ao processar checkout.session.completed:', error);
+        console.error('[Webhook] [ERROR] Stack trace:', error.stack);
       }
       break;
 
@@ -602,12 +602,12 @@ export const handleWebhook = async (req: Request, res: Response) => {
             })
             .where(eq(stores.id, store.id));
 
-          console.log(`[Webhook] ✅ Status da assinatura da loja ${store.id} atualizado para ${subscription.status}`);
+          console.log(`[Webhook] [SUCCESS] Status da assinatura da loja ${store.id} atualizado para ${subscription.status}`);
         } else {
-          console.warn('[Webhook] ⚠️ Loja não encontrada para subscription ID:', subscription.id);
+          console.warn('[Webhook] [WARNING] Loja não encontrada para subscription ID:', subscription.id);
         }
       } catch (error) {
-        console.error('[Webhook] ❌ Erro ao processar customer.subscription.updated:', error);
+        console.error('[Webhook] [ERROR] Erro ao processar customer.subscription.updated:', error);
       }
       break;
 
@@ -630,18 +630,18 @@ export const handleWebhook = async (req: Request, res: Response) => {
             })
             .where(eq(stores.id, store.id));
 
-          console.log(`[Webhook] ✅ Assinatura da loja ${store.id} cancelada, revertida para freemium`);
+          console.log(`[Webhook] [SUCCESS] Assinatura da loja ${store.id} cancelada, revertida para freemium`);
         } else {
-          console.warn('[Webhook] ⚠️ Loja não encontrada para subscription ID:', subscription.id);
+          console.warn('[Webhook] [WARNING] Loja não encontrada para subscription ID:', subscription.id);
         }
       } catch (error) {
-        console.error('[Webhook] ❌ Erro ao processar customer.subscription.deleted:', error);
+        console.error('[Webhook] [ERROR] Erro ao processar customer.subscription.deleted:', error);
       }
       break;
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice;
-        console.log('💰 Payment succeeded for invoice:', invoice.id);
+        console.log('[SUCCESS] Payment succeeded for invoice:', invoice.id);
 
         if (invoice.subscription) {
           const localStripe = getStripeClient();
@@ -654,19 +654,18 @@ export const handleWebhook = async (req: Request, res: Response) => {
           const storeId = parseInt(subscription.metadata?.storeId || '');
 
           if (userId && storeId) {
-            console.log(`💰 Processando pagamento bem-sucedido - User: ${userId}, Store: ${storeId}`);
+            console.log(`[SUCCESS] Processando pagamento bem-sucedido - User: ${userId}, Store: ${storeId}`);
             await handlePaymentSucceeded(subscription, userId, storeId);
           } else {
-            console.error('❌ UserId ou StoreId não encontrado no metadata da subscription');
+            console.error('[ERROR] UserId ou StoreId não encontrado no metadata da subscription');
           }
         }
         break;
       }
 
-      case 'invoice.payment_failed':```typescript
-      {
+      case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
-        console.log('❌ Payment failed for invoice:', invoice.id);
+        console.log('[ERROR] Payment failed for invoice:', invoice.id);
 
         if (invoice.subscription) {
           const localStripe = getStripeClient();
@@ -679,10 +678,10 @@ export const handleWebhook = async (req: Request, res: Response) => {
           const storeId = parseInt(subscription.metadata?.storeId || '');
 
           if (userId && storeId) {
-            console.log(`❌ Processando falha de pagamento - User: ${userId}, Store: ${storeId}`);
+            console.log(`[ERROR] Processando falha de pagamento - User: ${userId}, Store: ${storeId}`);
             await handlePaymentFailed(subscription, userId, storeId);
           } else {
-            console.error('❌ UserId ou StoreId não encontrado no metadata da subscription');
+            console.error('[ERROR] UserId ou StoreId não encontrado no metadata da subscription');
           }
         }
         break;
@@ -692,12 +691,12 @@ export const handleWebhook = async (req: Request, res: Response) => {
       console.log(`[Webhook] Evento não tratado (dinâmico): ${event.type}`);
   }
 
-  console.log(`🏁 WEBHOOK PROCESSADO COMPLETAMENTE - Modo: ${isTestMode ? 'test' : 'live'}`);
+  console.log(`[INFO] WEBHOOK PROCESSADO COMPLETAMENTE - Modo: ${isTestMode ? 'test' : 'live'}`);
   res.json({ received: true, mode: isTestMode ? 'test' : 'live' });
 };
 
 export const testWebhook = async (req: Request, res: Response) => {
-  console.log('🧪 TESTE DE WEBHOOK CHAMADO!');
+  console.log('[DEBUG] TESTE DE WEBHOOK CHAMADO!');
   console.log('Method:', req.method);
   console.log('Headers:', req.headers);
   console.log('Body:', req.body);
