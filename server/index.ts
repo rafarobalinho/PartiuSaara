@@ -1,3 +1,6 @@
+// === DIAGNÓSTICO: Log de inicialização ===
+console.log('[SERVER-TEST] === SERVIDOR INICIADO ===', new Date());
+
 // Auto-detecção de ambiente de produção no Replit
 if (!process.env.NODE_ENV && process.env.REPLIT_ENVIRONMENT === 'production') {
   process.env.NODE_ENV = 'production';
@@ -135,8 +138,9 @@ if (isProduction) {
   app.use('/assets', express.static(assetsPath));
 }
 
-// Definir content-type padrão para rotas API
+// === DIAGNÓSTICO: Interceptar todas as requests da API ===
 app.use('/api', (req, res, next) => {
+  console.log('[SERVER] Request:', req.method, req.path, 'Body:', req.body ? 'PRESENTE' : 'AUSENTE');
   res.setHeader('Content-Type', 'application/json');
   next();
 });
