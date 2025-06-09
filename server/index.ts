@@ -1,11 +1,11 @@
 // Auto-detecção de ambiente de produção no Replit
-if (!process.env.NODE_ENV && process.env.REPL_SLUG) {
+if (!process.env.NODE_ENV && process.env.REPLIT_ENVIRONMENT === 'production') {
   process.env.NODE_ENV = 'production';
-  console.log('🚀 Auto-detectado ambiente de PRODUÇÃO via REPL_SLUG');
+  console.log('🚀 Auto-detectado ambiente de PRODUÇÃO via REPLIT_ENVIRONMENT');
 }
 
 import dotenv from 'dotenv';
-dotenv.config({ override: true });
+dotenv.config({ override: false });
 
 // ---- ADICIONE ESTAS LINHAS PARA DEBUG ----
 console.log('--- DEBUG INÍCIO server/index.ts ---');
@@ -178,10 +178,13 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  if (process.env.NODE_ENV !== "production") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
+
+    // Middleware adicional para garantir que assets sejam servidos
+    app.use(express.static(path.join(__dirname, 'public')));
   }
 
   // ALWAYS serve the app on port 5000
