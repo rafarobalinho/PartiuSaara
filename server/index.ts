@@ -101,6 +101,12 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 app.use('/uploads/thumbnails', express.static(path.join(__dirname, '../public/uploads/thumbnails')));
 
+// Assets middleware condicional
+if (isProduction) {
+  // Produção: __dirname = dist/
+  app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
+}
+
 // Definir content-type padrão para rotas API
 app.use('/api', (req, res, next) => {
   res.setHeader('Content-Type', 'application/json');
@@ -182,8 +188,7 @@ app.use((req, res, next) => {
     await setupVite(app, server);
   } else {
     serveStatic(app);
-
-    // Middleware adicional para garantir que assets sejam servidos
+    // Produção: __dirname = dist/
     app.use(express.static(path.join(__dirname, 'public')));
   }
 
