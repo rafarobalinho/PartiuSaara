@@ -237,6 +237,18 @@ async function handlePaymentFailed(subscription: Stripe.Subscription, userId: nu
 
 
 export const createCheckoutSession = async (req: Request, res: Response) => {
+  // === DEBUG CRÍTICO DE CHECKOUT ===
+  console.log('[DEBUG] === STRIPE CHECKOUT DEBUG ===');
+  console.log('[DEBUG] NODE_ENV:', process.env.NODE_ENV);
+  console.log('[DEBUG] STRIPE_SECRET_KEY exists:', !!process.env.STRIPE_SECRET_KEY);
+  console.log('[DEBUG] STRIPE_SECRET_KEY_LIVE exists:', !!process.env.STRIPE_SECRET_KEY_LIVE);
+  console.log('[DEBUG] STRIPE_PUBLISHABLE_KEY exists:', !!process.env.STRIPE_PUBLISHABLE_KEY);
+  console.log('[DEBUG] STRIPE_PUBLISHABLE_KEY_LIVE exists:', !!process.env.STRIPE_PUBLISHABLE_KEY_LIVE);
+  console.log('[DEBUG] STRIPE_SECRET_KEY_TEST exists:', !!process.env.STRIPE_SECRET_KEY_TEST);
+  console.log('[DEBUG] STRIPE_PUBLISHABLE_KEY_TEST exists:', !!process.env.STRIPE_PUBLISHABLE_KEY_TEST);
+  console.log('[DEBUG] STRIPE_MODE:', process.env.STRIPE_MODE);
+  console.log('[DEBUG] === FIM STRIPE CHECKOUT DEBUG ===');
+
   const { isTestMode } = getCurrentStripeConfig(); // Obtém o modo dinamicamente
   const localStripe = getStripeClient(); // Obtém o cliente Stripe dinamicamente
   const activePriceMapping = getPriceMapping(isTestMode); // Obtém o mapeamento de preços dinâmico
