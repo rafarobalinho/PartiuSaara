@@ -15,7 +15,15 @@ import {
   CheckCircle,
   ArrowRight,
   Globe,
-  Shield
+  Shield,
+  Percent,
+  Navigation,
+  Heart,
+  DollarSign,
+  Clock,
+  Star,
+  Package,
+  Zap
 } from 'lucide-react';
 
 export default function Landing() {
