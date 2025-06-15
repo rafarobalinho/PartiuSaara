@@ -1,0 +1,94 @@
+Analise todo o código do projeto PartiuSaara e me forneça um relatório detalhado sobre quais funcionalidades dos planos de monetização já estão implementadas e quais estão faltando.
+
+## 📋 RELATÓRIO DE IMPLEMENTAÇÃO DOS PLANOS (HIERARQUIA CORRIGIDA)
+
+### 🎯 FUNCIONALIDADES POR PLANO - STATUS DE IMPLEMENTAÇÃO
+
+#### 🆓 PLANO FREE (Freemium) - Análise:
+- [ ] Cadastro da loja (informações básicas + até 1 imagem) - VERIFICAR STATUS
+- [ ] Limite de até 5 produtos - VERIFICAR CONTROLE
+- [ ] Criar 1 promoção simples por mês - VERIFICAR LIMITE TEMPORAL
+- [ ] Mini-dashboard básico - VERIFICAR IMPLEMENTAÇÃO
+- [ ] Chat com consumidores - VERIFICAR STATUS
+- [ ] Listado em buscas sem destaque - VERIFICAR LÓGICA
+
+#### 🚀 PLANO START (R$ 149,90/mês) - Análise:
+**Deve incluir TODAS as funcionalidades do FREE +:**
+- [ ] Limite de 10 produtos (upgrade de 5) - VERIFICAR CONTROLE
+- [ ] 5 cupons promocionais (upgrade do FREE) - VERIFICAR SISTEMA
+- [ ] Promoções simples ilimitadas (upgrade de 1/mês) - VERIFICAR CONTROLE
+- [ ] Notificações push para seguidores - VERIFICAR IMPLEMENTAÇÃO
+- [ ] Painel de marketing - VERIFICAR STATUS
+- [ ] Dashboard com indicadores (upgrade mini-dashboard) - VERIFICAR ANALYTICS
+- [ ] Relatórios por e-mail - VERIFICAR SISTEMA
+- [ ] Acesso prioritário ao suporte - VERIFICAR IMPLEMENTAÇÃO
+- [ ] Peso de exibição = 1 - VERIFICAR ALGORITMO DE DESTAQUE
+
+#### 💼 PLANO PRO (R$ 249,90/mês) - Análise:
+**Deve incluir TODAS as funcionalidades do START +:**
+- [ ] Limite de 50 produtos (upgrade de 10) - VERIFICAR CONTROLE
+- [ ] Cupons ilimitados (upgrade de 5) - VERIFICAR SISTEMA
+- [ ] Promoções relâmpago - VERIFICAR IMPLEMENTAÇÃO ESPECÍFICA
+- [ ] Analytics parcial (upgrade do básico) - VERIFICAR DIFERENCIAÇÃO
+- [ ] Peso de exibição = 2 - VERIFICAR ALGORITMO
+
+#### 👑 PLANO PREMIUM (R$ 349,90/mês) - Análise:
+**Deve incluir TODAS as funcionalidades do PRO +:**
+- [ ] Produtos ilimitados (upgrade de 50) - VERIFICAR CONTROLE
+- [ ] Analytics completo (upgrade do parcial) - VERIFICAR DIFERENCIAÇÃO
+- [ ] Destaque em toda plataforma - VERIFICAR LÓGICA ESPECÍFICA
+- [ ] Peso de exibição = 3 - VERIFICAR ALGORITMO
+
+### 🔍 VERIFICAÇÕES CRÍTICAS DE HERANÇA:
+
+#### Confirme se o código implementa a herança correta:
+1. **PRO herda START:** Notificações push, painel marketing, dashboard indicadores, relatórios email, suporte prioritário
+2. **PREMIUM herda PRO:** Todas as anteriores + cupons ilimitados + promoções relâmpago
+3. **Controle incremental:** Cada plano superior relaxa limitações do inferior
+
+### 🛠️ INTEGRAÇÃO TÉCNICA - PONTOS ESPECÍFICOS:
+
+#### Sistema de Controle de Planos:
+1. **Middleware Hierárquico:** Verifica se plano atual >= plano mínimo requerido?
+2. **Limites Escalonados:** 
+   - FREE: 5 produtos, 1 promoção/mês, 0 cupons
+   - START: 10 produtos, promoções ilimitadas, 5 cupons
+   - PRO: 50 produtos, cupons ilimitados + relâmpago
+   - PREMIUM: tudo ilimitado + máximo destaque
+3. **Stripe Integration:** Price IDs corretos para R$ 149,90 / R$ 249,90 / R$ 349,90?
+
+#### Sistema de Destaques com Peso:
+1. **Algoritmo de Distribuição:** FREE=0, START=1, PRO=2, PREMIUM=3
+2. **Tabela de Impressões:** Registra cada exibição com plano do lojista?
+3. **Rotação Justa:** Distribui entre lojistas do mesmo peso?
+
+#### Funcionalidades Específicas por Nível:
+1. **Sistema de Cupons:** 
+   - FREE: bloqueado
+   - START: até 5
+   - PRO/PREMIUM: ilimitados
+2. **Promoções Relâmpago:** Exclusivo PRO/PREMIUM?
+3. **Analytics Diferenciado:** 
+   - FREE: mini-dashboard
+   - START: básico
+   - PRO: parcial
+   - PREMIUM: completo
+4. **Notificações Push:** START/PRO/PREMIUM apenas?
+
+### 📊 ENTREGUE O RELATÓRIO COM:
+
+1. **Matriz de Funcionalidades vs Planos** (mostrando herança correta)
+2. **Problemas de Herança** identificados no código atual
+3. **Controles de Limite** implementados/faltando por plano
+4. **Sistema de Upgrade** funcional entre planos?
+5. **Validações de Plano** em cada endpoint crítico
+
+### 🚨 PRIORIZE A ANÁLISE DE:
+
+- **Hierarquia de Permissões** (plano superior = todas funcionalidades inferiores)
+- **Controles Incrementais** (limites que aumentam por plano)
+- **Stripe Price IDs** configurados para valores corretos
+- **Trial Period** (14 dias Premium → downgrade para FREE)
+- **Middleware de Verificação** em cada funcionalidade restrita
+
+Seja específico sobre onde a herança de funcionalidades está quebrada ou faltando!
