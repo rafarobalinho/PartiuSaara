@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Link } from 'wouter';
+import { useState } from 'react';
 import { 
   ShoppingBag, 
   MapPin, 
@@ -19,15 +21,91 @@ import {
   AlertCircle,
   Zap,
   Heart,
-  Search
+  Search,
+  X
 } from 'lucide-react';
 
 export default function Presentation() {
+  const [selectedSolution, setSelectedSolution] = useState<string | null>(null);
+  
   const primaryColor = '#EB690A';
   const secondaryColor = '#F28B50';
   const lightColor = '#F2B591';
   const grayColor = '#F2F2F2';
   const blackColor = '#0D0D0D';
+
+  const solutions = [
+    {
+      id: 'catalogo',
+      icon: <Store className="h-12 w-12" style={{ color: primaryColor }} />,
+      title: "Catálogo Digital",
+      description: "Catálogo digital de produtos completo e organizado",
+      detailedDescription: "Sistema completo de gestão de produtos com fotos, descrições detalhadas, preços e categorização inteligente. Permite aos lojistas criar vitrines digitais atrativas e organizadas.",
+      features: [
+        "Upload de múltiplas imagens por produto",
+        "Categorização automática e manual",
+        "Controle de estoque em tempo real",
+        "Descrições detalhadas com especificações",
+        "Preços promocionais e descontos"
+      ]
+    },
+    {
+      id: 'promocoes',
+      icon: <Target className="h-12 w-12" style={{ color: primaryColor }} />,
+      title: "Promoções e Reservas",
+      description: "Sistema inteligente de promoções e reservas",
+      detailedDescription: "Plataforma avançada para criação de campanhas promocionais e sistema de reservas que conecta clientes diretamente com as lojas.",
+      features: [
+        "Criação de promoções por tempo limitado",
+        "Sistema de reserva de produtos",
+        "Notificações automáticas para clientes",
+        "Controle de quantidade de reservas",
+        "Histórico de promoções e performance"
+      ]
+    },
+    {
+      id: 'mapa',
+      icon: <MapPin className="h-12 w-12" style={{ color: primaryColor }} />,
+      title: "Mapa Interativo",
+      description: "Mapa interativo com rotas até a loja",
+      detailedDescription: "Integração completa com Google Maps oferecendo localização precisa das lojas e navegação otimizada para os clientes.",
+      features: [
+        "Localização GPS precisa das lojas",
+        "Rotas otimizadas em tempo real",
+        "Informações de trânsito e transporte público",
+        "Visualização de lojas próximas",
+        "Estimativa de tempo de chegada"
+      ]
+    },
+    {
+      id: 'whatsapp',
+      icon: <MessageCircle className="h-12 w-12" style={{ color: primaryColor }} />,
+      title: "WhatsApp Direto",
+      description: "Link direto para o WhatsApp dos lojistas",
+      detailedDescription: "Conexão instantânea entre clientes e lojistas através do WhatsApp, facilitando negociações e atendimento personalizado.",
+      features: [
+        "Link direto para WhatsApp da loja",
+        "Mensagens pré-definidas sobre produtos",
+        "Integração com catálogo de produtos",
+        "Histórico de conversas organizadas",
+        "Atendimento personalizado e rápido"
+      ]
+    },
+    {
+      id: 'gestao',
+      icon: <BarChart3 className="h-12 w-12" style={{ color: primaryColor }} />,
+      title: "Gestão Simplificada",
+      description: "Ferramentas de gestão e CRM simplificado",
+      detailedDescription: "Suite completa de ferramentas de gestão empresarial adaptada para o comércio popular, com interface intuitiva e funcionalidades essenciais.",
+      features: [
+        "Dashboard com métricas principais",
+        "Controle de vendas e estoque",
+        "Relatórios de performance",
+        "Gestão de clientes (CRM básico)",
+        "Análise de dados de visitação"
+      ]
+    }
+  ];
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: grayColor }}>
@@ -146,34 +224,12 @@ export default function Presentation() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                icon: <Store className="h-12 w-12" style={{ color: primaryColor }} />,
-                title: "Catálogo Digital",
-                description: "Catálogo digital de produtos completo e organizado"
-              },
-              {
-                icon: <Target className="h-12 w-12" style={{ color: primaryColor }} />,
-                title: "Promoções e Reservas",
-                description: "Sistema inteligente de promoções e reservas"
-              },
-              {
-                icon: <MapPin className="h-12 w-12" style={{ color: primaryColor }} />,
-                title: "Mapa Interativo",
-                description: "Mapa interativo com rotas até a loja"
-              },
-              {
-                icon: <MessageCircle className="h-12 w-12" style={{ color: primaryColor }} />,
-                title: "WhatsApp Direto",
-                description: "Link direto para o WhatsApp dos lojistas"
-              },
-              {
-                icon: <BarChart3 className="h-12 w-12" style={{ color: primaryColor }} />,
-                title: "Gestão Simplificada",
-                description: "Ferramentas de gestão e CRM simplificado"
-              }
-            ].map((solution, index) => (
-              <Card key={index} className="p-8 text-center bg-white shadow-lg hover:shadow-xl transition-shadow border-0">
+            {solutions.map((solution, index) => (
+              <Card 
+                key={index} 
+                className="p-8 text-center bg-white shadow-lg hover:shadow-xl transition-all duration-300 border-0 cursor-pointer transform hover:scale-105"
+                onClick={() => setSelectedSolution(solution.id)}
+              >
                 <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: lightColor }}>
                   {solution.icon}
                 </div>
@@ -181,6 +237,17 @@ export default function Presentation() {
                   {solution.title}
                 </h3>
                 <p style={{ color: blackColor }}>{solution.description}</p>
+                <div className="mt-4">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-white hover:bg-orange-600"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    Ver Detalhes
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
               </Card>
             ))}
           </div>
@@ -442,6 +509,165 @@ export default function Presentation() {
           </p>
         </div>
       </footer>
+
+      {/* Modal para detalhes das soluções */}
+      {selectedSolution && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Header do Modal */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: lightColor }}>
+                    {solutions.find(s => s.id === selectedSolution)?.icon}
+                  </div>
+                  <h2 className="text-3xl font-bold" style={{ color: blackColor }}>
+                    {solutions.find(s => s.id === selectedSolution)?.title}
+                  </h2>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedSolution(null)}
+                  className="hover:bg-gray-100"
+                >
+                  <X className="h-6 w-6" />
+                </Button>
+              </div>
+
+              {/* Conteúdo do Modal */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Lado esquerdo - Imagem ilustrativa */}
+                <div className="space-y-6">
+                  <div className="aspect-video bg-gradient-to-br rounded-lg p-8 flex items-center justify-center" style={{ backgroundColor: grayColor }}>
+                    {/* Renderização da imagem baseada no tipo de solução */}
+                    {selectedSolution === 'catalogo' && (
+                      <div className="text-center">
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                          <div className="bg-white rounded-lg p-4 shadow-lg">
+                            <div className="w-full h-24 bg-gray-200 rounded mb-2"></div>
+                            <div className="h-3 bg-gray-300 rounded mb-1"></div>
+                            <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                          </div>
+                          <div className="bg-white rounded-lg p-4 shadow-lg">
+                            <div className="w-full h-24 bg-gray-200 rounded mb-2"></div>
+                            <div className="h-3 bg-gray-300 rounded mb-1"></div>
+                            <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                          </div>
+                        </div>
+                        <Store className="h-16 w-16 mx-auto" style={{ color: primaryColor }} />
+                        <p className="text-lg font-semibold mt-2" style={{ color: blackColor }}>Catálogo Digital Organizado</p>
+                      </div>
+                    )}
+
+                    {selectedSolution === 'promocoes' && (
+                      <div className="text-center">
+                        <div className="relative bg-white rounded-lg p-6 shadow-lg mb-4">
+                          <div className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full px-3 py-1 text-sm font-bold">
+                            50% OFF
+                          </div>
+                          <div className="w-full h-32 bg-gray-200 rounded mb-4"></div>
+                          <div className="h-4 bg-gray-300 rounded mb-2"></div>
+                          <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto"></div>
+                        </div>
+                        <Target className="h-16 w-16 mx-auto" style={{ color: primaryColor }} />
+                        <p className="text-lg font-semibold mt-2" style={{ color: blackColor }}>Promoções Inteligentes</p>
+                      </div>
+                    )}
+
+                    {selectedSolution === 'mapa' && (
+                      <div className="text-center">
+                        <div className="bg-white rounded-lg p-4 shadow-lg mb-4 relative">
+                          <div className="w-full h-32 bg-gradient-to-br from-green-200 to-blue-200 rounded mb-2 relative">
+                            <div className="absolute top-4 left-4 w-3 h-3 bg-red-500 rounded-full"></div>
+                            <div className="absolute bottom-4 right-4 w-3 h-3 bg-blue-500 rounded-full"></div>
+                            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                              <div className="w-1 h-8 bg-blue-500 transform rotate-45"></div>
+                            </div>
+                          </div>
+                          <div className="text-sm font-medium" style={{ color: blackColor }}>15 min de caminhada</div>
+                        </div>
+                        <MapPin className="h-16 w-16 mx-auto" style={{ color: primaryColor }} />
+                        <p className="text-lg font-semibold mt-2" style={{ color: blackColor }}>Navegação Inteligente</p>
+                      </div>
+                    )}
+
+                    {selectedSolution === 'whatsapp' && (
+                      <div className="text-center">
+                        <div className="bg-white rounded-lg p-4 shadow-lg mb-4">
+                          <div className="flex items-center space-x-3 mb-3">
+                            <div className="w-8 h-8 rounded-full bg-green-500"></div>
+                            <div className="flex-1">
+                              <div className="h-3 bg-gray-300 rounded mb-1"></div>
+                              <div className="h-2 bg-gray-200 rounded w-2/3"></div>
+                            </div>
+                          </div>
+                          <div className="bg-green-100 rounded-lg p-3 text-left">
+                            <div className="h-2 bg-green-300 rounded mb-1"></div>
+                            <div className="h-2 bg-green-200 rounded w-3/4"></div>
+                          </div>
+                        </div>
+                        <MessageCircle className="h-16 w-16 mx-auto" style={{ color: primaryColor }} />
+                        <p className="text-lg font-semibold mt-2" style={{ color: blackColor }}>WhatsApp Integrado</p>
+                      </div>
+                    )}
+
+                    {selectedSolution === 'gestao' && (
+                      <div className="text-center">
+                        <div className="bg-white rounded-lg p-4 shadow-lg mb-4">
+                          <div className="grid grid-cols-3 gap-2 mb-3">
+                            <div className="h-8 bg-blue-200 rounded"></div>
+                            <div className="h-12 bg-blue-300 rounded"></div>
+                            <div className="h-6 bg-blue-200 rounded"></div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="h-3 bg-gray-300 rounded"></div>
+                            <div className="h-3 bg-gray-200 rounded"></div>
+                          </div>
+                        </div>
+                        <BarChart3 className="h-16 w-16 mx-auto" style={{ color: primaryColor }} />
+                        <p className="text-lg font-semibold mt-2" style={{ color: blackColor }}>Dashboard Intuitivo</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lado direito - Informações detalhadas */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-xl font-bold mb-3" style={{ color: blackColor }}>Descrição Detalhada</h3>
+                    <p className="text-lg leading-relaxed" style={{ color: blackColor }}>
+                      {solutions.find(s => s.id === selectedSolution)?.detailedDescription}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-bold mb-3" style={{ color: blackColor }}>Principais Funcionalidades</h3>
+                    <ul className="space-y-3">
+                      {solutions.find(s => s.id === selectedSolution)?.features.map((feature, index) => (
+                        <li key={index} className="flex items-start space-x-3">
+                          <CheckCircle className="h-5 w-5 mt-1 flex-shrink-0" style={{ color: primaryColor }} />
+                          <span style={{ color: blackColor }}>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="pt-4">
+                    <Button
+                      onClick={() => setSelectedSolution(null)}
+                      className="w-full text-white"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      Entendi, Fechar
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
