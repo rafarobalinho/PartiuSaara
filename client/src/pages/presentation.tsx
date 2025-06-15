@@ -120,7 +120,7 @@ export default function Presentation() {
               <img 
                 src={logoImage} 
                 alt="Partiu Saara Logo" 
-                className="h-24 w-auto"
+                className="h-48 w-auto"
               />
             </div>
           </div>
