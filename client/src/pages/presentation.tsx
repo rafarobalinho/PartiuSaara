@@ -3,6 +3,9 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Link } from 'wouter';
 import { useState } from 'react';
+import logoImage from '@assets/3_1750014654855.png';
+import storeImage from '@assets/photo-1441986300917-64674bd600d8_1750014608110.jpg';
+import paymentImage from '@assets/photo-1556740738-b6a63e27c4df_1750014608110.jpg';
 import { 
   ShoppingBag, 
   MapPin, 
@@ -113,11 +116,12 @@ export default function Presentation() {
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-center">
-            <div className="flex items-center space-x-3">
-              <ShoppingBag className="h-10 w-10" style={{ color: primaryColor }} />
-              <span className="text-3xl font-bold" style={{ color: blackColor }}>
-                Partiu <span style={{ color: primaryColor }}>Saara</span>
-              </span>
+            <div className="flex items-center">
+              <img 
+                src={logoImage} 
+                alt="Partiu Saara Logo" 
+                className="h-16 w-auto"
+              />
             </div>
           </div>
         </div>
@@ -214,13 +218,33 @@ export default function Presentation() {
       {/* 3. A Solução */}
       <section className="py-16 lg:py-24 bg-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-5xl font-bold mb-6" style={{ color: primaryColor }}>
-              A Nossa Solução
-            </h2>
-            <p className="text-xl mb-8 max-w-4xl mx-auto" style={{ color: blackColor }}>
-              O Partiu Saara é um aplicativo que conecta consumidores aos lojistas do Saara por meio de funcionalidades inovadoras:
-            </p>
+          {/* Hero visual com imagem da loja */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
+            <div>
+              <img 
+                src={storeImage} 
+                alt="Interior de loja moderna organizada" 
+                className="w-full rounded-lg shadow-xl"
+              />
+            </div>
+            <div>
+              <h2 className="text-3xl lg:text-5xl font-bold mb-6" style={{ color: primaryColor }}>
+                A Nossa Solução
+              </h2>
+              <p className="text-xl mb-8" style={{ color: blackColor }}>
+                O Partiu Saara é um aplicativo que conecta consumidores aos lojistas do Saara por meio de funcionalidades inovadoras que transformam a experiência de compra:
+              </p>
+              <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="p-4 rounded-lg" style={{ backgroundColor: lightColor }}>
+                  <div className="text-2xl font-bold" style={{ color: primaryColor }}>500+</div>
+                  <div className="text-sm" style={{ color: blackColor }}>Lojas Conectadas</div>
+                </div>
+                <div className="p-4 rounded-lg" style={{ backgroundColor: lightColor }}>
+                  <div className="text-2xl font-bold" style={{ color: primaryColor }}>10k+</div>
+                  <div className="text-sm" style={{ color: blackColor }}>Produtos Catalogados</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -257,10 +281,22 @@ export default function Presentation() {
       {/* 4. Dados que comprovam a oportunidade */}
       <section className="py-16 lg:py-24" style={{ backgroundColor: primaryColor }}>
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-5xl font-bold mb-6 text-white">
-              Dados que Comprovam a Oportunidade
-            </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
+            <div>
+              <h2 className="text-3xl lg:text-5xl font-bold mb-6 text-white">
+                Dados que Comprovam a Oportunidade
+              </h2>
+              <p className="text-xl text-white mb-8">
+                O comportamento digital dos consumidores brasileiros comprova a necessidade de nossa solução:
+              </p>
+            </div>
+            <div>
+              <img 
+                src={paymentImage} 
+                alt="Mulher usando tecnologia de pagamento moderna" 
+                className="w-full rounded-lg shadow-xl"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -498,11 +534,12 @@ export default function Presentation() {
       {/* Footer */}
       <footer className="bg-white py-12">
         <div className="container mx-auto px-4 text-center">
-          <div className="flex items-center justify-center space-x-3 mb-4">
-            <ShoppingBag className="h-8 w-8" style={{ color: primaryColor }} />
-            <span className="text-2xl font-bold" style={{ color: blackColor }}>
-              Partiu <span style={{ color: primaryColor }}>Saara</span>
-            </span>
+          <div className="flex items-center justify-center mb-4">
+            <img 
+              src={logoImage} 
+              alt="Partiu Saara Logo" 
+              className="h-12 w-auto"
+            />
           </div>
           <p style={{ color: blackColor }}>
             Transformando o maior polo popular do Brasil através da tecnologia
