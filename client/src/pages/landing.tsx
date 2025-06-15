@@ -3,15 +3,19 @@ import { Card } from '@/components/ui/card';
 import { Link } from 'wouter';
 import { 
   ShoppingBag, 
-  Percent, 
-  Navigation, 
-  Heart, 
-  DollarSign, 
-  Clock, 
-  Star, 
-  Package, 
   MapPin, 
-  Zap
+  Users, 
+  TrendingUp, 
+  Smartphone, 
+  Store, 
+  BarChart3,
+  MessageCircle,
+  Target,
+  Award,
+  CheckCircle,
+  ArrowRight,
+  Globe,
+  Shield
 } from 'lucide-react';
 
 export default function Landing() {

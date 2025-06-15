@@ -15,6 +15,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 
 import Home from "@/pages/home";
 import Landing from "@/pages/landing";
+import Presentation from "@/pages/presentation";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
@@ -59,6 +60,7 @@ function Router() {
       <div className="flex-grow">
         <Switch>
           <Route path="/landing" component={Landing} />
+          <Route path="/presentation" component={Presentation} />
           <Route path="/" component={Home} />
           <Route path="/payment/callback" component={PaymentCallback} />
           <Route path="/login" component={Login} />
