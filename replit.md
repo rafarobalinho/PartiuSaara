@@ -79,6 +79,7 @@ Key deployment features:
 ```
 Changelog:
 - June 15, 2025. Initial setup
+- June 15, 2025. Criada página de apresentação pública em /presentation com popups interativos para demonstração das soluções
 ```
 
 ## User Preferences
