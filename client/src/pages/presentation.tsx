@@ -120,7 +120,7 @@ export default function Presentation() {
               <img 
                 src={logoImage} 
                 alt="Partiu Saara Logo" 
-                className="h-16 w-auto"
+                className="h-96 w-auto"
               />
             </div>
           </div>
@@ -234,16 +234,7 @@ export default function Presentation() {
               <p className="text-xl mb-8" style={{ color: blackColor }}>
                 O Partiu Saara é um aplicativo que conecta consumidores aos lojistas do Saara por meio de funcionalidades inovadoras que transformam a experiência de compra:
               </p>
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div className="p-4 rounded-lg" style={{ backgroundColor: lightColor }}>
-                  <div className="text-2xl font-bold" style={{ color: primaryColor }}>500+</div>
-                  <div className="text-sm" style={{ color: blackColor }}>Lojas Conectadas</div>
-                </div>
-                <div className="p-4 rounded-lg" style={{ backgroundColor: lightColor }}>
-                  <div className="text-2xl font-bold" style={{ color: primaryColor }}>10k+</div>
-                  <div className="text-sm" style={{ color: blackColor }}>Produtos Catalogados</div>
-                </div>
-              </div>
+              
             </div>
           </div>
 
