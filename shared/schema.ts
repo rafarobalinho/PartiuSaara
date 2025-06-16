@@ -26,6 +26,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
+  phone: text("phone").notNull(),
   dateOfBirth: text("date_of_birth"),
   gender: text("gender").$type<"male" | "female" | "not_specified">(),
   role: text("role").$type<"customer" | "seller" | "admin">().notNull().default("customer"),

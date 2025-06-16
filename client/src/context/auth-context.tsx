@@ -26,6 +26,7 @@ interface AuthContextType {
     password: string, 
     firstName: string,
     lastName: string,
+    phone: string,
     dateOfBirth: string,
     gender: 'male' | 'female' | 'not_specified',
     role: 'customer' | 'seller'
@@ -133,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: string; 
       firstName: string;
       lastName: string;
+      phone: string;
       dateOfBirth: string;
       gender: 'male' | 'female' | 'not_specified';
       role: 'customer' | 'seller';
@@ -164,10 +166,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: () => {
       queryClient.setQueryData(['/api/auth/me'], null);
       queryClient.invalidateQueries();
-      
+
       // Redirecionar para a página inicial após logout
       window.location.href = '/';
-      
+
       toast({
         title: 'Logout realizado',
         description: 'Você saiu da sua conta com sucesso.',
@@ -193,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string, 
     firstName: string,
     lastName: string,
+    phone: string,
     dateOfBirth: string,
     gender: 'male' | 'female' | 'not_specified',
     role: 'customer' | 'seller'
@@ -202,6 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password, 
       firstName,
       lastName,
+      phone,
       dateOfBirth,
       gender,
       role
