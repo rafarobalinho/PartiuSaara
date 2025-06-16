@@ -10,7 +10,6 @@ import StripeMode from "@/components/ui/stripe-mode";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import MobileNavigation from "@/components/layout/mobile-navigation";
-import AdminLayout from "@/components/admin/AdminLayout";
 
 import Home from "@/pages/home";
 import Landing from "@/pages/landing";
@@ -179,7 +178,7 @@ function Router() {
           <Route path="/seller-landing" component={SellerLanding} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
-        
+
           <Route component={NotFound} />
         </Switch>
       </div>
