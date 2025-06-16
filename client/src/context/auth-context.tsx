@@ -164,6 +164,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onSuccess: () => {
       queryClient.setQueryData(['/api/auth/me'], null);
       queryClient.invalidateQueries();
+      
+      // Redirecionar para a página inicial após logout
+      window.location.href = '/';
+      
       toast({
         title: 'Logout realizado',
         description: 'Você saiu da sua conta com sucesso.',
