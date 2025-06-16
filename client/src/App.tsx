@@ -1,3 +1,4 @@
+import React from 'react';
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -10,7 +11,6 @@ import StripeMode from "@/components/ui/stripe-mode";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import MobileNavigation from "@/components/layout/mobile-navigation";
-import AdminLayout from "@/components/admin/AdminLayout";
 
 import Home from "@/pages/home";
 import Landing from "@/pages/landing";
@@ -53,6 +53,52 @@ import StoreAnalyticsPage from "@/pages/seller/stores/store-analytics";
 import LocationSettingsPage from "@/pages/seller/settings/location";
 import SellerLanding from "@/pages/seller-landing";
 import { lazy } from 'react';
+import ForgotPassword from "@/pages/auth/forgot-password";
+import ResetPassword from "@/pages/auth/reset-password";
+
+const AdminLayout = lazy(() => import("@/components/admin/AdminLayout"));
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    console.error('ErrorBoundary caught an error:', error);
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Algo deu errado</h2>
+            <p className="text-gray-600 mb-6">Ocorreu um erro inesperado. Por favor, recarregue a página.</p>
+            <button 
+              onClick={() => {
+                this.setState({ hasError: false });
+                window.location.reload();
+              }}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Recarregar Página
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Componente especial para a página de apresentação sem autenticação
 function PresentationRoute() {
@@ -77,6 +123,8 @@ function Router() {
           <Route path="/payment/callback" component={PaymentCallback} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
+          <Route path="/forgot-password" component={ForgotPassword} />
+          <Route path="/reset-password" component={ResetPassword} />
           <Route path="/categories" component={Categories} />
           <Route path="/categories/:category" component={Category} />
           <Route path="/products" component={Products} />
@@ -131,8 +179,7 @@ function Router() {
           <Route path="/seller-landing" component={SellerLanding} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
-          <Route path="/forgot-password" component={lazy(() => import('./pages/auth/forgot-password'))} />
-          <Route path="/reset-password" component={lazy(() => import('./pages/auth/reset-password'))} />
+
           <Route component={NotFound} />
         </Switch>
       </div>
@@ -167,7 +214,9 @@ function App() {
           <StripeMode />
           <TooltipProvider>
             <Toaster />
-            <Router />
+            <ErrorBoundary>
+              <Router />
+            </ErrorBoundary>
           </TooltipProvider>
         </UiProvider>
       </AuthProvider>

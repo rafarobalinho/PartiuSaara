@@ -50,7 +50,9 @@ export default function Login() {
     try {
       setIsSubmitting(true);
       await login(values.email, values.password);
-      navigate('/');
+      startTransition(() => {
+        navigate('/');
+      });
     } catch (error) {
       console.error('Erro no login:', error);
     } finally {
