@@ -9,7 +9,8 @@ import {
   reservations, type Reservation, type InsertReservation,
   categories, type Category, type InsertCategory,
   banners, type Banner, type InsertBanner,
-  storeImpressions, type StoreImpression, type InsertStoreImpression
+  storeImpressions, type StoreImpression, type InsertStoreImpression,
+  passwordResetTokens, type PasswordResetToken, type InsertPasswordResetToken
 } from "@shared/schema";
 import bcrypt from 'bcryptjs';
 import { eq, and, or, sql, like, desc, gte, lte, inArray } from "drizzle-orm";
@@ -112,6 +113,12 @@ export interface IStorage {
     reservationsCount: number;
     favoriteStoresCount: number;
   }>;
+
+  // Password reset operations (NOVO)
+  createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<PasswordResetToken>;
+  getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
+  updateUserPassword(userId: number, hashedPassword: string): Promise<boolean>;
+  markTokenAsUsed(token: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -126,6 +133,7 @@ export class MemStorage implements IStorage {
   private categories: Map<number, Category>;
   private banners: Map<number, Banner>;
   private storeImpressions: Map<number, StoreImpression>;
+  private passwordResetTokens: Map<number, PasswordResetToken>;
 
   private userIdCounter: number = 1;
   private storeIdCounter: number = 1;
@@ -138,6 +146,7 @@ export class MemStorage implements IStorage {
   private categoryIdCounter: number = 1;
   private bannerIdCounter: number = 1;
   private storeImpressionIdCounter: number = 1;
+  private passwordResetTokenIdCounter: number = 1;
 
   constructor() {
     this.users = new Map();
@@ -151,6 +160,7 @@ export class MemStorage implements IStorage {
     this.categories = new Map();
     this.banners = new Map();
     this.storeImpressions = new Map();
+    this.passwordResetTokens = new Map();
 
     // Initialize some default data
     this.initializeData();
@@ -1478,6 +1488,65 @@ export class MemStorage implements IStorage {
 
     return { wishlistCount, reservationsCount, favoriteStoresCount };
   }
+
+  // Password reset operations (NOVO - APENAS ADIÇÃO)
+  async createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<PasswordResetToken> {
+    console.log(`[MemStorage] Criando token de recuperação para usuário ${userId}`);
+    const id = this.passwordResetTokenIdCounter++;
+    const now = new Date();
+
+    const resetToken: PasswordResetToken = {
+      id,
+      userId,
+      token,
+      expiresAt,
+      used: false,
+      createdAt: now
+    };
+
+    this.passwordResetTokens.set(id, resetToken);
+    console.log(`[MemStorage] Token criado com sucesso: ${token}`);
+    return resetToken;
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    console.log(`[MemStorage] Buscando token: ${token}`);
+    const resetToken = Array.from(this.passwordResetTokens.values())
+      .find(t => t.token === token && !t.used && new Date(t.expiresAt) > new Date());
+    
+    console.log(`[MemStorage] Token encontrado: ${!!resetToken}`);
+    return resetToken;
+  }
+
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<boolean> {
+    console.log(`[MemStorage] Atualizando senha do usuário ${userId}`);
+    const user = this.users.get(userId);
+    if (!user) {
+      console.log(`[MemStorage] Usuário ${userId} não encontrado`);
+      return false;
+    }
+
+    const updatedUser = { ...user, password: hashedPassword, updatedAt: new Date() };
+    this.users.set(userId, updatedUser);
+    console.log(`[MemStorage] Senha atualizada com sucesso para usuário ${userId}`);
+    return true;
+  }
+
+  async markTokenAsUsed(token: string): Promise<boolean> {
+    console.log(`[MemStorage] Marcando token como usado: ${token}`);
+    const resetToken = Array.from(this.passwordResetTokens.values())
+      .find(t => t.token === token);
+    
+    if (!resetToken) {
+      console.log(`[MemStorage] Token não encontrado: ${token}`);
+      return false;
+    }
+
+    const updatedToken = { ...resetToken, used: true };
+    this.passwordResetTokens.set(resetToken.id, updatedToken);
+    console.log(`[MemStorage] Token marcado como usado: ${token}`);
+    return true;
+  }
 }
 
 import connectPg from "connect-pg-simple";
@@ -2294,6 +2363,75 @@ export class DatabaseStorage implements IStorage {
       reservationsCount: userReservations.length,
       favoriteStoresCount: userFavoriteStores.length
     };
+  }
+
+  // Password reset operations (NOVO - APENAS ADIÇÃO)
+  async createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<PasswordResetToken> {
+    console.log(`[DatabaseStorage] Criando token de recuperação para usuário ${userId}`);
+    const [resetToken] = await db.insert(passwordResetTokens)
+      .values({
+        userId,
+        token,
+        expiresAt,
+        used: false
+      })
+      .returning();
+    
+    console.log(`[DatabaseStorage] Token criado com sucesso: ${token}`);
+    return resetToken;
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    console.log(`[DatabaseStorage] Buscando token: ${token}`);
+    const [resetToken] = await db.select()
+      .from(passwordResetTokens)
+      .where(
+        and(
+          eq(passwordResetTokens.token, token),
+          eq(passwordResetTokens.used, false),
+          gte(passwordResetTokens.expiresAt, new Date())
+        )
+      );
+    
+    console.log(`[DatabaseStorage] Token encontrado: ${!!resetToken}`);
+    return resetToken;
+  }
+
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<boolean> {
+    console.log(`[DatabaseStorage] Atualizando senha do usuário ${userId}`);
+    try {
+      const [updatedUser] = await db
+        .update(users)
+        .set({ 
+          password: hashedPassword,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      
+      console.log(`[DatabaseStorage] Senha atualizada com sucesso para usuário ${userId}`);
+      return !!updatedUser;
+    } catch (error) {
+      console.error(`[DatabaseStorage] Erro ao atualizar senha do usuário ${userId}:`, error);
+      return false;
+    }
+  }
+
+  async markTokenAsUsed(token: string): Promise<boolean> {
+    console.log(`[DatabaseStorage] Marcando token como usado: ${token}`);
+    try {
+      const [updatedToken] = await db
+        .update(passwordResetTokens)
+        .set({ used: true })
+        .where(eq(passwordResetTokens.token, token))
+        .returning();
+      
+      console.log(`[DatabaseStorage] Token marcado como usado: ${token}`);
+      return !!updatedToken;
+    } catch (error) {
+      console.error(`[DatabaseStorage] Erro ao marcar token como usado: ${token}`, error);
+      return false;
+    }
   }
 }
 
