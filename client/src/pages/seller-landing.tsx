@@ -96,12 +96,12 @@ export default function SellerLanding() {
               <Badge variant="secondary" className="ml-2">Para Lojistas</Badge>
             </div>
             <div className="flex items-center space-x-4">
-              <Link href="/auth">
+              <Link href="/auth/login">
                 <Button variant="ghost" className="text-gray-600">
                   Já tenho conta
                 </Button>
               </Link>
-              <Link href="/auth">
+              <Link href="/auth/register">
                 <Button className="bg-primary text-white hover:bg-primary/90">
                   Criar Conta
                 </Button>
@@ -370,7 +370,7 @@ export default function SellerLanding() {
             Junte-se a centenas de lojistas que já aumentaram suas vendas com o Partiu Saara
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth">
+            <Link href="/auth/register">
               <Button 
                 size="lg" 
                 className="bg-white text-primary hover:bg-gray-100 text-lg px-8 py-4"
@@ -408,29 +408,29 @@ export default function SellerLanding() {
             <div>
               <h3 className="text-lg font-semibold mb-4">Recursos</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Cadastro de Produtos</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Analytics</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Promoções</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Reservas</a></li>
+                <li><span className="hover:text-white transition-colors cursor-pointer">Cadastro de Produtos</span></li>
+                <li><span className="hover:text-white transition-colors cursor-pointer">Analytics</span></li>
+                <li><span className="hover:text-white transition-colors cursor-pointer">Promoções</span></li>
+                <li><span className="hover:text-white transition-colors cursor-pointer">Reservas</span></li>
               </ul>
             </div>
             
             <div>
               <h3 className="text-lg font-semibold mb-4">Suporte</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Central de Ajuda</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Guia de Início</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Contato</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">WhatsApp</a></li>
+                <li><span className="hover:text-white transition-colors cursor-pointer">Central de Ajuda</span></li>
+                <li><span className="hover:text-white transition-colors cursor-pointer">Guia de Início</span></li>
+                <li><span className="hover:text-white transition-colors cursor-pointer">Contato</span></li>
+                <li><span className="hover:text-white transition-colors cursor-pointer">WhatsApp</span></li>
               </ul>
             </div>
             
             <div>
               <h3 className="text-lg font-semibold mb-4">Legal</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Termos de Uso</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Política de Privacidade</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Contratos</a></li>
+                <li><span className="hover:text-white transition-colors cursor-pointer">Termos de Uso</span></li>
+                <li><span className="hover:text-white transition-colors cursor-pointer">Política de Privacidade</span></li>
+                <li><span className="hover:text-white transition-colors cursor-pointer">Contratos</span></li>
               </ul>
             </div>
           </div>
