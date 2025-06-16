@@ -116,7 +116,7 @@ export default function SellerLanding() {
             <div className="relative">
               <div className="relative">
                 <SafeImage 
-                  src="/uploads/store-interior.jpg" 
+                  src="/uploads/photo-1556740738-b6a63e27c4df.jpg" 
                   alt="Loja no Saara"
                   className="w-full h-96 object-cover rounded-2xl shadow-2xl"
                   fallbackSrc="/uploads/placeholder-unavailable.jpg"
@@ -267,7 +267,7 @@ export default function SellerLanding() {
             <div className="relative">
               <div className="relative">
                 <SafeImage 
-                  src="/uploads/store-interior.jpg" 
+                  src="/uploads/photo-1441986300917-64674bd600d8.jpg" 
                   alt="Lojista usando sistema"
                   className="w-full h-96 object-cover rounded-2xl shadow-2xl"
                   fallbackSrc="/uploads/placeholder-unavailable.jpg"
