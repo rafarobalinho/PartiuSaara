@@ -23,9 +23,6 @@ export default function SellerLanding() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <ShoppingBag className="h-6 w-6 text-orange-500" />
-              <span className="text-white font-medium">
-                🔴 Partiu Saara para Lojistas
-              </span>
             </div>
           </div>
         </div>
@@ -63,7 +60,7 @@ export default function SellerLanding() {
             <div className="relative">
               <div className="relative">
                 <img 
-                  src="/uploads/placeholder-unavailable.jpg" 
+                  src="/uploads/store-interior.jpg" 
                   alt="Loja no Saara"
                   className="w-full h-80 object-cover rounded-lg"
                   onError={(e) => {
@@ -251,7 +248,7 @@ export default function SellerLanding() {
             <div className="relative">
               <div className="relative">
                 <img 
-                  src="/uploads/placeholder-unavailable.jpg" 
+                  src="/uploads/store-interior.jpg" 
                   alt="Lojista usando sistema"
                   className="w-full h-96 object-cover rounded-lg"
                   onError={(e) => {
