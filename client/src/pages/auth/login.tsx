@@ -108,8 +108,13 @@ export default function Login() {
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
           <div className="text-sm text-center">
+            <Link to="/auth/forgot-password" className="text-primary hover:underline">
+              Esqueceu sua senha?
+            </Link>
+          </div>
+          <div className="text-sm text-center">
             Ainda não possui uma conta?{' '}
-            <Link to="/register" className="text-primary hover:underline">
+            <Link to="/auth/register" className="text-primary hover:underline">
               Cadastre-se
             </Link>
           </div>
