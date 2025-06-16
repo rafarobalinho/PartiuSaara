@@ -114,7 +114,7 @@ export default function Login() {
           </div>
           <div className="text-sm text-center">
             Ainda não possui uma conta?{' '}
-            <Link to="/auth/register" className="text-primary hover:underline">
+            <Link to="/register" className="text-primary hover:underline">
               Cadastre-se
             </Link>
           </div>
