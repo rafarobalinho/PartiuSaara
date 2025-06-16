@@ -131,8 +131,8 @@ function Router() {
           <Route path="/seller-landing" component={SellerLanding} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
-          <Route path="/auth/forgot-password" component={lazy(() => import('./pages/auth/forgot-password'))} />
-          <Route path="/auth/reset-password" component={lazy(() => import('./pages/auth/reset-password'))} />
+          <Route path="/forgot-password" component={lazy(() => import('./pages/auth/forgot-password'))} />
+          <Route path="/reset-password" component={lazy(() => import('./pages/auth/reset-password'))} />
           <Route component={NotFound} />
         </Switch>
       </div>

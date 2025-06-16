@@ -55,7 +55,7 @@ export default function Register() {
   const formatPhone = (value: string) => {
     // Remove todos os caracteres não numéricos
     const numbers = value.replace(/\D/g, '');
-    
+
     // Aplica a máscara (99) 99999-9999
     if (numbers.length <= 2) {
       return numbers;
@@ -149,7 +149,7 @@ export default function Register() {
                   )}
                 />
               </div>
-              
+
               <FormField
                 control={form.control}
                 name="email"
@@ -163,7 +163,7 @@ export default function Register() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="phone"
@@ -186,7 +186,7 @@ export default function Register() {
                   </FormItem>
                 )}
               />
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -201,7 +201,7 @@ export default function Register() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="gender"
@@ -239,7 +239,7 @@ export default function Register() {
                   )}
                 />
               </div>
-              
+
               <FormField
                 control={form.control}
                 name="password"
@@ -253,7 +253,7 @@ export default function Register() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="confirmPassword"
@@ -267,7 +267,7 @@ export default function Register() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="role"

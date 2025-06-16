@@ -1,4 +1,3 @@
-
 import { useState, startTransition } from 'react';
 import { Link } from 'wouter';
 import { useForm } from 'react-hook-form';
@@ -83,7 +82,7 @@ export default function ForgotPassword() {
             </p>
           </CardContent>
           <CardFooter className="flex flex-col space-y-2">
-            <Link to="/auth/login" className="w-full">
+            <Link to="/login" className="w-full">
               <Button variant="outline" className="w-full">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar para Login
@@ -131,7 +130,7 @@ export default function ForgotPassword() {
           </Form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
-          <Link to="/auth/login" className="w-full">
+          <Link to="/login" className="w-full">
             <Button variant="outline" className="w-full">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar para Login
