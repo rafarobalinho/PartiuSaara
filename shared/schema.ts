@@ -26,6 +26,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
+  phone: text("phone").notNull(),
   dateOfBirth: text("date_of_birth"),
   gender: text("gender").$type<"male" | "female" | "not_specified">(),
   role: text("role").$type<"customer" | "seller" | "admin">().notNull().default("customer"),
@@ -287,6 +288,15 @@ export const insertStoreImageSchema = createInsertSchema(storeImages).omit({
   createdAt: true
 });
 
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow()
+});
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -326,3 +336,6 @@ export type InsertBanner = z.infer<typeof insertBannerSchema>;
 
 export type StoreImpression = typeof storeImpressions.$inferSelect;
 export type InsertStoreImpression = z.infer<typeof insertStoreImpressionSchema>;
+
+export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;

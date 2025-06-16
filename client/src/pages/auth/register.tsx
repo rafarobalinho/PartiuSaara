@@ -24,6 +24,7 @@ const registerSchema = z.object({
   confirmPassword: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
   firstName: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres'),
   lastName: z.string().min(2, 'O sobrenome deve ter pelo menos 2 caracteres'),
+  phone: z.string().regex(/^\(\d{2}\) \d{5}-\d{4}$/, 'Celular deve estar no formato (99) 99999-9999'),
   dateOfBirth: z.string().refine(value => {
     // Data opcional, mas se fornecida, deve ser válida
     if (!value) return true;
@@ -50,6 +51,21 @@ export default function Register() {
   const [, navigate] = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Função para formatar o celular
+  const formatPhone = (value: string) => {
+    // Remove todos os caracteres não numéricos
+    const numbers = value.replace(/\D/g, '');
+    
+    // Aplica a máscara (99) 99999-9999
+    if (numbers.length <= 2) {
+      return numbers;
+    } else if (numbers.length <= 7) {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    } else {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+    }
+  };
+
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -58,6 +74,7 @@ export default function Register() {
       confirmPassword: '',
       firstName: '',
       lastName: '',
+      phone: '',
       dateOfBirth: '',
       gender: 'not_specified',
       role: 'customer',
@@ -79,6 +96,7 @@ export default function Register() {
         data.password, 
         data.firstName,
         data.lastName,
+        data.phone,
         data.dateOfBirth,
         data.gender,
         data.role
@@ -146,7 +164,28 @@ export default function Register() {
                 )}
               />
               
-
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Celular*</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="tel" 
+                        placeholder="(11) 99999-9999" 
+                        maxLength={15}
+                        {...field}
+                        onChange={(e) => {
+                          const formatted = formatPhone(e.target.value);
+                          field.onChange(formatted);
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField

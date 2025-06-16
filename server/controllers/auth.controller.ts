@@ -9,6 +9,7 @@ const registerSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
   lastName: z.string().min(2, 'Last name must be at least 2 characters'),
+  phone: z.string().min(1, 'Phone number is required'),
   dateOfBirth: z.string().optional(),
   gender: z.enum(['male', 'female', 'not_specified']).optional(),
   role: z.enum(['customer', 'seller']).default('customer')
@@ -49,6 +50,7 @@ export async function register(req: Request, res: Response) {
       password: hashedPassword,
       firstName: userData.firstName,
       lastName: userData.lastName,
+      phone: userData.phone,
       dateOfBirth: userData.dateOfBirth,
       gender: userData.gender,
       role: userData.role
@@ -71,6 +73,7 @@ export async function register(req: Request, res: Response) {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          phone: user.phone,
           dateOfBirth: user.dateOfBirth,
           gender: user.gender,
           role: user.role

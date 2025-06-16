@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, startTransition } from 'react';
 import { useLocation } from 'wouter';
 import { Link } from 'wouter';
 import { useAuth } from '@/context/auth-context';
@@ -107,6 +107,11 @@ export default function Login() {
           </Form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
+          <div className="text-sm text-center">
+            <Link to="/auth/forgot-password" className="text-primary hover:underline">
+              Esqueceu sua senha?
+            </Link>
+          </div>
           <div className="text-sm text-center">
             Ainda não possui uma conta?{' '}
             <Link to="/register" className="text-primary hover:underline">

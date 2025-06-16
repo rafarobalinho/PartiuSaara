@@ -52,6 +52,7 @@ import StoreProducts from "@/pages/seller/stores/store-products";
 import StoreAnalyticsPage from "@/pages/seller/stores/store-analytics";
 import LocationSettingsPage from "@/pages/seller/settings/location";
 import SellerLanding from "@/pages/seller-landing";
+import { lazy } from 'react';
 
 // Componente especial para a página de apresentação sem autenticação
 function PresentationRoute() {
@@ -128,6 +129,10 @@ function Router() {
             )}
           </Route>
           <Route path="/seller-landing" component={SellerLanding} />
+          <Route path="/login" component={Login} />
+          <Route path="/register" component={Register} />
+          <Route path="/auth/forgot-password" component={lazy(() => import('./pages/auth/forgot-password'))} />
+          <Route path="/auth/reset-password" component={lazy(() => import('./pages/auth/reset-password'))} />
           <Route component={NotFound} />
         </Switch>
       </div>

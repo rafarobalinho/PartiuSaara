@@ -20,6 +20,7 @@ import * as AdminController from "./controllers/admin.controller";
 import * as AdminUserController from "./controllers/admin-user.controller";
 import * as PlaceDetailsController from "./controllers/place_details.controller";
 import * as DebugController from "./controllers/debug.controller";
+import * as PasswordResetController from "./controllers/password-reset.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db, pool } from "./db";
 import { eq, ne, and, like, or, gte, lte, desc, sql } from "drizzle-orm";
@@ -44,6 +45,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/logout', authMiddleware, AuthController.logout);
   app.get('/api/auth/me', authMiddleware, AuthController.getCurrentUser);
   app.get('/api/auth/verify', authMiddleware, AuthController.verify);
+  
+  // Password reset routes
+  app.post('/api/auth/request-password-reset', PasswordResetController.requestPasswordReset);
+  app.post('/api/auth/reset-password', PasswordResetController.resetPassword);
+  app.get('/api/auth/validate-reset-token/:token', PasswordResetController.validateResetToken);
 
   // User routes
   app.get('/api/users/me', authMiddleware, UserController.getCurrentUser);

@@ -23,7 +23,7 @@ export interface IStorage {
   updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
   updateUserAvatar(userId: number, avatarUrl: string, avatarThumbnailUrl: string): Promise<User>;
   verifyUserPassword(id: number, password: string): Promise<boolean>;
-  
+
   // Store operations
   getStore(id: number): Promise<Store | undefined>;
   getStores(options?: { category?: string, search?: string, limit?: number }): Promise<Store[]>;
@@ -32,7 +32,7 @@ export interface IStorage {
   getNearbyStores(lat: number, lng: number, radius?: number): Promise<Store[]>;
   createStore(store: InsertStore): Promise<Store>;
   updateStore(id: number, store: Partial<Store>): Promise<Store | undefined>;
-  
+
   // Product operations
   getProduct(id: number): Promise<Product | undefined>;
   getProducts(options?: { 
@@ -58,7 +58,7 @@ export interface IStorage {
   getFeaturedProducts(limit?: number): Promise<Product[]>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, product: Partial<Product>): Promise<Product | undefined>;
-  
+
   // Promotion operations
   getPromotion(id: number): Promise<Promotion | undefined>;
   getPromotions(type?: string, limit?: number): Promise<Promotion[]>;
@@ -66,46 +66,46 @@ export interface IStorage {
   getProductsPromotions(productIds: number[]): Promise<Promotion[]>; // Adicionado: Obter promoções de vários produtos
   createPromotion(promotion: InsertPromotion): Promise<Promotion>;
   updatePromotion(id: number, promotion: Partial<Promotion>): Promise<Promotion | undefined>;
-  
+
   // Coupon operations
   getCoupon(id: number): Promise<Coupon | undefined>;
   getCoupons(search?: string): Promise<Coupon[]>;
   getCouponsByStore(storeId: number): Promise<Coupon[]>;
   createCoupon(coupon: InsertCoupon): Promise<Coupon>;
   updateCoupon(id: number, coupon: Partial<Coupon>): Promise<Coupon | undefined>;
-  
+
   // Wishlist operations
   getWishlistItems(userId: number): Promise<Wishlist[]>;
   addToWishlist(userId: number, productId: number): Promise<Wishlist>;
   removeFromWishlist(userId: number, productId: number): Promise<boolean>;
-  
+
   // Favorite store operations
   getFavoriteStores(userId: number): Promise<FavoriteStore[]>;
   addFavoriteStore(userId: number, storeId: number): Promise<FavoriteStore>;
   removeFavoriteStore(userId: number, storeId: number): Promise<boolean>;
-  
+
   // Reservation operations
   getReservation(id: number): Promise<Reservation | undefined>;
   getReservations(userId: number, limit?: number): Promise<Reservation[]>;
   createReservation(userId: number, productId: number, quantity?: number): Promise<Reservation>;
   updateReservationStatus(id: number, status: 'pending' | 'completed' | 'expired' | 'cancelled'): Promise<Reservation | undefined>;
-  
+
   // Category operations
   getCategory(id: number): Promise<Category | undefined>;
   getCategoryBySlug(slug: string): Promise<Category | undefined>;
   getCategories(): Promise<Category[]>;
   createCategory(category: InsertCategory): Promise<Category>;
-  
+
   // Banner operations
   getBanner(id: number): Promise<Banner | undefined>;
   getBanners(isActive?: boolean): Promise<Banner[]>;
   createBanner(banner: InsertBanner): Promise<Banner>;
   updateBanner(id: number, banner: Partial<Banner>): Promise<Banner | undefined>;
-  
+
   // Store analytics operations
   recordStoreImpression(storeId: number): Promise<StoreImpression>;
   getStoreImpressions(storeId: number, startDate?: Date, endDate?: Date): Promise<StoreImpression[]>;
-  
+
   // User statistics
   getUserStats(userId: number): Promise<{ 
     wishlistCount: number;
@@ -151,7 +151,7 @@ export class MemStorage implements IStorage {
     this.categories = new Map();
     this.banners = new Map();
     this.storeImpressions = new Map();
-    
+
     // Initialize some default data
     this.initializeData();
   }
@@ -168,9 +168,9 @@ export class MemStorage implements IStorage {
       { name: 'Lojas', slug: 'lojas', icon: 'fas fa-map-marker-alt' },
       { name: 'Cupons', slug: 'cupons', icon: 'fas fa-percent' }
     ];
-    
+
     categoryData.forEach(category => this.createCategory(category));
-    
+
     // Add default banners
     const bannerData: InsertBanner[] = [
       {
@@ -201,7 +201,7 @@ export class MemStorage implements IStorage {
         isActive: true
       }
     ];
-    
+
     bannerData.forEach(banner => this.createBanner(banner));
 
     // Add some default stores
@@ -283,7 +283,7 @@ export class MemStorage implements IStorage {
         storeId: 1,
         images: [
           'https://images.unsplash.com/photo-1623609163859-ca93c959b5b8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1583400767692-c484b9e6ef36?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1583400767692-c484b9e6ef36?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
         ]
       },
       {
@@ -296,7 +296,7 @@ export class MemStorage implements IStorage {
         storeId: 3,
         images: [
           'https://images.unsplash.com/photo-1584649096748-11d6f5802574?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1590794056499-4435a7273a64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1590794056499-4435a7273a64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
         ]
       },
       {
@@ -308,8 +308,8 @@ export class MemStorage implements IStorage {
         stock: 40,
         storeId: 2,
         images: [
-          'https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
         ]
       },
       {
@@ -321,8 +321,8 @@ export class MemStorage implements IStorage {
         stock: 25,
         storeId: 1,
         images: [
-          'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
         ]
       }
     ];
@@ -333,7 +333,7 @@ export class MemStorage implements IStorage {
     const now = new Date();
     const oneHourLater = new Date(now);
     oneHourLater.setHours(oneHourLater.getHours() + 1);
-    
+
     const twoHoursLater = new Date(now);
     twoHoursLater.setHours(twoHoursLater.getHours() + 2);
 
@@ -377,7 +377,7 @@ export class MemStorage implements IStorage {
     const id = this.userIdCounter++;
     // Hash the password before storing
     const hashedPassword = await bcrypt.hash(userData.password, 10);
-    
+
     const now = new Date();
     const user: User = {
       ...userData,
@@ -386,9 +386,9 @@ export class MemStorage implements IStorage {
       createdAt: now,
       updatedAt: now
     };
-    
+
     this.users.set(id, user);
-    
+
     // Return user without password
     const { password, ...userWithoutPassword } = user;
     return userWithoutPassword as User;
@@ -401,11 +401,11 @@ export class MemStorage implements IStorage {
 
   async getStores(options: { category?: string, search?: string, limit?: number } = {}): Promise<Store[]> {
     let stores = Array.from(this.stores.values());
-    
+
     if (options.category) {
       stores = stores.filter(store => store.category.toLowerCase() === options.category!.toLowerCase());
     }
-    
+
     if (options.search) {
       const searchLower = options.search.toLowerCase();
       stores = stores.filter(store => 
@@ -414,45 +414,45 @@ export class MemStorage implements IStorage {
         store.tags?.some(tag => tag.toLowerCase().includes(searchLower))
       );
     }
-    
+
     if (options.limit) {
       stores = stores.slice(0, options.limit);
     }
-    
+
     return stores;
   }
 
   async getNearbyStores(lat: number, lng: number, radius: number = 5): Promise<Store[]> {
     // Simple distance calculation (not accurate for large distances)
     const stores = Array.from(this.stores.values());
-    
+
     const storesWithDistance = stores.map(store => {
       // Calculate rough distance in km
       const latDiff = Math.abs(store.location.latitude - lat);
       const lngDiff = Math.abs(store.location.longitude - lng);
       // Simplified distance calculation (not accurate)
       const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) * 111; // 111 km per degree
-      
+
       return { store, distance };
     });
-    
+
     // Filter stores within radius and sort by distance
     return storesWithDistance
       .filter(item => item.distance <= radius)
       .sort((a, b) => a.distance - b.distance)
       .map(item => item.store);
   }
-  
+
   async getStoresByUserId(userId: number): Promise<Store[]> {
     const stores = Array.from(this.stores.values())
       .filter(store => store.userId === userId);
-    
+
     // Ordenar por data de criação (mais recentes primeiro)
     return stores.sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }
-  
+
   async getUserStores(userId: number): Promise<Store[]> {
     // Alias para getStoresByUserId
     return this.getStoresByUserId(userId);
@@ -461,7 +461,7 @@ export class MemStorage implements IStorage {
   async createStore(storeData: InsertStore): Promise<Store> {
     const id = this.storeIdCounter++;
     const now = new Date();
-    
+
     const store: Store = {
       ...storeData,
       id,
@@ -472,7 +472,7 @@ export class MemStorage implements IStorage {
       createdAt: now,
       updatedAt: now
     };
-    
+
     this.stores.set(id, store);
     return store;
   }
@@ -480,13 +480,13 @@ export class MemStorage implements IStorage {
   async updateStore(id: number, storeData: Partial<Store>): Promise<Store | undefined> {
     const store = this.stores.get(id);
     if (!store) return undefined;
-    
+
     const updatedStore = {
       ...store,
       ...storeData,
       updatedAt: new Date()
     };
-    
+
     this.stores.set(id, updatedStore);
     return updatedStore;
   }
@@ -495,10 +495,10 @@ export class MemStorage implements IStorage {
   async getProduct(id: number): Promise<Product | undefined> {
     const product = this.products.get(id);
     if (!product) return undefined;
-    
+
     // Get the associated store data
     const store = this.stores.get(product.storeId);
-    
+
     // Get any active promotion for this product
     const promotions = Array.from(this.promotions.values())
       .filter(promo => 
@@ -506,7 +506,7 @@ export class MemStorage implements IStorage {
         new Date(promo.startTime) <= new Date() &&
         new Date(promo.endTime) >= new Date()
       );
-    
+
     return {
       ...product,
       store: store ? { 
@@ -527,23 +527,23 @@ export class MemStorage implements IStorage {
     limit?: number
   } = {}): Promise<Product[]> {
     console.log('Getting products by category slug in MemStorage:', slug);
-    
+
     // First, get the category by slug
     const category = Array.from(this.categories.values()).find(cat => cat.slug === slug);
-    
+
     if (!category) {
       console.log('Category not found with slug:', slug);
       return [];
     }
-    
+
     console.log('Found category:', category.name, 'with ID:', category.id);
-    
+
     // Filter products by category and active status
     let products = Array.from(this.products.values())
       .filter(product => product.category === category.name && product.isActive === true);
-    
+
     console.log(`Found ${products.length} products with category ${category.name}`);
-    
+
     // Apply price filters
     if (options.minPrice !== undefined && options.minPrice !== null) {
       const minPrice = Number(options.minPrice);
@@ -555,7 +555,7 @@ export class MemStorage implements IStorage {
         return price >= minPrice;
       });
     }
-    
+
     if (options.maxPrice !== undefined && options.maxPrice !== null) {
       const maxPrice = Number(options.maxPrice);
       console.log('Applying max price filter to category products:', maxPrice);
@@ -566,7 +566,7 @@ export class MemStorage implements IStorage {
         return price <= maxPrice;
       });
     }
-    
+
     // Apply promotion filter
     if (options.promotion) {
       const now = new Date();
@@ -575,13 +575,13 @@ export class MemStorage implements IStorage {
           new Date(promo.startTime) <= now &&
           new Date(promo.endTime) >= now
         );
-      
+
       const promotionProductIds = activePromotions.map(p => p.productId);
       products = products.filter(product => 
         promotionProductIds.includes(product.id) || product.discountedPrice !== undefined
       );
     }
-    
+
     // Apply sort
     if (options.sortBy) {
       if (options.sortBy === 'price_asc') {
@@ -607,12 +607,12 @@ export class MemStorage implements IStorage {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
     }
-    
+
     // Apply limit
     if (options.limit) {
       products = products.slice(0, options.limit);
     }
-    
+
     // Add store information to each product
     return products.map(product => {
       const store = this.stores.get(product.storeId);
@@ -639,16 +639,16 @@ export class MemStorage implements IStorage {
       category: options.category,
       sortBy: options.sortBy
     });
-    
+
     let products = Array.from(this.products.values());
     console.log('Total products before filtering:', products.length);
-    
+
     // Filter by category
     if (options.category) {
       products = products.filter(product => product.category.toLowerCase() === options.category!.toLowerCase());
       console.log('Products after category filter:', products.length);
     }
-    
+
     // Filter by search term
     if (options.search) {
       const searchLower = options.search.toLowerCase();
@@ -658,7 +658,7 @@ export class MemStorage implements IStorage {
       );
       console.log('Products after search filter:', products.length);
     }
-    
+
     // Filter by price range
     if (options.minPrice !== undefined) {
       const minPrice = Number(options.minPrice);
@@ -669,7 +669,7 @@ export class MemStorage implements IStorage {
       });
       console.log('Products after min price filter:', products.length);
     }
-    
+
     if (options.maxPrice !== undefined) {
       const maxPrice = Number(options.maxPrice);
       console.log('Applying max price filter:', maxPrice);
@@ -679,7 +679,7 @@ export class MemStorage implements IStorage {
       });
       console.log('Products after max price filter:', products.length);
     }
-    
+
     // Filter by promotion type
     if (options.type === 'flash') {
       const now = new Date();
@@ -689,11 +689,11 @@ export class MemStorage implements IStorage {
           new Date(promo.startTime) <= now &&
           new Date(promo.endTime) >= now
         );
-      
+
       const promotionProductIds = activePromotions.map(p => p.productId);
       products = products.filter(product => promotionProductIds.includes(product.id));
     }
-    
+
     // Filter products with any promotion
     if (options.promotion) {
       const now = new Date();
@@ -702,13 +702,13 @@ export class MemStorage implements IStorage {
           new Date(promo.startTime) <= now &&
           new Date(promo.endTime) >= now
         );
-      
+
       const promotionProductIds = activePromotions.map(p => p.productId);
       products = products.filter(product => 
         promotionProductIds.includes(product.id) || product.discountedPrice !== undefined
       );
     }
-    
+
     // Sort products
     if (options.sortBy) {
       switch (options.sortBy) {
@@ -727,12 +727,12 @@ export class MemStorage implements IStorage {
           break;
       }
     }
-    
+
     // Limit results
     if (options.limit) {
       products = products.slice(0, options.limit);
     }
-    
+
     // Add store information to each product
     return products.map(product => {
       const store = this.stores.get(product.storeId);
@@ -746,24 +746,24 @@ export class MemStorage implements IStorage {
   async getProductsByStore(storeId: number): Promise<Product[]> {
     const products = Array.from(this.products.values())
       .filter(product => product.storeId === storeId);
-    
+
     // Add store information to each product
     const store = this.stores.get(storeId);
-    
+
     return products.map(product => ({
       ...product,
       store: store ? { id: store.id, name: store.name } : undefined
     }));
   }
-  
+
   async getStoresProducts(storeIds: number[]): Promise<Product[]> {
     if (!storeIds || storeIds.length === 0) {
       return [];
     }
-    
+
     const products = Array.from(this.products.values())
       .filter(product => storeIds.includes(product.storeId));
-      
+
     // Add store information to each product
     return products.map(product => {
       const store = this.stores.get(product.storeId);
@@ -777,14 +777,14 @@ export class MemStorage implements IStorage {
   async getRelatedProducts(productId: number, limit: number = 4): Promise<Product[]> {
     const product = this.products.get(productId);
     if (!product) return [];
-    
+
     // Get products in the same category
     let relatedProducts = Array.from(this.products.values())
       .filter(p => p.id !== productId && p.category === product.category);
-    
+
     // Limit results
     relatedProducts = relatedProducts.slice(0, limit);
-    
+
     // Add store information to each product
     return relatedProducts.map(product => {
       const store = this.stores.get(product.storeId);
@@ -803,28 +803,28 @@ export class MemStorage implements IStorage {
         new Date(promo.startTime) <= now &&
         new Date(promo.endTime) >= now
       );
-    
+
     const promotionProductIds = activePromotions.map(p => p.productId);
-    
+
     let featuredProducts = Array.from(this.products.values())
       .filter(product => 
         promotionProductIds.includes(product.id) || 
         product.discountedPrice !== undefined
       );
-    
+
     // If not enough products with promotions, add some random products
     if (featuredProducts.length < limit) {
       const otherProducts = Array.from(this.products.values())
         .filter(product => !featuredProducts.includes(product));
-      
+
       // Shuffle and add more products
       const shuffled = otherProducts.sort(() => 0.5 - Math.random());
       featuredProducts = [...featuredProducts, ...shuffled.slice(0, limit - featuredProducts.length)];
     }
-    
+
     // Limit results
     featuredProducts = featuredProducts.slice(0, limit);
-    
+
     // Add store information to each product
     return featuredProducts.map(product => {
       const store = this.stores.get(product.storeId);
@@ -838,19 +838,19 @@ export class MemStorage implements IStorage {
   async createProduct(productData: InsertProduct): Promise<Product> {
     const id = this.productIdCounter++;
     const now = new Date();
-    
+
     const product: Product = {
       ...productData,
       id,
       createdAt: now,
       updatedAt: now
     };
-    
+
     this.products.set(id, product);
-    
+
     // Add store information
     const store = this.stores.get(product.storeId);
-    
+
     return {
       ...product,
       store: store ? { id: store.id, name: store.name } : undefined
@@ -860,18 +860,18 @@ export class MemStorage implements IStorage {
   async updateProduct(id: number, productData: Partial<Product>): Promise<Product | undefined> {
     const product = this.products.get(id);
     if (!product) return undefined;
-    
+
     const updatedProduct = {
       ...product,
       ...productData,
       updatedAt: new Date()
     };
-    
+
     this.products.set(id, updatedProduct);
-    
+
     // Add store information
     const store = this.stores.get(updatedProduct.storeId);
-    
+
     return {
       ...updatedProduct,
       store: store ? { id: store.id, name: store.name } : undefined
@@ -885,18 +885,18 @@ export class MemStorage implements IStorage {
 
   async getPromotions(type?: string, limit?: number): Promise<Promotion[]> {
     let promotions = Array.from(this.promotions.values());
-    
+
     if (type) {
       promotions = promotions.filter(promo => promo.type === type);
     }
-    
+
     // Sort by end time (closest to expiring first)
     promotions.sort((a, b) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
-    
+
     if (limit) {
       promotions = promotions.slice(0, limit);
     }
-    
+
     // Add product information to each promotion
     return Promise.all(promotions.map(async promotion => {
       const product = await this.getProduct(promotion.productId);
@@ -911,11 +911,11 @@ export class MemStorage implements IStorage {
     // Get all products for this store
     const storeProducts = await this.getProductsByStore(storeId);
     const storeProductIds = storeProducts.map(p => p.id);
-    
+
     // Get promotions for these products
     const promotions = Array.from(this.promotions.values())
       .filter(promo => storeProductIds.includes(promo.productId));
-    
+
     // Add product information to each promotion
     return Promise.all(promotions.map(async promotion => {
       const product = await this.getProduct(promotion.productId);
@@ -925,16 +925,16 @@ export class MemStorage implements IStorage {
       };
     }));
   }
-  
+
   async getProductsPromotions(productIds: number[]): Promise<Promotion[]> {
     if (!productIds || productIds.length === 0) {
       return [];
     }
-    
+
     // Get promotions for these products
     const promotions = Array.from(this.promotions.values())
       .filter(promo => productIds.includes(promo.productId));
-    
+
     // Add product information to each promotion
     return Promise.all(promotions.map(async promotion => {
       const product = await this.getProduct(promotion.productId);
@@ -948,30 +948,30 @@ export class MemStorage implements IStorage {
   async createPromotion(promotionData: InsertPromotion): Promise<Promotion> {
     const id = this.promotionIdCounter++;
     const now = new Date();
-    
+
     const promotion: Promotion = {
       ...promotionData,
       id,
       createdAt: now,
       updatedAt: now
     };
-    
+
     this.promotions.set(id, promotion);
-    
+
     // Apply discount to product if it's active
     const product = this.products.get(promotion.productId);
     if (product) {
       const isActive = new Date(promotion.startTime) <= now && new Date(promotion.endTime) >= now;
-      
+
       if (isActive) {
         const discountedPrice = product.price * (1 - promotion.discountPercentage / 100);
         await this.updateProduct(product.id, { discountedPrice });
       }
     }
-    
+
     // Add product information
     const productWithDetails = await this.getProduct(promotion.productId);
-    
+
     return {
       ...promotion,
       product: productWithDetails
@@ -981,40 +981,40 @@ export class MemStorage implements IStorage {
   async updatePromotion(id: number, promotionData: Partial<Promotion>): Promise<Promotion | undefined> {
     const promotion = this.promotions.get(id);
     if (!promotion) return undefined;
-    
+
     const updatedPromotion = {
       ...promotion,
       ...promotionData,
       updatedAt: new Date()
     };
-    
+
     this.promotions.set(id, updatedPromotion);
-    
+
     // Add product information
     const product = await this.getProduct(updatedPromotion.productId);
-    
+
     return {
       ...updatedPromotion,
       product
     };
   }
-  
+
   async deletePromotion(id: number): Promise<boolean> {
     const promotion = await this.getPromotion(id);
     if (!promotion) return false;
-    
+
     // Reset product's discounted price if the promotion is active
     const product = await this.getProduct(promotion.productId);
     if (product) {
       const now = new Date();
       const isActive = new Date(promotion.startTime) <= now && new Date(promotion.endTime) >= now;
-      
+
       if (isActive) {
         // Reset the discounted price
         await this.updateProduct(product.id, { discountedPrice: null });
       }
     }
-    
+
     return this.promotions.delete(id);
   }
 
@@ -1025,7 +1025,7 @@ export class MemStorage implements IStorage {
 
   async getCoupons(search?: string): Promise<Coupon[]> {
     let coupons = Array.from(this.coupons.values());
-    
+
     if (search) {
       const searchLower = search.toLowerCase();
       coupons = coupons.filter(coupon => 
@@ -1033,7 +1033,7 @@ export class MemStorage implements IStorage {
         coupon.description?.toLowerCase().includes(searchLower)
       );
     }
-    
+
     // Filter active coupons
     const now = new Date();
     coupons = coupons.filter(coupon => 
@@ -1041,10 +1041,10 @@ export class MemStorage implements IStorage {
       new Date(coupon.startTime) <= now && 
       new Date(coupon.endTime) >= now
     );
-    
+
     // Sort by end time (closest to expiring first)
     coupons.sort((a, b) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
-    
+
     // Add store information to each coupon
     return coupons.map(coupon => {
       const store = this.stores.get(coupon.storeId);
@@ -1062,7 +1062,7 @@ export class MemStorage implements IStorage {
   async getCouponsByStore(storeId: number): Promise<Coupon[]> {
     const coupons = Array.from(this.coupons.values())
       .filter(coupon => coupon.storeId === storeId);
-    
+
     // Filter active coupons
     const now = new Date();
     const activeCoupons = coupons.filter(coupon => 
@@ -1070,13 +1070,13 @@ export class MemStorage implements IStorage {
       new Date(coupon.startTime) <= now && 
       new Date(coupon.endTime) >= now
     );
-    
+
     // Sort by end time (closest to expiring first)
     activeCoupons.sort((a, b) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
-    
+
     // Add store information
     const store = this.stores.get(storeId);
-    
+
     return activeCoupons.map(coupon => ({
       ...coupon,
       store: store ? { 
@@ -1090,7 +1090,7 @@ export class MemStorage implements IStorage {
   async createCoupon(couponData: InsertCoupon): Promise<Coupon> {
     const id = this.couponIdCounter++;
     const now = new Date();
-    
+
     const coupon: Coupon = {
       ...couponData,
       id,
@@ -1098,12 +1098,12 @@ export class MemStorage implements IStorage {
       createdAt: now,
       updatedAt: now
     };
-    
+
     this.coupons.set(id, coupon);
-    
+
     // Add store information
     const store = this.stores.get(coupon.storeId);
-    
+
     return {
       ...coupon,
       store: store ? { 
@@ -1117,18 +1117,18 @@ export class MemStorage implements IStorage {
   async updateCoupon(id: number, couponData: Partial<Coupon>): Promise<Coupon | undefined> {
     const coupon = this.coupons.get(id);
     if (!coupon) return undefined;
-    
+
     const updatedCoupon = {
       ...coupon,
       ...couponData,
       updatedAt: new Date()
     };
-    
+
     this.coupons.set(id, updatedCoupon);
-    
+
     // Add store information
     const store = this.stores.get(updatedCoupon.storeId);
-    
+
     return {
       ...updatedCoupon,
       store: store ? { 
@@ -1143,7 +1143,7 @@ export class MemStorage implements IStorage {
   async getWishlistItems(userId: number): Promise<Wishlist[]> {
     const wishlistItems = Array.from(this.wishlists.values())
       .filter(item => item.userId === userId);
-    
+
     // Add product information to each item
     return Promise.all(wishlistItems.map(async item => {
       const product = await this.getProduct(item.productId);
@@ -1158,26 +1158,26 @@ export class MemStorage implements IStorage {
     // Check if already in wishlist
     const existingItem = Array.from(this.wishlists.values())
       .find(item => item.userId === userId && item.productId === productId);
-    
+
     if (existingItem) {
       return existingItem;
     }
-    
+
     const id = this.wishlistIdCounter++;
     const now = new Date();
-    
+
     const wishlistItem: Wishlist = {
       id,
       userId,
       productId,
       createdAt: now
     };
-    
+
     this.wishlists.set(id, wishlistItem);
-    
+
     // Add product information
     const product = await this.getProduct(productId);
-    
+
     return {
       ...wishlistItem,
       product
@@ -1187,9 +1187,9 @@ export class MemStorage implements IStorage {
   async removeFromWishlist(userId: number, productId: number): Promise<boolean> {
     const wishlistItem = Array.from(this.wishlists.values())
       .find(item => item.userId === userId && item.productId === productId);
-    
+
     if (!wishlistItem) return false;
-    
+
     return this.wishlists.delete(wishlistItem.id);
   }
 
@@ -1197,7 +1197,7 @@ export class MemStorage implements IStorage {
   async getFavoriteStores(userId: number): Promise<FavoriteStore[]> {
     const favoriteStores = Array.from(this.favoriteStores.values())
       .filter(item => item.userId === userId);
-    
+
     // Add store information to each item
     return favoriteStores.map(item => {
       const store = this.stores.get(item.storeId);
@@ -1212,26 +1212,26 @@ export class MemStorage implements IStorage {
     // Check if already a favorite
     const existingItem = Array.from(this.favoriteStores.values())
       .find(item => item.userId === userId && item.storeId === storeId);
-    
+
     if (existingItem) {
       return existingItem;
     }
-    
+
     const id = this.favoriteStoreIdCounter++;
     const now = new Date();
-    
+
     const favoriteStore: FavoriteStore = {
       id,
       userId,
       storeId,
       createdAt: now
     };
-    
+
     this.favoriteStores.set(id, favoriteStore);
-    
+
     // Add store information
     const store = this.stores.get(storeId);
-    
+
     return {
       ...favoriteStore,
       store
@@ -1241,9 +1241,9 @@ export class MemStorage implements IStorage {
   async removeFavoriteStore(userId: number, storeId: number): Promise<boolean> {
     const favoriteStore = Array.from(this.favoriteStores.values())
       .find(item => item.userId === userId && item.storeId === storeId);
-    
+
     if (!favoriteStore) return false;
-    
+
     return this.favoriteStores.delete(favoriteStore.id);
   }
 
@@ -1251,10 +1251,10 @@ export class MemStorage implements IStorage {
   async getReservation(id: number): Promise<Reservation | undefined> {
     const reservation = this.reservations.get(id);
     if (!reservation) return undefined;
-    
+
     // Add product information
     const product = await this.getProduct(reservation.productId);
-    
+
     return {
       ...reservation,
       product
@@ -1264,24 +1264,24 @@ export class MemStorage implements IStorage {
   async getReservations(userId: number, limit?: number): Promise<Reservation[]> {
     let reservations = Array.from(this.reservations.values())
       .filter(reservation => reservation.userId === userId);
-    
+
     // Sort by creation date (newest first)
     reservations.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    
+
     if (limit) {
       reservations = reservations.slice(0, limit);
     }
-    
+
     // Add detailed product information to each reservation with flattened fields
     return Promise.all(reservations.map(async reservation => {
       const product = await this.getProduct(reservation.productId);
-      
+
       // Get primary image for the product
       let productImage = '';
       if (product && product.images && product.images.length > 0) {
         productImage = product.images[0];
       }
-      
+
       return {
         ...reservation,
         product,
@@ -1297,11 +1297,11 @@ export class MemStorage implements IStorage {
   async createReservation(userId: number, productId: number, quantity: number = 1): Promise<Reservation> {
     const id = this.reservationIdCounter++;
     const now = new Date();
-    
+
     // Calculate expiration date (72 hours from now)
     const expiresAt = new Date(now);
     expiresAt.setHours(expiresAt.getHours() + 72);
-    
+
     const reservation: Reservation = {
       id,
       userId,
@@ -1312,18 +1312,18 @@ export class MemStorage implements IStorage {
       createdAt: now,
       updatedAt: now
     };
-    
+
     this.reservations.set(id, reservation);
-    
+
     // Update product stock
     const product = this.products.get(productId);
     if (product && product.stock !== undefined) {
       await this.updateProduct(productId, { stock: product.stock - quantity });
     }
-    
+
     // Add product information
     const productWithDetails = await this.getProduct(productId);
-    
+
     return {
       ...reservation,
       product: productWithDetails
@@ -1333,17 +1333,17 @@ export class MemStorage implements IStorage {
   async updateReservationStatus(id: number, status: 'pending' | 'completed' | 'expired' | 'cancelled'): Promise<Reservation | undefined> {
     const reservation = this.reservations.get(id);
     if (!reservation) return undefined;
-    
+
     const oldStatus = reservation.status;
-    
+
     const updatedReservation = {
       ...reservation,
       status,
       updatedAt: new Date()
     };
-    
+
     this.reservations.set(id, updatedReservation);
-    
+
     // If cancelling or expiring a reservation, return the quantity to stock
     if ((status === 'cancelled' || status === 'expired') && oldStatus === 'pending') {
       const product = this.products.get(reservation.productId);
@@ -1351,10 +1351,10 @@ export class MemStorage implements IStorage {
         await this.updateProduct(reservation.productId, { stock: product.stock + reservation.quantity });
       }
     }
-    
+
     // Add product information
     const product = await this.getProduct(reservation.productId);
-    
+
     return {
       ...updatedReservation,
       product
@@ -1378,14 +1378,14 @@ export class MemStorage implements IStorage {
   async createCategory(categoryData: InsertCategory): Promise<Category> {
     const id = this.categoryIdCounter++;
     const now = new Date();
-    
+
     const category: Category = {
       ...categoryData,
       id,
       createdAt: now,
       updatedAt: now
     };
-    
+
     this.categories.set(id, category);
     return category;
   }
@@ -1397,25 +1397,25 @@ export class MemStorage implements IStorage {
 
   async getBanners(isActive: boolean = true): Promise<Banner[]> {
     const banners = Array.from(this.banners.values());
-    
+
     if (isActive !== undefined) {
       return banners.filter(banner => banner.isActive === isActive);
     }
-    
+
     return banners;
   }
 
   async createBanner(bannerData: InsertBanner): Promise<Banner> {
     const id = this.bannerIdCounter++;
     const now = new Date();
-    
+
     const banner: Banner = {
       ...bannerData,
       id,
       createdAt: now,
       updatedAt: now
     };
-    
+
     this.banners.set(id, banner);
     return banner;
   }
@@ -1423,13 +1423,13 @@ export class MemStorage implements IStorage {
   async updateBanner(id: number, bannerData: Partial<Banner>): Promise<Banner | undefined> {
     const banner = this.banners.get(id);
     if (!banner) return undefined;
-    
+
     const updatedBanner = {
       ...banner,
       ...bannerData,
       updatedAt: new Date()
     };
-    
+
     this.banners.set(id, updatedBanner);
     return updatedBanner;
   }
@@ -1438,14 +1438,14 @@ export class MemStorage implements IStorage {
   async recordStoreImpression(storeId: number): Promise<StoreImpression> {
     const id = this.storeImpressionIdCounter++;
     const now = new Date();
-    
+
     const impression: StoreImpression = {
       id,
       storeId,
       date: now,
       count: 1
     };
-    
+
     this.storeImpressions.set(id, impression);
     return impression;
   }
@@ -1453,15 +1453,15 @@ export class MemStorage implements IStorage {
   async getStoreImpressions(storeId: number, startDate?: Date, endDate?: Date): Promise<StoreImpression[]> {
     let impressions = Array.from(this.storeImpressions.values())
       .filter(impression => impression.storeId === storeId);
-    
+
     if (startDate) {
       impressions = impressions.filter(imp => new Date(imp.date) >= startDate);
     }
-    
+
     if (endDate) {
       impressions = impressions.filter(imp => new Date(imp.date) <= endDate);
     }
-    
+
     return impressions;
   }
 
@@ -1469,13 +1469,13 @@ export class MemStorage implements IStorage {
   async getUserStats(userId: number): Promise<{ wishlistCount: number; reservationsCount: number; favoriteStoresCount: number; }> {
     const wishlistCount = Array.from(this.wishlists.values())
       .filter(item => item.userId === userId).length;
-    
+
     const reservationsCount = Array.from(this.reservations.values())
       .filter(reservation => reservation.userId === userId).length;
-    
+
     const favoriteStoresCount = Array.from(this.favoriteStores.values())
       .filter(item => item.userId === userId).length;
-    
+
     return { wishlistCount, reservationsCount, favoriteStoresCount };
   }
 }
@@ -1484,6 +1484,7 @@ import connectPg from "connect-pg-simple";
 import session from "express-session";
 import { eq, and, like, or, gte, lte, desc, sql } from "drizzle-orm";
 import { db, pool } from "./db";
+import { PasswordResetToken, passwordResetTokens } from "@shared/schema";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -1496,45 +1497,45 @@ export class DatabaseStorage implements IStorage {
       createTableIfMissing: true 
     });
   }
-  
+
   // Implementação dos métodos adicionados à interface
-  
+
   async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
     try {
       // Remover o campo de senha se estiver vazio
       if (userData.password === '') {
         delete userData.password;
       }
-      
+
       // Se for atualizar a senha, hashear a nova senha
       if (userData.password) {
         const salt = await bcrypt.genSalt(10);
         userData.password = await bcrypt.hash(userData.password, salt);
       }
-      
+
       // Atualizar a data de modificação
       userData.updatedAt = new Date();
-      
+
       // Executar a atualização
       const [updatedUser] = await db
         .update(users)
         .set(userData)
         .where(eq(users.id, id))
         .returning();
-      
+
       return updatedUser;
     } catch (error) {
       console.error('Erro ao atualizar usuário:', error);
       return undefined;
     }
   }
-  
+
   async verifyUserPassword(id: number, password: string): Promise<boolean> {
     try {
       // Obter o usuário pelo ID
       const user = await this.getUser(id);
       if (!user) return false;
-      
+
       // Verificar a senha usando bcrypt
       return await bcrypt.compare(password, user.password);
     } catch (error) {
@@ -1542,38 +1543,38 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
-  
+
   async getUserStores(userId: number): Promise<Store[]> {
     return this.getStoresByUserId(userId);
   }
-  
+
   async getStoresProducts(storeIds: number[]): Promise<Product[]> {
     if (!storeIds || storeIds.length === 0) {
       return [];
     }
-    
+
     try {
       const result = await db.select()
         .from(products)
         .where(inArray(products.storeId, storeIds));
-      
+
       return result;
     } catch (error) {
       console.error('Erro ao buscar produtos das lojas:', error);
       return [];
     }
   }
-  
+
   async getProductsPromotions(productIds: number[]): Promise<Promotion[]> {
     if (!productIds || productIds.length === 0) {
       return [];
     }
-    
+
     try {
       const result = await db.select()
         .from(promotions)
         .where(inArray(promotions.productId, productIds));
-      
+
       return result;
     } catch (error) {
       console.error('Erro ao buscar promoções dos produtos:', error);
@@ -1596,7 +1597,7 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.insert(users).values(userData).returning();
     return user;
   }
-  
+
   async updateUserAvatar(userId: number, avatarUrl: string, avatarThumbnailUrl: string): Promise<User> {
     const [user] = await db
       .update(users)
@@ -1609,7 +1610,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return user;
   }
-  
+
   // Store operations
   async getStore(id: number): Promise<Store | undefined> {
     // Validar se o ID é um número válido antes de consultar o banco de dados
@@ -1617,7 +1618,7 @@ export class DatabaseStorage implements IStorage {
       console.error(`getStore recebeu ID inválido: ${id}, tipo: ${typeof id}`);
       return undefined;
     }
-    
+
     try {
       const [store] = await db.select().from(stores).where(eq(stores.id, id));
       return store;
@@ -1629,11 +1630,11 @@ export class DatabaseStorage implements IStorage {
 
   async getStores(options: { category?: string, search?: string, limit?: number } = {}): Promise<Store[]> {
     let query = db.select().from(stores);
-    
+
     if (options.category) {
       query = query.where(like(stores.category, `%${options.category}%`));
     }
-    
+
     if (options.search) {
       query = query.where(
         or(
@@ -1642,11 +1643,11 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-    
+
     if (options.limit) {
       query = query.limit(options.limit);
     }
-    
+
     return await query;
   }
 
@@ -1655,7 +1656,7 @@ export class DatabaseStorage implements IStorage {
     // For simplicity, we're just returning all stores
     return await db.select().from(stores);
   }
-  
+
   async getStoresByUserId(userId: number): Promise<Store[]> {
     return await db.select()
       .from(stores)
@@ -1676,7 +1677,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedStore;
   }
-  
+
   // Product operations
   async getProduct(id: number): Promise<Product | undefined> {
     const [product] = await db.select().from(products).where(eq(products.id, id));
@@ -1698,13 +1699,13 @@ export class DatabaseStorage implements IStorage {
       minPriceType: typeof options.minPrice,
       maxPriceType: typeof options.maxPrice
     });
-    
+
     let query = db.select().from(products);
-    
+
     if (options.category) {
       query = query.where(eq(products.category, options.category));
     }
-    
+
     if (options.search) {
       query = query.where(
         or(
@@ -1713,12 +1714,12 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-    
+
     // Melhorado o filtro de preço mínimo
     if (options.minPrice !== undefined && options.minPrice !== null) {
       const minPrice = Number(options.minPrice);
       console.log('Applying min price filter in DB query:', minPrice);
-      
+
       // Verificar se tem preço com desconto primeiro, caso contrário usa o preço normal
       query = query.where(
         or(
@@ -1736,13 +1737,12 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-    
+
     // Melhorado o filtro de preço máximo
     if (options.maxPrice !== undefined && options.maxPrice !== null) {
       const maxPrice = Number(options.maxPrice);
       console.log('Applying max price filter in DB query:', maxPrice);
-      
-      // Verificar se tem preço com desconto primeiro, caso contrário usa o preço normal
+
       query = query.where(
         or(
           and(
@@ -1759,7 +1759,7 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-    
+
     if (options.sortBy) {
       if (options.sortBy === 'price_asc') {
         query = query.orderBy(products.price);
@@ -1769,11 +1769,11 @@ export class DatabaseStorage implements IStorage {
         query = query.orderBy(desc(products.createdAt));
       }
     }
-    
+
     if (options.limit) {
       query = query.limit(options.limit);
     }
-    
+
     return await query;
   }
 
@@ -1785,17 +1785,17 @@ export class DatabaseStorage implements IStorage {
     limit?: number
   } = {}): Promise<Product[]> {
     console.log('Getting products by category slug:', slug);
-    
+
     // Primeiro, obter o ID da categoria pelo slug
     const [category] = await db.select().from(categories).where(eq(categories.slug, slug));
-    
+
     if (!category) {
       console.log('Category not found with slug:', slug);
       return [];
     }
-    
+
     console.log('Found category:', category.name, 'with ID:', category.id);
-    
+
     // Consulta para buscar produtos que tenham esta categoria como principal
     // ou em categorias secundárias (se existir)
     let query = db.select()
@@ -1806,12 +1806,12 @@ export class DatabaseStorage implements IStorage {
           eq(products.category, category.name)
         )
       );
-    
+
     // Aplicar filtros adicionais
     if (options.minPrice !== undefined && options.minPrice !== null) {
       const minPrice = Number(options.minPrice);
       console.log('Applying min price filter in category products:', minPrice);
-      
+
       query = query.where(
         or(
           and(
@@ -1828,11 +1828,11 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-    
+
     if (options.maxPrice !== undefined && options.maxPrice !== null) {
       const maxPrice = Number(options.maxPrice);
       console.log('Applying max price filter in category products:', maxPrice);
-      
+
       query = query.where(
         or(
           and(
@@ -1849,7 +1849,7 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-    
+
     // Aplicar ordenação
     if (options.sortBy) {
       if (options.sortBy === 'price_asc') {
@@ -1866,15 +1866,15 @@ export class DatabaseStorage implements IStorage {
       // Default ordering
       query = query.orderBy(desc(products.createdAt));
     }
-    
+
     // Aplicar limite
     if (options.limit) {
       query = query.limit(options.limit);
     }
-    
+
     const categoryProducts = await query;
     console.log(`Found ${categoryProducts.length} products for category ${category.name}`);
-    
+
     return categoryProducts;
   }
 
@@ -1885,7 +1885,7 @@ export class DatabaseStorage implements IStorage {
   async getRelatedProducts(productId: number, limit: number = 4): Promise<Product[]> {
     const product = await this.getProduct(productId);
     if (!product) return [];
-    
+
     // Get products from the same category, excluding this one
     return await db.select()
       .from(products)
@@ -1920,7 +1920,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedProduct;
   }
-  
+
   // Promotion operations
   async getPromotion(id: number): Promise<Promotion | undefined> {
     const [promotion] = await db.select().from(promotions).where(eq(promotions.id, id));
@@ -1929,15 +1929,15 @@ export class DatabaseStorage implements IStorage {
 
   async getPromotions(type?: string, limit?: number): Promise<Promotion[]> {
     let query = db.select().from(promotions);
-    
+
     if (type) {
       query = query.where(eq(promotions.type, type));
     }
-    
+
     if (limit) {
       query = query.limit(limit);
     }
-    
+
     return await query;
   }
 
@@ -1947,7 +1947,7 @@ export class DatabaseStorage implements IStorage {
     const allPromotions = await this.getPromotions();
     const storeProducts = await this.getProductsByStore(storeId);
     const storeProductIds = storeProducts.map(p => p.id);
-    
+
     return allPromotions.filter(promo => 
       storeProductIds.includes(promo.productId)
     );
@@ -1961,13 +1961,13 @@ export class DatabaseStorage implements IStorage {
   async updatePromotion(id: number, promotionData: Partial<Promotion>): Promise<Promotion | undefined> {
     try {
       console.log(`[Storage] Atualizando promoção ${id} com dados:`, promotionData);
-      
+
       // First, get the existing promotion to keep unchanged data
       const existingPromotion = await this.getPromotion(id);
       if (!existingPromotion) {
         throw new Error('Promotion not found');
       }
-      
+
       // Prepare update data
       let type = promotionData.type || existingPromotion.type;
       let discountPercentage = promotionData.discountPercentage !== undefined 
@@ -1977,23 +1977,23 @@ export class DatabaseStorage implements IStorage {
         ? promotionData.discountAmount 
         : existingPromotion.discountAmount;
       let productId = existingPromotion.productId; // Always keep original productId
-      
+
       // Format dates as strings
       let startTime = promotionData.startTime 
         ? typeof promotionData.startTime === 'string' 
           ? promotionData.startTime 
           : new Date(promotionData.startTime).toISOString()
         : existingPromotion.startTime;
-        
+
       let endTime = promotionData.endTime 
         ? typeof promotionData.endTime === 'string' 
           ? promotionData.endTime 
           : new Date(promotionData.endTime).toISOString()
         : existingPromotion.endTime;
-      
+
       // Use direct pool query to completely bypass ORM
       const { pool } = await import('./db');
-      
+
       // Construct safe parameterized query
       const query = `
         UPDATE promotions 
@@ -2007,7 +2007,7 @@ export class DatabaseStorage implements IStorage {
         WHERE id = $6
         RETURNING *;
       `;
-      
+
       const values = [
         type,
         discountPercentage,
@@ -2016,20 +2016,20 @@ export class DatabaseStorage implements IStorage {
         endTime,
         id
       ];
-      
+
       console.log('[Storage] Executing query with values:', {
         query,
         values
       });
-      
+
       // Execute query directly via pool
       const result = await pool.query(query, values);
       console.log('[Storage] Update result rows:', result.rows);
-      
+
       if (!result.rows || result.rows.length === 0) {
         return undefined;
       }
-      
+
       // Return the first row as the updated promotion
       const updatedPromotion = result.rows[0] as Promotion;
       return updatedPromotion;
@@ -2038,7 +2038,7 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  
+
   // Delete promotion
   async deletePromotion(id: number): Promise<boolean> {
     try {
@@ -2051,7 +2051,7 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
-  
+
   // Coupon operations
   async getCoupon(id: number): Promise<Coupon | undefined> {
     const [coupon] = await db.select().from(coupons).where(eq(coupons.id, id));
@@ -2060,7 +2060,7 @@ export class DatabaseStorage implements IStorage {
 
   async getCoupons(search?: string): Promise<Coupon[]> {
     let query = db.select().from(coupons);
-    
+
     if (search) {
       query = query.where(
         or(
@@ -2069,7 +2069,7 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-    
+
     return await query;
   }
 
@@ -2090,7 +2090,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedCoupon;
   }
-  
+
   // Wishlist operations
   async getWishlistItems(userId: number): Promise<Wishlist[]> {
     return await db.select().from(wishlists).where(eq(wishlists.userId, userId));
@@ -2106,9 +2106,9 @@ export class DatabaseStorage implements IStorage {
           eq(wishlists.productId, productId)
         )
       );
-      
+
     if (existing) return existing;
-    
+
     // Create new wishlist item
     const [wishlistItem] = await db.insert(wishlists)
       .values({ userId, productId })
@@ -2126,7 +2126,7 @@ export class DatabaseStorage implements IStorage {
       );
     return true; // PostgreSQL doesn't return count of deleted rows easily with drizzle
   }
-  
+
   // Favorite store operations
   async getFavoriteStores(userId: number): Promise<FavoriteStore[]> {
     return await db.select().from(favoriteStores).where(eq(favoriteStores.userId, userId));
@@ -2142,9 +2142,9 @@ export class DatabaseStorage implements IStorage {
           eq(favoriteStores.storeId, storeId)
         )
       );
-      
+
     if (existing) return existing;
-    
+
     // Create new favorite store
     const [favoriteStore] = await db.insert(favoriteStores)
       .values({ userId, storeId })
@@ -2162,7 +2162,7 @@ export class DatabaseStorage implements IStorage {
       );
     return true; // PostgreSQL doesn't return count of deleted rows easily with drizzle
   }
-  
+
   // Reservation operations
   async getReservation(id: number): Promise<Reservation | undefined> {
     const [reservation] = await db.select().from(reservations).where(eq(reservations.id, id));
@@ -2171,11 +2171,11 @@ export class DatabaseStorage implements IStorage {
 
   async getReservations(userId: number, limit?: number): Promise<Reservation[]> {
     let query = db.select().from(reservations).where(eq(reservations.userId, userId));
-    
+
     if (limit) {
       query = query.limit(limit);
     }
-    
+
     return await query;
   }
 
@@ -2183,7 +2183,7 @@ export class DatabaseStorage implements IStorage {
     // Set expiration date to 24 hours from now
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
-    
+
     const [reservation] = await db.insert(reservations)
       .values({
         userId,
@@ -2204,7 +2204,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedReservation;
   }
-  
+
   // Category operations
   async getCategory(id: number): Promise<Category | undefined> {
     const [category] = await db.select().from(categories).where(eq(categories.id, id));
@@ -2224,7 +2224,7 @@ export class DatabaseStorage implements IStorage {
     const [category] = await db.insert(categories).values(categoryData).returning();
     return category;
   }
-  
+
   // Banner operations
   async getBanner(id: number): Promise<Banner | undefined> {
     const [banner] = await db.select().from(banners).where(eq(banners.id, id));
@@ -2248,7 +2248,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedBanner;
   }
-  
+
   // Store analytics operations
   async recordStoreImpression(storeId: number): Promise<StoreImpression> {
     const [impression] = await db.insert(storeImpressions)
@@ -2262,15 +2262,15 @@ export class DatabaseStorage implements IStorage {
 
   async getStoreImpressions(storeId: number, startDate?: Date, endDate?: Date): Promise<StoreImpression[]> {
     let query = db.select().from(storeImpressions).where(eq(storeImpressions.storeId, storeId));
-    
+
     if (startDate) {
       query = query.where(gte(storeImpressions.date, startDate));
     }
-    
+
     if (endDate) {
       query = query.where(lte(storeImpressions.date, endDate));
     }
-    
+
     return await query;
   }
 
@@ -2282,13 +2282,13 @@ export class DatabaseStorage implements IStorage {
   }> {
     // Count wishlist items
     const wishlistItems = await db.select().from(wishlists).where(eq(wishlists.userId, userId));
-    
+
     // Count reservations
     const userReservations = await db.select().from(reservations).where(eq(reservations.userId, userId));
-    
+
     // Count favorite stores
     const userFavoriteStores = await db.select().from(favoriteStores).where(eq(favoriteStores.userId, userId));
-    
+
     return {
       wishlistCount: wishlistItems.length,
       reservationsCount: userReservations.length,
