@@ -1,4 +1,3 @@
-
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -52,6 +51,7 @@ import StoreDetail from "@/pages/seller/stores/store-detail";
 import StoreProducts from "@/pages/seller/stores/store-products";
 import StoreAnalyticsPage from "@/pages/seller/stores/store-analytics";
 import LocationSettingsPage from "@/pages/seller/settings/location";
+import SellerLanding from "@/pages/seller-landing";
 
 // Componente especial para a página de apresentação sem autenticação
 function PresentationRoute() {
@@ -127,6 +127,7 @@ function Router() {
               </div>
             )}
           </Route>
+          <Route path="/seller-landing" component={SellerLanding} />
           <Route component={NotFound} />
         </Switch>
       </div>
@@ -138,10 +139,10 @@ function Router() {
 
 function App() {
   console.log('🚀 [APP] Inicializando aplicação');
-  
+
   // Verifica se é a página de apresentação
   const isPresentation = window.location.pathname === '/presentation';
-  
+
   if (isPresentation) {
     // Rota pública sem autenticação para a página de apresentação
     return (
@@ -153,7 +154,7 @@ function App() {
       </QueryClientProvider>
     );
   }
-  
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
