@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, startTransition } from 'react';
 import { useLocation } from 'wouter';
 import { Link } from 'wouter';
 import { useAuth } from '@/context/auth-context';

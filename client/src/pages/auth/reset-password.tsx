@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Link } from 'wouter';
@@ -20,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
+import { startTransition } from 'react';
 
 const resetPasswordSchema = z.object({
   password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
@@ -89,7 +89,14 @@ export default function ResetPassword() {
   });
 
   const onSubmit = async (values: ResetPasswordFormValues) => {
-    await resetPasswordMutation.mutateAsync(values);
+    if (!token) return;
+
+    startTransition(() => {
+      resetPasswordMutation.mutate({
+        token,
+        password: values.password,
+      });
+    });
   };
 
   // Loading state

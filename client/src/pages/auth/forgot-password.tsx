@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, startTransition } from 'react';
 import { Link } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -59,7 +59,9 @@ export default function ForgotPassword() {
   });
 
   const onSubmit = async (values: ForgotPasswordFormValues) => {
-    await requestResetMutation.mutateAsync(values);
+    startTransition(() => {
+      requestResetMutation.mutate(values);
+    });
   };
 
   if (isSubmitted) {
