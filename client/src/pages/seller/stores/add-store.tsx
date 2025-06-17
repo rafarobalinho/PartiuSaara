@@ -50,10 +50,10 @@ export default function AddStore() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
-  
+
   // Referência para o componente de upload de imagens
   const imageUploadRef = useRef<any>(null);
-  
+
   // Estado temporário para armazenar o ID da loja criada (para upload posterior)
   const [tempStoreId, setTempStoreId] = useState<number | null>(null);
 
@@ -116,17 +116,17 @@ export default function AddStore() {
         // Add userId
         userId: user?.id,
       };
-      
+
       // Não incluímos as imagens no objeto da loja - serão salvas posteriormente
       // na tabela store_images
-      
+
       return apiRequest('POST', '/api/stores', formattedData);
     },
     onSuccess: (response: any) => {
       // Salvamos o ID da loja para associar às imagens
       if (response && response.id) {
         setTempStoreId(response.id);
-        
+
         // Se houver imagens, só vamos redirecionar após o upload delas
         if (form.getValues('images').length === 0) {
           finishStoreCreation();
@@ -144,7 +144,7 @@ export default function AddStore() {
       console.error('Error creating store:', error);
     }
   });
-  
+
   // Função para finalizar o processo e redirecionar
   const finishStoreCreation = () => {
     queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
@@ -155,7 +155,7 @@ export default function AddStore() {
     });
     navigate('/seller/stores');
   };
-  
+
   // Submit handler
   async function onSubmit(data: StoreFormValues) {
     try {
@@ -164,15 +164,15 @@ export default function AddStore() {
         console.log('Processando blobs antes de enviar o formulário...');
         // Processar blobs antes de enviar o formulário
         await imageUploadRef.current.processBlobs();
-        
+
         // Pequena pausa para garantir que o estado foi atualizado
         await new Promise(resolve => setTimeout(resolve, 500));
-        
+
         // Obter os valores atualizados após o processamento
         const updatedImages = form.getValues('images');
         data = { ...data, images: updatedImages };
       }
-      
+
       // Continuar com a submissão normal
       createStoreMutation.mutate(data);
     } catch (error) {
@@ -199,13 +199,13 @@ export default function AddStore() {
         try {
           // Atualizar a primeira imagem como primária
           const isPrimary = true;
-          
+
           // Fazer o upload usando a API
           await apiRequest('POST', `/api/stores/${tempStoreId}/images`, {
             imageUrls: images,
             isPrimary
           });
-          
+
           finishStoreCreation();
         } catch (error) {
           console.error('Erro ao fazer upload das imagens da loja:', error);
@@ -218,7 +218,7 @@ export default function AddStore() {
         }
       }
     };
-    
+
     uploadStoreImages();
   }, [tempStoreId]);
 
@@ -379,7 +379,7 @@ export default function AddStore() {
 
                   <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 mt-4">
                     <h3 className="font-medium text-sm mb-3">Endereço e Localização</h3>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <FormField
                         control={form.control}
