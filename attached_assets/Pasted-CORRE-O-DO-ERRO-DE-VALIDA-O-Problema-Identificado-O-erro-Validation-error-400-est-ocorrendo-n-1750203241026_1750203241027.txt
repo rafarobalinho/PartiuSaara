@@ -1,0 +1,73 @@
+CORREÇÃO DO ERRO DE VALIDAÇÃO
+Problema Identificado
+O erro "Validation error" (400) está ocorrendo no endpoint POST /api/stores durante a criação de lojas. O problema não é o sistema de upload de imagens, mas sim a validação dos dados da loja no servidor.
+Análise dos Logs
+📍 Endpoint: POST /api/stores
+📍 Status: 400 Bad Request  
+📍 Erro: Validation error
+📍 Localização: add-store.tsx linha 151 (mutationFn)
+Solicitação de Diagnóstico
+1️⃣ Adicionar Logs Detalhados no Servidor
+Arquivo: server/controllers/store.controller.ts
+Na função createStore, adicione logs detalhados ANTES da validação:
+typescriptconsole.log('🔍 [STORE-CREATE] === DIAGNÓSTICO COMPLETO ===');
+console.log('🔍 [STORE-CREATE] Dados recebidos:', JSON.stringify(req.body, null, 2));
+console.log('🔍 [STORE-CREATE] Headers:', req.headers);
+console.log('🔍 [STORE-CREATE] User ID:', user?.id);
+E APÓS a validação falhar:
+typescriptif (!validationResult.success) {
+  console.log('❌ [STORE-CREATE] ERRO DE VALIDAÇÃO DETALHADO:');
+  console.log('❌ [STORE-CREATE] Dados enviados:', JSON.stringify(req.body, null, 2));
+  console.log('❌ [STORE-CREATE] Erros encontrados:', JSON.stringify(validationResult.error.errors, null, 2));
+  console.log('❌ [STORE-CREATE] Schema esperado:', Object.keys(insertStoreSchema.shape || {}));
+  
+  return res.status(400).json({ 
+    message: 'Validation error', 
+    errors: validationResult.error.errors,
+    receivedFields: Object.keys(req.body),
+    expectedFields: Object.keys(insertStoreSchema.shape || {}),
+    debugData: req.body // Para debugging
+  });
+}
+2️⃣ Verificar o Schema de Validação
+Arquivo: shared/schema.ts
+Verifique se o insertStoreSchema inclui todos os campos que estão sendo enviados:
+
+❓ Tem o campo phone?
+❓ Tem o campo categories?
+❓ Tem o campo tags?
+❓ Tem o campo address (como objeto JSON)?
+❓ Tem o campo acceptLocationTerms?
+
+3️⃣ Verificar os Dados Enviados pelo Frontend
+Arquivo: client/src/pages/seller/stores/add-store.tsx
+Adicione log detalhado dos dados antes do envio:
+typescriptconsole.log('📤 [FRONTEND] Dados sendo enviados para /api/stores:');
+console.log('📤 [FRONTEND] Estrutura completa:', JSON.stringify(finalData, null, 2));
+console.log('📤 [FRONTEND] Tipos dos campos:', Object.entries(finalData).map(([key, value]) => 
+  `${key}: ${typeof value} ${Array.isArray(value) ? '(array)' : ''}`
+));
+4️⃣ Comparar Campo por Campo
+Criar um relatório mostrando:
+
+Campos enviados pelo frontend
+Campos esperados pelo schema
+Campos ausentes ou com tipo incorreto
+Campos extras não esperados
+
+Resultado Esperado
+Com esses logs detalhados, saberemos exatamente:
+
+Quais dados estão sendo enviados
+Quais campos estão falhando na validação
+Que tipos de dados o schema espera vs. o que está recebendo
+Se há campos ausentes ou com nomes incorretos
+
+Teste
+Após adicionar os logs, execute uma tentativa de criação de loja e compartilhe:
+
+Os logs completos do servidor
+Os logs do frontend
+A resposta de erro detalhada
+
+O objetivo é identificar precisamente qual campo está causando o erro de validação, não é um problema de upload de imagens.
