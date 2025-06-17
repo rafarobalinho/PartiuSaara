@@ -115,11 +115,19 @@ export async function createStore(req: Request, res: Response) {
 
       console.log('🔍 [STORE-CREATE] Dados após limpeza de blobs:', req.body);
 
+      // Processar categories para category (compatibilidade)
+      if (req.body.categories && Array.isArray(req.body.categories) && req.body.categories.length > 0) {
+        req.body.category = req.body.categories[0]; // Usar primeira categoria como principal
+        console.log('🔍 [STORE-CREATE] Convertendo categories para category:', req.body.categories[0]);
+      }
+
       // Validate store data
       const storeSchema = insertStoreSchema.extend({
         userId: z.number().optional(),
         images: z.array(z.string()).optional().default([]),
         place_id: z.string().optional(),
+        // Permitir categories (array) mas converter para category
+        categories: z.array(z.string()).optional(),
         // Permitir location com latitude e longitude
         location: z.object({
           latitude: z.number(),
