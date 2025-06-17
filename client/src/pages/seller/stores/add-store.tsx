@@ -101,54 +101,15 @@ export default function AddStore() {
   // Mutation para criar loja
   const createStoreMutation = useMutation({
     mutationFn: async (data: StoreFormValues) => {
-      console.log('🔍 [MUTATION] Dados recebidos na mutation:', data);
+      // === DIAGNÓSTICO FRONTEND ===
+      console.log('📤 [FRONTEND] Dados sendo enviados para /api/stores:');
+      console.log('📤 [FRONTEND] Estrutura completa:', JSON.stringify(data, null, 2));
+      console.log('📤 [FRONTEND] Tipos dos campos:', Object.entries(data).map(([key, value]) => 
+        `${key}: ${typeof value} ${Array.isArray(value) ? '(array)' : ''}`
+      ));
+      console.log('📤 [FRONTEND] Campos enviados:', Object.keys(data));
 
-      // Formatação dos dados antes de enviar
-      const formattedData = {
-        name: data.name.trim(),
-        description: data.description.trim(),
-        category: data.categories && data.categories.length > 0 ? data.categories[0] : '',
-        tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()).filter(tag => tag.length > 0) : [],
-        address: {
-          street: data.address.street.trim(),
-          city: data.address.city.trim(),
-          state: data.address.state.trim(),
-          zipCode: data.address.zipCode.trim(),
-        },
-        // Posição padrão para o SAARA
-        location: {
-          latitude: -22.903539,
-          longitude: -43.175003
-        },
-        // Add userId
-        userId: user?.id,
-        // Garantir que images seja array vazio se não houver imagens
-        images: []
-      };
-
-      console.log('🔍 [MUTATION] Dados formatados para envio:', formattedData);
-
-      // Validar dados essenciais antes de enviar
-      if (!formattedData.name || formattedData.name.trim().length < 3) {
-        throw new Error('Nome da loja deve ter pelo menos 3 caracteres');
-      }
-
-      if (!formattedData.description || formattedData.description.trim().length < 10) {
-        throw new Error('Descrição deve ter pelo menos 10 caracteres');
-      }
-
-      if (!formattedData.category || formattedData.category.trim().length === 0) {
-        throw new Error('Categoria é obrigatória');
-      }
-
-      if (!formattedData.address || !formattedData.address.street || !formattedData.address.city) {
-        throw new Error('Endereço completo é obrigatório');
-      }
-
-      // Não incluímos as imagens no objeto da loja - serão salvas posteriormente
-      // na tabela store_images
-
-      return apiRequest('POST', '/api/stores', formattedData);
+      return apiRequest('POST', '/api/stores', data);
     },
     onSuccess: (response: any) => {
       // Salvamos o ID da loja para associar às imagens
@@ -232,21 +193,21 @@ export default function AddStore() {
   useEffect(() => {
     const uploadStoreImages = async () => {
       const images = form.getValues('images');
-      
+
       if (tempStoreId && images.length > 0) {
         console.log('🔍 [ADD-STORE] ETAPA 2: Fazendo upload das imagens para loja ID:', tempStoreId);
-        
+
         try {
           // Processar imagens blob usando o componente ImageUpload
           if (imageUploadRef.current?.hasBlobs && imageUploadRef.current.hasBlobs()) {
             console.log('🔍 [ADD-STORE] Processando blobs com storeId:', tempStoreId);
-            
+
             // Atualizar o name do ImageUpload com o ID correto
             const imageUploadElement = document.querySelector('input[type="file"]');
             if (imageUploadElement) {
               imageUploadElement.setAttribute('name', `store-${tempStoreId}`);
             }
-            
+
             // Processar blobs
             await imageUploadRef.current.processBlobs();
           }
