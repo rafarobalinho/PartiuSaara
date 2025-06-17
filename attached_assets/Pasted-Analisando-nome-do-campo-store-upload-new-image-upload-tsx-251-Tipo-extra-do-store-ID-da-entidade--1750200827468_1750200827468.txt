@@ -1,0 +1,136 @@
+Analisando nome do campo: store-upload-new
+image-upload.tsx:251 Tipo extraído: store ID da entidade: new
+image-upload.tsx:255 Entidade nova detectada, armazenando imagem temporariamente
+auth-context.tsx:41 🔍 [AUTH-CONTEXT] Inicializando AuthProvider (versão simplificada)
+auth-context.tsx:236 ✅ [AUTH-CONTEXT] Estado atual: Object
+image-upload.tsx:159 Validando URL de imagem: blob:https://28e4b557-7792-4b03-b33e-93489b7586b5-00-33goki6qofjtz.riker.replit.dev/40ab0261-c236-48c4-9962-7754c3e3c5e7
+image-upload.tsx:164 ⚠️ URL blob detectada, substituindo por placeholder blob:https://28e4b557-7792-4b03-b33e-93489b7586b5-00-33goki6qofjtz.riker.replit.dev/40ab0261-c236-48c4-9962-7754c3e3c5e7
+getValidImage @ image-upload.tsx:164Understand this warning
+image-upload.tsx:39 ⚠️ URLs blob detectadas no estado, removendo: Array(1)
+(anonymous) @ image-upload.tsx:39Understand this warning
+image-upload.tsx:46 Atualizando estado com imagens limpas
+auth-context.tsx:41 🔍 [AUTH-CONTEXT] Inicializando AuthProvider (versão simplificada)
+auth-context.tsx:236 ✅ [AUTH-CONTEXT] Estado atual: Object
+add-store.tsx:205 🔍 [ADD-STORE] Dados do formulário antes do processamento: {name: 'Radio Saara', description: 'A voz do centro do Rio. ', categories: Array(1), tags: '', images: Array(0), …}
+add-store.tsx:208 🔍 [ADD-STORE] Validação de campos obrigatórios:
+add-store.tsx:209 - name: Radio Saara (válido: true )
+add-store.tsx:210 - description: A voz do centro do Rio.  (válido: true )
+add-store.tsx:211 - categories: ['restaurantes-e-bares'] (válido: true )
+add-store.tsx:212 - address.street: Avenida Passos 91 (válido: true )
+add-store.tsx:213 - address.city: Rio de Janeiro (válido: true )
+add-store.tsx:214 - address.state: RJ (válido: true )
+add-store.tsx:215 - address.zipCode: 20051-040 (válido: true )
+add-store.tsx:216 - images: [] (válido: true )
+add-store.tsx:239 🔍 [ADD-STORE] URLs blob removidas: 0
+add-store.tsx:242 🔍 [ADD-STORE] Dados finais a serem enviados: {
+  "name": "Radio Saara",
+  "description": "A voz do centro do Rio. ",
+  "categories": [
+    "restaurantes-e-bares"
+  ],
+  "tags": "",
+  "images": [],
+  "address": {
+    "street": "Avenida Passos 91",
+    "city": "Rio de Janeiro",
+    "state": "RJ",
+    "zipCode": "20051-040"
+  },
+  "acceptLocationTerms": true
+}
+add-store.tsx:104 🔍 [MUTATION] Dados recebidos na mutation: {name: 'Radio Saara', description: 'A voz do centro do Rio. ', categories: Array(1), tags: '', images: Array(0), …}
+add-store.tsx:129 🔍 [MUTATION] Dados formatados para envio: {name: 'Radio Saara', description: 'A voz do centro do Rio.', category: 'restaurantes-e-bares', tags: Array(0), address: {…}, …}
+queryClient.ts:91 
+            
+            
+           POST https://28e4b557-7792-4b03-b33e-93489b7586b5-00-33goki6qofjtz.riker.replit.dev/api/stores 400 (Bad Request)
+apiRequest @ queryClient.ts:91
+mutationFn @ add-store.tsx:151
+fn @ @tanstack_react-query.js?v=36a42a56:1189
+run @ @tanstack_react-query.js?v=36a42a56:494
+start @ @tanstack_react-query.js?v=36a42a56:536
+execute @ @tanstack_react-query.js?v=36a42a56:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=36a42a56:2630
+(anonymous) @ @tanstack_react-query.js?v=36a42a56:3295
+onSubmit @ add-store.tsx:245
+(anonymous) @ chunk-CXJMC5RA.js?v=66dd4fe4:1465
+await in (anonymous)
+callCallback2 @ chunk-WERSD76P.js?v=66dd4fe4:3674
+invokeGuardedCallbackDev @ chunk-WERSD76P.js?v=66dd4fe4:3699
+invokeGuardedCallback @ chunk-WERSD76P.js?v=66dd4fe4:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-WERSD76P.js?v=66dd4fe4:3736
+executeDispatch @ chunk-WERSD76P.js?v=66dd4fe4:7014
+processDispatchQueueItemsInOrder @ chunk-WERSD76P.js?v=66dd4fe4:7034
+processDispatchQueue @ chunk-WERSD76P.js?v=66dd4fe4:7043
+dispatchEventsForPlugins @ chunk-WERSD76P.js?v=66dd4fe4:7051
+(anonymous) @ chunk-WERSD76P.js?v=66dd4fe4:7174
+batchedUpdates$1 @ chunk-WERSD76P.js?v=66dd4fe4:18913
+batchedUpdates @ chunk-WERSD76P.js?v=66dd4fe4:3579
+dispatchEventForPluginEventSystem @ chunk-WERSD76P.js?v=66dd4fe4:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-WERSD76P.js?v=66dd4fe4:5478
+dispatchEvent @ chunk-WERSD76P.js?v=66dd4fe4:5472
+dispatchDiscreteEvent @ chunk-WERSD76P.js?v=66dd4fe4:5449Understand this error
+queryClient.ts:111 Resposta de erro da API: {url: '/api/stores', method: 'POST', status: 400, statusText: 'Bad Request', type: 'basic', …}contentType: "application/json; charset=utf-8"method: "POST"status: 400statusText: "Bad Request"type: "basic"url: "/api/stores"[[Prototype]]: Object
+apiRequest @ queryClient.ts:111
+await in apiRequest
+mutationFn @ add-store.tsx:151
+fn @ @tanstack_react-query.js?v=36a42a56:1189
+run @ @tanstack_react-query.js?v=36a42a56:494
+start @ @tanstack_react-query.js?v=36a42a56:536
+execute @ @tanstack_react-query.js?v=36a42a56:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=36a42a56:2630
+(anonymous) @ @tanstack_react-query.js?v=36a42a56:3295
+onSubmit @ add-store.tsx:245
+(anonymous) @ chunk-CXJMC5RA.js?v=66dd4fe4:1465
+await in (anonymous)
+callCallback2 @ chunk-WERSD76P.js?v=66dd4fe4:3674
+invokeGuardedCallbackDev @ chunk-WERSD76P.js?v=66dd4fe4:3699
+invokeGuardedCallback @ chunk-WERSD76P.js?v=66dd4fe4:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-WERSD76P.js?v=66dd4fe4:3736
+executeDispatch @ chunk-WERSD76P.js?v=66dd4fe4:7014
+processDispatchQueueItemsInOrder @ chunk-WERSD76P.js?v=66dd4fe4:7034
+processDispatchQueue @ chunk-WERSD76P.js?v=66dd4fe4:7043
+dispatchEventsForPlugins @ chunk-WERSD76P.js?v=66dd4fe4:7051
+(anonymous) @ chunk-WERSD76P.js?v=66dd4fe4:7174
+batchedUpdates$1 @ chunk-WERSD76P.js?v=66dd4fe4:18913
+batchedUpdates @ chunk-WERSD76P.js?v=66dd4fe4:3579
+dispatchEventForPluginEventSystem @ chunk-WERSD76P.js?v=66dd4fe4:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-WERSD76P.js?v=66dd4fe4:5478
+dispatchEvent @ chunk-WERSD76P.js?v=66dd4fe4:5472
+dispatchDiscreteEvent @ chunk-WERSD76P.js?v=66dd4fe4:5449Understand this warning
+queryClient.ts:124 Erro na requisição para /api/stores Error: Validation error
+    at throwIfResNotOk (queryClient.ts:30:15)
+    at async apiRequest (queryClient.ts:121:5)
+apiRequest @ queryClient.ts:124
+await in apiRequest
+mutationFn @ add-store.tsx:151
+fn @ @tanstack_react-query.js?v=36a42a56:1189
+run @ @tanstack_react-query.js?v=36a42a56:494
+start @ @tanstack_react-query.js?v=36a42a56:536
+execute @ @tanstack_react-query.js?v=36a42a56:1225
+await in execute
+mutate @ @tanstack_react-query.js?v=36a42a56:2630
+(anonymous) @ @tanstack_react-query.js?v=36a42a56:3295
+onSubmit @ add-store.tsx:245
+(anonymous) @ chunk-CXJMC5RA.js?v=66dd4fe4:1465
+await in (anonymous)
+callCallback2 @ chunk-WERSD76P.js?v=66dd4fe4:3674
+invokeGuardedCallbackDev @ chunk-WERSD76P.js?v=66dd4fe4:3699
+invokeGuardedCallback @ chunk-WERSD76P.js?v=66dd4fe4:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-WERSD76P.js?v=66dd4fe4:3736
+executeDispatch @ chunk-WERSD76P.js?v=66dd4fe4:7014
+processDispatchQueueItemsInOrder @ chunk-WERSD76P.js?v=66dd4fe4:7034
+processDispatchQueue @ chunk-WERSD76P.js?v=66dd4fe4:7043
+dispatchEventsForPlugins @ chunk-WERSD76P.js?v=66dd4fe4:7051
+(anonymous) @ chunk-WERSD76P.js?v=66dd4fe4:7174
+batchedUpdates$1 @ chunk-WERSD76P.js?v=66dd4fe4:18913
+batchedUpdates @ chunk-WERSD76P.js?v=66dd4fe4:3579
+dispatchEventForPluginEventSystem @ chunk-WERSD76P.js?v=66dd4fe4:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-WERSD76P.js?v=66dd4fe4:5478
+dispatchEvent @ chunk-WERSD76P.js?v=66dd4fe4:5472
+dispatchDiscreteEvent @ chunk-WERSD76P.js?v=66dd4fe4:5449Understand this error
+add-store.tsx:167 🚨 [MUTATION ERROR] Erro detalhado: Error: Validation error
+    at throwIfResNotOk (queryClient.ts:30:15)
+    at async apiRequest (queryClient.ts:121:5)

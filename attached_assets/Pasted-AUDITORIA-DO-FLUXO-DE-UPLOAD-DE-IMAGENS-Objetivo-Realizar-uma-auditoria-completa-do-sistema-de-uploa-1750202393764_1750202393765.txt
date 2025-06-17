@@ -1,0 +1,69 @@
+AUDITORIA DO FLUXO DE UPLOAD DE IMAGENS
+Objetivo
+Realizar uma auditoria completa do sistema de upload de imagens para lojas, comparando o fluxo atual com o fluxo original documentado para identificar modificações que possam ter quebrado o sistema.
+Fluxo Original Documentado (Referência)
+Sistema de Upload de Imagens para Lojas - Fluxo Esperado:
+
+Frontend: Usuário seleciona imagens no componente de criação de loja
+Processo em 2 etapas:
+
+Etapa 1: Criar loja sem imagens na tabela stores
+Etapa 2: Upload das imagens via POST /api/upload/images?type=store&entityId={ID}
+
+
+Processamento: imageUpload.js com Multer + Sharp
+Salvamento: Arquivos físicos em /uploads/ e registros na tabela store_images
+Exibição: API /api/stores/{id}/primary-image consulta store_images
+
+Infraestrutura Documentada:
+
+✅ upload.controller.js - Controla upload e salva na tabela store_images
+✅ imageUpload.js - Multer + Sharp para processamento
+✅ image.controller.js - APIs de exibição consultando store_images
+✅ Tabela store_images - Armazenamento dos metadados
+
+Problema Atual Observado
+Sintomas:
+
+Erro: "Validation error" ao criar lojas
+Logs mostram: "URLs blob detectadas, removendo"
+Resultado: Lojas criadas sem imagens na tabela store_images
+Arrays de imagens chegam vazios no servidor
+
+Solicitação de Auditoria
+1️⃣ Verificar Integridade da Infraestrutura
+
+O endpoint /api/upload/images?type=store&entityId=X está funcionando?
+Os arquivos upload.controller.js e imageUpload.js estão intactos?
+A tabela store_images existe e está estruturada corretamente?
+
+2️⃣ Analisar o Componente de Criação de Lojas
+
+Como o frontend atual está processando as imagens?
+Existe algum sistema de "detecção de blob" que não estava no fluxo original?
+As imagens estão sendo enviadas via FormData para o endpoint correto?
+
+3️⃣ Identificar Modificações não Documentadas
+
+Foram adicionadas validações de segurança relacionadas a URLs blob?
+Existe código removendo ou filtrando imagens antes do upload?
+O fluxo original foi alterado de alguma forma?
+
+4️⃣ Comparar com Produtos (se funciona)
+
+O upload de imagens para produtos está funcionando corretamente?
+Qual a diferença entre o fluxo de produtos e lojas?
+O que produtos fazem certo que lojas não estão fazendo?
+
+Relatório Solicitado
+Por favor, forneça:
+
+Status da infraestrutura: Todos os componentes do sistema de upload estão funcionais?
+Análise do fluxo atual: Como as imagens estão sendo processadas atualmente no frontend?
+Identificação de desvios: Quais modificações foram feitas em relação ao fluxo original?
+Diagnóstico do problema: Por que as imagens não chegam à tabela store_images?
+Recomendação: O que precisa ser corrigido/removido/restaurado para voltar ao fluxo original?
+
+Resultado Esperado
+Ao final da auditoria, queremos entender exatamente onde o fluxo original foi quebrado e qual é a correção mínima necessária para restaurar o funcionamento, sem criar soluções complexas desnecessárias.
+O objetivo é restaurar o fluxo simples e funcional que estava documentado, não criar novos sistemas.
