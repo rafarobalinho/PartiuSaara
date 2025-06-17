@@ -138,32 +138,37 @@ export async function createStore(req: Request, res: Response) {
         }).optional()
       });
 
+      // === DIAGNÓSTICO COMPLETO ===
+      console.log('🔍 [STORE-CREATE] === DIAGNÓSTICO COMPLETO ===');
+      console.log('🔍 [STORE-CREATE] Content-Type:', req.headers['content-type']);
+      console.log('🔍 [STORE-CREATE] Dados recebidos:', JSON.stringify(req.body, null, 2));
+      console.log('🔍 [STORE-CREATE] Tamanho do body:', JSON.stringify(req.body).length);
+      console.log('🔍 [STORE-CREATE] Headers relevantes:', {
+        'content-type': req.headers['content-type'],
+        'content-length': req.headers['content-length']
+      });
+      console.log('🔍 [STORE-CREATE] Usuário:', { id: user.id, role: user.role });
+      console.log('🔍 [STORE-CREATE] Campos recebidos:', Object.keys(req.body));
+      console.log('🔍 [STORE-CREATE] Tipos dos campos:', Object.entries(req.body).map(([key, value]) => 
+        `${key}: ${typeof value} ${Array.isArray(value) ? '(array)' : ''}`
+      ));
+
       const validationResult = storeSchema.safeParse(req.body);
       if (!validationResult.success) {
-        console.error('🚨 [STORE-CREATE] Erro de validação completo:', validationResult.error);
-        console.error('🚨 [STORE-CREATE] Dados que falharam na validação:', JSON.stringify(req.body, null, 2));
-        
-        // Log específico para cada erro
-        validationResult.error.errors.forEach((error, index) => {
-          console.error(`🚨 [STORE-CREATE] Erro ${index + 1}:`, {
-            campo: error.path.join('.'),
-            mensagem: error.message,
-            valorRecebido: error.received,
-            valorEsperado: error.expected,
-            tipoEsperado: error.expected,
-            codigoErro: error.code
-          });
-        });
-        
+        console.log('❌ [STORE-CREATE] ERRO DE VALIDAÇÃO DETALHADO:');
+        console.log('❌ [STORE-CREATE] Dados enviados:', JSON.stringify(req.body, null, 2));
+        console.log('❌ [STORE-CREATE] Erros encontrados:', JSON.stringify(validationResult.error.errors, null, 2));
+        console.log('❌ [STORE-CREATE] Schema esperado:', Object.keys(insertStoreSchema.shape || {}));
+        console.log('❌ [STORE-CREATE] Campos ausentes ou inválidos:', validationResult.error.errors.map(err => 
+          `${err.path.join('.')}: ${err.message}`
+        ));
+
         return res.status(400).json({ 
           message: 'Validation error', 
           errors: validationResult.error.errors,
-          detailedErrors: validationResult.error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message,
-            code: err.code,
-            received: err.received
-          }))
+          receivedFields: Object.keys(req.body),
+          expectedFields: Object.keys(insertStoreSchema.shape || {}),
+          debugData: req.body // Para debugging
         });
       }
 
@@ -176,7 +181,7 @@ export async function createStore(req: Request, res: Response) {
       console.log('🔍 [STORE-CREATE] Criando loja com dados finais:', storeData);
       const store = await storage.createStore(storeData);
       console.log('✅ [STORE-CREATE] Loja criada com sucesso:', store);
-      
+
       res.status(201).json(store);
     });
   } catch (error) {

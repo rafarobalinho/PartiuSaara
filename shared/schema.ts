@@ -69,19 +69,13 @@ export const stores = pgTable("stores", {
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull()
 });
 
-export const insertStoreSchema = createInsertSchema(stores).omit({
-  id: true,
-  rating: true,
-  reviewCount: true,
-  subscriptionPlan: true,
-  subscriptionEndDate: true,
-  subscriptionStatus: true,
-  stripeCustomerId: true,
-  stripeSubscriptionId: true,
-  subscriptionStartDate: true,
-  createdAt: true,
-  updatedAt: true
+export const insertStoreSchema = createInsertSchema(stores, {
+  // Validações customizadas se necessário
 });
+
+// Log para diagnóstico do schema
+console.log('🔍 [SCHEMA] insertStoreSchema fields:', Object.keys(insertStoreSchema.shape || {}));
+console.log('🔍 [SCHEMA] insertStoreSchema structure:', insertStoreSchema.shape);
 
 // Schema de validação criado
 
