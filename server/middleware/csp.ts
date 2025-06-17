@@ -19,31 +19,31 @@ export function setupCSP(app: Express) {
       [
         // Origens padrão - mesmo domínio e dados inline
         "default-src 'self'",
-        
+
         // Scripts - configuração mais permissiva para Replit
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleapis.com https://*.google.com https://*.replit.com https://cdnjs.cloudflare.com",
-        
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleapis.com https://*.google.com https://*.replit.com https://replit.com https://cdnjs.cloudflare.com",
+
         // Estilos - permite inline e fontes
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com",
-        
+
         // Fontes - Google Fonts e outros
         "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com",
-        
+
         // Imagens - configuração permissiva para ambiente de desenvolvimento
         "img-src 'self' data: blob: * https://*.googleapis.com https://maps.gstatic.com https://*.replit.app https://*.replit.dev",
-        
+
         // Conectividade - configuração permissiva para ambiente de desenvolvimento
         "connect-src 'self' * https://*.googleapis.com https://maps.googleapis.com wss://*.replit.com https://*.replit.app https://*.replit.dev",
-        
+
         // Frames - para widgets incorporados
         "frame-src 'self' https://*.google.com",
-        
+
         // Manifesto - para PWA
         "manifest-src 'self'",
-        
+
         // Worker scripts (incluindo blob URLs)
         "worker-src 'self' blob:",
-        
+
         // Objetos - não permitir para segurança
         "object-src 'none'"
       ].join('; ')

@@ -123,6 +123,18 @@ export async function createStore(req: Request, res: Response) {
       const validationResult = storeSchema.safeParse(req.body);
       if (!validationResult.success) {
         console.error('🚨 [STORE-CREATE] Erro de validação:', validationResult.error.errors);
+        console.error('🚨 [STORE-CREATE] Dados que falharam na validação:', JSON.stringify(req.body, null, 2));
+        
+        // Log específico para cada erro
+        validationResult.error.errors.forEach((error, index) => {
+          console.error(`🚨 [STORE-CREATE] Erro ${index + 1}:`, {
+            campo: error.path.join('.'),
+            mensagem: error.message,
+            valorRecebido: error.received,
+            valorEsperado: error.expected
+          });
+        });
+        
         return res.status(400).json({ 
           message: 'Validation error', 
           errors: validationResult.error.errors 

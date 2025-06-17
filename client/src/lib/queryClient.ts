@@ -189,32 +189,42 @@ export const getQueryFn: <T>(options: {
     }
   };
 
+import { QueryClient } from '@tanstack/react-query';
+
+// Configuração do QueryClient com configurações otimizadas
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
+      staleTime: 5 * 60 * 1000, // 5 minutos
+      gcTime: 10 * 60 * 1000, // 10 minutos (anteriormente cacheTime)
+      retry: (failureCount, error: any) => {
+        // Não fazer retry em erros 4xx (client errors)
+        if (error?.status >= 400 && error?.status < 500) {
+          return false;
+        }
+        // Fazer retry até 3 vezes para outros erros
+        return failureCount < 3;
+      },
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      refetchOnReconnect: true,
     },
     mutations: {
       retry: false,
     },
   },
 });
-if (!Response.prototype.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-      console.error('🚨 Resposta de erro da API:', errorData);
 
-      // Se for erro de validação, mostrar detalhes
-      if (response.status === 400 && errorData.errors) {
-        console.error('🚨 Detalhes dos erros de validação:', errorData.errors);
-        const validationMessages = errorData.errors.map((err: any) => 
-          `${err.path?.join('.') || 'Campo'}: ${err.message}`
-        ).join('; ');
-        throw new Error(`Validation error: ${validationMessages}`);
-      }
+// Função helper para invalidar queries específicas
+export const invalidateQueries = (queryKey: string[]) => {
+  return queryClient.invalidateQueries({ queryKey });
+};
 
-      throw new Error(errorData.message || `HTTP ${response.status}`);
-    }
+// Função helper para definir dados de query
+export const setQueryData = (queryKey: string[], data: any) => {
+  return queryClient.setQueryData(queryKey, data);
+};
+
+// Função helper para obter dados de query
+export const getQueryData = (queryKey: string[]) => {
+  return queryClient.getQueryData(queryKey);
+};
