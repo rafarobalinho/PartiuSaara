@@ -1,0 +1,98 @@
+CORREÇÃO DO CADASTRO DE LOJAS
+Objetivo
+Corrigir o erro "ID inválido: 'new'" na criação de lojas e garantir que imagens sejam salvas corretamente na tabela store_images (não como URLs blob na tabela stores).
+Problema Específico
+Na página /seller/stores/add-store, o erro Error: ID inválido: "new". Deve ser um número válido impede o upload de imagens durante a criação de novas lojas.
+Solução em 2 Partes
+PARTE 1: Corrigir Componente ImageUpload
+Arquivo: client/src/components/ui/image-upload.tsx
+Na função de validação de ID (próximo à linha 247), alterar:
+tsx// ANTES (linha que está causando o erro):
+if (isNaN(Number(id))) {
+  throw new Error(`ID inválido: "${id}". Deve ser um número válido`);
+}
+
+// DEPOIS (permitir "new" para entidades sendo criadas):
+if (isNaN(Number(id)) && id !== 'new') {
+  throw new Error(`ID inválido: "${id}". Deve ser um número válido ou "new"`);
+}
+Na lógica de upload, adicionar tratamento para ID "new":
+tsx// Próximo à lógica de upload, adicionar verificação:
+if (id === 'new') {
+  // Para entidades "new", apenas armazenar como blob temporário
+  // O upload real será feito após a criação da entidade
+  console.log('Entidade nova detectada, armazenando imagem temporariamente');
+  return; // Ou lógica adequada para lidar com entidades novas
+}
+PARTE 2: Implementar Fluxo de Duas Etapas no Cadastro
+Arquivo: client/src/pages/seller/stores/add-store.tsx (ou similar)
+Modificar a função de criação da loja:
+tsxconst handleCreateStore = async (formData) => {
+  try {
+    // 1. PRIMEIRO: Criar loja SEM imagens
+    const storeDataWithoutImages = { ...formData };
+    delete storeDataWithoutImages.images;
+    delete storeDataWithoutImages.logo;
+    
+    // Criar a loja primeiro
+    const response = await fetch('/api/stores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(storeDataWithoutImages)
+    });
+    
+    const newStore = await response.json();
+    
+    // 2. SEGUNDO: Upload das imagens usando o ID real da loja
+    if (formData.images && formData.images.length > 0) {
+      const imageFormData = new FormData();
+      
+      // Converter blobs para arquivos se necessário
+      formData.images.forEach((image, index) => {
+        if (typeof image === 'string' && image.startsWith('blob:')) {
+          // Converter blob para file
+          fetch(image)
+            .then(res => res.blob())
+            .then(blob => {
+              const file = new File([blob], `store-image-${index}.jpg`, { type: 'image/jpeg' });
+              imageFormData.append('images', file);
+            });
+        } else if (image instanceof File) {
+          imageFormData.append('images', image);
+        }
+      });
+      
+      // Upload das imagens usando o ID real da loja
+      await fetch(`/api/upload/images?type=store&entityId=${newStore.id}`, {
+        method: 'POST',
+        body: imageFormData
+      });
+    }
+    
+    // Sucesso - redirecionar ou mostrar mensagem
+    console.log('Loja criada com sucesso:', newStore);
+    
+  } catch (error) {
+    console.error('Erro ao criar loja:', error);
+  }
+};
+PARTE 3: Validação Preventiva (Opcional mas Recomendada)
+Arquivo: server/controllers/stores.controller.js
+Adicionar no início da função de criação/atualização:
+js// Validação para prevenir salvamento de URLs blob
+if (req.body.logo && req.body.logo.startsWith('blob:')) {
+  console.warn('Bloqueando tentativa de salvar URL blob como logo');
+  delete req.body.logo;
+}
+
+if (req.body.images && Array.isArray(req.body.images)) {
+  req.body.images = req.body.images.filter(img => 
+    !(typeof img === 'string' && img.startsWith('blob:'))
+  );
+}
+Resultado Esperado
+✅ Criação de lojas funciona sem erro de ID "new"
+✅ Imagens salvas corretamente na tabela store_images
+✅ Sistema de exibição de imagens mantido
+✅ Infraestrutura existente preservada
+Implemente estas mudanças mantendo toda a lógica existente de upload e processamento de imagens intacta.Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas.
