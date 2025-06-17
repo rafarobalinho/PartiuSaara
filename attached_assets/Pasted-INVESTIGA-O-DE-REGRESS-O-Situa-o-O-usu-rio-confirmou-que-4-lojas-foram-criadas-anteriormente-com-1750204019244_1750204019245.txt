@@ -1,0 +1,77 @@
+INVESTIGAÇÃO DE REGRESSÃO
+Situação
+O usuário confirmou que 4 lojas foram criadas anteriormente com sucesso usando exatamente o mesmo fluxo que agora está falhando. Isso indica uma regressão no sistema.
+
+Investigação Necessária
+1️⃣ Verificar Lojas Existentes no Banco
+Execute esta query para confirmar como as lojas existentes foram salvas:
+
+sql
+SELECT 
+  id, 
+  name, 
+  category, 
+  created_at,
+  -- Verificar se há um campo categories também
+  categories
+FROM stores 
+ORDER BY created_at DESC 
+LIMIT 5;
+Perguntas:
+
+❓ As lojas existentes têm o campo category preenchido?
+❓ Como foi resolvido o problema categories (array) vs category (string)?
+❓ Existe um campo categories na tabela stores?
+2️⃣ Verificar Mudanças Recentes no Schema
+Arquivo: shared/schema.ts
+
+Compare o insertStoreSchema atual com o que funcionava antes:
+
+❓ O campo category sempre foi obrigatório?
+❓ Havia suporte para categories antes?
+❓ Alguma migração ou alteração foi feita recentemente?
+3️⃣ Verificar o Schema da Tabela no Banco
+Execute este comando para ver a estrutura atual da tabela:
+
+sql
+\d stores;
+-- ou
+DESCRIBE stores;
+-- ou  
+SELECT column_name, data_type, is_nullable 
+FROM information_schema.columns 
+WHERE table_name = 'stores';
+Verificar:
+
+❓ Existe campo category?
+❓ Existe campo categories?
+❓ Como está definido na estrutura da tabela?
+4️⃣ Verificar Controller de Stores
+Arquivo: server/controllers/store.controller.ts
+
+Procurar por:
+
+❓ Alguma transformação de categories para category?
+❓ Lógica de processamento que funcionava antes?
+❓ Middleware que convertia os dados?
+Hipóteses Prováveis
+Hipótese 1: Schema foi alterado recentemente
+Antes: categories era aceito (array)
+Agora: Apenas category (string) é aceito
+Hipótese 2: Middleware foi removido
+Antes: Havia conversão automática de categories → category
+Agora: Conversão foi removida
+Hipótese 3: Validação foi endurecida
+Antes: Validação mais permissiva
+Agora: Validação mais rigorosa
+Resultado Esperado
+Identifique exatamente:
+
+Como funcionava antes (baseado nas lojas existentes)
+O que mudou recentemente
+Qual a correção mínima para restaurar o funcionamento
+O objetivo é entender a regressão e aplicar a correção mais simples possível, não recriar todo o sistema.
+
+
+
+
