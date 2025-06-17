@@ -1,0 +1,39 @@
+client:174 TypeError: Illegal invocation
+    at queryClient.ts:206:25
+client:176 [hmr] Failed to reload /src/components/ui/store-card.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+client:174 TypeError: Illegal invocation
+    at queryClient.ts:206:25
+client:176 [hmr] Failed to reload /src/pages/seller/products/edit-product.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+client:174 TypeError: Illegal invocation
+    at queryClient.ts:206:25
+client:176 [hmr] Failed to reload /src/pages/seller/stores/store-detail.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+client:174 TypeError: Illegal invocation
+    at queryClient.ts:206:25
+client:176 [hmr] Failed to reload /src/components/admin/PlaceDetailsPanel.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+client:174 TypeError: Illegal invocation
+    at queryClient.ts:206:25
+client:176 [hmr] Failed to reload /src/pages/products/product-detail.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+client:174 TypeError: Illegal invocation
+    at queryClient.ts:206:25
+client:176 [hmr] Failed to reload /src/pages/admin/GeocodingPanel.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+client:174 TypeError: Illegal invocation
+    at queryClient.ts:206:25
+client:176 [hmr] Failed to reload /src/pages/seller/stores/add-store.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+client:174 TypeError: Illegal invocation
+    at queryClient.ts:206:25
+client:176 [hmr] Failed to reload /src/components/admin/GeocodingPanel.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+client:174 TypeError: Illegal invocation
+    at queryClient.ts:206:25
+client:176 [hmr] Failed to reload /src/components/ui/image-upload.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+client:174 TypeError: Illegal invocation
+    at queryClient.ts:206:25
+client:176 [hmr] Failed to reload /src/App.tsx?v=sAG3ofi3BvVMy1vqpIYhS. This could be due to syntax errors or importing non-existent modules. (see errors above)
+Navigated to https://28e4b557-7792-4b03-b33e-93489b7586b5-00-33goki6qofjtz.riker.replit.dev/seller/stores/add-store
+add-store:1 Refused to load the script 'https://replit.com/public/js/replit-dev-banner.js' because it violates the following Content Security Policy directive: "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googleapis.com https://*.google.com https://*.replit.com https://cdnjs.cloudflare.com". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback.
+chunk-WERSD76P.js?v=66dd4fe4:21551 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+queryClient.ts:206 Uncaught TypeError: Illegal invocation
+    at queryClient.ts:206:25
+content.bundle.js:21967 Refused to load the script 'https://apis.google.com/js/api.js?onload=__iframefcb728216' because it violates the following Content Security Policy directive: "script-src 'self' 'wasm-unsafe-eval' 'inline-speculation-rules' chrome-extension://840b5efd-f68a-41cc-9ada-f804091e6d19/". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback.
+﻿
+
+Turn on AI assistance in Settings to get help with st
