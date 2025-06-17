@@ -101,6 +101,8 @@ export default function AddStore() {
   // Mutation para criar loja
   const createStoreMutation = useMutation({
     mutationFn: async (data: StoreFormValues) => {
+      console.log('🔍 [MUTATION] Dados recebidos na mutation:', data);
+
       // Formatação dos dados antes de enviar
       const formattedData = {
         name: data.name,
@@ -116,6 +118,25 @@ export default function AddStore() {
         // Add userId
         userId: user?.id,
       };
+
+      console.log('🔍 [MUTATION] Dados formatados para envio:', formattedData);
+
+      // Validar dados essenciais antes de enviar
+      if (!formattedData.name || formattedData.name.trim().length < 3) {
+        throw new Error('Nome da loja deve ter pelo menos 3 caracteres');
+      }
+      
+      if (!formattedData.description || formattedData.description.trim().length < 10) {
+        throw new Error('Descrição deve ter pelo menos 10 caracteres');
+      }
+      
+      if (!formattedData.category || formattedData.category.trim().length === 0) {
+        throw new Error('Categoria é obrigatória');
+      }
+
+      if (!formattedData.address || !formattedData.address.street || !formattedData.address.city) {
+        throw new Error('Endereço completo é obrigatório');
+      }
 
       // Não incluímos as imagens no objeto da loja - serão salvas posteriormente
       // na tabela store_images
@@ -136,12 +157,27 @@ export default function AddStore() {
       }
     },
     onError: (error) => {
+      console.error('🚨 [MUTATION ERROR] Erro detalhado:', error);
+      
+      let errorMessage = 'Ocorreu um erro ao adicionar a loja. Tente novamente.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Validation error')) {
+          errorMessage = 'Dados inválidos. Verifique se todos os campos obrigatórios estão preenchidos corretamente.';
+        } else if (error.message.includes('categoria')) {
+          errorMessage = 'Selecione pelo menos uma categoria para sua loja.';
+        } else if (error.message.includes('endereço')) {
+          errorMessage = 'Preencha o endereço completo da loja.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
-        title: 'Erro',
-        description: 'Ocorreu um erro ao adicionar a loja. Tente novamente.',
+        title: 'Erro ao criar loja',
+        description: errorMessage,
         variant: "destructive",
       });
-      console.error('Error creating store:', error);
     }
   });
 
@@ -159,6 +195,8 @@ export default function AddStore() {
   // Submit handler
   async function onSubmit(data: StoreFormValues) {
     try {
+      console.log('🔍 [ADD-STORE] Dados do formulário antes do processamento:', data);
+
       // Verificar se há blobs para processar
       if (imageUploadRef.current?.hasBlobs && imageUploadRef.current.hasBlobs()) {
         console.log('Processando blobs antes de enviar o formulário...');
@@ -172,6 +210,15 @@ export default function AddStore() {
         const updatedImages = form.getValues('images');
         data = { ...data, images: updatedImages };
       }
+
+      // Limpar URLs blob das imagens antes de enviar
+      if (data.images && Array.isArray(data.images)) {
+        data.images = data.images.filter(img => 
+          !(typeof img === 'string' && img.startsWith('blob:'))
+        );
+      }
+
+      console.log('🔍 [ADD-STORE] Dados finais a serem enviados:', data);
 
       // Continuar com a submissão normal
       createStoreMutation.mutate(data);

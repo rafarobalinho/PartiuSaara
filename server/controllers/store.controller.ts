@@ -94,6 +94,9 @@ export async function createStore(req: Request, res: Response) {
     sellerMiddleware(req, res, async () => {
       const user = req.user!;
 
+      console.log('🔍 [STORE-CREATE] Dados recebidos do frontend:', req.body);
+      console.log('🔍 [STORE-CREATE] Usuário:', { id: user.id, role: user.role });
+
       // Validação preventiva para prevenir salvamento de URLs blob
       if (req.body.logo && req.body.logo.startsWith('blob:')) {
         console.warn('Bloqueando tentativa de salvar URL blob como logo');
@@ -101,10 +104,16 @@ export async function createStore(req: Request, res: Response) {
       }
 
       if (req.body.images && Array.isArray(req.body.images)) {
+        const originalLength = req.body.images.length;
         req.body.images = req.body.images.filter(img => 
           !(typeof img === 'string' && img.startsWith('blob:'))
         );
+        if (originalLength !== req.body.images.length) {
+          console.log(`🔍 [STORE-CREATE] Removidas ${originalLength - req.body.images.length} URLs blob`);
+        }
       }
+
+      console.log('🔍 [STORE-CREATE] Dados após limpeza de blobs:', req.body);
 
       // Validate store data
       const storeSchema = insertStoreSchema.extend({
@@ -113,6 +122,7 @@ export async function createStore(req: Request, res: Response) {
 
       const validationResult = storeSchema.safeParse(req.body);
       if (!validationResult.success) {
+        console.error('🚨 [STORE-CREATE] Erro de validação:', validationResult.error.errors);
         return res.status(400).json({ 
           message: 'Validation error', 
           errors: validationResult.error.errors 
@@ -120,15 +130,19 @@ export async function createStore(req: Request, res: Response) {
       }
 
       const storeData = validationResult.data;
+      console.log('🔍 [STORE-CREATE] Dados validados:', storeData);
 
       // Set the user ID to the current user
       storeData.userId = user.id;
 
+      console.log('🔍 [STORE-CREATE] Criando loja com dados finais:', storeData);
       const store = await storage.createStore(storeData);
+      console.log('✅ [STORE-CREATE] Loja criada com sucesso:', store);
+      
       res.status(201).json(store);
     });
   } catch (error) {
-    console.error('Error creating store:', error);
+    console.error('🚨 [STORE-CREATE] Erro no controller:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 }

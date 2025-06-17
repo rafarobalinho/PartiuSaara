@@ -5,7 +5,7 @@ async function throwIfResNotOk(res: Response) {
     // Verificar se houve redirecionamento para login ou página de erro
     if (res.status === 401 || res.status === 403) {
       console.error('Erro de autenticação:', res.status);
-      
+
       // Se estamos em produção e não estamos na página de login, redirecionar
       if (window.location.pathname !== '/login' && window.location.pathname !== '/auth') {
         console.warn('Redirecionando para tela de login devido a erro de autenticação');
@@ -19,10 +19,10 @@ async function throwIfResNotOk(res: Response) {
         }
       }
     }
-    
+
     // Verificar o tipo de conteúdo da resposta
     const contentType = res.headers.get('content-type');
-    
+
     try {
       // Se o contentType indica JSON, tentar fazer parse
       if (contentType && contentType.includes('application/json')) {
@@ -31,7 +31,7 @@ async function throwIfResNotOk(res: Response) {
       } else {
         // Se não for JSON, obter como texto
         const text = await res.text();
-        
+
         // Detectar HTML (típico em erros de servidor ou redirecionamentos)
         if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
           console.error('Resposta HTML recebida onde JSON era esperado:', {
@@ -41,7 +41,7 @@ async function throwIfResNotOk(res: Response) {
           });
           throw new Error(`Erro ${res.status}: Resposta HTML recebida onde JSON era esperado`);
         }
-        
+
         throw new Error(`${res.status}: ${text || res.statusText}`);
       }
     } catch (e) {
@@ -68,25 +68,25 @@ export async function apiRequest(
   } = {}
 ): Promise<Response> {
   const isFormData = data instanceof FormData;
-  
+
   const headers = {
     // Só adiciona Content-Type se não for FormData
     // O navegador define o Content-Type automaticamente para FormData
     ...(data && !isFormData ? { "Content-Type": "application/json" } : {}),
     ...options.headers
   };
-  
+
   try {
     // Opcionalmente implementar timeout para evitar requisições penduradas
     const timeoutMs = options.timeout || 30000; // 30 segundos padrão
-    
+
     // Criar uma promise de timeout
     const timeoutPromise = new Promise<Response>((_, reject) => {
       setTimeout(() => {
         reject(new Error(`Requisição excedeu o tempo limite de ${timeoutMs}ms`));
       }, timeoutMs);
     });
-    
+
     // Criar a promise da requisição fetch
     const fetchPromise = fetch(url, {
       method,
@@ -95,16 +95,16 @@ export async function apiRequest(
       body: data ? (isFormData ? data : JSON.stringify(data)) : undefined,
       credentials: "include",
     });
-    
+
     // Usar Promise.race para implementar o timeout
     const res = await Promise.race([fetchPromise, timeoutPromise]);
-    
+
     // Verificar especificamente erros CORS antes de prosseguir
     if (res.type === 'opaque' || res.type === 'error') {
       console.error('Possível erro CORS na requisição para:', url);
       throw new Error('Erro de acesso ao servidor. Verifique as configurações CORS.');
     }
-    
+
     // Verificar se há problemas de rede antes de verificar o status da resposta
     if (!res.ok) {
       // Log detalhado para depuração
@@ -117,17 +117,17 @@ export async function apiRequest(
         contentType: res.headers.get('content-type'),
       });
     }
-    
+
     await throwIfResNotOk(res);
     return res;
   } catch (error) {
     console.error('Erro na requisição para', url, error);
-    
+
     // Verificar se é um erro de rede
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
       throw new Error('Erro de conexão. Verifique sua conexão com a internet.');
     }
-    
+
     // Repassa o erro original
     throw error;
   }
@@ -142,41 +142,41 @@ export const getQueryFn: <T>(options: {
     try {
       // Criar o timeout de forma similar ao apiRequest
       const timeoutMs = 30000; // 30 segundos padrão
-      
+
       // Criar uma promise de timeout
       const timeoutPromise = new Promise<Response>((_, reject) => {
         setTimeout(() => {
           reject(new Error(`Requisição excedeu o tempo limite de ${timeoutMs}ms`));
         }, timeoutMs);
       });
-      
+
       // Criar a promise da requisição fetch
       const fetchPromise = fetch(queryKey[0] as string, {
         credentials: "include",
       });
-      
+
       // Usar Promise.race para implementar o timeout
       const res = await Promise.race([fetchPromise, timeoutPromise]);
-      
+
       // Tratamento específico para 401 conforme a opção
       if (unauthorizedBehavior === "returnNull" && res.status === 401) {
         return null;
       }
-      
+
       // Verificar problemas CORS
       if (res.type === 'opaque' || res.type === 'error') {
         console.error('Possível erro CORS na consulta para:', queryKey[0]);
         throw new Error('Erro de acesso ao servidor. Verifique as configurações CORS.');
       }
-      
+
       // Verificar tipo de conteúdo antes de processar
       const contentType = res.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         console.warn('Resposta não-JSON recebida:', contentType);
       }
-      
+
       await throwIfResNotOk(res);
-      
+
       try {
         return await res.json();
       } catch (jsonError) {
@@ -203,3 +203,18 @@ export const queryClient = new QueryClient({
     },
   },
 });
+if (!Response.prototype.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      console.error('🚨 Resposta de erro da API:', errorData);
+
+      // Se for erro de validação, mostrar detalhes
+      if (response.status === 400 && errorData.errors) {
+        console.error('🚨 Detalhes dos erros de validação:', errorData.errors);
+        const validationMessages = errorData.errors.map((err: any) => 
+          `${err.path?.join('.') || 'Campo'}: ${err.message}`
+        ).join('; ');
+        throw new Error(`Validation error: ${validationMessages}`);
+      }
+
+      throw new Error(errorData.message || `HTTP ${response.status}`);
+    }
