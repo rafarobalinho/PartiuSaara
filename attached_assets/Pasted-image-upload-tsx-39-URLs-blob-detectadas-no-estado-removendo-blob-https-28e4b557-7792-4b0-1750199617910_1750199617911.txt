@@ -1,0 +1,52 @@
+image-upload.tsx:39 ⚠️ URLs blob detectadas no estado, removendo: 
+['blob:https://28e4b557-7792-4b03-b33e-93489b7586b5-…r.replit.dev/7d5d36e4-f461-48c1-9890-cf22acb75a9e']
+image-upload.tsx:46 Atualizando estado com imagens limpas
+auth-context.tsx:41 🔍 [AUTH-CONTEXT] Inicializando AuthProvider (versão simplificada)
+auth-context.tsx:236 ✅ [AUTH-CONTEXT] Estado atual: 
+{isAuthenticated: true, isLoading: false, userId: 11}
+add-store.tsx:198 🔍 [ADD-STORE] Dados do formulário antes do processamento: 
+{name: 'Radio Saara', description: 'A voz do centro do Rio. ', categories: Array(1), tags: '', images: Array(0), …}
+add-store.tsx:201 🔍 [ADD-STORE] Validação de campos obrigatórios:
+add-store.tsx:202 - name: Radio Saara (válido: true )
+add-store.tsx:203 - description: A voz do centro do Rio.  (válido: true )
+add-store.tsx:204 - categories: 
+['restaurantes-e-bares']
+ (válido: true )
+add-store.tsx:205 - address.street: Avenida Passos 91 (válido: true )
+add-store.tsx:206 - address.city: Rio de Janeiro (válido: true )
+add-store.tsx:207 - address.state: RJ (válido: true )
+add-store.tsx:208 - address.zipCode: 20051-040 (válido: true )
+add-store.tsx:209 - images: 
+[]
+ (válido: true )
+add-store.tsx:232 🔍 [ADD-STORE] URLs blob removidas: 0
+add-store.tsx:235 🔍 [ADD-STORE] Dados finais a serem enviados: {
+  "name": "Radio Saara",
+  "description": "A voz do centro do Rio. ",
+  "categories": [
+    "restaurantes-e-bares"
+  ],
+  "tags": "",
+  "images": [],
+  "address": {
+    "street": "Avenida Passos 91",
+    "city": "Rio de Janeiro",
+    "state": "RJ",
+    "zipCode": "20051-040"
+  },
+  "acceptLocationTerms": true
+}
+add-store.tsx:104 🔍 [MUTATION] Dados recebidos na mutation: 
+{name: 'Radio Saara', description: 'A voz do centro do Rio. ', categories: Array(1), tags: '', images: Array(0), …}
+add-store.tsx:122 🔍 [MUTATION] Dados formatados para envio: 
+{name: 'Radio Saara', description: 'A voz do centro do Rio. ', category: 'restaurantes-e-bares', tags: Array(0), address: {…}, …}
+queryClient.ts:91 
+ POST https://28e4b557-7792-4b03-b33e-93489b7586b5-00-33goki6qofjtz.riker.replit.dev/api/stores 400 (Bad Request)
+queryClient.ts:111 Resposta de erro da API: 
+{url: '/api/stores', method: 'POST', status: 400, statusText: 'Bad Request', type: 'basic', …}
+queryClient.ts:124 Erro na requisição para /api/stores Error: Validation error
+    at throwIfResNotOk (queryClient.ts:30:15)
+    at async apiRequest (queryClient.ts:121:5)
+add-store.tsx:160 🚨 [MUTATION ERROR] Erro detalhado: Error: Validation error
+    at throwIfResNotOk (queryClient.ts:30:15)
+    at async apiRequest (queryClient.ts:121:5)
