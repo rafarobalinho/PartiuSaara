@@ -288,20 +288,14 @@ export const insertStoreImageSchema = createInsertSchema(storeImages).omit({
   createdAt: true
 });
 
-export type InsertStoreImpression = typeof storeImpressions.$inferInsert;
-
-// Password Reset Tokens Table
-export const passwordResetTokens = pgTable('password_reset_tokens', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  token: text('token').notNull().unique(),
-  expiresAt: timestamp('expires_at').notNull(),
-  used: boolean('used').default(false),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").default(false),
+  createdAt: timestamp("created_at").defaultNow()
 });
-
-export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
-export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
 
 // Type exports
 export type User = typeof users.$inferSelect;
@@ -341,3 +335,7 @@ export type Banner = typeof banners.$inferSelect;
 export type InsertBanner = z.infer<typeof insertBannerSchema>;
 
 export type StoreImpression = typeof storeImpressions.$inferSelect;
+export type InsertStoreImpression = z.infer<typeof insertStoreImpressionSchema>;
+
+export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
