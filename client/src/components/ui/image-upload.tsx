@@ -31,24 +31,8 @@ const ImageUploadComponent = forwardRef(({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Detectar e limpar URLs blob automaticamente
-  useEffect(() => {
-    // Verificar se há URLs blob na lista
-    const blobUrls = selectedImages.filter(url => url && url.startsWith('blob:'));
-    if (blobUrls.length > 0) {
-      console.warn('⚠️ URLs blob detectadas no estado, removendo:', blobUrls);
-
-      // Filtrar as URLs blob
-      const cleanedImages = selectedImages.filter(url => !url || !url.startsWith('blob:'));
-
-      // Atualizar estado apenas se houve mudança
-      if (cleanedImages.length !== selectedImages.length) {
-        console.log('Atualizando estado com imagens limpas');
-        setSelectedImages(cleanedImages);
-        onChange(cleanedImages);
-      }
-    }
-  }, [selectedImages, onChange]);
+  // REMOVIDO: Sistema de limpeza automática de blob URLs
+  // No fluxo original, as URLs blob são necessárias para mostrar preview
 
   // Converter URL blob para File
   async function blobUrlToFile(blobUrl: string): Promise<File> {
@@ -151,18 +135,17 @@ const ImageUploadComponent = forwardRef(({
     return processed;
   };
 
-  // Validar e normalizar URLs de imagem
+  // Validar e normalizar URLs de imagem - PERMITINDO blob URLs para preview
   const getValidImage = (url: string | undefined): string => {
     if (!url) return '';
 
-    // Log para debugging
     console.log('Validando URL de imagem:', url);
 
     try {
-      // NUNCA retornar URLs blob - substituir por placeholder
+      // PERMITIR URLs blob para preview durante criação
       if (url.startsWith('blob:')) {
-        console.warn('⚠️ URL blob detectada, substituindo por placeholder', url);
-        return '/uploads/placeholder-loading.jpg';
+        console.log('✅ URL blob válida para preview:', url);
+        return url;
       }
 
       // Se começar com http, é uma URL completa
@@ -185,14 +168,6 @@ const ImageUploadComponent = forwardRef(({
 
   // Lidar com o upload das imagens
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Remover qualquer URL blob existente antes de adicionar novas imagens
-    const filteredImages = selectedImages.filter(url => !url || !url.startsWith('blob:'));
-    if (filteredImages.length !== selectedImages.length) {
-      console.warn('⚠️ Removendo URLs blob existentes antes do upload:', 
-        selectedImages.filter(url => url && url.startsWith('blob:')));
-      setSelectedImages(filteredImages);
-      onChange(filteredImages);
-    }
 
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -207,13 +182,7 @@ const ImageUploadComponent = forwardRef(({
       return;
     }
 
-    // Verificar se há URLs blob nas imagens atuais
-    const blobUrls = selectedImages.filter(url => url && url.startsWith('blob:'));
-    if (blobUrls.length > 0) {
-      console.warn('URLs blob detectadas no estado. Estas serão ignoradas:', blobUrls);
-      // Remover URLs blob do estado
-      setSelectedImages(selectedImages.filter(url => !url || !url.startsWith('blob:')));
-    }
+    // URLs blob são válidas durante o processo de criação
 
     setIsUploading(true);
 

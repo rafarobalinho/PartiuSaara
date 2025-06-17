@@ -199,55 +199,24 @@ export default function AddStore() {
     navigate('/seller/stores');
   };
 
-  // Submit handler
+  // Submit handler - Fluxo original simplificado
   async function onSubmit(data: StoreFormValues) {
     try {
-      console.log('🔍 [ADD-STORE] Dados do formulário antes do processamento:', data);
+      console.log('🔍 [ADD-STORE] Executando fluxo original de 2 etapas');
 
-      // Validação detalhada dos campos obrigatórios
-      console.log('🔍 [ADD-STORE] Validação de campos obrigatórios:');
-      console.log('- name:', data.name, '(válido:', !!data.name && data.name.length >= 3, ')');
-      console.log('- description:', data.description, '(válido:', !!data.description && data.description.length >= 10, ')');
-      console.log('- categories:', data.categories, '(válido:', Array.isArray(data.categories) && data.categories.length > 0, ')');
-      console.log('- address.street:', data.address?.street, '(válido:', !!data.address?.street, ')');
-      console.log('- address.city:', data.address?.city, '(válido:', !!data.address?.city, ')');
-      console.log('- address.state:', data.address?.state, '(válido:', !!data.address?.state, ')');
-      console.log('- address.zipCode:', data.address?.zipCode, '(válido:', !!data.address?.zipCode, ')');
-      console.log('- images:', data.images, '(válido:', true, ')'); // Imagens são opcionais
+      // ETAPA 1: Criar loja sem imagens (fluxo original)
+      const storeData = {
+        ...data,
+        images: [] // Sempre vazio na criação inicial
+      };
 
-      // Verificar se há blobs para processar
-      if (imageUploadRef.current?.hasBlobs && imageUploadRef.current.hasBlobs()) {
-        console.log('🔍 [ADD-STORE] Processando blobs antes de enviar o formulário...');
-        // Processar blobs antes de enviar o formulário
-        await imageUploadRef.current.processBlobs();
-
-        // Pequena pausa para garantir que o estado foi atualizado
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Obter os valores atualizados após o processamento
-        const updatedImages = form.getValues('images');
-        data = { ...data, images: updatedImages };
-        console.log('🔍 [ADD-STORE] Imagens após processamento de blobs:', updatedImages);
-      }
-
-      // Limpar URLs blob das imagens antes de enviar
-      if (data.images && Array.isArray(data.images)) {
-        const originalLength = data.images.length;
-        data.images = data.images.filter(img => 
-          !(typeof img === 'string' && img.startsWith('blob:'))
-        );
-        console.log('🔍 [ADD-STORE] URLs blob removidas:', originalLength - data.images.length);
-      }
-
-      console.log('🔍 [ADD-STORE] Dados finais a serem enviados:', JSON.stringify(data, null, 2));
-
-      // Continuar with a submissão normal
-      createStoreMutation.mutate(data);
+      console.log('🔍 [ADD-STORE] Criando loja sem imagens:', storeData);
+      createStoreMutation.mutate(storeData);
     } catch (error) {
-      console.error('🚨 [ADD-STORE] Erro ao processar imagens:', error);
+      console.error('🚨 [ADD-STORE] Erro na criação da loja:', error);
       toast({
-        title: 'Erro no processamento de imagens',
-        description: 'Ocorreu um erro ao processar as imagens. Tente novamente.',
+        title: 'Erro ao criar loja',
+        description: 'Ocorreu um erro ao criar a loja. Tente novamente.',
         variant: "destructive",
       });
     }
@@ -259,24 +228,32 @@ export default function AddStore() {
     }
   }, [authLoading, isAuthenticated, isSeller, navigate]);
 
-  // Efeito para lidar com upload de imagens quando a loja é criada
+  // ETAPA 2 do fluxo original: Upload de imagens após criação da loja
   useEffect(() => {
     const uploadStoreImages = async () => {
       const images = form.getValues('images');
+      
       if (tempStoreId && images.length > 0) {
+        console.log('🔍 [ADD-STORE] ETAPA 2: Fazendo upload das imagens para loja ID:', tempStoreId);
+        
         try {
-          // Atualizar a primeira imagem como primária
-          const isPrimary = true;
-
-          // Fazer o upload usando a API
-          await apiRequest('POST', `/api/stores/${tempStoreId}/images`, {
-            imageUrls: images,
-            isPrimary
-          });
+          // Processar imagens blob usando o componente ImageUpload
+          if (imageUploadRef.current?.hasBlobs && imageUploadRef.current.hasBlobs()) {
+            console.log('🔍 [ADD-STORE] Processando blobs com storeId:', tempStoreId);
+            
+            // Atualizar o name do ImageUpload com o ID correto
+            const imageUploadElement = document.querySelector('input[type="file"]');
+            if (imageUploadElement) {
+              imageUploadElement.setAttribute('name', `store-${tempStoreId}`);
+            }
+            
+            // Processar blobs
+            await imageUploadRef.current.processBlobs();
+          }
 
           finishStoreCreation();
         } catch (error) {
-          console.error('Erro ao fazer upload das imagens da loja:', error);
+          console.error('🚨 [ADD-STORE] Erro no upload das imagens:', error);
           toast({
             title: 'Atenção',
             description: 'Sua loja foi criada, mas houve um erro ao salvar as imagens.',
@@ -284,6 +261,9 @@ export default function AddStore() {
           });
           navigate('/seller/stores');
         }
+      } else if (tempStoreId) {
+        // Sem imagens, finalizar imediatamente
+        finishStoreCreation();
       }
     };
 
