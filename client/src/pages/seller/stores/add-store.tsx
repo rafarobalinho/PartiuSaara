@@ -196,10 +196,21 @@ export default function AddStore() {
   async function onSubmit(data: StoreFormValues) {
     try {
       console.log('🔍 [ADD-STORE] Dados do formulário antes do processamento:', data);
+      
+      // Validação detalhada dos campos obrigatórios
+      console.log('🔍 [ADD-STORE] Validação de campos obrigatórios:');
+      console.log('- name:', data.name, '(válido:', !!data.name && data.name.length >= 3, ')');
+      console.log('- description:', data.description, '(válido:', !!data.description && data.description.length >= 10, ')');
+      console.log('- categories:', data.categories, '(válido:', Array.isArray(data.categories) && data.categories.length > 0, ')');
+      console.log('- address.street:', data.address?.street, '(válido:', !!data.address?.street, ')');
+      console.log('- address.city:', data.address?.city, '(válido:', !!data.address?.city, ')');
+      console.log('- address.state:', data.address?.state, '(válido:', !!data.address?.state, ')');
+      console.log('- address.zipCode:', data.address?.zipCode, '(válido:', !!data.address?.zipCode, ')');
+      console.log('- images:', data.images, '(válido:', true, ')'); // Imagens são opcionais
 
       // Verificar se há blobs para processar
       if (imageUploadRef.current?.hasBlobs && imageUploadRef.current.hasBlobs()) {
-        console.log('Processando blobs antes de enviar o formulário...');
+        console.log('🔍 [ADD-STORE] Processando blobs antes de enviar o formulário...');
         // Processar blobs antes de enviar o formulário
         await imageUploadRef.current.processBlobs();
 
@@ -209,21 +220,24 @@ export default function AddStore() {
         // Obter os valores atualizados após o processamento
         const updatedImages = form.getValues('images');
         data = { ...data, images: updatedImages };
+        console.log('🔍 [ADD-STORE] Imagens após processamento de blobs:', updatedImages);
       }
 
       // Limpar URLs blob das imagens antes de enviar
       if (data.images && Array.isArray(data.images)) {
+        const originalLength = data.images.length;
         data.images = data.images.filter(img => 
           !(typeof img === 'string' && img.startsWith('blob:'))
         );
+        console.log('🔍 [ADD-STORE] URLs blob removidas:', originalLength - data.images.length);
       }
 
-      console.log('🔍 [ADD-STORE] Dados finais a serem enviados:', data);
+      console.log('🔍 [ADD-STORE] Dados finais a serem enviados:', JSON.stringify(data, null, 2));
 
-      // Continuar com a submissão normal
+      // Continuar with a submissão normal
       createStoreMutation.mutate(data);
     } catch (error) {
-      console.error('Erro ao processar imagens:', error);
+      console.error('🚨 [ADD-STORE] Erro ao processar imagens:', error);
       toast({
         title: 'Erro no processamento de imagens',
         description: 'Ocorreu um erro ao processar as imagens. Tente novamente.',
