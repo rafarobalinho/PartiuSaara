@@ -117,7 +117,9 @@ export async function createStore(req: Request, res: Response) {
 
       // Validate store data
       const storeSchema = insertStoreSchema.extend({
-        userId: z.number().optional()
+        userId: z.number().optional(),
+        images: z.array(z.string()).optional().default([]),
+        place_id: z.string().optional()
       });
 
       const validationResult = storeSchema.safeParse(req.body);

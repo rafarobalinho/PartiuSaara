@@ -81,15 +81,9 @@ export const insertStoreSchema = createInsertSchema(stores).omit({
   subscriptionStartDate: true,
   createdAt: true,
   updatedAt: true
-}).extend({
-  // Tornar images opcional e permitir array vazio
-  images: z.array(z.string()).optional().default([]),
-  // Garantir que place_id seja opcional
-  place_id: z.string().optional()
 });
 
-// Log do schema para debug
-console.log("Schema de validação de store:", insertStoreSchema);
+// Schema de validação criado
 
 // Products schema
 export const products = pgTable("products", {
