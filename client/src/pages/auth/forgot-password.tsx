@@ -58,7 +58,9 @@ export default function ForgotPassword() {
   });
 
   const onSubmit = async (values: ForgotPasswordFormValues) => {
-    requestResetMutation.mutate(values);
+    startTransition(() => {
+      requestResetMutation.mutate(values);
+    });
   };
 
   if (isSubmitted) {

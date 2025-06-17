@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, startTransition } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -111,9 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return apiRequest('POST', '/api/auth/login', credentials);
     },
     onSuccess: async () => {
-      startTransition(() => {
-        queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-      });
+      await queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
       toast({
         title: 'Login realizado com sucesso',
         description: 'Bem-vindo de volta!',
@@ -121,9 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
     onError: (error: Error) => {
-      startTransition(() => {
-        setError(error);
-      });
+      setError(error);
       toast({
         title: 'Erro no login',
         description: error.message || 'Verifique suas credenciais e tente novamente.',
@@ -146,9 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return apiRequest('POST', '/api/auth/register', userData);
     },
     onSuccess: async () => {
-      startTransition(() => {
-        queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
-      });
+      await queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
       toast({
         title: 'Cadastro realizado com sucesso',
         description: 'Sua conta foi criada com sucesso!',
@@ -156,9 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
     onError: (error: Error) => {
-      startTransition(() => {
-        setError(error);
-      });
+      setError(error);
       toast({
         title: 'Erro no cadastro',
         description: error.message || 'Não foi possível criar sua conta. Tente novamente.',
@@ -172,10 +164,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return apiRequest('POST', '/api/auth/logout', {});
     },
     onSuccess: () => {
-      startTransition(() => {
-        queryClient.setQueryData(['/api/auth/me'], null);
-        queryClient.invalidateQueries();
-      });
+      queryClient.setQueryData(['/api/auth/me'], null);
+      queryClient.invalidateQueries();
 
       // Redirecionar para a página inicial após logout
       window.location.href = '/';
@@ -187,9 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
     onError: (error: Error) => {
-      startTransition(() => {
-        setError(error);
-      });
+      setError(error);
       toast({
         title: 'Erro ao sair',
         description: error.message || 'Não foi possível sair da sua conta. Tente novamente.',

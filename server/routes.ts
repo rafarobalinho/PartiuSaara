@@ -31,7 +31,6 @@ import { comparePasswords } from './utils/auth';
 import { geocodingMiddleware } from "./middlewares/geocoding.middleware";
 import { processStoreMiddleware } from "./middleware/store-processor.middleware";
 import { secureImageMiddleware } from "./middleware/secure-image-middleware";
-import { requestPasswordReset, resetPassword, validateResetToken } from './controllers/password-reset.controller';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Aplicar middleware de segurança de imagens
@@ -46,7 +45,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/logout', authMiddleware, AuthController.logout);
   app.get('/api/auth/me', authMiddleware, AuthController.getCurrentUser);
   app.get('/api/auth/verify', authMiddleware, AuthController.verify);
-
+  
   // Password reset routes
   app.post('/api/auth/request-password-reset', PasswordResetController.requestPasswordReset);
   app.post('/api/auth/reset-password', PasswordResetController.resetPassword);
