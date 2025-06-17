@@ -119,12 +119,28 @@ export async function createStore(req: Request, res: Response) {
       const storeSchema = insertStoreSchema.extend({
         userId: z.number().optional(),
         images: z.array(z.string()).optional().default([]),
-        place_id: z.string().optional()
+        place_id: z.string().optional(),
+        // Permitir location com latitude e longitude
+        location: z.object({
+          latitude: z.number(),
+          longitude: z.number(),
+          place_id: z.string().optional()
+        }).optional(),
+        // Garantir que address seja um objeto válido
+        address: z.object({
+          street: z.string(),
+          city: z.string(),
+          state: z.string(),
+          zipCode: z.string(),
+          neighborhood: z.string().optional(),
+          number: z.string().optional(),
+          complement: z.string().optional()
+        }).optional()
       });
 
       const validationResult = storeSchema.safeParse(req.body);
       if (!validationResult.success) {
-        console.error('🚨 [STORE-CREATE] Erro de validação:', validationResult.error.errors);
+        console.error('🚨 [STORE-CREATE] Erro de validação completo:', validationResult.error);
         console.error('🚨 [STORE-CREATE] Dados que falharam na validação:', JSON.stringify(req.body, null, 2));
         
         // Log específico para cada erro
@@ -133,13 +149,21 @@ export async function createStore(req: Request, res: Response) {
             campo: error.path.join('.'),
             mensagem: error.message,
             valorRecebido: error.received,
-            valorEsperado: error.expected
+            valorEsperado: error.expected,
+            tipoEsperado: error.expected,
+            codigoErro: error.code
           });
         });
         
         return res.status(400).json({ 
           message: 'Validation error', 
-          errors: validationResult.error.errors 
+          errors: validationResult.error.errors,
+          detailedErrors: validationResult.error.errors.map(err => ({
+            field: err.path.join('.'),
+            message: err.message,
+            code: err.code,
+            received: err.received
+          }))
         });
       }
 

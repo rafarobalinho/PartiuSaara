@@ -105,11 +105,16 @@ export default function AddStore() {
 
       // Formatação dos dados antes de enviar
       const formattedData = {
-        name: data.name,
-        description: data.description,
+        name: data.name.trim(),
+        description: data.description.trim(),
         category: data.categories && data.categories.length > 0 ? data.categories[0] : '',
-        tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()) : [],
-        address: data.address,
+        tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()).filter(tag => tag.length > 0) : [],
+        address: {
+          street: data.address.street.trim(),
+          city: data.address.city.trim(),
+          state: data.address.state.trim(),
+          zipCode: data.address.zipCode.trim(),
+        },
         // Posição padrão para o SAARA
         location: {
           latitude: -22.903539,
@@ -117,6 +122,8 @@ export default function AddStore() {
         },
         // Add userId
         userId: user?.id,
+        // Garantir que images seja array vazio se não houver imagens
+        images: []
       };
 
       console.log('🔍 [MUTATION] Dados formatados para envio:', formattedData);
