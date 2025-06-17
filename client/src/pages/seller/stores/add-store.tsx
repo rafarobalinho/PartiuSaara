@@ -125,11 +125,11 @@ export default function AddStore() {
       if (!formattedData.name || formattedData.name.trim().length < 3) {
         throw new Error('Nome da loja deve ter pelo menos 3 caracteres');
       }
-      
+
       if (!formattedData.description || formattedData.description.trim().length < 10) {
         throw new Error('Descrição deve ter pelo menos 10 caracteres');
       }
-      
+
       if (!formattedData.category || formattedData.category.trim().length === 0) {
         throw new Error('Categoria é obrigatória');
       }
@@ -158,9 +158,9 @@ export default function AddStore() {
     },
     onError: (error) => {
       console.error('🚨 [MUTATION ERROR] Erro detalhado:', error);
-      
+
       let errorMessage = 'Ocorreu um erro ao adicionar a loja. Tente novamente.';
-      
+
       if (error instanceof Error) {
         if (error.message.includes('Validation error')) {
           errorMessage = 'Dados inválidos. Verifique se todos os campos obrigatórios estão preenchidos corretamente.';
@@ -172,7 +172,7 @@ export default function AddStore() {
           errorMessage = error.message;
         }
       }
-      
+
       toast({
         title: 'Erro ao criar loja',
         description: errorMessage,
@@ -196,7 +196,7 @@ export default function AddStore() {
   async function onSubmit(data: StoreFormValues) {
     try {
       console.log('🔍 [ADD-STORE] Dados do formulário antes do processamento:', data);
-      
+
       // Validação detalhada dos campos obrigatórios
       console.log('🔍 [ADD-STORE] Validação de campos obrigatórios:');
       console.log('- name:', data.name, '(válido:', !!data.name && data.name.length >= 3, ')');
