@@ -30,17 +30,17 @@ const ImageUploadComponent = forwardRef(({
   const [selectedImages, setSelectedImages] = useState<string[]>(value);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  
+
   // Detectar e limpar URLs blob automaticamente
   useEffect(() => {
     // Verificar se há URLs blob na lista
     const blobUrls = selectedImages.filter(url => url && url.startsWith('blob:'));
     if (blobUrls.length > 0) {
       console.warn('⚠️ URLs blob detectadas no estado, removendo:', blobUrls);
-      
+
       // Filtrar as URLs blob
       const cleanedImages = selectedImages.filter(url => !url || !url.startsWith('blob:'));
-      
+
       // Atualizar estado apenas se houve mudança
       if (cleanedImages.length !== selectedImages.length) {
         console.log('Atualizando estado com imagens limpas');
@@ -54,19 +54,19 @@ const ImageUploadComponent = forwardRef(({
   async function blobUrlToFile(blobUrl: string): Promise<File> {
     try {
       console.log('Convertendo blob URL para arquivo:', blobUrl);
-      
+
       // Baixar o conteúdo do blob
       const response = await fetch(blobUrl);
       if (!response.ok) throw new Error('Falha ao buscar conteúdo do blob');
-      
+
       const blobData = await response.blob();
-      
+
       // Criar um nome de arquivo único
       const filename = `image_${Date.now()}.jpg`;
-      
+
       // Criar um objeto File
       const file = new File([blobData], filename, { type: 'image/jpeg' });
-      
+
       console.log('Blob convertido com sucesso para arquivo:', filename);
       return file;
     } catch (error) {
@@ -74,30 +74,30 @@ const ImageUploadComponent = forwardRef(({
       throw error;
     }
   }
-  
+
   // Processar e fazer upload de um blob
   async function processAndUploadBlob(blobUrl: string, entityType: string, entityId: string): Promise<string> {
     try {
       console.log(`Processando blob para upload: ${blobUrl}`);
-      
+
       // Converter blob para arquivo
       const file = await blobUrlToFile(blobUrl);
-      
+
       // Criar FormData
       const formData = new FormData();
       formData.append('images', file);
-      
+
       // Enviar para a API
       console.log(`Enviando arquivo para API: type=${entityType}, entityId=${entityId}`);
-      
+
       const response = await apiRequest(
         'POST', 
         `/api/upload/images?type=${entityType}&entityId=${entityId}`, 
         formData
       );
-      
+
       const result = await response.json();
-      
+
       if (result.success && result.images && result.images.length > 0) {
         const newImageUrl = result.images[0].imageUrl;
         console.log(`Blob processado com sucesso. Nova URL:`, newImageUrl);
@@ -110,25 +110,25 @@ const ImageUploadComponent = forwardRef(({
       throw error;
     }
   }
-  
+
   // Função para verificar se a matriz de imagens contém blobs que precisam ser processados
   const processBlobsIfNeeded = async (): Promise<string[]> => {
     if (!selectedImages || selectedImages.length === 0) return selectedImages;
-    
+
     // Extrair informações do nome do campo
     const entityInfo = name.split('-');
     const entityType = entityInfo[0]; // "store" ou "product"
     const entityId = entityInfo[entityInfo.length - 1];
-    
+
     // Verificar se entityId é válido
     if (!entityId || isNaN(Number(entityId))) {
       console.error(`ID inválido: ${entityId}`);
       return selectedImages;
     }
-    
+
     let hasChanged = false;
     const processed = [...selectedImages]; // Clone para não modificar o original
-    
+
     // Processar cada imagem
     for (let i = 0; i < processed.length; i++) {
       if (processed[i].startsWith('blob:')) {
@@ -141,40 +141,40 @@ const ImageUploadComponent = forwardRef(({
         }
       }
     }
-    
+
     // Atualizar estado apenas se algo mudou
     if (hasChanged) {
       setSelectedImages(processed);
       onChange(processed);
     }
-    
+
     return processed;
   };
-  
+
   // Validar e normalizar URLs de imagem
   const getValidImage = (url: string | undefined): string => {
     if (!url) return '';
-    
+
     // Log para debugging
     console.log('Validando URL de imagem:', url);
-    
+
     try {
       // NUNCA retornar URLs blob - substituir por placeholder
       if (url.startsWith('blob:')) {
         console.warn('⚠️ URL blob detectada, substituindo por placeholder', url);
         return '/uploads/placeholder-loading.jpg';
       }
-      
+
       // Se começar com http, é uma URL completa
       if (url.startsWith('http')) {
         return url;
       }
-      
+
       // Se já for uma URL completa relativa ao servidor
       if (url.startsWith('/uploads/')) {
         return url;
       }
-      
+
       // Se for apenas um nome de arquivo, adicionar o prefixo /uploads/
       return `/uploads/${url.replace(/^uploads\//, '')}`;
     } catch (error) {
@@ -193,7 +193,7 @@ const ImageUploadComponent = forwardRef(({
       setSelectedImages(filteredImages);
       onChange(filteredImages);
     }
-    
+
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -206,7 +206,7 @@ const ImageUploadComponent = forwardRef(({
       });
       return;
     }
-    
+
     // Verificar se há URLs blob nas imagens atuais
     const blobUrls = selectedImages.filter(url => url && url.startsWith('blob:'));
     if (blobUrls.length > 0) {
@@ -224,30 +224,57 @@ const ImageUploadComponent = forwardRef(({
       // "product-5" => tipo: "product", entityId: "5"
       // "store-logo-5" => tipo: "store", entityId: "5"
       // "product-images-5" => tipo: "product", entityId: "5"
-      
+
       console.log('Analisando nome do campo:', name);
-      
+
       const entityInfo = name.split('-');
-      
+
       if (entityInfo.length < 2) {
         throw new Error(`Nome de campo inválido: "${name}". Deve seguir o formato "tipo-id" ou "tipo-subtipo-id"`);
       }
-      
+
       const type = entityInfo[0]; // "store" ou "product"
-      
+
       if (type !== 'store' && type !== 'product') {
         throw new Error(`Tipo inválido: "${type}". Deve ser "store" ou "product"`);
       }
-      
+
       // Extrair o ID da entidade (último componente do nome)
       const lastComponent = entityInfo[entityInfo.length - 1];
       const entityId = lastComponent;
-      
-      if (!entityId || isNaN(Number(entityId))) {
-        throw new Error(`ID inválido: "${entityId}". Deve ser um número válido`);
+
+      // Permitir "new" para entidades sendo criadas, senão deve ser um número válido
+      if (!entityId || (entityId !== 'new' && isNaN(Number(entityId)))) {
+        throw new Error(`ID inválido: "${entityId}". Deve ser um número válido ou "new" para criação`);
       }
-      
+
       console.log('Tipo extraído:', type, 'ID da entidade:', entityId);
+
+      // Para entidades "new", armazenar as imagens temporariamente como blob URLs
+      if (entityId === 'new') {
+        console.log('Entidade nova detectada, armazenando imagem temporariamente');
+
+        const newBlobUrls: string[] = [];
+
+        Array.from(files).forEach(file => {
+          const blobUrl = URL.createObjectURL(file);
+          newBlobUrls.push(blobUrl);
+        });
+
+        const updatedImages = multiple 
+          ? [...selectedImages, ...newBlobUrls]
+          : newBlobUrls;
+
+        setSelectedImages(updatedImages);
+        onChange(updatedImages);
+
+        toast({
+          title: "Imagens preparadas",
+          description: `${newBlobUrls.length} imagem(ns) preparada(s) para upload após criação da loja`,
+        });
+
+        return;
+      }
 
       const formData = new FormData();
       Array.from(files).forEach(file => {
@@ -275,15 +302,15 @@ const ImageUploadComponent = forwardRef(({
           thumbnailUrl: img.thumbnailUrl,
           isPrimary: img.isPrimary
         }));
-        
+
         // Se não for múltiplo, substitui a imagem atual em vez de adicionar
         const updatedImages = multiple 
           ? [...selectedImages, ...newImages.map((img: any) => img.url)]
           : newImages.map((img: any) => img.url); // Para logo, substitui completamente
-        
+
         setSelectedImages(updatedImages);
         onChange(updatedImages);
-        
+
         toast({
           title: "Upload realizado com sucesso",
           description: `${newImages.length} imagem(ns) adicionada(s)`,
@@ -311,33 +338,33 @@ const ImageUploadComponent = forwardRef(({
   const handleRemoveImage = async (index: number) => {
     try {
       const imageToRemove = selectedImages[index];
-      
+
       // Extrair o tipo e ID da entidade do nome
       console.log('Analisando nome do campo para remoção:', name);
-      
+
       const entityInfo = name.split('-');
-      
+
       if (entityInfo.length < 2) {
         throw new Error(`Nome de campo inválido: "${name}". Deve seguir o formato "tipo-id" ou "tipo-subtipo-id"`);
       }
-      
+
       const type = entityInfo[0]; // "store" ou "product"
-      
+
       if (type !== 'store' && type !== 'product') {
         throw new Error(`Tipo inválido: "${type}". Deve ser "store" ou "product"`);
       }
-      
+
       // Extrai o ID da imagem a partir da URL
       // Padrão das URLs de imagem: /uploads/123456789.jpg ou /uploads/thumbnails/123456789.jpg
       const imageUrlMatch = imageToRemove.match(/\/uploads\/(?:thumbnails\/)?([^\/]+?)(?:\.[^.]+)?$/);
-      
+
       if (!imageUrlMatch) {
         console.log('Formato de URL não reconhecido, tentando alternativas:', imageToRemove);
         // Tenta extrações alternativas (fallbacks)
         const filenameMatch = imageToRemove.match(/\/([^\/]+)\.jpg$/);
         const idMatch = imageToRemove.match(/id=(\d+)/);
         const imageId = filenameMatch?.[1] || idMatch?.[1];
-        
+
         if (!imageId) {
           console.log('Não foi possível extrair o ID da imagem, apenas removendo da interface:', imageToRemove);
         } else {
@@ -350,21 +377,21 @@ const ImageUploadComponent = forwardRef(({
         // Formato reconhecido, extrai o ID diretamente
         const filename = imageUrlMatch[1];
         const imageId = filename.split('.')[0]; // Remove extensão se houver
-        
+
         console.log(`Removendo imagem: tipo=${type}, id=${imageId}, URL=${imageToRemove}`);
         // Usar a nova rota de exclusão de imagens
         const response = await apiRequest('DELETE', `/api/images/${imageId}?type=${type}`, {});
-        
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || 'Erro ao excluir imagem');
         }
       }
-      
+
       const updatedImages = selectedImages.filter((_, i) => i !== index);
       setSelectedImages(updatedImages);
       onChange(updatedImages);
-      
+
       toast({
         title: "Imagem removida",
         description: "A imagem foi removida com sucesso",
@@ -385,7 +412,7 @@ const ImageUploadComponent = forwardRef(({
     processBlobs: async () => {
       return await processBlobsIfNeeded();
     },
-    
+
     // Verifica se há blobs que precisam ser processados
     hasBlobs: () => {
       return selectedImages.some(url => url?.startsWith('blob:'));
@@ -396,7 +423,7 @@ const ImageUploadComponent = forwardRef(({
     <div className={`space-y-4 ${className}`}>
       <div className="space-y-2">
         <Label htmlFor={name}>{multiple ? 'Imagens' : 'Imagem'}</Label>
-        
+
         {/* Botão para selecionar arquivos */}
         <div className="flex items-center space-x-2">
           <Input
@@ -423,7 +450,7 @@ const ImageUploadComponent = forwardRef(({
             {isUploading ? 'Enviando...' : multiple ? 'Selecionar imagens' : 'Selecionar imagem'}
           </Button>
         </div>
-        
+
         <p className="text-xs text-muted-foreground">
           Formatos aceitos: JPG, PNG, WebP. {multiple ? `Máximo ${maxImages} imagens.` : ''}
         </p>
@@ -456,7 +483,7 @@ const ImageUploadComponent = forwardRef(({
               </div>
             </div>
           ))}
-          
+
           {/* Slots restantes (apenas para múltiplos) */}
           {multiple && Array.from({ length: Math.min(4, maxImages - selectedImages.length) }).map((_, index) => (
             <div 
@@ -469,7 +496,7 @@ const ImageUploadComponent = forwardRef(({
           ))}
         </div>
       )}
-      
+
       {/* Placeholder para imagem única quando não há imagem */}
       {!multiple && selectedImages.length === 0 && (
         <div 

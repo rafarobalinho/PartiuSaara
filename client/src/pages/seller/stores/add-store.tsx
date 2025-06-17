@@ -50,10 +50,10 @@ export default function AddStore() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
-  
+
   // Referência para o componente de upload de imagens
   const imageUploadRef = useRef<any>(null);
-  
+
   // Estado temporário para armazenar o ID da loja criada (para upload posterior)
   const [tempStoreId, setTempStoreId] = useState<number | null>(null);
 
@@ -101,6 +101,8 @@ export default function AddStore() {
   // Mutation para criar loja
   const createStoreMutation = useMutation({
     mutationFn: async (data: StoreFormValues) => {
+      console.log('🔍 [MUTATION] Dados recebidos na mutation:', data);
+
       // Formatação dos dados antes de enviar
       const formattedData = {
         name: data.name,
@@ -116,17 +118,36 @@ export default function AddStore() {
         // Add userId
         userId: user?.id,
       };
+
+      console.log('🔍 [MUTATION] Dados formatados para envio:', formattedData);
+
+      // Validar dados essenciais antes de enviar
+      if (!formattedData.name || formattedData.name.trim().length < 3) {
+        throw new Error('Nome da loja deve ter pelo menos 3 caracteres');
+      }
       
+      if (!formattedData.description || formattedData.description.trim().length < 10) {
+        throw new Error('Descrição deve ter pelo menos 10 caracteres');
+      }
+      
+      if (!formattedData.category || formattedData.category.trim().length === 0) {
+        throw new Error('Categoria é obrigatória');
+      }
+
+      if (!formattedData.address || !formattedData.address.street || !formattedData.address.city) {
+        throw new Error('Endereço completo é obrigatório');
+      }
+
       // Não incluímos as imagens no objeto da loja - serão salvas posteriormente
       // na tabela store_images
-      
+
       return apiRequest('POST', '/api/stores', formattedData);
     },
     onSuccess: (response: any) => {
       // Salvamos o ID da loja para associar às imagens
       if (response && response.id) {
         setTempStoreId(response.id);
-        
+
         // Se houver imagens, só vamos redirecionar após o upload delas
         if (form.getValues('images').length === 0) {
           finishStoreCreation();
@@ -136,15 +157,30 @@ export default function AddStore() {
       }
     },
     onError: (error) => {
+      console.error('🚨 [MUTATION ERROR] Erro detalhado:', error);
+      
+      let errorMessage = 'Ocorreu um erro ao adicionar a loja. Tente novamente.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Validation error')) {
+          errorMessage = 'Dados inválidos. Verifique se todos os campos obrigatórios estão preenchidos corretamente.';
+        } else if (error.message.includes('categoria')) {
+          errorMessage = 'Selecione pelo menos uma categoria para sua loja.';
+        } else if (error.message.includes('endereço')) {
+          errorMessage = 'Preencha o endereço completo da loja.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
-        title: 'Erro',
-        description: 'Ocorreu um erro ao adicionar a loja. Tente novamente.',
+        title: 'Erro ao criar loja',
+        description: errorMessage,
         variant: "destructive",
       });
-      console.error('Error creating store:', error);
     }
   });
-  
+
   // Função para finalizar o processo e redirecionar
   const finishStoreCreation = () => {
     queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
@@ -155,24 +191,35 @@ export default function AddStore() {
     });
     navigate('/seller/stores');
   };
-  
+
   // Submit handler
   async function onSubmit(data: StoreFormValues) {
     try {
+      console.log('🔍 [ADD-STORE] Dados do formulário antes do processamento:', data);
+
       // Verificar se há blobs para processar
       if (imageUploadRef.current?.hasBlobs && imageUploadRef.current.hasBlobs()) {
         console.log('Processando blobs antes de enviar o formulário...');
         // Processar blobs antes de enviar o formulário
         await imageUploadRef.current.processBlobs();
-        
+
         // Pequena pausa para garantir que o estado foi atualizado
         await new Promise(resolve => setTimeout(resolve, 500));
-        
+
         // Obter os valores atualizados após o processamento
         const updatedImages = form.getValues('images');
         data = { ...data, images: updatedImages };
       }
-      
+
+      // Limpar URLs blob das imagens antes de enviar
+      if (data.images && Array.isArray(data.images)) {
+        data.images = data.images.filter(img => 
+          !(typeof img === 'string' && img.startsWith('blob:'))
+        );
+      }
+
+      console.log('🔍 [ADD-STORE] Dados finais a serem enviados:', data);
+
       // Continuar com a submissão normal
       createStoreMutation.mutate(data);
     } catch (error) {
@@ -199,13 +246,13 @@ export default function AddStore() {
         try {
           // Atualizar a primeira imagem como primária
           const isPrimary = true;
-          
+
           // Fazer o upload usando a API
           await apiRequest('POST', `/api/stores/${tempStoreId}/images`, {
             imageUrls: images,
             isPrimary
           });
-          
+
           finishStoreCreation();
         } catch (error) {
           console.error('Erro ao fazer upload das imagens da loja:', error);
@@ -218,7 +265,7 @@ export default function AddStore() {
         }
       }
     };
-    
+
     uploadStoreImages();
   }, [tempStoreId]);
 
@@ -379,7 +426,7 @@ export default function AddStore() {
 
                   <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 mt-4">
                     <h3 className="font-medium text-sm mb-3">Endereço e Localização</h3>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <FormField
                         control={form.control}
