@@ -1,37 +1,40 @@
-
-import fs from 'fs';
+import multer from 'multer';
+import sharp from 'sharp';
 import path from 'path';
+import fs from 'fs';
+import { pool } from '../db.ts';
 import { fileURLToPath } from 'url';
-import { imageUpload } from '../utils/imageUpload.js';
-import { db } from '../db.js';
-import { storeImages, productImages } from '../../shared/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { desc } from 'drizzle-orm';
 
-// Obtém o caminho do diretório atual em ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, '../..');
+const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
 
-/**
- * @route POST /api/upload/images
- * @desc Upload múltiplas imagens e retorna URLs otimizadas
- * @access Privado (apenas usuários autenticados)
- */
+// Configuração do multer
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Apenas arquivos de imagem são permitidos'));
+    }
+  }
+}).array('images', 10);
+
 export const uploadImages = async (req, res) => {
   try {
-    // A verificação de autenticação já é feita pelo middleware authMiddleware na rota
-    const { type, storeId, productId } = req.query;
-    
-    console.log(`🔍 [UPLOAD-CONTROLLER] Parâmetros recebidos:`, { type, storeId, productId });
-    
-    if (!type || !storeId) {
+    const { type, entityId, storeId } = req.query;
+
+    console.log('🔍 [UPLOAD-DEBUG] Parâmetros recebidos:', { type, entityId, storeId });
+
+    if (!type || !entityId) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Parâmetros obrigatórios não fornecidos: type (store ou product) e storeId' 
+        message: 'Parâmetros obrigatórios: type e entityId' 
       });
     }
 
-    // Verifica se o tipo é válido
     if (type !== 'store' && type !== 'product') {
       return res.status(400).json({ 
         success: false, 
@@ -39,136 +42,196 @@ export const uploadImages = async (req, res) => {
       });
     }
 
-    // Para produtos, productId é obrigatório
-    if (type === 'product' && !productId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Para tipo "product", productId é obrigatório' 
-      });
-    }
+    let finalStoreId;
+    let finalEntityId = entityId;
 
-    // A configuração de upload é tratada pelo middleware imageUpload
-    imageUpload.array('images', 10)(req, res, async (err) => {
-      if (err) {
-        console.error('❌ [UPLOAD-CONTROLLER] Erro no upload de imagens:', err);
-        return res.status(400).json({ success: false, message: 'Erro no upload de imagens: ' + err.message });
-      }
+    // LÓGICA CONDICIONAL POR TIPO:
+    if (type === 'store') {
+      // Para lojas: entityId É o storeId
+      finalStoreId = entityId;
+      console.log('🔍 [UPLOAD-DEBUG] Upload de loja, storeId:', finalStoreId);
 
-      // Se não houver arquivos enviados
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ success: false, message: 'Nenhuma imagem enviada' });
-      }
+    } else if (type === 'product') {
+      // Para produtos: entityId é productId, precisamos do storeId
+      const productId = entityId;
 
-      try {
-        console.log(`📁 [UPLOAD-CONTROLLER] Processando ${req.files.length} arquivos`);
-        
-        // Processa as imagens e retorna os caminhos otimizados
-        const processedImages = req.files.map(file => {
-          // O caminho completo do arquivo
-          const fullPath = file.path;
-          
-          // Nome do arquivo
-          const filename = path.basename(fullPath);
-          
-          // Obter o nome do arquivo sem extensão
-          const fileNameWithoutExt = path.basename(filename, path.extname(filename));
-          
-          // Construir URLs relativas baseadas na estrutura de pastas
-          let imageUrl, thumbnailUrl;
-          
-          if (type === 'product') {
-            imageUrl = `/uploads/stores/${storeId}/products/${productId}/${fileNameWithoutExt}.jpg`;
-            thumbnailUrl = `/uploads/stores/${storeId}/products/${productId}/thumbnails/${fileNameWithoutExt}.jpg`;
-          } else {
-            imageUrl = `/uploads/stores/${storeId}/${fileNameWithoutExt}.jpg`;
-            thumbnailUrl = `/uploads/stores/${storeId}/thumbnails/${fileNameWithoutExt}.jpg`;
-          }
-          
-          console.log(`🖼️ [UPLOAD-CONTROLLER] Imagem processada:`, { imageUrl, thumbnailUrl });
-          
-          return {
-            originalName: file.originalname,
-            imageUrl: imageUrl,
-            thumbnailUrl: thumbnailUrl,
-            size: file.size,
-            mimetype: 'image/jpeg' // Sempre retorna como JPEG, pois convertemos todas as imagens
-          };
-        });
+      if (storeId) {
+        // Se storeId foi fornecido, usar ele
+        finalStoreId = storeId;
+      } else {
+        // Se não foi fornecido, buscar no banco
+        console.log('🔍 [UPLOAD-DEBUG] Buscando storeId para produto:', productId);
 
-        // Salva as imagens no banco de dados
-        const savedImages = [];
+        const productResult = await pool.query(
+          'SELECT store_id FROM products WHERE id = $1',
+          [productId]
+        );
 
-        for (const image of processedImages) {
-          if (type === 'store') {
-            // Se for uma loja, primeiro desativa todas as imagens primárias existentes
-            await db.update(storeImages)
-              .set({
-                isPrimary: false
-              })
-              .where(eq(storeImages.storeId, parseInt(storeId)));
-            
-            // Salva a nova imagem como primária (sempre a mais recente será primária)
-            const [savedImage] = await db.insert(storeImages).values({
-              storeId: parseInt(storeId),
-              imageUrl: image.imageUrl,
-              thumbnailUrl: image.thumbnailUrl,
-              isPrimary: true, // Sempre verdadeiro - a imagem mais recente é a primária
-              displayOrder: savedImages.length
-            }).returning();
-            
-            console.log(`✅ [UPLOAD-CONTROLLER] Imagem de loja salva:`, savedImage);
-            
-            savedImages.push({
-              ...image,
-              id: savedImage.id,
-              isPrimary: savedImage.isPrimary
-            });
-          } else {
-            // Se for um produto, primeiro desativa todas as imagens primárias existentes
-            await db.update(productImages)
-              .set({
-                isPrimary: false
-              })
-              .where(eq(productImages.productId, parseInt(productId)));
-            
-            // Salva a nova imagem como primária (sempre a mais recente será primária)
-            const [savedImage] = await db.insert(productImages).values({
-              productId: parseInt(productId),
-              imageUrl: image.imageUrl,
-              thumbnailUrl: image.thumbnailUrl,
-              isPrimary: true, // Sempre verdadeiro - a imagem mais recente é a primária
-              displayOrder: savedImages.length
-            }).returning();
-            
-            console.log(`✅ [UPLOAD-CONTROLLER] Imagem de produto salva:`, savedImage);
-            
-            savedImages.push({
-              ...image,
-              id: savedImage.id,
-              isPrimary: savedImage.isPrimary
-            });
-          }
+        if (productResult.rows.length === 0) {
+          return res.status(404).json({
+            success: false,
+            message: 'Produto não encontrado'
+          });
         }
 
-        return res.status(200).json({
-          success: true,
-          message: 'Imagens enviadas com sucesso',
-          images: savedImages
-        });
-      } catch (error) {
-        console.error('❌ [UPLOAD-CONTROLLER] Erro ao processar as imagens:', error);
-        // Resposta mais detalhada do erro para facilitar o debugging
-        return res.status(500).json({ 
+        finalStoreId = productResult.rows[0].store_id;
+      }
+
+      console.log('🔍 [UPLOAD-DEBUG] Upload de produto, productId:', productId, 'storeId:', finalStoreId);
+    }
+
+    console.log('🔍 [UPLOAD-DEBUG] IDs finais:', {
+      type,
+      entityId: finalEntityId,
+      storeId: finalStoreId
+    });
+
+    // Processar upload com multer
+    upload(req, res, async (uploadError) => {
+      if (uploadError) {
+        console.error('Erro no multer:', uploadError);
+        return res.status(400).json({ 
           success: false, 
-          message: 'Erro ao processar as imagens', 
-          error: error.message,
-          details: error.stack
+          message: uploadError.message 
         });
       }
+
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Nenhuma imagem foi enviada' 
+        });
+      }
+
+      // Criar estrutura de pastas
+      let targetDir;
+      if (type === 'store') {
+        targetDir = path.join(UPLOADS_DIR, 'stores', finalStoreId.toString());
+      } else if (type === 'product') {
+        targetDir = path.join(UPLOADS_DIR, 'stores', finalStoreId.toString(), 'products', finalEntityId.toString());
+      }
+
+      const thumbnailDir = path.join(targetDir, 'thumbnails');
+
+      // Criar pastas se não existirem
+      [targetDir, thumbnailDir].forEach(dir => {
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+          console.log('📁 Criado diretório:', dir);
+        }
+      });
+
+      const uploadedImages = [];
+
+      for (const file of req.files) {
+        try {
+          const timestamp = Date.now();
+          const randomId = Math.floor(Math.random() * 1000000000);
+          const fileName = `${timestamp}-${randomId}.jpg`;
+
+          const imagePath = path.join(targetDir, fileName);
+          const thumbnailPath = path.join(thumbnailDir, fileName);
+
+          // Processar imagem principal
+          await sharp(file.buffer)
+            .resize(800, 600, { 
+              fit: 'inside',
+              withoutEnlargement: true 
+            })
+            .jpeg({ quality: 85 })
+            .toFile(imagePath);
+
+          // Criar thumbnail
+          await sharp(file.buffer)
+            .resize(300, 200, { 
+              fit: 'cover' 
+            })
+            .jpeg({ quality: 75 })
+            .toFile(thumbnailPath);
+
+          // URLs para o banco de dados
+          const imageUrl = `/uploads/stores/${finalStoreId}/${type}s/${finalEntityId}/${fileName}`;
+          const thumbnailUrl = `/uploads/stores/${finalStoreId}/${type}s/${finalEntityId}/thumbnails/${fileName}`;
+
+          // Salvar no banco de dados
+          let insertQuery;
+          let queryParams;
+
+          if (type === 'store') {
+            insertQuery = `
+              INSERT INTO store_images (store_id, image_url, thumbnail_url, is_primary, display_order)
+              VALUES ($1, $2, $3, $4, $5)
+              RETURNING id
+            `;
+
+            // Verificar se é a primeira imagem (será primary)
+            const existingImagesResult = await pool.query(
+              'SELECT COUNT(*) as count FROM store_images WHERE store_id = $1',
+              [finalStoreId]
+            );
+            const isPrimary = existingImagesResult.rows[0].count === '0';
+
+            queryParams = [finalStoreId, imageUrl, thumbnailUrl, isPrimary, 0];
+
+          } else if (type === 'product') {
+            insertQuery = `
+              INSERT INTO product_images (product_id, image_url, thumbnail_url, is_primary, display_order)
+              VALUES ($1, $2, $3, $4, $5)
+              RETURNING id
+            `;
+
+            // Verificar se é a primeira imagem (será primary)
+            const existingImagesResult = await pool.query(
+              'SELECT COUNT(*) as count FROM product_images WHERE product_id = $1',
+              [finalEntityId]
+            );
+            const isPrimary = existingImagesResult.rows[0].count === '0';
+
+            queryParams = [finalEntityId, imageUrl, thumbnailUrl, isPrimary, 0];
+          }
+
+          const result = await pool.query(insertQuery, queryParams);
+
+          uploadedImages.push({
+            id: result.rows[0].id,
+            url: imageUrl,
+            thumbnailUrl: thumbnailUrl,
+            fileName: fileName,
+            isPrimary: queryParams[3]
+          });
+
+          console.log('✅ Imagem salva:', fileName);
+
+        } catch (error) {
+          console.error('Erro ao processar imagem:', file.originalname, error);
+        }
+      }
+
+      if (uploadedImages.length === 0) {
+        return res.status(500).json({
+          success: false,
+          message: 'Falha ao processar todas as imagens'
+        });
+      }
+
+      console.log('🎉 Upload concluído:', uploadedImages.length, 'imagens');
+
+      res.json({
+        success: true,
+        message: `${uploadedImages.length} imagem(ns) enviada(s) com sucesso`,
+        images: uploadedImages,
+        type: type,
+        entityId: finalEntityId,
+        storeId: finalStoreId
+      });
     });
+
   } catch (error) {
-    console.error('❌ [UPLOAD-CONTROLLER] Erro no servidor durante upload:', error);
-    return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+    console.error('Erro no upload:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro interno do servidor' 
+    });
   }
 };
 
@@ -214,8 +277,8 @@ export const deleteImage = async (req, res) => {
     const { imageUrl, thumbnailUrl } = imageRecord;
     
     // Constrói os caminhos completos para os arquivos no sistema
-    const originalPath = path.join(rootDir, 'public', imageUrl);
-    const thumbnailPath = path.join(rootDir, 'public', thumbnailUrl);
+    const originalPath = path.join(process.cwd(), 'public', imageUrl); // Use process.cwd() instead of rootDir
+    const thumbnailPath = path.join(process.cwd(), 'public', thumbnailUrl); // Use process.cwd() instead of rootDir
 
     console.log(`🗑️ [UPLOAD-CONTROLLER] Deletando arquivos:`, { originalPath, thumbnailPath });
 

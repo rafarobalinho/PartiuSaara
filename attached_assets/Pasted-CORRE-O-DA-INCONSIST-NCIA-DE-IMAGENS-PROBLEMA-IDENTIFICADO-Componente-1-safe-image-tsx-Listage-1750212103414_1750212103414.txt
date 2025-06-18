@@ -1,0 +1,77 @@
+CORREÇÃO DA INCONSISTÊNCIA DE IMAGENS
+🔴 PROBLEMA IDENTIFICADO
+Componente 1: safe-image.tsx (Listagem)
+
+Usa: /api/products/5/primary-image
+Resultado: Imagem errada
+Usado em: Página de listagem /products
+
+Componente 2: image-component.tsx (Detalhes)
+
+Usa: /uploads/stores/2/products/5/1746471716813-235830187.jpg
+Resultado: Imagem correta ✅
+Usado em: Página de detalhes /products/5
+
+SOLUÇÃO: Padronizar para URL Direta
+1️⃣ Corrigir safe-image.tsx
+Arquivo: client/src/components/ui/safe-image.tsx
+Modificar para usar URL direta como image-component.tsx:
+typescript// Em vez de usar API endpoint:
+// src="/api/products/5/primary-image"
+
+// Usar URL direta (como image-component.tsx):
+// src="/uploads/stores/2/products/5/1746471716813-235830187.jpg"
+
+// O componente deve receber a URL da imagem diretamente dos dados do produto
+2️⃣ Verificar Fonte dos Dados
+Onde a página /products busca dados dos produtos?
+O JSON deve incluir a URL completa da imagem:
+javascript// ✅ Dados corretos que devem vir da API:
+{
+  id: 5,
+  name: "Óculos Escuros - Linha Bronze",
+  primary_image: "/uploads/stores/2/products/5/1746471716813-235830187.jpg", // URL direta
+  // ou
+  images: [
+    {
+      url: "/uploads/stores/2/products/5/1746471716813-235830187.jpg",
+      is_primary: true
+    }
+  ]
+}
+3️⃣ Corrigir API de Listagem de Produtos
+Se a API /api/products não está retornando as URLs corretas:
+sql-- Query deve incluir as URLs das imagens:
+SELECT 
+  p.id,
+  p.name,
+  p.description,
+  pi.image_url as primary_image,
+  pi.thumbnail_url
+FROM products p
+LEFT JOIN product_images pi ON p.id = pi.product_id AND pi.is_primary = true
+4️⃣ Alternativa: Corrigir a API de Imagem
+Se preferir manter /api/products/5/primary-image, corrigir o endpoint:
+Arquivo: server/controllers/image.controller.js
+Garantir que retorna a imagem correta para cada produto.
+Decisão de Arquitetura
+Opção A: URL Direta (Recomendada)
+
+✅ Mais rápido (sem redirect)
+✅ Funciona (como na página de detalhes)
+✅ Menos requisições ao servidor
+
+Opção B: API Endpoint
+
+❌ Mais lento (redirect)
+❌ Atualmente com bug
+❌ Mais complexo
+
+Ação Imediata
+
+🔴 VERIFICAR como image-component.tsx obtém a URL correta
+🔴 REPLICAR a mesma lógica em safe-image.tsx
+🔴 GARANTIR que API /api/products retorna URLs de imagem
+🔴 TESTAR se listagem mostra imagens corretas
+
+A solução é padronizar ambos os componentes para usar URLs diretas como o que funciona!
