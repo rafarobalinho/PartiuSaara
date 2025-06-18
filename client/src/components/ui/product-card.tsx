@@ -9,38 +9,13 @@ import { useUi } from '@/context/ui-context';
 import { useToast } from '@/hooks/use-toast';
 import { SafeImage } from './safe-image';
 
-// Função que verifica se uma imagem deve ser usada e obtém a URL direta
-function getValidImage(product: Product): string {
-  // Se tem imageUrl (URL direta), usar ela
-  if (product.imageUrl) {
-    return product.imageUrl;
-  }
+// Função que verifica se uma imagem deve ser usada
+function getValidImage(imageUrl: string | undefined, fallbackUrl: string): string {
+  // Se não tiver URL, usa a imagem padrão
+  if (!imageUrl) return fallbackUrl;
 
-  // Procurar por imagem primária nas images
-  if (Array.isArray(product.images)) {
-    // Se images é um array de ProductImage
-    const primaryImage = product.images.find((img: any) => 
-      typeof img === 'object' && img.is_primary === true
-    );
-
-    if (primaryImage && typeof primaryImage === 'object' && 'image_url' in primaryImage) {
-      return primaryImage.image_url;
-    }
-
-    // Se não encontrou primária, usar a primeira imagem
-    if (product.images.length > 0) {
-      const firstImage = product.images[0];
-      if (typeof firstImage === 'object' && 'image_url' in firstImage) {
-        return firstImage.image_url;
-      }
-      if (typeof firstImage === 'string') {
-        return firstImage;
-      }
-    }
-  }
-
-  // Se não encontrou nenhuma imagem, usar fallback
-  return '/placeholder-image.jpg';
+  // Retorna a URL original passada pelo banco de dados
+  return imageUrl;
 }
 
 
@@ -278,14 +253,11 @@ export default function ProductCard({
             </div>
           )}
 
-          {/* Imagem do produto */}
-          <div className="relative aspect-square flex-shrink-0">
+          <div className="absolute inset-0 w-full h-full">
             <SafeImage
-              src={getValidImage(product)}
+              src={product.imageUrl || product.images?.[0] || '/placeholder-image.jpg'}
               alt={product.name}
-              productId={product.id}
-              storeId={product.store_id}
-              className="aspect-square"
+              className="w-full h-full object-cover"
             />
           </div>
         </div>
