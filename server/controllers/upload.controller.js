@@ -149,9 +149,15 @@ export const uploadImages = async (req, res) => {
             .jpeg({ quality: 75 })
             .toFile(thumbnailPath);
 
-          // URLs para o banco de dados
-          const imageUrl = `/uploads/stores/${finalStoreId}/${type}s/${finalEntityId}/${fileName}`;
-          const thumbnailUrl = `/uploads/stores/${finalStoreId}/${type}s/${finalEntityId}/thumbnails/${fileName}`;
+          // URLs para o banco de dados - corrigir estrutura
+          let imageUrl, thumbnailUrl;
+          if (type === 'store') {
+            imageUrl = `/uploads/stores/${finalStoreId}/${fileName}`;
+            thumbnailUrl = `/uploads/stores/${finalStoreId}/thumbnails/${fileName}`;
+          } else if (type === 'product') {
+            imageUrl = `/uploads/stores/${finalStoreId}/products/${finalEntityId}/${fileName}`;
+            thumbnailUrl = `/uploads/stores/${finalStoreId}/products/${finalEntityId}/thumbnails/${fileName}`;
+          }
 
           // Salvar no banco de dados
           let insertQuery;
