@@ -86,198 +86,58 @@ import validateImageRelationship from '../middleware/image-validation';
 
 /**
  * @route GET /api/products/:id/primary-image
- * @desc Retorna a imagem principal de um produto de forma segura
- * @access Público
+ * @desc Retorna a imagem principal de um produto (formato seguro apenas)
  */
 export const getProductPrimaryImageHandler = async (req: Request, res: Response) => {
   try {
     const productId = parseInt(req.params.id);
 
-    console.log('🔍 [IMAGE-DEBUG] ========== INÍCIO ==========');
-    console.log('🔍 [IMAGE-DEBUG] URL solicitada:', req.originalUrl);
-    console.log('🔍 [IMAGE-DEBUG] Produto ID extraído:', productId);
-    console.log('🔍 [IMAGE-DEBUG] Tipo do productId:', typeof productId);
-    console.log('🔍 [IMAGE-DEBUG] req.params:', req.params);
-    console.log('🔍 [IMAGE-DEBUG] req.path:', req.path);
-    console.log('🔍 [IMAGE-DEBUG] req.method:', req.method);
-
     if (isNaN(productId)) {
-      console.error(`🔍 [IMAGE-DEBUG] ID de produto inválido: ${req.params.id}`);
       return res.redirect('/placeholder-image.jpg');
     }
 
-    // Adicionar headers para evitar cache
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-
-    // Usar os dados validados pelo middleware de validação de imagens
+    // Usar os dados validados pelo middleware
     const validatedProduct = req.validatedProduct;
 
-    console.log('🔍 [IMAGE-DEBUG] Dados validados:', validatedProduct);
-
     if (!validatedProduct || !validatedProduct.storeId) {
-      console.error(`🔍 [IMAGE-DEBUG] Dados validados não encontrados para o produto ${productId}`);
       return res.redirect('/placeholder-image.jpg');
     }
 
     const storeId = validatedProduct.storeId;
-    console.log('🔍 [IMAGE-DEBUG] Store ID validado:', storeId);
 
     // Buscar a imagem principal do produto
     const imageQuery = `
-      SELECT pi.id, pi.product_id, pi.image_url, pi.thumbnail_url, pi.is_primary, pi.display_order
+      SELECT pi.image_url
       FROM product_images pi
       WHERE pi.product_id = $1 
       ORDER BY pi.is_primary DESC, pi.display_order ASC, pi.id DESC
       LIMIT 1
     `;
 
-    console.log('🔍 [IMAGE-DEBUG] Query SQL:', imageQuery);
-    console.log('🔍 [IMAGE-DEBUG] Parâmetro usado na query:', [productId]);
-    console.log('🔍 [IMAGE-DEBUG] Executando query para produto:', productId);
-
     const imageResult = await pool.query(imageQuery, [productId]);
 
-    console.log('🔍 [IMAGE-DEBUG] Resultado da query:', {
-      rowCount: imageResult.rows.length,
-      firstRow: imageResult.rows[0],
-      parametroUsado: productId,
-      todosOsResultados: imageResult.rows
-    });
-
     if (imageResult.rows.length === 0) {
-      console.log(`🔍 [IMAGE-DEBUG] Nenhuma imagem encontrada para o produto ${productId}, usando placeholder`);
-      
-      // Verificação especial para produto 11 - tentar encontrar arquivos órfãos
-      if (productId === 11) {
-        console.log(`🔍 [IMAGE-DEBUG] PRODUTO 11 ESPECÍFICO - Verificando arquivos físicos...`);
-        const productDir = path.join(process.cwd(), 'public', 'uploads', 'stores', storeId.toString(), 'products', productId.toString());
-        
-        try {
-          if (fs.existsSync(productDir)) {
-            const files = fs.readdirSync(productDir);
-            const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file));
-            
-            console.log(`🔍 [IMAGE-DEBUG] PRODUTO 11 - Arquivos encontrados no diretório:`, imageFiles);
-            
-            if (imageFiles.length > 0) {
-              const foundImagePath = path.join(productDir, imageFiles[0]);
-              console.log(`🔍 [IMAGE-DEBUG] PRODUTO 11 - Usando arquivo órfão:`, foundImagePath);
-              return res.sendFile(foundImagePath);
-            }
-          }
-        } catch (dirError) {
-          console.error(`🔍 [IMAGE-DEBUG] PRODUTO 11 - Erro ao verificar diretório:`, dirError);
-        }
-      }
-      
-      console.log('🔍 [IMAGE-DEBUG] ========== FIM (SEM IMAGEM) ==========');
       return res.redirect('/placeholder-image.jpg');
     }
 
-    // Usar a imagem encontrada
-    const image = imageResult.rows[0];
-    let imageUrl = image.image_url;
+    const imageUrl = imageResult.rows[0].image_url;
 
-    console.log('🔍 [IMAGE-DEBUG] Imagem encontrada:', {
-      productIdSolicitado: productId,
-      productIdNaImagem: image.product_id,
-      imageId: image.id,
-      imageUrl: image.image_url,
-      thumbnailUrl: image.thumbnail_url,
-      isPrimary: image.is_primary,
-      displayOrder: image.display_order,
-      storeIdValidado: storeId
-    });
-
-    // VERIFICAÇÃO CRÍTICA: Confirmar se a imagem pertence ao produto correto
-    if (image.product_id !== productId) {
-      console.error('🚨 [IMAGE-DEBUG] VAZAMENTO DETECTADO!');
-      console.error('🚨 [IMAGE-DEBUG] Produto solicitado:', productId);
-      console.error('🚨 [IMAGE-DEBUG] Produto na imagem:', image.product_id);
-      console.error('🚨 [IMAGE-DEBUG] URL da imagem:', image.image_url);
-      console.error('🚨 [IMAGE-DEBUG] ========== ERRO CRÍTICO ==========');
-      return res.redirect('/placeholder-image.jpg');
-    }
-
-    // VALIDAÇÃO DE SEGURANÇA: Verificar e corrigir caminho da imagem
+    // Validação de segurança: apenas URLs no formato seguro são aceitas
     const expectedPathPattern = `/uploads/stores/${storeId}/products/${productId}/`;
 
     if (!imageUrl.includes(expectedPathPattern)) {
       console.warn(`⚠️ Caminho de imagem suspeito detectado: ${imageUrl}`);
-      console.warn(`⚠️ Era esperado um caminho contendo: ${expectedPathPattern}`);
-
-      // Reconstruir o caminho usando os IDs validados
-      const fileName = imageUrl.split('/').pop();
-      if (fileName) {
-        const secureImageUrl = `${expectedPathPattern}${fileName}`;
-
-        // Verificar se o arquivo existe no caminho seguro
-        const securePhysicalPath = path.join(process.cwd(), 'public', secureImageUrl);
-
-        if (fs.existsSync(securePhysicalPath)) {
-          console.log(`Servindo arquivo do caminho seguro: ${securePhysicalPath}`);
-          return res.sendFile(securePhysicalPath);
-        } else {
-          console.log(`Arquivo não encontrado no caminho seguro: ${securePhysicalPath}`);
-        }
-      }
-
-      // Se o arquivo não existir no caminho seguro, verificar o caminho original
-      const originalPath = path.join(process.cwd(), 'public', imageUrl);
-
-      if (fs.existsSync(originalPath)) {
-        // Log de aviso, mas servir o arquivo original
-        console.warn(`⚠️ Servindo arquivo de caminho não seguro: ${originalPath}`);
-        return res.sendFile(originalPath);
-      } else {
-        console.log(`Arquivo não encontrado no caminho original: ${originalPath}`);
-      }
-
-      // Tentar encontrar qualquer imagem no diretório do produto
-      try {
-        const productDir = path.join(process.cwd(), 'public', 'uploads', 'stores', storeId.toString(), 'products', productId.toString());
-
-        if (fs.existsSync(productDir)) {
-          const files = fs.readdirSync(productDir);
-          // Filtrar para obter apenas arquivos de imagem
-          const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file));
-
-          if (imageFiles.length > 0) {
-            // Usar a primeira imagem encontrada
-            const foundImagePath = path.join(productDir, imageFiles[0]);
-            console.log(`Usando imagem alternativa encontrada: ${foundImagePath}`);
-            return res.sendFile(foundImagePath);
-          }
-        }
-      } catch (dirError) {
-        console.error(`Erro ao buscar diretório do produto:`, dirError);
-      }
-
-      // Se tudo falhar, usar o placeholder
-      console.log(`Nenhuma imagem válida encontrada para o produto ${productId}, usando placeholder`);
       return res.redirect('/placeholder-image.jpg');
     }
 
     // Verificar se o arquivo existe fisicamente
     const imagePath = path.join(process.cwd(), 'public', imageUrl);
 
-    console.log('🔍 [IMAGE-DEBUG] Verificando arquivo físico:', {
-      imageUrl: imageUrl,
-      imagePath: imagePath,
-      exists: fs.existsSync(imagePath)
-    });
-
     if (fs.existsSync(imagePath)) {
-      console.log('🔍 [IMAGE-DEBUG] Arquivo encontrado, servindo:', imagePath);
-      console.log('🔍 [IMAGE-DEBUG] ========== FIM (SUCESSO) ==========');
       return res.sendFile(imagePath);
     }
 
     // Se o arquivo não existir, usar o placeholder
-    console.log(`🔍 [IMAGE-DEBUG] Arquivo não encontrado: ${imagePath}, usando placeholder`);
-    console.log('🔍 [IMAGE-DEBUG] ========== FIM (FALLBACK) ==========');
     return res.redirect('/placeholder-image.jpg');
   } catch (error) {
     console.error('Erro ao servir imagem do produto:', error);
@@ -1156,13 +1016,13 @@ export const deleteImage = async (req: Request, res: Response) => {
         if (!imageDeleted || !thumbnailDeleted) {
           const productDir = path.join(process.cwd(), 'public', 'uploads', 'stores', storeId.toString(), 'products', productId.toString());
           const productThumbDir = path.join(productDir, 'thumbnails');
-          
+
           const baseName = path.basename(image.image_url, path.extname(image.image_url));
-          
+
           if (fs.existsSync(productDir)) {
             const files = fs.readdirSync(productDir);
             const matchingFiles = files.filter(file => file.includes(baseName));
-            
+
             for (const file of matchingFiles) {
               const filePath = path.join(productDir, file);
               deleteFileIfExists(filePath, `arquivo relacionado encontrado`);
@@ -1172,7 +1032,7 @@ export const deleteImage = async (req: Request, res: Response) => {
           if (fs.existsSync(productThumbDir)) {
             const thumbFiles = fs.readdirSync(productThumbDir);
             const matchingThumbFiles = thumbFiles.filter(file => file.includes(baseName));
-            
+
             for (const file of matchingThumbFiles) {
               const filePath = path.join(productThumbDir, file);
               deleteFileIfExists(filePath, `thumbnail relacionado encontrado`);

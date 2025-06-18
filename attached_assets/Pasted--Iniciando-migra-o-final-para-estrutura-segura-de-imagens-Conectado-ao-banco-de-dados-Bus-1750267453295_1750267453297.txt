@@ -1,0 +1,50 @@
+🚀 Iniciando migração final para estrutura segura de imagens...
+✅ Conectado ao banco de dados
+📋 Buscando produtos com imagens...
+📊 Encontrados 8 produtos com imagens
+
+🔧 Processando produto 1 (Echarpe Indiana Estampada )
+❌ Erro durante migração: error: null value in column "thumbnail_url" of relation "product_images" violates not-null constraint
+    at /home/runner/workspace/node_modules/pg/lib/client.js:535:17
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async migrateToSecureStructure (file:///home/runner/workspace/scripts/migrate-to-secure-structure-final.js:99:11) {
+  length: 328,
+  severity: 'ERROR',
+  code: '23502',
+  detail: 'Failing row contains (36, 1, /uploads/stores/1/products/1/1746415806145-727523407.jpg, null, t, 0, 2025-06-18 17:24:00.420194+00).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'product_images',
+  column: 'thumbnail_url',
+  dataType: undefined,
+  constraint: undefined,
+  file: 'execMain.c',
+  line: '2006',
+  routine: 'ExecConstraints'
+}
+💥 Falha na migração: error: null value in column "thumbnail_url" of relation "product_images" violates not-null constraint
+    at /home/runner/workspace/node_modules/pg/lib/client.js:535:17
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async migrateToSecureStructure (file:///home/runner/workspace/scripts/migrate-to-secure-structure-final.js:99:11) {
+  length: 328,
+  severity: 'ERROR',
+  code: '23502',
+  detail: 'Failing row contains (36, 1, /uploads/stores/1/products/1/1746415806145-727523407.jpg, null, t, 0, 2025-06-18 17:24:00.420194+00).',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'product_images',
+  column: 'thumbnail_url',
+  dataType: undefined,
+  constraint: undefined,
+  file: 'execMain.c',
+  line: '2006',
+  routine: 'ExecConstraints'
+}
