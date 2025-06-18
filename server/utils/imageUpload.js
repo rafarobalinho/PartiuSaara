@@ -1,3 +1,4 @@
+
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -9,22 +10,48 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '../..');
 
-// Define as pastas de upload
-const uploadDir = path.join(rootDir, 'public', 'uploads');
-const thumbnailDir = path.join(uploadDir, 'thumbnails');
+// Define as pastas de upload base
+const baseUploadDir = path.join(rootDir, 'public', 'uploads');
 
-// Garante que as pastas existam
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-if (!fs.existsSync(thumbnailDir)) {
-  fs.mkdirSync(thumbnailDir, { recursive: true });
-}
+// Função para criar estrutura de pastas baseada no tipo e IDs
+const createUploadPath = (type, storeId, productId = null) => {
+  let uploadPath;
+  
+  if (type === 'product' && productId) {
+    // Para produtos: /uploads/stores/{storeId}/products/{productId}/
+    uploadPath = path.join(baseUploadDir, 'stores', storeId.toString(), 'products', productId.toString());
+  } else if (type === 'store') {
+    // Para lojas: /uploads/stores/{storeId}/
+    uploadPath = path.join(baseUploadDir, 'stores', storeId.toString());
+  } else {
+    // Fallback para uploads gerais
+    uploadPath = baseUploadDir;
+  }
+  
+  // Garante que a pasta existe
+  if (!fs.existsSync(uploadPath)) {
+    fs.mkdirSync(uploadPath, { recursive: true });
+    console.log(`📁 Pasta criada: ${uploadPath}`);
+  }
+  
+  return uploadPath;
+};
 
 // Configuração do armazenamento para o multer
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, uploadDir);
+    const { type, storeId, productId } = req.query;
+    
+    console.log(`🔍 [UPLOAD] Configurando destino:`, { type, storeId, productId });
+    
+    try {
+      const uploadPath = createUploadPath(type, storeId, productId);
+      console.log(`📁 [UPLOAD] Pasta de destino: ${uploadPath}`);
+      cb(null, uploadPath);
+    } catch (error) {
+      console.error('❌ [UPLOAD] Erro ao criar pasta de destino:', error);
+      cb(error);
+    }
   },
   filename: function (req, file, cb) {
     // Cria um nome de arquivo único baseado no timestamp e um número aleatório
@@ -32,7 +59,9 @@ const storage = multer.diskStorage({
     // Obtém a extensão do arquivo original
     const ext = path.extname(file.originalname).toLowerCase();
     // Cria o nome do arquivo final
-    cb(null, uniqueSuffix + ext);
+    const filename = uniqueSuffix + ext;
+    console.log(`📝 [UPLOAD] Nome do arquivo: ${filename}`);
+    cb(null, filename);
   }
 });
 
@@ -63,20 +92,33 @@ const processImages = async (req, res, next) => {
     return next();
   }
 
+  const { type, storeId, productId } = req.query;
+  console.log(`🖼️ [UPLOAD] Processando ${req.files.length} imagens para:`, { type, storeId, productId });
+
   try {
     // Para cada arquivo enviado, cria uma versão otimizada (thumbnail)
     const processPromises = req.files.map(async (file) => {
       // Modificamos a extensão para garantir que todos os arquivos sejam salvos como JPG
       const fileNameWithoutExt = path.basename(file.path, path.extname(file.path));
-      const thumbnailPath = path.join(thumbnailDir, `${fileNameWithoutExt}.jpg`);
-      const optimizedPath = path.join(uploadDir, `${fileNameWithoutExt}.jpg`);
       
-      console.log(`Processando imagem: ${file.path} -> ${optimizedPath}`);
+      // Criar pasta de thumbnails na mesma estrutura
+      const fileDir = path.dirname(file.path);
+      const thumbnailDir = path.join(fileDir, 'thumbnails');
+      
+      if (!fs.existsSync(thumbnailDir)) {
+        fs.mkdirSync(thumbnailDir, { recursive: true });
+        console.log(`📁 [UPLOAD] Pasta de thumbnails criada: ${thumbnailDir}`);
+      }
+      
+      const thumbnailPath = path.join(thumbnailDir, `${fileNameWithoutExt}.jpg`);
+      const optimizedPath = path.join(fileDir, `${fileNameWithoutExt}.jpg`);
+      
+      console.log(`🔄 [UPLOAD] Processando: ${file.path} -> ${optimizedPath}`);
       
       try {
         // Corrigindo o erro "Cannot use same file for input and output"
         // Utilizamos um nome de arquivo temporário para o processamento
-        const tempFilePath = path.join(uploadDir, `temp_${Date.now()}_${fileNameWithoutExt}.jpg`);
+        const tempFilePath = path.join(fileDir, `temp_${Date.now()}_${fileNameWithoutExt}.jpg`);
         
         // Processa o arquivo original para adicionar fundo branco e otimizar
         await sharp(file.path)
@@ -98,11 +140,11 @@ const processImages = async (req, res, next) => {
           try {
             fs.unlinkSync(file.path);
           } catch (e) {
-            console.log(`Aviso: Não foi possível excluir o arquivo original: ${e.message}`);
+            console.log(`⚠️ [UPLOAD] Não foi possível excluir o arquivo original: ${e.message}`);
           }
         }
         
-        console.log(`Gerando thumbnail: ${thumbnailPath}`);
+        console.log(`🖼️ [UPLOAD] Gerando thumbnail: ${thumbnailPath}`);
         
         // Criar thumbnail a partir do arquivo otimizado
         await sharp(optimizedPath)
@@ -118,15 +160,16 @@ const processImages = async (req, res, next) => {
         
         return thumbnailPath;
       } catch (err) {
-        console.error(`Erro ao processar imagem individual: ${file.path}`, err);
+        console.error(`❌ [UPLOAD] Erro ao processar imagem: ${file.path}`, err);
         throw err;
       }
     });
 
     await Promise.all(processPromises);
+    console.log(`✅ [UPLOAD] Todas as imagens processadas com sucesso`);
     next();
   } catch (error) {
-    console.error('Erro ao processar imagens:', error);
+    console.error('❌ [UPLOAD] Erro ao processar imagens:', error);
     next(error);
   }
 };
