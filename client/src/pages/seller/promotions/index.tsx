@@ -298,7 +298,6 @@ export default function SellerPromotions() {
       </AlertDialog>
 
       <Card className="mb-6">
-</old_str>
 
       <Card className="mb-6">
         <CardContent className="p-4">
