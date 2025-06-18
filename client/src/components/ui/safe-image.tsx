@@ -30,27 +30,32 @@ export const SafeImage: React.FC<SafeImageProps> = ({
 
   // Processar src para garantir que use URL direta em vez de API endpoint
   const getDirectImageUrl = (originalSrc: string, productId?: number) => {
-    // Se não há src, usar API endpoint se tiver productId
-    if (!originalSrc && productId) {
+    // Se não há src válida e tem productId, usar API endpoint
+    if ((!originalSrc || originalSrc.includes('placeholder') || originalSrc.includes('default')) && productId) {
       return `/api/products/${productId}/primary-image`;
     }
 
-    // Se já é uma URL direta válida, usar ela
+    // Se já é uma URL direta válida no formato correto, usar ela
+    if (originalSrc && originalSrc.startsWith('/uploads/stores/')) {
+      return originalSrc;
+    }
+
+    // Se é uma URL de uploads genérica, manter como está
     if (originalSrc && originalSrc.startsWith('/uploads/')) {
       return originalSrc;
     }
 
-    // Se é um endpoint da API, usar endpoint específico para produto
-    if (originalSrc && originalSrc.includes('/api/products/') && productId) {
+    // Se é um endpoint da API, manter como está
+    if (originalSrc && originalSrc.includes('/api/products/')) {
+      return originalSrc;
+    }
+
+    // Se tem productId e src não é válida, usar API endpoint
+    if (productId && originalSrc && !originalSrc.startsWith('/uploads/') && !originalSrc.startsWith('/api/')) {
       return `/api/products/${productId}/primary-image`;
     }
 
-    // Se tem productId mas src não é válida, tentar API endpoint
-    if (productId && (!originalSrc || originalSrc.includes('placeholder') || originalSrc.includes('default'))) {
-      return `/api/products/${productId}/primary-image`;
-    }
-
-    // Se não é uma URL válida, retornar src original
+    // Retornar src original se não atender nenhuma condição acima
     return originalSrc;
   };
 
