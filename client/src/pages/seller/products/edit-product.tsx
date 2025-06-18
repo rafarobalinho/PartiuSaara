@@ -519,9 +519,7 @@ export default function EditProduct() {
 
                     {/* Imagens */}
             <div className="space-y-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Imagens do Produto
-              </label>
+              <Label>Imagens do Produto</Label>
 
               {/* Imagens Existentes */}
               {existingImages.length > 0 && (
