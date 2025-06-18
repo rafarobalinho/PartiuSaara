@@ -17,7 +17,7 @@ import { ImageComponent } from '@/components/ui/image-component';
 function getValidImage(imageUrl: string | undefined, fallbackUrl: string): string {
   // Se não tiver URL, usa a imagem padrão
   if (!imageUrl) return fallbackUrl;
-  
+
   // Verifica se a imagem é uma URL válida
   try {
     new URL(imageUrl);
@@ -71,34 +71,34 @@ export default function ProductDetail() {
     queryKey: [`/api/products/${id}/related`],
     enabled: !!product
   });
-  
+
   // Implementar useEffect para inicialização segura do produto
   useEffect(() => {
     const fetchProductDetails = async () => {
       try {
         setLoading(true);
         setError(null);
-        
+
         const productId = id;
         console.log('Buscando detalhes do produto ID:', productId);
-        
+
         if (!productId) {
           console.error('ID do produto não fornecido na URL');
           setError('Produto não encontrado');
           setLoading(false);
           return;
         }
-        
+
         const response = await fetch(`/api/products/${productId}`);
         const data = await response.json();
         console.log('Resposta da API de produto:', data);
-        
+
         if (!data || !data.product || !data.product.id) {
           setError('Produto não encontrado');
           setLoading(false);
           return;
         }
-        
+
         // Garantir valores padrão seguros para todos os campos
         const safeProduct = {
           id: data.product.id,
@@ -111,21 +111,21 @@ export default function ProductDetail() {
           storeId: data.product.storeId || data.product.store_id || 0, // Garantir que temos o ID da loja
           images: []
         };
-        
+
         // Processar imagens
         if (data.product.images && Array.isArray(data.product.images)) {
           safeProduct.images = data.product.images;
         } else if (data.product.primary_image) {
           safeProduct.images = [data.product.primary_image];
         }
-        
+
         // Se ainda não tiver imagens, buscar da API separadamente
         if (safeProduct.images.length === 0) {
           try {
             const imagesResponse = await fetch(`/api/products/${productId}/images`);
             const imagesData = await imagesResponse.json();
             console.log('Imagens do produto:', imagesData);
-            
+
             if (imagesData && Array.isArray(imagesData)) {
               safeProduct.images = imagesData;
             }
@@ -134,14 +134,14 @@ export default function ProductDetail() {
             // Continuamos mesmo sem imagens
           }
         }
-        
+
         // Buscar informações da loja
         try {
           if (safeProduct.storeId) {
             const storeResponse = await fetch(`/api/stores/${safeProduct.storeId}`);
             const storeData = await storeResponse.json();
             console.log('Informações da loja:', storeData);
-            
+
             if (storeData) {
               safeProduct.store = {
                 id: storeData.id || safeProduct.storeId,
@@ -155,7 +155,7 @@ export default function ProductDetail() {
           console.error('Erro ao buscar informações da loja:', storeError);
           // Continuamos mesmo sem informações da loja
         }
-        
+
         console.log('Produto normalizado:', safeProduct);
         setProductData(safeProduct as Product);
       } catch (error) {
@@ -165,7 +165,7 @@ export default function ProductDetail() {
         setLoading(false);
       }
     };
-    
+
     fetchProductDetails();
   }, [id]);
 
@@ -185,7 +185,7 @@ export default function ProductDetail() {
         `/api/wishlist/${id}`,
         {}
       );
-      
+
       setIsWishlisted(!isWishlisted);
       toast({
         title: isWishlisted ? 'Removido dos favoritos' : 'Adicionado aos favoritos',
@@ -220,7 +220,7 @@ export default function ProductDetail() {
         `/api/reservations`,
         { productId: id }
       );
-      
+
       toast({
         title: 'Reserva criada',
         description: `${productData?.name || 'Produto'} foi reservado com sucesso. Você tem 72 horas para retirar.`,
@@ -323,7 +323,7 @@ export default function ProductDetail() {
               </div>
             )}
           </div>
-          
+
           {/* Galeria de imagens */}
           <div className="mt-4">
             <h3 className="text-lg font-medium mb-2">Mais imagens</h3>
@@ -358,7 +358,7 @@ export default function ProductDetail() {
         {/* Product Info */}
         <div className="md:w-1/2">
           <h1 className="text-2xl font-bold mb-2">{productData.name}</h1>
-          
+
           {productData.store && (
             <Link href={`/stores/${productData.store.id}`} className="text-primary hover:underline inline-flex items-center mb-4">
               <i className="fas fa-store mr-1"></i>
@@ -466,7 +466,7 @@ export default function ProductDetail() {
             <div className="prose max-w-none">
               <h3 className="text-lg font-medium mb-3">Descrição do Produto</h3>
               <p className="text-gray-700 whitespace-pre-line">{productData.description}</p>
-              
+
               <h3 className="text-lg font-medium mt-6 mb-3">Especificações</h3>
               <ul className="list-disc pl-5">
                 <li className="text-gray-700">Categoria: {productData.category}</li>
@@ -494,7 +494,7 @@ export default function ProductDetail() {
                     </div>
                   </div>
                 </div>
-                
+
                 <Link href={`/stores/${productData.store.id}`}>
                   <Button className="bg-primary text-white hover:bg-primary/90">
                     Ver Loja
