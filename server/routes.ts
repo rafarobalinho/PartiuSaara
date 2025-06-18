@@ -31,6 +31,7 @@ import { comparePasswords } from './utils/auth';
 import { geocodingMiddleware } from "./middlewares/geocoding.middleware";
 import { processStoreMiddleware } from "./middleware/store-processor.middleware";
 import { secureImageMiddleware } from "./middleware/secure-image-middleware";
+import { preventBlobUrls, logUploadAttempt } from './middleware/prevent-blob-urls.js';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Aplicar middleware de segurança de imagens
@@ -45,7 +46,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/logout', authMiddleware, AuthController.logout);
   app.get('/api/auth/me', authMiddleware, AuthController.getCurrentUser);
   app.get('/api/auth/verify', authMiddleware, AuthController.verify);
-  
+
   // Password reset routes
   app.post('/api/auth/request-password-reset', PasswordResetController.requestPasswordReset);
   app.post('/api/auth/reset-password', PasswordResetController.resetPassword);
@@ -268,8 +269,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rotas de produtos que requerem autenticação e verificação de propriedade
-  app.post('/api/products', authMiddleware, ProductController.createProduct);
-  app.put('/api/products/:id', authMiddleware, verifyProductOwnership, ProductController.updateProduct);
+  app.post('/api/products', authMiddleware, logUploadAttempt, preventBlobUrls, ProductController.createProduct);
+  app.put('/api/products/:id', authMiddleware, logUploadAttempt, preventBlobUrls, verifyProductOwnership, ProductController.updateProduct);
 
   // Rota para excluir um produto
   app.delete('/api/products/:id', authMiddleware, verifyProductOwnership, async (req: Request, res: Response) => {
@@ -388,8 +389,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rotas que requerem geocodificação
 
   // Rotas que requerem autenticação e verificação de propriedade
-  app.post('/api/stores', authMiddleware, geocodingMiddleware, processStoreMiddleware, StoreController.createStore);
-  app.put('/api/stores/:id', authMiddleware, verifyStoreOwnership, geocodingMiddleware, processStoreMiddleware, StoreController.updateStore);
+  app.post('/api/stores', authMiddleware, logUploadAttempt, preventBlobUrls, geocodingMiddleware, processStoreMiddleware, StoreController.createStore);
+  app.put('/api/stores/:id', authMiddleware, logUploadAttempt, preventBlobUrls, verifyStoreOwnership, geocodingMiddleware, processStoreMiddleware, StoreController.updateStore);
   app.patch('/api/stores/:id', authMiddleware, verifyStoreOwnership, geocodingMiddleware, processStoreMiddleware, StoreController.updateStore);
 
   // Rota para excluir uma loja
@@ -830,7 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       return res.json({ 
         success: true, 
-        message: `Limpeza concluída: ${result.stores} lojas e ${result.products} produtos atualizados.`,
+        message: `Limpeza concluída: ${result.stores} lojas e ${result.products} atualizados.`,
         result 
       });
     } catch (error) {
