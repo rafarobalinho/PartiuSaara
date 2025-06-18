@@ -19,13 +19,11 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   const [isLoading, setIsLoading] = useState(true);
 
   const handleImageError = () => {
-    console.log(`❌ [SAFE-IMAGE] Erro ao carregar imagem: ${src}`);
     setImageError(true);
     setIsLoading(false);
   };
 
   const handleImageLoad = () => {
-    console.log(`✅ [SAFE-IMAGE] Imagem carregada com sucesso: ${src}`);
     setImageError(false);
     setIsLoading(false);
   };
@@ -34,15 +32,12 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   const getDirectImageUrl = (originalSrc: string, productId?: number) => {
     // Se já é uma URL direta válida, usar ela
     if (originalSrc && originalSrc.startsWith('/uploads/')) {
-      console.log(`🖼️ [SAFE-IMAGE] Usando URL direta: ${originalSrc}`);
       return originalSrc;
     }
 
     // Se é um endpoint da API, usar endpoint específico para produto
     if (originalSrc && originalSrc.includes('/api/products/') && productId) {
-      const apiUrl = `/api/products/${productId}/primary-image`;
-      console.log(`🖼️ [SAFE-IMAGE] Usando API para produto ${productId}: ${apiUrl}`);
-      return apiUrl;
+      return `/api/products/${productId}/primary-image`;
     }
 
     // Se não é uma URL válida, retornar src original
@@ -61,7 +56,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({
       <img
         src={imageSrc}
         alt={alt}
-        className={`${className} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+        className={`w-full h-full object-cover ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
         onError={handleImageError}
         onLoad={handleImageLoad}
         loading="lazy"
