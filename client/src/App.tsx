@@ -18,6 +18,8 @@ import Presentation from "@/pages/presentation";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
+import ForgotPassword from "@/pages/auth/forgot-password";
+import ResetPassword from "@/pages/auth/reset-password";
 import Categories from "@/pages/categories/index";
 import Category from "@/pages/categories/category";
 import Products from "@/pages/products/index";
@@ -52,7 +54,6 @@ import StoreProducts from "@/pages/seller/stores/store-products";
 import StoreAnalyticsPage from "@/pages/seller/stores/store-analytics";
 import LocationSettingsPage from "@/pages/seller/settings/location";
 import SellerLanding from "@/pages/seller-landing";
-import { lazy } from 'react';
 
 // Componente especial para a página de apresentação sem autenticação
 function PresentationRoute() {
@@ -131,8 +132,8 @@ function Router() {
           <Route path="/seller-landing" component={SellerLanding} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
-          <Route path="/forgot-password" component={lazy(() => import('./pages/auth/forgot-password'))} />
-          <Route path="/reset-password" component={lazy(() => import('./pages/auth/reset-password'))} />
+          <Route path="/forgot-password" component={ForgotPassword} />
+          <Route path="/reset-password" component={ResetPassword} />
           <Route component={NotFound} />
         </Switch>
       </div>
