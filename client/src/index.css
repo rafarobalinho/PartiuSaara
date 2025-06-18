@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Temporary debug CSS for image visibility */
+.safe-image-debug img {
+  border: 2px solid red !important;
+  background: yellow !important;
+  min-height: 100px !important;
+  min-width: 100px !important;
+}
+
+/* Ensure images are visible */
+img[src^="/uploads/"], img[src^="/api/products/"] {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
 /* Custom scrollbar styles for mobile tabs */
 .scrollbar-hide {
   -ms-overflow-style: none;  /* Internet Explorer 10+ */

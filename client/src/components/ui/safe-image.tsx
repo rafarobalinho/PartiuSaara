@@ -54,18 +54,28 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   const imageSrc = !processedSrc || imageError ? fallbackSrc : processedSrc;
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative safe-image-debug ${className}`}>
       {isLoading && !imageError && (
         <div className="absolute inset-0 bg-gray-200 animate-pulse rounded" />
       )}
       <img
         src={imageSrc}
         alt={alt}
-        className={`${className} ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
+        className={`w-full h-full object-cover ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
         onError={handleImageError}
         onLoad={handleImageLoad}
         loading="lazy"
+        style={{ 
+          display: 'block',
+          maxWidth: '100%',
+          height: 'auto',
+          minHeight: '50px'
+        }}
       />
+      {/* Debug info */}
+      <div className="absolute bottom-0 left-0 bg-black bg-opacity-50 text-white text-xs p-1 max-w-full overflow-hidden">
+        {imageSrc.substring(imageSrc.lastIndexOf('/') + 1)}
+      </div>
     </div>
   );
 };
