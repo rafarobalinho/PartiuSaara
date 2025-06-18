@@ -1,0 +1,56 @@
+CORREÇÃO DO ERRO DE ARRAY
+Problema Identificado
+O banco PostgreSQL está recebendo "" (string vazia) quando espera um array. O erro está no campo tags que está sendo enviado como string vazia "" mas o banco espera um array.
+Localização do Erro
+
+Arquivo: server/storage.ts linha 1668
+Função: createStore
+Problema: Campo tags como string vazia sendo inserido em coluna de array
+
+Solução Urgente
+1️⃣ Corrigir o processamento do campo tags
+No controller de stores, antes de enviar para storage:
+typescript// Corrigir o campo tags - converter string vazia para array vazio
+if (typeof storeData.tags === 'string') {
+  if (storeData.tags.trim() === '') {
+    storeData.tags = []; // Array vazio em vez de string vazia
+  } else {
+    // Se houver tags como string, converter para array
+    storeData.tags = storeData.tags.split(',').map(tag => tag.trim());
+  }
+}
+
+// Garantir que outros campos de array estejam corretos
+if (!Array.isArray(storeData.categories)) {
+  storeData.categories = [];
+}
+
+if (!Array.isArray(storeData.images)) {
+  storeData.images = [];
+}
+2️⃣ Verificar o SQL no storage.ts
+Arquivo: server/storage.ts linha ~1668
+Na função createStore, verificar se o SQL está tratando arrays corretamente:
+sql-- O campo tags deve ser inserido como array PostgreSQL
+INSERT INTO stores (name, description, category, tags, ...)
+VALUES ($1, $2, $3, $4, ...)
+
+-- Onde $4 deve ser um array como: ['tag1', 'tag2'] ou []
+-- NÃO uma string como: ""
+3️⃣ Logs para confirmar
+Adicionar antes da inserção no banco:
+typescriptconsole.log('🔍 [STORAGE] Dados antes da inserção no BD:', {
+  tags: storeData.tags,
+  tagsType: typeof storeData.tags,
+  tagsIsArray: Array.isArray(storeData.tags),
+  categories: storeData.categories,
+  categoriesType: typeof storeData.categories
+});
+Correção Imediata
+O problema principal é:
+
+✅ Frontend envia: tags: ""
+❌ Banco espera: tags: []
+
+Converter string vazia para array vazio antes da inserção no banco resolverá o problema.
+Esta é a última barreira para criar a loja com sucesso!
