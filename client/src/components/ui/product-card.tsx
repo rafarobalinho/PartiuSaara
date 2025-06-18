@@ -253,10 +253,9 @@ export default function ProductCard({
           )}
 
           <SafeImage 
-            src={product.images && product.images.length > 0 ? product.images[0] : `/api/products/${product.id}/primary-image`}
+            src={product.images && product.images.length > 0 ? product.images[0] : ''}
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover object-center p-0"
-            onLoad={() => console.log(`✅ [PRODUCT-CARD] Imagem produto ${product.id} carregada: /api/products/${product.id}/primary-image`)}
             fallbackSrc="/placeholder-image.jpg"
             productId={product.id}
             storeId={product.store?.id}

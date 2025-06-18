@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 
 interface SafeImageProps {
@@ -6,6 +7,8 @@ interface SafeImageProps {
   className?: string;
   fallbackSrc?: string;
   productId?: number;
+  storeId?: number;
+  type?: 'product' | 'store';
 }
 
 export const SafeImage: React.FC<SafeImageProps> = ({ 
@@ -13,7 +16,9 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   alt, 
   className = '', 
   fallbackSrc = '/assets/default-product-image.jpg',
-  productId 
+  productId,
+  storeId,
+  type = 'product'
 }) => {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,18 +36,17 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   };
 
   // Processar src para garantir que use URL direta em vez de API endpoint
-  const getDirectImageUrl = (originalSrc: string, productId?: number) => {
+  const getDirectImageUrl = (originalSrc: string) => {
     // Se já é uma URL direta válida, usar ela
     if (originalSrc && originalSrc.startsWith('/uploads/')) {
       console.log(`🖼️ [SAFE-IMAGE] Usando URL direta: ${originalSrc}`);
       return originalSrc;
     }
 
-    // Se é um endpoint da API, usar endpoint específico para produto
-    if (originalSrc && originalSrc.includes('/api/products/') && productId) {
-      const apiUrl = `/api/products/${productId}/primary-image`;
-      console.log(`🖼️ [SAFE-IMAGE] Usando API para produto ${productId}: ${apiUrl}`);
-      return apiUrl;
+    // Se não há src ou é uma URL de API, usar fallback
+    if (!originalSrc || originalSrc.includes('/api/')) {
+      console.log(`🖼️ [SAFE-IMAGE] URL inválida ou API, usando fallback: ${originalSrc}`);
+      return fallbackSrc;
     }
 
     // Se não é uma URL válida, retornar src original
@@ -50,7 +54,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   };
 
   // Se não há src ou houve erro, usar fallback
-  const processedSrc = getDirectImageUrl(src, productId);
+  const processedSrc = getDirectImageUrl(src);
   const imageSrc = !processedSrc || imageError ? fallbackSrc : processedSrc;
 
   return (
@@ -69,3 +73,6 @@ export const SafeImage: React.FC<SafeImageProps> = ({
     </div>
   );
 };
+
+// Add default export
+export default SafeImage;
