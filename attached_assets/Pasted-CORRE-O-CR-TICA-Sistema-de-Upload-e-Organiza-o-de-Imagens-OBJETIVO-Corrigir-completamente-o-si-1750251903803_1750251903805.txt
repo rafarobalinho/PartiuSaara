@@ -1,0 +1,167 @@
+CORREÇÃO CRÍTICA: Sistema de Upload e Organização de Imagens
+🎯 OBJETIVO
+Corrigir completamente o sistema de upload, armazenamento e exibição de imagens de produtos e lojas, resolvendo problemas de diretórios faltantes e URLs blob incorretas.
+📋 PROBLEMA IDENTIFICADO
+Problema Principal
+
+Produto ID 11 (Óculos Escuros - Linha Bronze) está sem imagens físicas
+Diretório esperado /public/uploads/stores/2/products/11/ não existe
+Banco de dados mostra 0 imagens para o produto
+Padrão sistêmico: Outras lojas/produtos podem ter o mesmo problema
+
+Problemas Secundários
+
+URLs blob sendo salvas incorretamente na tabela stores
+Imagens não sendo processadas pelo upload.controller.js
+Estrutura de diretórios inconsistente
+Falta de validação preventiva
+
+🔧 SOLUÇÃO REQUERIDA
+ETAPA 1: Diagnóstico Completo (5 min)
+1.1 Criar e executar script de diagnóstico:
+javascript// scripts/diagnose-images.js
+import fs from 'fs';
+import path from 'path';
+import pkg from 'pg';
+const { Pool } = pkg;
+
+// Verificar:
+// - Estrutura completa de diretórios /public/uploads/
+// - Todos os produtos sem imagens no banco
+// - Todos os arquivos órfãos (sem registro no banco)
+// - URLs blob na tabela stores
+// - Inconsistências entre banco e arquivos físicos
+1.2 Relatório deve incluir:
+
+Lista de produtos sem imagens
+Lista de arquivos órfãos
+Estrutura atual de diretórios
+URLs blob encontradas
+Recomendações de correção
+
+ETAPA 2: Correção de Estrutura (10 min)
+2.1 Criar estrutura de diretórios padrão:
+/public/uploads/
+├── stores/
+│   └── [store_id]/
+│       ├── [timestamp].jpg (imagem principal)
+│       └── products/
+│           └── [product_id]/
+│               ├── [timestamp].jpg
+│               └── thumbnails/
+│                   └── [timestamp].jpg
+├── thumbnails/ (imagens otimizadas)
+└── originals/ (backup das originais)
+2.2 Script para criar estrutura automaticamente para todas as lojas/produtos existentes.
+ETAPA 3: Migração de Dados (15 min)
+3.1 Converter URLs blob para arquivos físicos:
+
+Identificar todas as URLs blob na tabela stores
+Baixar e converter imagens blob para arquivos JPG
+Salvar na estrutura correta de diretórios
+Registrar na tabela store_images
+Limpar URLs blob da tabela stores
+
+3.2 Reorganizar arquivos existentes:
+
+Mover arquivos para estrutura correta
+Atualizar registros no banco de dados
+Criar thumbnails faltantes
+
+ETAPA 4: Correção de Controllers (10 min)
+4.1 Modificar stores.controller.js:
+javascript// Adicionar validação que rejeita URLs blob
+if (imageUrl && imageUrl.startsWith('blob:')) {
+  throw new Error('URLs blob não são permitidas. Use o endpoint de upload.');
+}
+4.2 Corrigir processo de cadastro de lojas:
+
+Garantir que imagens passem pelo /api/upload/images?type=store&entityId=X
+Implementar upload em duas etapas se necessário
+Adicionar validação preventiva
+
+4.3 Verificar products.controller.js:
+
+Mesma validação para produtos
+Garantir uso correto do upload endpoint
+
+ETAPA 5: Validações Preventivas (5 min)
+5.1 Middleware de validação:
+javascript// middleware/prevent-blob-urls.js
+export const preventBlobUrls = (req, res, next) => {
+  const checkForBlob = (obj) => {
+    for (let key in obj) {
+      if (typeof obj[key] === 'string' && obj[key].startsWith('blob:')) {
+        return res.status(400).json({
+          error: `Campo ${key} contém URL blob inválida. Use o endpoint de upload.`
+        });
+      }
+    }
+  };
+  
+  checkForBlob(req.body);
+  next();
+};
+5.2 Aplicar middleware nas rotas de lojas e produtos.
+ETAPA 6: Scripts de Manutenção (5 min)
+6.1 Script de verificação periódica:
+javascript// scripts/check-image-integrity.js
+// - Verificar arquivos órfãos
+// - Verificar registros sem arquivos
+// - Relatório de saúde do sistema
+6.2 Script de correção automática:
+javascript// scripts/fix-images.js
+// - Corrigir automaticamente problemas encontrados
+// - Criar diretórios faltantes
+// - Registrar arquivos órfãos no banco
+📝 ARQUIVOS PARA MODIFICAR
+Controllers
+
+server/controllers/stores.controller.js
+server/controllers/products.controller.js
+server/controllers/upload.controller.js
+
+Frontend (se necessário)
+
+client/src/pages/seller/stores/create.tsx
+client/src/pages/seller/products/create.tsx
+
+Rotas
+
+server/routes/stores.js
+server/routes/products.js
+
+Novos arquivos
+
+scripts/diagnose-images.js
+scripts/fix-images.js
+scripts/check-image-integrity.js
+middleware/prevent-blob-urls.js
+
+✅ CRITÉRIOS DE SUCESSO
+
+Produto 11 deve ter imagens funcionais
+Zero URLs blob na tabela stores
+Estrutura consistente de diretórios
+Upload funcional para novas lojas/produtos
+Validação preventiva ativa
+Scripts de manutenção funcionais
+
+🚨 PRIORIDADE
+CRÍTICO - Este problema afeta a experiência do usuário e pode impactar vendas. A correção deve ser implementada IMEDIATAMENTE.
+📊 TEMPO ESTIMADO
+
+Diagnóstico: 5 min
+Implementação: 35 min
+Testes: 10 min
+Total: 50 min
+
+🔄 NEXT STEPS
+
+Execute diagnóstico completo
+Implemente correções por etapa
+Teste com produto 11 especificamente
+Valide que novas lojas funcionam corretamente
+Execute scripts de verificação final
+
+⚠️ IMPORTANTE: Faça backup do banco de dados antes de executar as correções.
