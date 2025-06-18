@@ -1,3 +1,4 @@
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -19,12 +20,14 @@ const rootDir = path.resolve(__dirname, '../..');
 export const uploadImages = async (req, res) => {
   try {
     // A verificação de autenticação já é feita pelo middleware authMiddleware na rota
-    const { type, entityId } = req.query;
+    const { type, storeId, productId } = req.query;
     
-    if (!type || !entityId) {
+    console.log(`🔍 [UPLOAD-CONTROLLER] Parâmetros recebidos:`, { type, storeId, productId });
+    
+    if (!type || !storeId) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Parâmetros obrigatórios não fornecidos: type (store ou product) e entityId' 
+        message: 'Parâmetros obrigatórios não fornecidos: type (store ou product) e storeId' 
       });
     }
 
@@ -36,10 +39,18 @@ export const uploadImages = async (req, res) => {
       });
     }
 
+    // Para produtos, productId é obrigatório
+    if (type === 'product' && !productId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Para tipo "product", productId é obrigatório' 
+      });
+    }
+
     // A configuração de upload é tratada pelo middleware imageUpload
     imageUpload.array('images', 10)(req, res, async (err) => {
       if (err) {
-        console.error('Erro no upload de imagens:', err);
+        console.error('❌ [UPLOAD-CONTROLLER] Erro no upload de imagens:', err);
         return res.status(400).json({ success: false, message: 'Erro no upload de imagens: ' + err.message });
       }
 
@@ -49,6 +60,8 @@ export const uploadImages = async (req, res) => {
       }
 
       try {
+        console.log(`📁 [UPLOAD-CONTROLLER] Processando ${req.files.length} arquivos`);
+        
         // Processa as imagens e retorna os caminhos otimizados
         const processedImages = req.files.map(file => {
           // O caminho completo do arquivo
@@ -60,16 +73,23 @@ export const uploadImages = async (req, res) => {
           // Obter o nome do arquivo sem extensão
           const fileNameWithoutExt = path.basename(filename, path.extname(filename));
           
-          // Caminho para o thumbnail (versão otimizada) sempre com extensão .jpg
-          const thumbnailPath = `/uploads/thumbnails/${fileNameWithoutExt}.jpg`;
+          // Construir URLs relativas baseadas na estrutura de pastas
+          let imageUrl, thumbnailUrl;
           
-          // Caminho para o arquivo original convertido para JPG
-          const originalPath = `/uploads/${fileNameWithoutExt}.jpg`;
+          if (type === 'product') {
+            imageUrl = `/uploads/stores/${storeId}/products/${productId}/${fileNameWithoutExt}.jpg`;
+            thumbnailUrl = `/uploads/stores/${storeId}/products/${productId}/thumbnails/${fileNameWithoutExt}.jpg`;
+          } else {
+            imageUrl = `/uploads/stores/${storeId}/${fileNameWithoutExt}.jpg`;
+            thumbnailUrl = `/uploads/stores/${storeId}/thumbnails/${fileNameWithoutExt}.jpg`;
+          }
+          
+          console.log(`🖼️ [UPLOAD-CONTROLLER] Imagem processada:`, { imageUrl, thumbnailUrl });
           
           return {
             originalName: file.originalname,
-            imageUrl: originalPath,
-            thumbnailUrl: thumbnailPath,
+            imageUrl: imageUrl,
+            thumbnailUrl: thumbnailUrl,
             size: file.size,
             mimetype: 'image/jpeg' // Sempre retorna como JPEG, pois convertemos todas as imagens
           };
@@ -85,16 +105,18 @@ export const uploadImages = async (req, res) => {
               .set({
                 isPrimary: false
               })
-              .where(eq(storeImages.storeId, parseInt(entityId)));
+              .where(eq(storeImages.storeId, parseInt(storeId)));
             
             // Salva a nova imagem como primária (sempre a mais recente será primária)
             const [savedImage] = await db.insert(storeImages).values({
-              storeId: parseInt(entityId),
+              storeId: parseInt(storeId),
               imageUrl: image.imageUrl,
               thumbnailUrl: image.thumbnailUrl,
               isPrimary: true, // Sempre verdadeiro - a imagem mais recente é a primária
               displayOrder: savedImages.length
             }).returning();
+            
+            console.log(`✅ [UPLOAD-CONTROLLER] Imagem de loja salva:`, savedImage);
             
             savedImages.push({
               ...image,
@@ -107,16 +129,18 @@ export const uploadImages = async (req, res) => {
               .set({
                 isPrimary: false
               })
-              .where(eq(productImages.productId, parseInt(entityId)));
+              .where(eq(productImages.productId, parseInt(productId)));
             
             // Salva a nova imagem como primária (sempre a mais recente será primária)
             const [savedImage] = await db.insert(productImages).values({
-              productId: parseInt(entityId),
+              productId: parseInt(productId),
               imageUrl: image.imageUrl,
               thumbnailUrl: image.thumbnailUrl,
               isPrimary: true, // Sempre verdadeiro - a imagem mais recente é a primária
               displayOrder: savedImages.length
             }).returning();
+            
+            console.log(`✅ [UPLOAD-CONTROLLER] Imagem de produto salva:`, savedImage);
             
             savedImages.push({
               ...image,
@@ -132,7 +156,7 @@ export const uploadImages = async (req, res) => {
           images: savedImages
         });
       } catch (error) {
-        console.error('Erro ao processar as imagens:', error);
+        console.error('❌ [UPLOAD-CONTROLLER] Erro ao processar as imagens:', error);
         // Resposta mais detalhada do erro para facilitar o debugging
         return res.status(500).json({ 
           success: false, 
@@ -143,7 +167,7 @@ export const uploadImages = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Erro no servidor durante upload:', error);
+    console.error('❌ [UPLOAD-CONTROLLER] Erro no servidor durante upload:', error);
     return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
   }
 };
@@ -193,12 +217,16 @@ export const deleteImage = async (req, res) => {
     const originalPath = path.join(rootDir, 'public', imageUrl);
     const thumbnailPath = path.join(rootDir, 'public', thumbnailUrl);
 
+    console.log(`🗑️ [UPLOAD-CONTROLLER] Deletando arquivos:`, { originalPath, thumbnailPath });
+
     // Verifica se os arquivos existem e os exclui
     const deleteFileIfExists = (filePath) => {
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
+        console.log(`✅ [UPLOAD-CONTROLLER] Arquivo deletado: ${filePath}`);
         return true;
       }
+      console.log(`⚠️ [UPLOAD-CONTROLLER] Arquivo não encontrado: ${filePath}`);
       return false;
     };
 
@@ -258,7 +286,7 @@ export const deleteImage = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Erro ao excluir imagem:', error);
+    console.error('❌ [UPLOAD-CONTROLLER] Erro ao excluir imagem:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Erro ao excluir imagem',

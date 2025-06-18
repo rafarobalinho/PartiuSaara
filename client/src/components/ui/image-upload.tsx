@@ -71,12 +71,28 @@ const ImageUploadComponent = forwardRef(({
       const formData = new FormData();
       formData.append('images', file);
 
+      // Construir URL da API baseada no tipo
+      let uploadUrl;
+      if (entityType === 'product') {
+        // Para produtos, precisamos extrair storeId do name do campo
+        // Formato esperado: product-{productId}-{storeId}
+        const nameParts = name.split('-');
+        const storeId = nameParts[2]; // Terceiro elemento é o storeId
+        
+        console.log(`🔍 [IMAGE-UPLOAD] Upload de produto - ProductId: ${entityId}, StoreId: ${storeId}`);
+        uploadUrl = `/api/upload/images?type=product&productId=${entityId}&storeId=${storeId}`;
+      } else {
+        // Para lojas
+        console.log(`🔍 [IMAGE-UPLOAD] Upload de loja - StoreId: ${entityId}`);
+        uploadUrl = `/api/upload/images?type=store&storeId=${entityId}`;
+      }
+
       // Enviar para a API
-      console.log(`Enviando arquivo para API: type=${entityType}, entityId=${entityId}`);
+      console.log(`📤 [IMAGE-UPLOAD] Enviando arquivo para: ${uploadUrl}`);
 
       const response = await apiRequest(
         'POST', 
-        `/api/upload/images?type=${entityType}&entityId=${entityId}`, 
+        uploadUrl, 
         formData
       );
 
