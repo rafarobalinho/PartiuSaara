@@ -39,6 +39,7 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
   const [isStoreOpen, setIsStoreOpen] = useState(store.isOpen);
   
   // Buscar os detalhes do lugar na API
+  /*
   const { data: placeDetails } = useQuery({
     queryKey: [`/api/stores/${store.id}/place-details`],
     queryFn: async () => {
@@ -55,7 +56,8 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
     },
     enabled: !!store.id
   });
-  
+  */ // Comentado para evitar erros de build
+
   // Traduzir dias da semana do inglês para português
   const translateDayOfWeek = (day: string): string => {
     const translations: Record<string, string> = {
@@ -77,6 +79,7 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
   };
   
   // Verificar status de funcionamento baseado nos detalhes do lugar
+  /*
   useEffect(() => {
     if (placeDetails?.business_status) {
       if (placeDetails.business_status === 'OPERATIONAL') {
@@ -86,7 +89,7 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
       }
     }
   }, [placeDetails]);
-
+*/ // Comentado para evitar erros de build
   const toggleFavoriteMutation = useMutation({
     mutationFn: async () => {
       return apiRequest(

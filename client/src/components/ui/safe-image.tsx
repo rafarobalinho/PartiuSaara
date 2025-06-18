@@ -1,72 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
+// Tipos de entidade para generalizar o uso
+type EntityType = 'product' | 'store' | 'promotion';
 
 interface SafeImageProps {
-  src: string;
   alt: string;
   className?: string;
   fallbackSrc?: string;
-  productId?: number;
+
+  // Novas props que substituem a 'src' original
+  entityType: EntityType;
+  entityId: number | string;
+
+  // Opcional para buscar thumbnails ou imagens específicas
+  imageType?: 'primary-image' | 'thumbnail' | 'image' | 'flash-image'; 
 }
 
-export const SafeImage: React.FC<SafeImageProps> = ({ 
-  src, 
-  alt, 
-  className = '', 
+export const SafeImage: React.FC<SafeImageProps> = ({
+  alt,
+  className = '',
   fallbackSrc = '/placeholder-image.jpg',
-  productId 
+  entityType,
+  entityId,
+  imageType = 'primary-image',
 }) => {
-  const [imageError, setImageError] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string>(fallbackSrc);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Hook para construir a URL e resetar o estado quando a entidade mudar
+  useEffect(() => {
+    setIsLoading(true);
+
+    if (!entityId) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Constrói a URL da API dinamicamente
+    let apiUrl = '';
+    if (entityType === 'product') {
+      apiUrl = `/api/products/${entityId}/${imageType}`;
+    } else if (entityType === 'store') {
+      apiUrl = `/api/stores/${entityId}/${imageType}`;
+    }
+    // Adicione mais tipos conforme necessário
+
+    setImageSrc(apiUrl);
+
+  }, [entityId, entityType, imageType]); // Roda sempre que uma dessas props mudar
+
   const handleImageError = () => {
-    setImageError(true);
+    // Se a URL da API falhar, não faz nada, pois o 'src' já está apontando
+    // para uma rota de API, que por sua vez já redireciona para o placeholder.
+    // O fallback aqui é mais para erros de rede inesperados.
+    setImageSrc(fallbackSrc); 
     setIsLoading(false);
   };
 
   const handleImageLoad = () => {
-    setImageError(false);
     setIsLoading(false);
   };
 
-  // Processar src para garantir que use URL direta em vez de API endpoint
-  const getDirectImageUrl = (originalSrc: string, productId?: number) => {
-    // Se não há src válida, usar fallback
-    if (!originalSrc || originalSrc.includes('placeholder') || originalSrc.includes('default')) {
-      return fallbackSrc;
-    }
-
-    // Se já é uma URL direta válida no formato correto, usar ela
-    if (originalSrc && originalSrc.startsWith('/uploads/stores/')) {
-      return originalSrc;
-    }
-
-    // Se é uma URL de uploads genérica, manter como está
-    if (originalSrc && originalSrc.startsWith('/uploads/')) {
-      return originalSrc;
-    }
-
-    // EVITAR endpoints da API - usar URL direta se possível
-    if (originalSrc && originalSrc.includes('/api/products/')) {
-      // Se temos productId, tentar construir URL direta
-      if (productId) {
-        // Extrair informações do endpoint para construir URL direta
-        console.warn(`Convertendo endpoint API para URL direta: ${originalSrc}`);
-        return fallbackSrc; // Por enquanto usar fallback
-      }
-      return originalSrc;
-    }
-
-    // Retornar src original se for válida
-    return originalSrc;
-  };
-
-  // Se não há src ou houve erro, usar fallback
-  const processedSrc = getDirectImageUrl(src, productId);
-  const imageSrc = !processedSrc || imageError ? fallbackSrc : processedSrc;
-
   return (
     <div className={`relative ${className}`}>
-      {isLoading && !imageError && (
+      {isLoading && (
         <div className="absolute inset-0 bg-gray-200 animate-pulse rounded" />
       )}
       <img
