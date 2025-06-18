@@ -9,7 +9,8 @@ import {
   reservations, type Reservation, type InsertReservation,
   categories, type Category, type InsertCategory,
   banners, type Banner, type InsertBanner,
-  storeImpressions, type StoreImpression, type InsertStoreImpression
+  storeImpressions, type StoreImpression, type InsertStoreImpression,
+  passwordResetTokens
 } from "@shared/schema";
 import bcrypt from 'bcryptjs';
 import { eq, and, or, sql, like, desc, gte, lte, inArray } from "drizzle-orm";
@@ -112,6 +113,12 @@ export interface IStorage {
     reservationsCount: number;
     favoriteStoresCount: number;
   }>;
+
+  // Password reset operations
+  createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void>;
+  getPasswordResetToken(token: string): Promise<{ userId: number; expiresAt: Date; used: boolean } | undefined>;
+  markTokenAsUsed(token: string): Promise<void>;
+  updateUserPassword(userId: number, hashedPassword: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -1478,6 +1485,38 @@ export class MemStorage implements IStorage {
 
     return { wishlistCount, reservationsCount, favoriteStoresCount };
   }
+
+  // Password reset operations (Memory storage - for development only)
+  private passwordResetTokens: Map<string, { userId: number; expiresAt: Date; used: boolean }> = new Map();
+
+  async createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void> {
+    this.passwordResetTokens.set(token, { userId, expiresAt, used: false });
+  }
+
+  async getPasswordResetToken(token: string): Promise<{ userId: number; expiresAt: Date; used: boolean } | undefined> {
+    const tokenData = this.passwordResetTokens.get(token);
+    if (!tokenData || tokenData.used || new Date() > tokenData.expiresAt) {
+      return undefined;
+    }
+    return tokenData;
+  }
+
+  async markTokenAsUsed(token: string): Promise<void> {
+    const tokenData = this.passwordResetTokens.get(token);
+    if (tokenData) {
+      tokenData.used = true;
+    }
+  }
+
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<boolean> {
+    const user = this.users.get(userId);
+    if (!user) return false;
+    
+    user.password = hashedPassword;
+    user.updatedAt = new Date();
+    this.users.set(userId, user);
+    return true;
+  }
 }
 
 import connectPg from "connect-pg-simple";
@@ -2297,6 +2336,57 @@ export class DatabaseStorage implements IStorage {
       reservationsCount: userReservations.length,
       favoriteStoresCount: userFavoriteStores.length
     };
+  }
+
+  // Password reset operations
+  async createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void> {
+    await db.insert(passwordResetTokens).values({
+      userId,
+      token,
+      expiresAt,
+      used: false
+    });
+  }
+
+  async getPasswordResetToken(token: string): Promise<{ userId: number; expiresAt: Date; used: boolean } | undefined> {
+    const [resetToken] = await db.select()
+      .from(passwordResetTokens)
+      .where(
+        and(
+          eq(passwordResetTokens.token, token),
+          eq(passwordResetTokens.used, false),
+          gte(passwordResetTokens.expiresAt, new Date())
+        )
+      );
+    
+    if (!resetToken) return undefined;
+    
+    return {
+      userId: resetToken.userId,
+      expiresAt: resetToken.expiresAt,
+      used: resetToken.used
+    };
+  }
+
+  async markTokenAsUsed(token: string): Promise<void> {
+    await db.update(passwordResetTokens)
+      .set({ used: true })
+      .where(eq(passwordResetTokens.token, token));
+  }
+
+  async updateUserPassword(userId: number, hashedPassword: string): Promise<boolean> {
+    try {
+      await db.update(users)
+        .set({ 
+          password: hashedPassword,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId));
+      return true;
+    } catch (error) {
+      console.error('Error updating user password:', error);
+      return false;
+    }
   }
 }
 
