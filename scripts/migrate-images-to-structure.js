@@ -1,18 +1,13 @@
+#!/usr/bin/env node
 
-/**
- * Script para migrar imagens existentes para a nova estrutura de pastas
- * De: /uploads/filename.jpg
- * Para: /uploads/stores/{storeId}/products/{productId}/filename.jpg
- */
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { pool } from '../server/db.js';
 
-const fs = require('fs');
-const path = require('path');
-const { pool } = require('../server/db.js');
-
-// Diretórios
-const rootDir = process.cwd();
-const uploadsDir = path.join(rootDir, 'public/uploads');
-const storesDir = path.join(uploadsDir, 'stores');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
 
 // Cores para console
 const colors = {
@@ -25,231 +20,165 @@ const colors = {
 };
 
 /**
- * Cria estrutura de pastas se não existir
+ * Migra uma imagem específica
  */
-function createDirectoryIfNotExists(dirPath) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-    console.log(`${colors.green}✅ Pasta criada: ${dirPath}${colors.reset}`);
-    return true;
-  }
-  return false;
-}
+async function migrateImage(imageData) {
+  const { id, product_id, image_url, thumbnail_url, store_id } = imageData;
 
-/**
- * Move arquivo de um local para outro
- */
-function moveFile(sourcePath, destinationPath) {
   try {
-    // Criar diretório de destino se não existir
-    const destDir = path.dirname(destinationPath);
-    createDirectoryIfNotExists(destDir);
-    
-    // Mover arquivo
-    fs.renameSync(sourcePath, destinationPath);
-    console.log(`${colors.cyan}📁 Movido: ${path.basename(sourcePath)} -> ${destinationPath}${colors.reset}`);
-    return true;
+    console.log(`\n${colors.yellow}Migrando imagem ${id} do produto ${product_id} (loja ${store_id})${colors.reset}`);
+
+    // Criar estrutura de pastas
+    const storeDir = path.join(rootDir, 'public', 'uploads', 'stores', store_id.toString());
+    const productDir = path.join(storeDir, 'products', product_id.toString());
+    const thumbnailDir = path.join(productDir, 'thumbnails');
+
+    // Criar pastas se não existirem
+    if (!fs.existsSync(productDir)) {
+      fs.mkdirSync(productDir, { recursive: true });
+      console.log(`${colors.green}📁 Pasta criada: ${productDir}${colors.reset}`);
+    }
+
+    if (!fs.existsSync(thumbnailDir)) {
+      fs.mkdirSync(thumbnailDir, { recursive: true });
+      console.log(`${colors.green}📁 Pasta criada: ${thumbnailDir}${colors.reset}`);
+    }
+
+    let imageUpdated = false;
+    let thumbnailUpdated = false;
+
+    // Migrar imagem principal
+    if (image_url) {
+      const result = await moveImageFile(image_url, store_id, product_id, 'image', id);
+      imageUpdated = result.success;
+    }
+
+    // Migrar thumbnail
+    if (thumbnail_url) {
+      const result = await moveImageFile(thumbnail_url, store_id, product_id, 'thumbnail', id);
+      thumbnailUpdated = result.success;
+    }
+
+    if (imageUpdated || thumbnailUpdated) {
+      console.log(`${colors.green}✅ Migrada imagem do produto ${product_id}${colors.reset}`);
+      return true;
+    } else {
+      console.log(`${colors.yellow}⚠️ Nenhuma alteração necessária para produto ${product_id}${colors.reset}`);
+      return false;
+    }
+
   } catch (error) {
-    console.error(`${colors.red}❌ Erro ao mover ${sourcePath}:`, error.message, colors.reset);
+    console.error(`${colors.red}❌ Erro ao migrar produto ${product_id}:`, error.message, colors.reset);
     return false;
   }
 }
 
 /**
- * Migra imagens de produtos
+ * Move um arquivo de imagem e atualiza o banco
  */
-async function migrateProductImages() {
-  const client = await pool.connect();
-  
+async function moveImageFile(imageUrl, storeId, productId, type, imageId) {
   try {
-    console.log(`\n${colors.blue}=== Migrando imagens de produtos ===${colors.reset}`);
-    
+    const oldPath = path.join(rootDir, 'public', imageUrl);
+    const fileName = path.basename(imageUrl);
+
+    let newPath;
+    let newUrl;
+
+    if (type === 'thumbnail') {
+      newPath = path.join(rootDir, 'public', 'uploads', 'stores', storeId.toString(), 'products', productId.toString(), 'thumbnails', fileName);
+      newUrl = `/uploads/stores/${storeId}/products/${productId}/thumbnails/${fileName}`;
+    } else {
+      newPath = path.join(rootDir, 'public', 'uploads', 'stores', storeId.toString(), 'products', productId.toString(), fileName);
+      newUrl = `/uploads/stores/${storeId}/products/${productId}/${fileName}`;
+    }
+
+    // Verificar se o arquivo já está no local correto
+    if (imageUrl === newUrl) {
+      console.log(`${colors.blue}ℹ️ Arquivo já está no local correto: ${newUrl}${colors.reset}`);
+      return { success: false, url: newUrl };
+    }
+
+    // Mover arquivo se existir no local antigo
+    if (fs.existsSync(oldPath)) {
+      // Verificar se o destino já existe
+      if (fs.existsSync(newPath)) {
+        console.log(`${colors.yellow}⚠️ Arquivo já existe no destino, removendo original: ${oldPath}${colors.reset}`);
+        fs.unlinkSync(oldPath);
+      } else {
+        fs.renameSync(oldPath, newPath);
+        console.log(`${colors.cyan}📄 Movido: ${imageUrl} → ${newUrl}${colors.reset}`);
+      }
+
+      // Atualizar banco de dados
+      const updateField = type === 'thumbnail' ? 'thumbnail_url' : 'image_url';
+      await pool.query(
+        `UPDATE product_images SET ${updateField} = $1 WHERE id = $2`,
+        [newUrl, imageId]
+      );
+
+      console.log(`${colors.green}✅ Banco atualizado: ${updateField} = ${newUrl}${colors.reset}`);
+      return { success: true, url: newUrl };
+    } else {
+      console.log(`${colors.yellow}⚠️ Arquivo não encontrado: ${oldPath}${colors.reset}`);
+      return { success: false, url: newUrl };
+    }
+  } catch (error) {
+    console.error(`${colors.red}❌ Erro ao mover arquivo ${imageUrl}:`, error.message, colors.reset);
+    return { success: false, url: imageUrl };
+  }
+}
+
+/**
+ * Função principal de migração
+ */
+async function migrateImages() {
+  const client = await pool.connect();
+
+  try {
+    console.log(`${colors.cyan}🚀 Iniciando migração de imagens para nova estrutura de pastas${colors.reset}`);
+
     // Buscar todas as imagens de produtos que precisam ser migradas
-    const result = await client.query(`
+    const query = `
       SELECT 
-        pi.id, 
-        pi.product_id, 
-        pi.image_url, 
+        pi.id,
+        pi.product_id,
+        pi.image_url,
         pi.thumbnail_url,
         p.store_id
       FROM product_images pi
       JOIN products p ON pi.product_id = p.id
       WHERE pi.image_url NOT LIKE '/uploads/stores/%'
       ORDER BY pi.id
-    `);
-    
-    console.log(`${colors.blue}Encontradas ${result.rows.length} imagens de produtos para migrar${colors.reset}`);
-    
-    let migrated = 0;
-    let errors = 0;
-    
-    for (const row of result.rows) {
-      const { id, product_id, image_url, thumbnail_url, store_id } = row;
-      
-      // Extrair nome do arquivo da URL atual
-      const imageFileName = path.basename(image_url);
-      const thumbnailFileName = path.basename(thumbnail_url || '');
-      
-      // Caminhos atuais
-      const currentImagePath = path.join(rootDir, 'public', image_url);
-      const currentThumbnailPath = thumbnail_url ? path.join(rootDir, 'public', thumbnail_url) : null;
-      
-      // Novos caminhos
-      const newImageDir = path.join(storesDir, store_id.toString(), 'products', product_id.toString());
-      const newThumbnailDir = path.join(newImageDir, 'thumbnails');
-      
-      const newImagePath = path.join(newImageDir, imageFileName);
-      const newThumbnailPath = thumbnailFileName ? path.join(newThumbnailDir, thumbnailFileName) : null;
-      
-      // Novas URLs
-      const newImageUrl = `/uploads/stores/${store_id}/products/${product_id}/${imageFileName}`;
-      const newThumbnailUrl = thumbnailFileName ? `/uploads/stores/${store_id}/products/${product_id}/thumbnails/${thumbnailFileName}` : null;
-      
-      console.log(`\n${colors.yellow}Migrando imagem ${id} do produto ${product_id} (loja ${store_id})${colors.reset}`);
-      
-      let success = true;
-      
-      // Mover imagem principal
-      if (fs.existsSync(currentImagePath)) {
-        if (!moveFile(currentImagePath, newImagePath)) {
-          success = false;
-        }
-      } else {
-        console.log(`${colors.yellow}⚠️ Arquivo não encontrado: ${currentImagePath}${colors.reset}`);
-      }
-      
-      // Mover thumbnail se existir
-      if (currentThumbnailPath && fs.existsSync(currentThumbnailPath)) {
-        if (!moveFile(currentThumbnailPath, newThumbnailPath)) {
-          success = false;
-        }
-      }
-      
-      // Atualizar banco de dados
-      if (success) {
-        try {
-          await client.query(`
-            UPDATE product_images 
-            SET 
-              image_url = $1,
-              thumbnail_url = $2
-            WHERE id = $3
-          `, [newImageUrl, newThumbnailUrl, id]);
-          
-          console.log(`${colors.green}✅ Banco de dados atualizado para imagem ${id}${colors.reset}`);
-          migrated++;
-        } catch (error) {
-          console.error(`${colors.red}❌ Erro ao atualizar banco para imagem ${id}:`, error.message, colors.reset);
-          errors++;
-        }
-      } else {
-        errors++;
-      }
-    }
-    
-    console.log(`\n${colors.blue}=== Resultado da migração de produtos ===${colors.reset}`);
-    console.log(`${colors.green}✅ Migradas: ${migrated}${colors.reset}`);
-    console.log(`${colors.red}❌ Erros: ${errors}${colors.reset}`);
-    
-  } finally {
-    client.release();
-  }
-}
+    `;
 
-/**
- * Migra imagens de lojas
- */
-async function migrateStoreImages() {
-  const client = await pool.connect();
-  
-  try {
-    console.log(`\n${colors.blue}=== Migrando imagens de lojas ===${colors.reset}`);
-    
-    // Buscar todas as imagens de lojas que precisam ser migradas
-    const result = await client.query(`
-      SELECT 
-        si.id, 
-        si.store_id, 
-        si.image_url, 
-        si.thumbnail_url
-      FROM store_images si
-      WHERE si.image_url NOT LIKE '/uploads/stores/%'
-      ORDER BY si.id
-    `);
-    
-    console.log(`${colors.blue}Encontradas ${result.rows.length} imagens de lojas para migrar${colors.reset}`);
-    
+    const result = await client.query(query);
+    console.log(`${colors.blue}📋 Encontradas ${result.rows.length} imagens de produtos para migrar${colors.reset}`);
+
+    if (result.rows.length === 0) {
+      console.log(`${colors.green}✅ Nenhuma imagem precisa ser migrada!${colors.reset}`);
+      return;
+    }
+
     let migrated = 0;
     let errors = 0;
-    
+
     for (const row of result.rows) {
-      const { id, store_id, image_url, thumbnail_url } = row;
-      
-      // Extrair nome do arquivo da URL atual
-      const imageFileName = path.basename(image_url);
-      const thumbnailFileName = path.basename(thumbnail_url || '');
-      
-      // Caminhos atuais
-      const currentImagePath = path.join(rootDir, 'public', image_url);
-      const currentThumbnailPath = thumbnail_url ? path.join(rootDir, 'public', thumbnail_url) : null;
-      
-      // Novos caminhos
-      const newImageDir = path.join(storesDir, store_id.toString());
-      const newThumbnailDir = path.join(newImageDir, 'thumbnails');
-      
-      const newImagePath = path.join(newImageDir, imageFileName);
-      const newThumbnailPath = thumbnailFileName ? path.join(newThumbnailDir, thumbnailFileName) : null;
-      
-      // Novas URLs
-      const newImageUrl = `/uploads/stores/${store_id}/${imageFileName}`;
-      const newThumbnailUrl = thumbnailFileName ? `/uploads/stores/${store_id}/thumbnails/${thumbnailFileName}` : null;
-      
-      console.log(`\n${colors.yellow}Migrando imagem ${id} da loja ${store_id}${colors.reset}`);
-      
-      let success = true;
-      
-      // Mover imagem principal
-      if (fs.existsSync(currentImagePath)) {
-        if (!moveFile(currentImagePath, newImagePath)) {
-          success = false;
-        }
-      } else {
-        console.log(`${colors.yellow}⚠️ Arquivo não encontrado: ${currentImagePath}${colors.reset}`);
-      }
-      
-      // Mover thumbnail se existir
-      if (currentThumbnailPath && fs.existsSync(currentThumbnailPath)) {
-        if (!moveFile(currentThumbnailPath, newThumbnailPath)) {
-          success = false;
-        }
-      }
-      
-      // Atualizar banco de dados
+      const success = await migrateImage(row);
       if (success) {
-        try {
-          await client.query(`
-            UPDATE store_images 
-            SET 
-              image_url = $1,
-              thumbnail_url = $2
-            WHERE id = $3
-          `, [newImageUrl, newThumbnailUrl, id]);
-          
-          console.log(`${colors.green}✅ Banco de dados atualizado para imagem ${id}${colors.reset}`);
-          migrated++;
-        } catch (error) {
-          console.error(`${colors.red}❌ Erro ao atualizar banco para imagem ${id}:`, error.message, colors.reset);
-          errors++;
-        }
+        migrated++;
       } else {
         errors++;
       }
     }
-    
-    console.log(`\n${colors.blue}=== Resultado da migração de lojas ===${colors.reset}`);
-    console.log(`${colors.green}✅ Migradas: ${migrated}${colors.reset}`);
+
+    console.log(`\n${colors.blue}=== Resultado da migração ===${colors.reset}`);
+    console.log(`${colors.green}✅ Migradas com sucesso: ${migrated}${colors.reset}`);
     console.log(`${colors.red}❌ Erros: ${errors}${colors.reset}`);
-    
+    console.log(`${colors.cyan}📊 Total processadas: ${result.rows.length}${colors.reset}`);
+
+  } catch (error) {
+    console.error(`${colors.red}❌ Erro durante a migração:`, error, colors.reset);
+    throw error;
   } finally {
     client.release();
   }
@@ -260,29 +189,18 @@ async function migrateStoreImages() {
  */
 async function main() {
   try {
-    console.log(`${colors.cyan}🚀 Iniciando migração de imagens para nova estrutura de pastas${colors.reset}`);
-    
-    // Criar pasta stores se não existir
-    createDirectoryIfNotExists(storesDir);
-    
-    // Migrar imagens de produtos
-    await migrateProductImages();
-    
-    // Migrar imagens de lojas
-    await migrateStoreImages();
-    
-    console.log(`\n${colors.green}🎉 Migração concluída!${colors.reset}`);
-    
-  } catch (error) {
-    console.error(`${colors.red}❌ Erro durante a migração:`, error, colors.reset);
-  } finally {
+    await migrateImages();
+    console.log(`\n${colors.green}🎉 Migração concluída com sucesso!${colors.reset}`);
     process.exit(0);
+  } catch (error) {
+    console.error(`${colors.red}❌ Erro fatal durante a migração:`, error, colors.reset);
+    process.exit(1);
   }
 }
 
 // Executar se chamado diretamente
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
 
-module.exports = { main };
+export { main };
