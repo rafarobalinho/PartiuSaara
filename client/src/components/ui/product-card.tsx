@@ -13,7 +13,7 @@ import { SafeImage } from './safe-image';
 function getValidImage(imageUrl: string | undefined, fallbackUrl: string): string {
   // Se não tiver URL, usa a imagem padrão
   if (!imageUrl) return fallbackUrl;
-  
+
   // Retorna a URL original passada pelo banco de dados
   return imageUrl;
 }
@@ -38,6 +38,7 @@ interface Product {
   store?: {
     id: number;
     name: string;
+    id: number;
   };
 }
 
@@ -92,7 +93,7 @@ export default function ProductCard({
     mutationFn: async () => {
       // Pega o estado atual antes da mutação
       const currentlyFavorited = isProductFavorite(product.id);
-      
+
       // Atualiza o estado local imediatamente para feedback instantâneo
       if (currentlyFavorited) {
         // Remover da lista de favoritos
@@ -103,7 +104,7 @@ export default function ProductCard({
         addFavoriteProduct(product.id);
         incrementWishlistCount();
       }
-      
+
       // Faz a requisição para o servidor
       return apiRequest(
         currentlyFavorited ? 'DELETE' : 'POST',
@@ -114,11 +115,11 @@ export default function ProductCard({
     onSuccess: () => {
       // Verifica o estado atual após a operação
       const isFavorited = isProductFavorite(product.id);
-      
+
       // Sincronizar com o servidor
       syncCounters();
       syncFavorites();
-      
+
       toast({
         title: !isFavorited ? 'Removido dos favoritos' : 'Adicionado aos favoritos',
         description: !isFavorited ? 
@@ -130,7 +131,7 @@ export default function ProductCard({
     onError: (error) => {
       // Verifica o estado atual para decidir como reverter a operação
       const isFavorited = isProductFavorite(product.id);
-      
+
       // Reverte a operação local em caso de erro no servidor
       if (isFavorited) {
         // Se está como favorito agora, mas houve erro ao tentar remover no servidor, então remova do estado
@@ -141,11 +142,11 @@ export default function ProductCard({
         addFavoriteProduct(product.id);
         incrementWishlistCount();
       }
-      
+
       // Sincroniza com o servidor para garantir consistência
       syncFavorites();
       syncCounters();
-      
+
       toast({
         title: 'Erro',
         description: 'Ocorreu um erro ao atualizar os favoritos.',
@@ -165,13 +166,13 @@ export default function ProductCard({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/reservations'] });
-      
+
       // Atualizar contador
       incrementReservationsCount();
-      
+
       // Sincronizar contadores com o servidor
       syncCounters();
-      
+
       toast({
         title: 'Reserva criada',
         description: `${product.name} foi reservado com sucesso. Você tem 72 horas para retirar.`,
@@ -191,7 +192,7 @@ export default function ProductCard({
   const handleWishlistToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!isAuthenticated) {
       toast({
         title: 'Login necessário',
@@ -200,14 +201,14 @@ export default function ProductCard({
       });
       return;
     }
-    
+
     toggleWishlistMutation.mutate();
   };
-  
+
   const handleReserve = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!isAuthenticated) {
       toast({
         title: 'Login necessário',
@@ -216,7 +217,7 @@ export default function ProductCard({
       });
       return;
     }
-    
+
     reserveMutation.mutate();
   };
 
@@ -229,7 +230,7 @@ export default function ProductCard({
             -{discount}%
           </div>
         )}
-        
+
         {/* Botão de favorito */}
         <div className="absolute top-2 right-2 z-10">
           <button 
@@ -239,7 +240,7 @@ export default function ProductCard({
             <i className={`${isProductFavorite(product.id) ? 'fas fa-heart' : 'far fa-heart'} text-sm text-center`}></i>
           </button>
         </div>
-        
+
         {/* Container de imagem - Mais destacado */}
         <div className="relative overflow-hidden bg-white pb-[100%] w-full">
           {isFlashPromotion && (
@@ -250,9 +251,9 @@ export default function ProductCard({
               ></div>
             </div>
           )}
-          
+
           <SafeImage 
-            src={`/api/products/${product.id}/primary-image`}
+            src={product.images && product.images.length > 0 ? product.images[0] : `/api/products/${product.id}/primary-image`}
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover object-center p-0"
             onLoad={() => console.log(`✅ [PRODUCT-CARD] Imagem produto ${product.id} carregada: /api/products/${product.id}/primary-image`)}
@@ -262,7 +263,7 @@ export default function ProductCard({
             type="product"
           />
         </div>
-        
+
         {/* Conteúdo do card - textos e botões */}
         <div className="p-3 flex-grow flex flex-col">
           {/* Categoria ou loja */}
@@ -274,10 +275,10 @@ export default function ProductCard({
               <span className="truncate">{product.store?.name || 'Loja'}</span>
             </div>
           )}
-          
+
           {/* Nome do produto - limitado a 2 linhas */}
           <h3 className="text-sm font-medium line-clamp-2 mb-auto">{product.name}</h3>
-          
+
           {/* Preço com formatação para desconto */}
           <div className="mt-2 flex items-baseline">
             {product.discountedPrice ? (
@@ -289,7 +290,7 @@ export default function ProductCard({
               <span className="text-primary font-bold text-base">{formatCurrency(product.price)}</span>
             )}
           </div>
-          
+
           {/* Botão de reserva - varia conforme propriedade showFullWidthButton */}
           {showFullWidthButton ? (
             <Button
@@ -308,7 +309,7 @@ export default function ProductCard({
                     `${timeRemaining.hours}h ${timeRemaining.minutes}m`}
                 </div>
               )}
-              
+
               <Button
                 size="sm"
                 className="bg-primary text-white text-xs px-3 py-1 rounded-full hover:bg-primary/90 ml-auto"
