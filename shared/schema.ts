@@ -54,7 +54,6 @@ export const stores = pgTable("stores", {
   tags: text("tags", { mode: 'array' }),
   rating: doublePrecision("rating").default(0),
   reviewCount: integer("review_count").default(0),
-  images: text("images", { mode: 'array' }),
   isOpen: boolean("is_open").default(true),
   address: jsonb("address").$type<StoreAddress | null>(),
   location: jsonb("location").$type<StoreLocation | null>(),

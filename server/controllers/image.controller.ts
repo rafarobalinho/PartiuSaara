@@ -404,9 +404,9 @@ export const getStorePrimaryImage = async (req: Request, res: Response) => {
       return res.redirect('/placeholder-image.jpg');
     }
 
-    // Verificar se a loja existe e buscar a imagem
+    // Verificar se a loja existe
     const storeQuery = `
-      SELECT s.id, s.image_url as store_image_url
+      SELECT s.id
       FROM stores s 
       WHERE s.id = $1
     `;
@@ -415,18 +415,6 @@ export const getStorePrimaryImage = async (req: Request, res: Response) => {
     if (storeResult.rows.length === 0) {
       console.error(`Loja não encontrada: ${storeId}`);
       return res.redirect('/placeholder-image.jpg');
-    }
-
-    const store = storeResult.rows[0];
-
-    // Se a loja tem uma imagem definida, tentar usar ela
-    if (store.store_image_url && !store.store_image_url.startsWith('blob:')) {
-      // Verificar se o arquivo existe fisicamente
-      const imagePath = path.join(process.cwd(), 'public', store.store_image_url);
-
-      if (fs.existsSync(imagePath)) {
-        return res.sendFile(imagePath);
-      }
     }
 
     // Buscar a imagem principal da loja na tabela store_images
@@ -443,6 +431,13 @@ export const getStorePrimaryImage = async (req: Request, res: Response) => {
     if (imageResult.rows.length > 0) {
       const imageUrl = imageResult.rows[0].image_url;
       
+      // Validar caminho seguro
+      const expectedPattern = `/uploads/stores/${storeId}/`;
+      if (!imageUrl.includes(expectedPattern)) {
+        console.warn(`⚠️ Caminho de imagem suspeito detectado: ${imageUrl}`);
+        return res.redirect('/placeholder-image.jpg');
+      }
+
       // Verificar se o arquivo existe fisicamente
       const imagePath = path.join(process.cwd(), 'public', imageUrl);
 
@@ -465,6 +460,13 @@ export const getStorePrimaryImage = async (req: Request, res: Response) => {
     if (fallbackResult.rows.length > 0) {
       const imageUrl = fallbackResult.rows[0].image_url;
       
+      // Validar caminho seguro
+      const expectedPattern = `/uploads/stores/${storeId}/`;
+      if (!imageUrl.includes(expectedPattern)) {
+        console.warn(`⚠️ Caminho de imagem suspeito detectado: ${imageUrl}`);
+        return res.redirect('/placeholder-image.jpg');
+      }
+
       // Verificar se o arquivo existe fisicamente
       const imagePath = path.join(process.cwd(), 'public', imageUrl);
 
