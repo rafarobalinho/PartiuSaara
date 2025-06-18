@@ -12,7 +12,7 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   src, 
   alt, 
   className = '', 
-  fallbackSrc = '/assets/default-product-image.jpg',
+  fallbackSrc = '/placeholder-image.jpg',
   productId 
 }) => {
   const [imageError, setImageError] = useState(false);
@@ -30,27 +30,33 @@ export const SafeImage: React.FC<SafeImageProps> = ({
 
   // Processar src para garantir que use URL direta em vez de API endpoint
   const getDirectImageUrl = (originalSrc: string, productId?: number) => {
-    // Se não há src, usar API endpoint se tiver productId
-    if (!originalSrc && productId) {
-      return `/api/products/${productId}/primary-image`;
+    // Se não há src válida, usar fallback
+    if (!originalSrc || originalSrc.includes('placeholder') || originalSrc.includes('default')) {
+      return fallbackSrc;
     }
 
-    // Se já é uma URL direta válida, usar ela
+    // Se já é uma URL direta válida no formato correto, usar ela
+    if (originalSrc && originalSrc.startsWith('/uploads/stores/')) {
+      return originalSrc;
+    }
+
+    // Se é uma URL de uploads genérica, manter como está
     if (originalSrc && originalSrc.startsWith('/uploads/')) {
       return originalSrc;
     }
 
-    // Se é um endpoint da API, usar endpoint específico para produto
-    if (originalSrc && originalSrc.includes('/api/products/') && productId) {
-      return `/api/products/${productId}/primary-image`;
+    // EVITAR endpoints da API - usar URL direta se possível
+    if (originalSrc && originalSrc.includes('/api/products/')) {
+      // Se temos productId, tentar construir URL direta
+      if (productId) {
+        // Extrair informações do endpoint para construir URL direta
+        console.warn(`Convertendo endpoint API para URL direta: ${originalSrc}`);
+        return fallbackSrc; // Por enquanto usar fallback
+      }
+      return originalSrc;
     }
 
-    // Se tem productId mas src não é válida, tentar API endpoint
-    if (productId && (!originalSrc || originalSrc.includes('placeholder') || originalSrc.includes('default'))) {
-      return `/api/products/${productId}/primary-image`;
-    }
-
-    // Se não é uma URL válida, retornar src original
+    // Retornar src original se for válida
     return originalSrc;
   };
 

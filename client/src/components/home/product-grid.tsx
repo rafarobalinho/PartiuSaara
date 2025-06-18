@@ -43,7 +43,7 @@ export default function ProductGrid() {
           </a>
         </Link>
       </div>
-      
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {isLoading ? (
           // Skeleton loading state
@@ -62,7 +62,10 @@ export default function ProductGrid() {
           products.map((product: Product) => (
             <ProductCard
               key={product.id}
-              product={product}
+              product={{
+                ...product,
+                images: product.images || []
+              }}
               showCategory={true}
               showFullWidthButton={true}
             />

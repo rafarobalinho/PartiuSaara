@@ -23,6 +23,7 @@ interface Promotion {
     price: number;
     discountedPrice?: number;
     images: string[];
+    imageUrl?: string; // URL direta da imagem
     store: {
       id: number;
       name: string;

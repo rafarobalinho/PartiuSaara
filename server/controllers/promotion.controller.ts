@@ -21,11 +21,11 @@ export async function getPromotion(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const promotion = await storage.getPromotion(Number(id));
-    
+
     if (!promotion) {
       return res.status(404).json({ message: 'Promotion not found' });
     }
-    
+
     res.json(promotion);
   } catch (error) {
     console.error('Error getting promotion:', error);
@@ -39,20 +39,20 @@ export async function createPromotion(req: Request, res: Response) {
     // Ensure user is a seller
     sellerMiddleware(req, res, async () => {
       const user = req.user!;
-      
+
       // Logs para debug
       console.log("======= CORPO DA REQUISIÇÃO RECEBIDO =======");
       console.log(JSON.stringify(req.body, null, 2));
       console.log("============================================");
-      
+
       console.log("======= SCHEMA DE VALIDAÇÃO =======");
       console.log(JSON.stringify(insertPromotionSchema, null, 2));
       console.log("===================================");
-      
+
       // Adaptação dos dados recebidos para o formato esperado pelo schema
       // Se o cliente enviar os dados originais do formulário, convertemos para o formato do schema
       let adaptedData = {...req.body};
-      
+
       // Se temos discountType e discountValue, precisamos convertê-los para discountPercentage
       if (req.body.discountType && req.body.discountValue) {
         // Se o tipo for percentage, simplesmente usamos o valor
@@ -63,21 +63,21 @@ export async function createPromotion(req: Request, res: Response) {
           // mas não temos acesso direto a ele aqui, então vamos usar o valor direto
           adaptedData.discountPercentage = Number(req.body.discountValue);
         }
-        
+
         // Remover campos não utilizados pelo schema
         delete adaptedData.discountType;
         delete adaptedData.discountValue;
       }
-      
+
       // Convertemos as strings de data para objetos Date
       if (typeof adaptedData.startTime === 'string') {
         adaptedData.startTime = new Date(adaptedData.startTime);
       }
-      
+
       if (typeof adaptedData.endTime === 'string') {
         adaptedData.endTime = new Date(adaptedData.endTime);
       }
-      
+
       console.log("======= DADOS ADAPTADOS =======");
       console.log(JSON.stringify(adaptedData, null, 2));
       console.log("==============================");
@@ -88,27 +88,27 @@ export async function createPromotion(req: Request, res: Response) {
         console.log("======= ERROS DE VALIDAÇÃO =======");
         console.log(JSON.stringify(validationResult.error.errors, null, 2));
         console.log("==================================");
-        
+
         return res.status(400).json({ 
           message: 'Validation error', 
           errors: validationResult.error.errors 
         });
       }
-      
+
       const promotionData = validationResult.data;
-      
+
       // Get the product
       const product = await storage.getProduct(promotionData.productId);
       if (!product) {
         return res.status(404).json({ message: 'Product not found' });
       }
-      
+
       // Verify the product belongs to the user's store
       const store = await storage.getStore(product.storeId);
       if (!store || store.userId !== user.id) {
         return res.status(403).json({ message: 'Not authorized to create promotions for this product' });
       }
-      
+
       // Check subscription plan limits for flash promotions
       if (promotionData.type === 'flash' && store.subscriptionPlan === 'freemium') {
         return res.status(403).json({ 
@@ -116,7 +116,7 @@ export async function createPromotion(req: Request, res: Response) {
           subscriptionRequired: true
         });
       }
-      
+
       // Create the promotion
       const promotion = await storage.createPromotion(promotionData);
       res.status(201).json(promotion);
@@ -133,45 +133,89 @@ export async function getSellerPromotions(req: Request, res: Response) {
     // Ensure user is authenticated and is a seller
     sellerMiddleware(req, res, async () => {
       const user = req.user!;
-      
+
       // Log para debug
       console.log(`[GET SELLER PROMOTIONS] Buscando promoções do vendedor ${user.id}`);
-      
+
       // Obter todas as lojas do vendedor
       const stores = await storage.getUserStores(user.id);
-      
+
       if (!stores || stores.length === 0) {
         return res.json([]);
       }
-      
+
       const storeIds = stores.map(store => store.id);
       console.log(`[GET SELLER PROMOTIONS] IDs de lojas encontradas: ${storeIds.join(', ')}`);
-      
+
       // Obter todos os produtos dessas lojas
       const products = await storage.getStoresProducts(storeIds);
-      
+
       if (!products || products.length === 0) {
         return res.json([]);
       }
-      
+
       const productIds = products.map(product => product.id);
       console.log(`[GET SELLER PROMOTIONS] IDs de produtos encontrados: ${productIds.join(', ')}`);
-      
+
       // Obter promoções para esses produtos
       const promotions = await storage.getProductsPromotions(productIds);
       console.log(`[GET SELLER PROMOTIONS] ${promotions.length} promoções encontradas`);
-      
-      // Enriquecer as promoções com dados dos produtos
-      const enrichedPromotions = await Promise.all(promotions.map(async (promo) => {
-        const product = products.find(p => p.id === promo.productId);
-        
-        return {
-          ...promo,
-          product: product
-        };
-      }));
-      
-      res.json(enrichedPromotions);
+
+      // Para cada promoção, obter os detalhes do produto e calcular preço com desconto
+      const promotionsWithProducts = await Promise.all(
+        promotions.map(async (promotion) => {
+          const product = await storage.getProduct(promotion.productId);
+
+          if (!product) {
+            return null;
+          }
+
+          // Calcular preço com desconto
+          let discountedPrice = product.price;
+          if (promotion.discountPercentage) {
+            discountedPrice = product.price * (1 - (promotion.discountPercentage / 100));
+            // Arredondar para duas casas decimais
+            discountedPrice = Math.round(discountedPrice * 100) / 100;
+          }
+
+          // Buscar a URL da imagem principal do produto
+          let imageUrl = null;
+          if (product.images && product.images.length > 0) {
+            imageUrl = product.images[0];
+          } else {
+            // Tentar buscar imagem diretamente do banco
+            const { pool } = await import('../db');
+
+            const imageQuery = `
+              SELECT pi.image_url
+              FROM product_images pi
+              WHERE pi.product_id = $1
+              ORDER BY pi.is_primary DESC, pi.display_order ASC, pi.id ASC
+              LIMIT 1
+            `;
+
+            const imageResult = await pool.query(imageQuery, [product.id]);
+            if (imageResult.rows.length > 0) {
+              imageUrl = imageResult.rows[0].image_url;
+            }
+          }
+
+          // Adicionar o preço com desconto ao produto
+          const productWithDiscount = {
+            ...product,
+            discountedPrice: discountedPrice,
+            imageUrl: imageUrl // Adicionar URL da imagem
+          };
+
+          return { 
+            ...promotion, 
+            product: productWithDiscount,
+            promotionEndsAt: promotion.endTime
+          };
+        })
+      );
+
+      res.json(promotionsWithProducts.filter(Boolean));
     });
   } catch (error) {
     console.error('Error getting seller promotions:', error);
@@ -186,36 +230,36 @@ export async function updatePromotion(req: Request, res: Response) {
     sellerMiddleware(req, res, async () => {
       const { id } = req.params;
       const user = req.user!;
-      
+
       console.log(`Tentando atualizar promoção ID: ${id}`);
       console.log("Dados recebidos:", JSON.stringify(req.body, null, 2));
-      
+
       // Get the promotion
       const promotion = await storage.getPromotion(Number(id));
       if (!promotion) {
         return res.status(404).json({ message: 'Promotion not found' });
       }
-      
+
       // Get the product
       const product = await storage.getProduct(promotion.productId);
       if (!product) {
         return res.status(404).json({ message: 'Product not found' });
       }
-      
+
       // Verify the product belongs to the user's store
       const store = await storage.getStore(product.storeId);
       if (!store || store.userId !== user.id) {
         return res.status(403).json({ message: 'Not authorized to modify this promotion' });
       }
-      
+
       // Process the incoming data
       let processedData = {...req.body};
-      
+
       // Handle discount type conversion (from frontend to database format)
       if (req.body.type === 'normal') {
         processedData.type = 'regular';
       }
-      
+
       if (req.body.discountType && req.body.discountValue) {
         if (req.body.discountType === 'percentage') {
           processedData.discountPercentage = Number(req.body.discountValue);
@@ -224,12 +268,12 @@ export async function updatePromotion(req: Request, res: Response) {
           processedData.discountAmount = Number(req.body.discountValue);
           delete processedData.discountPercentage;
         }
-        
+
         // Remove fields not in the schema
         delete processedData.discountType;
         delete processedData.discountValue;
       }
-      
+
       // CRITICAL: Proper date handling to fix toISOString errors
       // Handle dates as strings explicitly in formats Postgres will accept
       if (processedData.startTime) {
@@ -256,7 +300,7 @@ export async function updatePromotion(req: Request, res: Response) {
           });
         }
       }
-      
+
       if (processedData.endTime) {
         try {
           // Convert to string format that Postgres will accept directly
@@ -281,9 +325,9 @@ export async function updatePromotion(req: Request, res: Response) {
           });
         }
       }
-      
+
       console.log("Dados processados para atualização:", JSON.stringify(processedData, null, 2));
-      
+
       try {
         // Update the promotion with processed data
         const updatedPromotion = await storage.updatePromotion(Number(id), processedData);
@@ -313,27 +357,27 @@ export async function simpleUpdatePromotion(req: Request, res: Response) {
     sellerMiddleware(req, res, async () => {
       const { id } = req.params;
       const user = req.user!;
-      
+
       console.log(`[SimpleUpdate] Atualizando promoção ${id} com dados:`, req.body);
-      
+
       // Get the promotion
       const promotion = await storage.getPromotion(Number(id));
       if (!promotion) {
         return res.status(404).json({ message: 'Promotion not found' });
       }
-      
+
       // Get the product
       const product = await storage.getProduct(promotion.productId);
       if (!product) {
         return res.status(404).json({ message: 'Product not found' });
       }
-      
+
       // Verify the product belongs to the user's store
       const store = await storage.getStore(product.storeId);
       if (!store || store.userId !== user.id) {
         return res.status(403).json({ message: 'Not authorized to modify this promotion' });
       }
-      
+
       // Extract fields from request body
       const { 
         type,
@@ -342,23 +386,23 @@ export async function simpleUpdatePromotion(req: Request, res: Response) {
         startTime, 
         endTime 
       } = req.body;
-      
+
       // Process discount fields - convert from frontend format to DB format
       let discountPercentage = promotion.discountPercentage;
-      
+
       if (discountType && discountValue) {
         if (discountType === 'percentage') {
           discountPercentage = Number(discountValue);
         }
       }
-      
+
       // Format dates as needed
       let formattedStartTime = startTime ? new Date(startTime).toISOString() : promotion.startTime;
       let formattedEndTime = endTime ? new Date(endTime).toISOString() : promotion.endTime;
-      
+
       // Using direct database query with snake_case column names
       const { pool } = await import('../db');
-      
+
       const query = `
         UPDATE promotions 
         SET 
@@ -370,7 +414,7 @@ export async function simpleUpdatePromotion(req: Request, res: Response) {
         WHERE id = $5
         RETURNING *;
       `;
-      
+
       const values = [
         type || promotion.type,
         discountPercentage,
@@ -378,21 +422,21 @@ export async function simpleUpdatePromotion(req: Request, res: Response) {
         formattedEndTime,
         Number(id)
       ];
-      
+
       console.log('[SimpleUpdate] Executing query with values:', {
         query,
         values
       });
-      
+
       const result = await pool.query(query, values);
       console.log('[SimpleUpdate] Update result rows:', result.rows);
-      
+
       if (!result.rows || result.rows.length === 0) {
         return res.status(500).json({ message: 'Failed to update promotion' });
       }
-      
+
       const updatedPromotion = result.rows[0];
-      
+
       // Transform snake_case back to camelCase for the response
       const formattedPromotion = {
         id: updatedPromotion.id,
@@ -404,9 +448,9 @@ export async function simpleUpdatePromotion(req: Request, res: Response) {
         createdAt: updatedPromotion.created_at,
         updatedAt: updatedPromotion.updated_at
       };
-      
+
       console.log('[SimpleUpdate] Formatted promotion:', formattedPromotion);
-      
+
       return res.json(formattedPromotion);
     });
   } catch (error) {
@@ -424,34 +468,48 @@ export async function deletePromotion(req: Request, res: Response) {
     sellerMiddleware(req, res, async () => {
       const { id } = req.params;
       const user = req.user!;
-      
+
       // Log for debugging
       console.log(`Tentando excluir promoção com ID: ${id}`);
-      
+
       // Get the promotion
       const promotion = await storage.getPromotion(Number(id));
       if (!promotion) {
         return res.status(404).json({ message: 'Promotion not found' });
       }
-      
+
       // Get the product
       const product = await storage.getProduct(promotion.productId);
       if (!product) {
         return res.status(404).json({ message: 'Product not found' });
       }
-      
+
       // Verify the product belongs to the user's store
       const store = await storage.getStore(product.storeId);
       if (!store || store.userId !== user.id) {
         return res.status(403).json({ message: 'Not authorized to delete this promotion' });
       }
+
+      // Check if promotion is expired (for logging purposes)
+      const now = new Date();
+      const endDate = new Date(promotion.endTime);
+      const isExpired = now > endDate;
       
-      // Delete the promotion
+      if (isExpired) {
+        console.log(`Excluindo promoção expirada ${id} (expirou em: ${endDate})`);
+      } else {
+        console.log(`Excluindo promoção ativa ${id}`);
+      }
+
+      // Delete the promotion (permitir exclusão independente de estar expirada)
       const success = await storage.deletePromotion(Number(id));
-      
+
       if (success) {
         console.log(`Promoção ${id} excluída com sucesso`);
-        res.json({ success: true, message: 'Promotion deleted successfully' });
+        res.json({ 
+          success: true, 
+          message: isExpired ? 'Expired promotion deleted successfully' : 'Promotion deleted successfully' 
+        });
       } else {
         console.error(`Falha ao excluir promoção ${id}`);
         res.status(500).json({ message: 'Failed to delete promotion' });
