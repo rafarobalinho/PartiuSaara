@@ -148,6 +148,30 @@ export const getProductPrimaryImageHandler = async (req: Request, res: Response)
 
     if (imageResult.rows.length === 0) {
       console.log(`🔍 [IMAGE-DEBUG] Nenhuma imagem encontrada para o produto ${productId}, usando placeholder`);
+      
+      // Verificação especial para produto 11 - tentar encontrar arquivos órfãos
+      if (productId === 11) {
+        console.log(`🔍 [IMAGE-DEBUG] PRODUTO 11 ESPECÍFICO - Verificando arquivos físicos...`);
+        const productDir = path.join(process.cwd(), 'public', 'uploads', 'stores', storeId.toString(), 'products', productId.toString());
+        
+        try {
+          if (fs.existsSync(productDir)) {
+            const files = fs.readdirSync(productDir);
+            const imageFiles = files.filter(file => /\.(jpg|jpeg|png|gif)$/i.test(file));
+            
+            console.log(`🔍 [IMAGE-DEBUG] PRODUTO 11 - Arquivos encontrados no diretório:`, imageFiles);
+            
+            if (imageFiles.length > 0) {
+              const foundImagePath = path.join(productDir, imageFiles[0]);
+              console.log(`🔍 [IMAGE-DEBUG] PRODUTO 11 - Usando arquivo órfão:`, foundImagePath);
+              return res.sendFile(foundImagePath);
+            }
+          }
+        } catch (dirError) {
+          console.error(`🔍 [IMAGE-DEBUG] PRODUTO 11 - Erro ao verificar diretório:`, dirError);
+        }
+      }
+      
       console.log('🔍 [IMAGE-DEBUG] ========== FIM (SEM IMAGEM) ==========');
       return res.redirect('/placeholder-image.jpg');
     }
