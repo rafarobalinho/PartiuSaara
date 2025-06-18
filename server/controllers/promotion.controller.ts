@@ -490,12 +490,26 @@ export async function deletePromotion(req: Request, res: Response) {
         return res.status(403).json({ message: 'Not authorized to delete this promotion' });
       }
 
-      // Delete the promotion
+      // Check if promotion is expired (for logging purposes)
+      const now = new Date();
+      const endDate = new Date(promotion.endTime);
+      const isExpired = now > endDate;
+      
+      if (isExpired) {
+        console.log(`Excluindo promoção expirada ${id} (expirou em: ${endDate})`);
+      } else {
+        console.log(`Excluindo promoção ativa ${id}`);
+      }
+
+      // Delete the promotion (permitir exclusão independente de estar expirada)
       const success = await storage.deletePromotion(Number(id));
 
       if (success) {
         console.log(`Promoção ${id} excluída com sucesso`);
-        res.json({ success: true, message: 'Promotion deleted successfully' });
+        res.json({ 
+          success: true, 
+          message: isExpired ? 'Expired promotion deleted successfully' : 'Promotion deleted successfully' 
+        });
       } else {
         console.error(`Falha ao excluir promoção ${id}`);
         res.status(500).json({ message: 'Failed to delete promotion' });

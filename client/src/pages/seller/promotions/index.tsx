@@ -256,7 +256,7 @@ export default function SellerPromotions() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Promoção</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta promoção?
+              Tem certeza que deseja excluir esta promoção? Esta ação não pode ser desfeita.
               {promotionToDelete && (
                 <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200">
                   <div className="font-medium">{promotionToDelete.product.name}</div>
@@ -266,6 +266,12 @@ export default function SellerPromotions() {
                   <div className="text-sm text-gray-500">
                     Período: {formatPromotionDate(promotionToDelete.startTime)} até {formatPromotionDate(promotionToDelete.endTime)}
                   </div>
+                  {new Date() > new Date(promotionToDelete.endTime) && (
+                    <div className="text-sm text-orange-600 mt-1 font-medium">
+                      <i className="fas fa-exclamation-triangle mr-1"></i>
+                      Esta promoção já expirou
+                    </div>
+                  )}
                 </div>
               )}
             </AlertDialogDescription>
@@ -290,6 +296,7 @@ export default function SellerPromotions() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+</old_str>
 
       <Card className="mb-6">
         <CardContent className="p-4">
@@ -405,7 +412,6 @@ export default function SellerPromotions() {
                           size="sm" 
                           variant="outline" 
                           className="border-red-500 text-red-500 hover:bg-red-50"
-                          disabled={isEnded}
                           onClick={() => handleDeletePromotion(promotion)}
                         >
                           <i className="fas fa-trash-alt mr-1"></i> Excluir
