@@ -1,22 +1,27 @@
+
 import fs from 'fs';
 import path from 'path';
-import { Pool } from '@neondatabase/serverless';
+import pg from 'pg';
 import dotenv from 'dotenv';
+
+const { Client } = pg;
 
 // Carregar variáveis de ambiente
 dotenv.config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
-
 console.log('🚀 Iniciando migração final para estrutura segura de imagens...');
 
 async function migrateToSecureStructure() {
-  const client = await pool.connect();
+  // Usar Client em vez de Pool para evitar problemas de WebSocket
+  const client = new Client({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  });
 
   try {
+    await client.connect();
+    console.log('✅ Conectado ao banco de dados');
+
     // 1. Buscar todos os produtos com imagens
     console.log('📋 Buscando produtos com imagens...');
     const productsResult = await client.query(`
@@ -131,7 +136,7 @@ async function migrateToSecureStructure() {
     console.error('❌ Erro durante migração:', error);
     throw error;
   } finally {
-    client.release();
+    await client.end();
   }
 }
 
