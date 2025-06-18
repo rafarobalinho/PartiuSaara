@@ -162,14 +162,11 @@ export async function createStore(req: Request, res: Response) {
         imagesType: typeof req.body.images
       });
 
-      // Validate store data - usando schema base com campos adicionais
-      const storeSchema = z.object({
-        ...insertStoreSchema.shape,
+      // Validate store data - usando schema atualizado com campos adicionais
+      const storeSchema = insertStoreSchema.extend({
         userId: z.number().optional(),
         images: z.array(z.string()).optional().default([]),
         place_id: z.string().optional(),
-        // Permitir categories (array) mas converter para category
-        categories: z.array(z.string()).optional(),
         // Permitir location com latitude e longitude
         location: z.object({
           latitude: z.number(),
@@ -185,8 +182,7 @@ export async function createStore(req: Request, res: Response) {
           neighborhood: z.string().optional(),
           number: z.string().optional(),
           complement: z.string().optional()
-        }).optional(),
-        acceptLocationTerms: z.boolean().optional()
+        }).optional()
       });
 
       // === DIAGNÓSTICO COMPLETO ===
@@ -225,6 +221,11 @@ export async function createStore(req: Request, res: Response) {
 
       const storeData = validationResult.data;
       console.log('🔍 [STORE-CREATE] Dados validados:', storeData);
+      console.log('🔍 [STORE-CREATE] Tags como array validado:', {
+        tags: storeData.tags,
+        isArray: Array.isArray(storeData.tags),
+        length: storeData.tags?.length || 0
+      });
 
       // Set the user ID to the current user
       storeData.userId = user.id;
