@@ -324,6 +324,12 @@ const ImageUploadComponent = forwardRef(({
     try {
       const imageToRemove = selectedImages[index];
 
+      // Verificar se imageToRemove é válido
+      if (!imageToRemove || typeof imageToRemove !== 'string') {
+        console.warn('Imagem inválida para remoção:', imageToRemove);
+        return;
+      }
+
       // Extrair o tipo e ID da entidade do nome
       console.log('Analisando nome do campo para remoção:', name);
 
@@ -341,7 +347,7 @@ const ImageUploadComponent = forwardRef(({
 
       // Extrai o ID da imagem a partir da URL
       // Padrão das URLs de imagem: /uploads/123456789.jpg ou /uploads/thumbnails/123456789.jpg
-      const imageUrlMatch = imageToRemove.match(/\/uploads\/(?:thumbnails\/)?([^\/]+?)(?:\.[^.]+)?$/);
+      const imageUrlMatch = imageToRemove.match && imageToRemove.match(/\/uploads\/(?:thumbnails\/)?([^\/]+?)(?:\.[^.]+)?$/);
 
       if (!imageUrlMatch) {
         console.log('Formato de URL não reconhecido, tentando alternativas:', imageToRemove);

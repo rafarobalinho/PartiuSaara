@@ -304,9 +304,16 @@ export default function ProductDetail() {
           <div className="relative pt-[56.25%] bg-gray-100">
             {productData && productData.images && productData.images.length > 0 ? (
               <ImageComponent 
-                src={typeof productData.images[activeImage] === 'string' 
-                  ? productData.images[activeImage] 
-                  : productData.images[activeImage].image_url || '/placeholder-image.jpg'} 
+                src={(() => {
+                  const currentImage = productData.images?.[activeImage];
+                  if (!currentImage) return '/placeholder-image.jpg';
+                  
+                  if (typeof currentImage === 'string') {
+                    return currentImage;
+                  }
+                  
+                  return currentImage?.image_url || '/placeholder-image.jpg';
+                })()} 
                 alt={productData.name} 
                 className="absolute top-0 left-0 w-full h-full object-contain p-4"
                 productId={productData.id}
@@ -336,9 +343,15 @@ export default function ProductDetail() {
                     onClick={() => setActiveImage(index)}
                   >
                     <ImageComponent 
-                      src={typeof image === 'string' 
-                        ? image 
-                        : (image.thumbnail_url || image.image_url || '/placeholder-image.jpg')} 
+                      src={(() => {
+                        if (!image) return '/placeholder-image.jpg';
+                        
+                        if (typeof image === 'string') {
+                          return image;
+                        }
+                        
+                        return image?.thumbnail_url || image?.image_url || '/placeholder-image.jpg';
+                      })()} 
                       alt={`${productData.name} - imagem ${index + 1}`} 
                       className="w-full h-full object-cover"
                       productId={productData.id}
