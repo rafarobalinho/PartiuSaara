@@ -121,14 +121,52 @@ export async function createStore(req: Request, res: Response) {
         console.log('🔍 [STORE-CREATE] Convertendo categories para category:', req.body.categories[0]);
       }
 
-      // Validate store data - usando schema base com campos adicionais
-      const storeSchema = z.object({
-        ...insertStoreSchema.shape,
+      // CORREÇÃO CRÍTICA: Converter campos string para array quando necessário
+      console.log('🔍 [STORE-CREATE] Dados antes da correção de arrays:', {
+        tags: req.body.tags,
+        tagsType: typeof req.body.tags,
+        categories: req.body.categories,
+        images: req.body.images
+      });
+
+      // Corrigir o campo tags - converter string vazia para array vazio
+      if (typeof req.body.tags === 'string') {
+        if (req.body.tags.trim() === '') {
+          req.body.tags = []; // Array vazio em vez de string vazia
+          console.log('🔍 [STORE-CREATE] Convertido tags string vazia para array vazio');
+        } else {
+          // Se houver tags como string, converter para array
+          req.body.tags = req.body.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+          console.log('🔍 [STORE-CREATE] Convertido tags string para array:', req.body.tags);
+        }
+      }
+
+      // Garantir que outros campos de array estejam corretos
+      if (!Array.isArray(req.body.categories)) {
+        req.body.categories = [];
+        console.log('🔍 [STORE-CREATE] Corrigido categories para array vazio');
+      }
+
+      if (!Array.isArray(req.body.images)) {
+        req.body.images = [];
+        console.log('🔍 [STORE-CREATE] Corrigido images para array vazio');
+      }
+
+      console.log('🔍 [STORE-CREATE] Dados após correção de arrays:', {
+        tags: req.body.tags,
+        tagsType: typeof req.body.tags,
+        tagsIsArray: Array.isArray(req.body.tags),
+        categories: req.body.categories,
+        categoriesType: typeof req.body.categories,
+        images: req.body.images,
+        imagesType: typeof req.body.images
+      });
+
+      // Validate store data - usando schema atualizado com campos adicionais
+      const storeSchema = insertStoreSchema.extend({
         userId: z.number().optional(),
         images: z.array(z.string()).optional().default([]),
         place_id: z.string().optional(),
-        // Permitir categories (array) mas converter para category
-        categories: z.array(z.string()).optional(),
         // Permitir location com latitude e longitude
         location: z.object({
           latitude: z.number(),
@@ -144,8 +182,7 @@ export async function createStore(req: Request, res: Response) {
           neighborhood: z.string().optional(),
           number: z.string().optional(),
           complement: z.string().optional()
-        }).optional(),
-        acceptLocationTerms: z.boolean().optional()
+        }).optional()
       });
 
       // === DIAGNÓSTICO COMPLETO ===
@@ -184,11 +221,30 @@ export async function createStore(req: Request, res: Response) {
 
       const storeData = validationResult.data;
       console.log('🔍 [STORE-CREATE] Dados validados:', storeData);
+      console.log('🔍 [STORE-CREATE] Tags como array validado:', {
+        tags: storeData.tags,
+        isArray: Array.isArray(storeData.tags),
+        length: storeData.tags?.length || 0
+      });
 
       // Set the user ID to the current user
       storeData.userId = user.id;
 
       console.log('🔍 [STORE-CREATE] Criando loja com dados finais:', storeData);
+      
+      // LOGS CRÍTICOS para debug do PostgreSQL
+      console.log('🔍 [STORAGE] Dados antes da inserção no BD:', {
+        tags: storeData.tags,
+        tagsType: typeof storeData.tags,
+        tagsIsArray: Array.isArray(storeData.tags),
+        categories: storeData.categories,
+        categoriesType: typeof storeData.categories,
+        categoriesIsArray: Array.isArray(storeData.categories),
+        images: storeData.images,
+        imagesType: typeof storeData.images,
+        imagesIsArray: Array.isArray(storeData.images)
+      });
+
       const store = await storage.createStore(storeData);
       console.log('✅ [STORE-CREATE] Loja criada com sucesso:', store);
 

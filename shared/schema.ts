@@ -71,11 +71,19 @@ export const stores = pgTable("stores", {
 
 export const insertStoreSchema = createInsertSchema(stores, {
   // Validações customizadas se necessário
+}).extend({
+  // Override tags field to accept array of strings
+  tags: z.array(z.string()).default([]),
+  // Allow categories as array for frontend compatibility
+  categories: z.array(z.string()).optional(),
+  // Allow acceptLocationTerms for terms acceptance
+  acceptLocationTerms: z.boolean().optional()
 });
 
 // Log para diagnóstico do schema
 console.log('🔍 [SCHEMA] insertStoreSchema fields:', Object.keys(insertStoreSchema.shape || {}));
 console.log('🔍 [SCHEMA] insertStoreSchema structure:', insertStoreSchema.shape);
+console.log('🔍 [SCHEMA] Tags field updated to support array:', insertStoreSchema.shape.tags);
 
 // Schema de validação criado
 
