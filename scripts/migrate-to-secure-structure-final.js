@@ -96,9 +96,12 @@ async function migrateToSecureStructure() {
         await client.query('DELETE FROM product_images WHERE product_id = $1', [product.id]);
 
         for (let i = 0; i < updatedImages.length; i++) {
+          // Gerar thumbnail_url baseado na image_url (mesmo padrão que o resto do sistema)
+          const thumbnailUrl = updatedImages[i].replace('/products/', '/products/').replace(/\/([^\/]+)$/, '/thumbnails/$1');
+          
           await client.query(
-            'INSERT INTO product_images (product_id, image_url, is_primary) VALUES ($1, $2, $3)',
-            [product.id, updatedImages[i], i === 0]
+            'INSERT INTO product_images (product_id, image_url, thumbnail_url, is_primary, display_order) VALUES ($1, $2, $3, $4, $5)',
+            [product.id, updatedImages[i], thumbnailUrl, i === 0, i]
           );
         }
 
