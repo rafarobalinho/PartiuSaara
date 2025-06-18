@@ -57,7 +57,14 @@ export default function ResetPassword() {
     queryKey: ['validate-reset-token', token],
     queryFn: async () => {
       if (!token) throw new Error('Token não fornecido');
-      return apiRequest('GET', `/api/auth/validate-reset-token/${token}`, {});
+      const response = await fetch(`/api/auth/validate-reset-token/${token}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Token inválido ou expirado');
+      }
+      return response.json();
     },
     enabled: !!token,
     retry: false,
