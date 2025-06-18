@@ -69,3 +69,5 @@ export const SafeImage: React.FC<SafeImageProps> = ({
     </div>
   );
 };
+
+export default SafeImage;
