@@ -88,14 +88,11 @@ export default function ResetPassword() {
     },
   });
 
-  const onSubmit = async (values: ResetPasswordFormValues) => {
+  const onSubmit = (values: ResetPasswordFormValues) => {
     if (!token) return;
 
     startTransition(() => {
-      resetPasswordMutation.mutate({
-        token,
-        password: values.password,
-      });
+      resetPasswordMutation.mutate(values);
     });
   };
 
@@ -130,12 +127,12 @@ export default function ResetPassword() {
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex flex-col space-y-2">
-            <Link to="/auth/forgot-password" className="w-full">
+            <Link to="/forgot-password" className="w-full">
               <Button className="w-full">
                 Solicitar Novo Link
               </Button>
             </Link>
-            <Link to="/auth/login" className="w-full">
+            <Link to="/login" className="w-full">
               <Button variant="outline" className="w-full">
                 Voltar para Login
               </Button>
@@ -161,7 +158,7 @@ export default function ResetPassword() {
             </CardDescription>
           </CardHeader>
           <CardFooter className="flex flex-col space-y-2">
-            <Link to="/auth/login" className="w-full">
+            <Link to="/login" className="w-full">
               <Button className="w-full">
                 Fazer Login
               </Button>
@@ -222,7 +219,7 @@ export default function ResetPassword() {
           </Form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
-          <Link to="/auth/login" className="w-full">
+          <Link to="/login" className="w-full">
             <Button variant="outline" className="w-full">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar para Login

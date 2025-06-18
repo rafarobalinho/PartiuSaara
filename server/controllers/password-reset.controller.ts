@@ -4,6 +4,7 @@ import { storage } from '../storage';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 
 // Schema for password reset request
 const requestResetSchema = z.object({
@@ -16,21 +17,139 @@ const resetPasswordSchema = z.object({
   password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
 });
 
-// Simulate email sending (in production, use a real email service)
-async function sendPasswordResetEmail(email: string, token: string) {
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/auth/reset-password?token=${token}`;
+// Create email transporter
+async function createEmailTransporter() {
+  // If we have Gmail credentials, use them
+  if (process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_APP_PASSWORD
+      }
+    });
+  }
   
-  // For development, just log the reset link
-  console.log('=== EMAIL DE RECUPERAÇÃO DE SENHA ===');
+  // For development, create a test account with Ethereal Email
+  try {
+    const testAccount = await nodemailer.createTestAccount();
+    
+    console.log('📧 Usando conta de teste Ethereal Email:');
+    console.log(`   User: ${testAccount.user}`);
+    console.log(`   Pass: ${testAccount.pass}`);
+    
+    return nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao criar conta de teste:', error);
+    throw error;
+  }
+}
+
+// Send password reset email
+async function sendPasswordResetEmail(email: string, token: string) {
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/reset-password?token=${token}`;
+  
+  // Log for debugging
+  console.log('=== ENVIANDO EMAIL DE RECUPERAÇÃO ===');
   console.log(`Para: ${email}`);
   console.log(`Link de recuperação: ${resetUrl}`);
-  console.log('Este link expira em 1 hora');
   console.log('=====================================');
   
-  // TODO: In production, replace this with actual email sending logic
-  // Examples: SendGrid, AWS SES, Nodemailer, etc.
-  
-  return true;
+  try {
+    const transporter = await createEmailTransporter();
+    
+    const mailOptions = {
+      from: `"Partiu Saara" <${process.env.EMAIL_USER || 'noreply@partiusaara.com'}>`,
+      to: email,
+      subject: 'Recuperação de Senha - Partiu Saara',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Recuperação de Senha</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #007bff; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
+            .button { display: inline-block; background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Recuperação de Senha</h1>
+            </div>
+            <div class="content">
+              <h2>Olá!</h2>
+              <p>Você solicitou a recuperação de sua senha no <strong>Partiu Saara</strong>.</p>
+              <p>Clique no botão abaixo para redefinir sua senha:</p>
+              <a href="${resetUrl}" class="button">Redefinir Senha</a>
+              <p>Ou copie e cole este link no seu navegador:</p>
+              <p style="word-break: break-all; background: #e9ecef; padding: 10px; border-radius: 4px;">${resetUrl}</p>
+              <p><strong>Este link expira em 1 hora.</strong></p>
+              <p>Se você não solicitou esta recuperação, pode ignorar este email com segurança.</p>
+            </div>
+            <div class="footer">
+              <p>© ${new Date().getFullYear()} Partiu Saara. Todos os direitos reservados.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+        Recuperação de Senha - Partiu Saara
+        
+        Olá!
+        
+        Você solicitou a recuperação de sua senha no Partiu Saara.
+        
+        Acesse o link abaixo para redefinir sua senha:
+        ${resetUrl}
+        
+        Este link expira em 1 hora.
+        
+        Se você não solicitou esta recuperação, pode ignorar este email com segurança.
+        
+        © ${new Date().getFullYear()} Partiu Saara. Todos os direitos reservados.
+      `
+    };
+    
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Email de recuperação enviado com sucesso!');
+    
+    // If using Ethereal (test), show preview URL
+    if (info.messageId && !process.env.EMAIL_USER) {
+      const previewUrl = nodemailer.getTestMessageUrl(info);
+      console.log('🔗 Preview do email (Ethereal): ' + previewUrl);
+    }
+    
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Erro ao enviar email de recuperação:', error);
+    
+    // Fall back to console logging for development
+    console.log('=== FALLBACK: EMAIL DE RECUPERAÇÃO (CONSOLE) ===');
+    console.log(`Para: ${email}`);
+    console.log(`Link de recuperação: ${resetUrl}`);
+    console.log('Este link expira em 1 hora');
+    console.log('================================================');
+    
+    // Still return true so the user gets the success message
+    // In production, you might want to return false and show an error
+    return true;
+  }
 }
 
 export async function requestPasswordReset(req: Request, res: Response) {
@@ -89,11 +208,19 @@ export async function resetPassword(req: Request, res: Response) {
 
     const { token, password } = validationResult.data;
 
-    // Get and validate token
+    // Get and validate token first
     const resetToken = await storage.getPasswordResetToken(token);
     if (!resetToken) {
       return res.status(400).json({ 
         message: 'Token inválido ou expirado' 
+      });
+    }
+
+    // Get user to verify they exist (additional validation for password reset)
+    const user = await storage.getUser(resetToken.userId);
+    if (!user) {
+      return res.status(400).json({ 
+        message: 'Usuário não encontrado' 
       });
     }
 
