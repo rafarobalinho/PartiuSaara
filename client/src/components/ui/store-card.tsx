@@ -57,6 +57,9 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
     enabled: !!store.id
   });
   */ // Comentado para evitar erros de build
+  
+  // Definir placeDetails como null para evitar erros
+  const placeDetails = null;
 
   // Traduzir dias da semana do inglês para português
   const translateDayOfWeek = (day: string): string => {
@@ -89,7 +92,7 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
       }
     }
   }, [placeDetails]);
-*/ // Comentado para evitar erros de build
+  */ // Comentado para evitar erros de build
   const toggleFavoriteMutation = useMutation({
     mutationFn: async () => {
       return apiRequest(
@@ -184,9 +187,11 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
           {/* Exibição de avaliações em linha - fonte menor */}
           <div className="flex items-center text-[10px] text-gray-500 mb-1">
             <i className="fas fa-star text-yellow-400 mr-0.5"></i> 
-            <span>{placeDetails?.rating ? placeDetails.rating.toFixed(1) : (store.rating ? store.rating.toFixed(1) : '0.0')}</span>
+            {/* <span>{placeDetails?.rating ? placeDetails.rating.toFixed(1) : (store.rating ? store.rating.toFixed(1) : '0.0')}</span> */}
+            <span>{store.rating ? store.rating.toFixed(1) : '0.0'}</span>
             <span className="mx-0.5">•</span>
-            <span>{placeDetails?.total_ratings || store.reviewCount || 0} avaliações</span>
+            {/* <span>{placeDetails?.total_ratings || store.reviewCount || 0} avaliações</span> */}
+            <span>{store.reviewCount || 0} avaliações</span>
             {distance && (
               <>
                 <span className="mx-0.5">•</span>
@@ -196,7 +201,7 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
           </div>
           
           {/* Horários de funcionamento - se disponíveis */}
-          {placeDetails?.opening_hours && (
+          {/* {placeDetails?.opening_hours && (
             <div className="mt-0.5 mb-1">
               <div 
                 className="text-[10px] text-gray-600 cursor-pointer flex items-center" 
@@ -218,7 +223,7 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
                 })()}
               </div>
             </div>
-          )}
+          )} */}
           
           {/* Descrição da loja - mais compacta */}
           <p className="text-[10px] text-gray-600 line-clamp-2 mt-0.5">
