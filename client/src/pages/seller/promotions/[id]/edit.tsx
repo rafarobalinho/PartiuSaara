@@ -153,6 +153,7 @@ export default function EditPromotion() {
   useEffect(() => {
     const fetchStores = async () => {
       try {
+        console.log('🔍 [SECURITY] Buscando apenas lojas do usuário autenticado');
         const response = await fetch('/api/stores/my-stores', {
           credentials: 'include',
         });
@@ -162,6 +163,7 @@ export default function EditPromotion() {
         }
         
         const data = await response.json();
+        console.log('🔍 [SECURITY] Lojas do usuário recebidas:', data.length);
         setStores(data || []);
         
         if (data.length > 0 && !selectedStore) {

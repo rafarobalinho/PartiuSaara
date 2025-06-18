@@ -352,27 +352,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Store routes
-  // Rotas públicas de lojas
-  app.get('/api/stores', StoreController.getStores);
-  app.get('/api/stores/nearby', StoreController.getNearbyStores);
-
-  // Rota específica para o mapa - deve vir antes das rotas parametrizadas
-  app.get('/api/stores/map', MapController.getStoresForMap);
-
-  // Rota para listar apenas as lojas do usuário logado
+  // Rota para listar apenas as lojas do usuário logado (DEVE VIR PRIMEIRO)
   // IMPORTANTE: Esta rota específica deve vir antes das rotas parametrizadas (:id)
   app.get('/api/stores/my-stores', authMiddleware, async (req: Request, res: Response) => {
     try {
       const user = req.user;
       if (!user) return res.status(401).json({ message: 'Unauthorized' });
 
+      console.log('🔍 [SECURITY] Buscando lojas apenas do usuário:', user.id);
       const stores = await storage.getStoresByUserId(user.id);
+      console.log('🔍 [SECURITY] Lojas encontradas:', stores.length);
       res.json(stores);
     } catch (error) {
       console.error('Error fetching user stores:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
+
+  // Rotas públicas de lojas (para consumo público)
+  app.get('/api/stores', StoreController.getStores);
+  app.get('/api/stores/nearby', StoreController.getNearbyStores);
+
+  // Rota específica para o mapa - deve vir antes das rotas parametrizadas
+  app.get('/api/stores/map', MapController.getStoresForMap);
 
   // Rotas para lojas específicas (parametrizadas)
   app.get('/api/stores/:id', StoreController.getStore);

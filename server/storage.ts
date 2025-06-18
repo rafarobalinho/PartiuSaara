@@ -1658,10 +1658,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStoresByUserId(userId: number): Promise<Store[]> {
-    return await db.select()
+    console.log('🔍 [SECURITY] getStoresByUserId chamado para usuário:', userId);
+    const result = await db.select()
       .from(stores)
       .where(eq(stores.userId, userId))
       .orderBy(desc(stores.createdAt));
+    console.log('🔍 [SECURITY] Retornando', result.length, 'lojas para o usuário:', userId);
+    return result;
   }
 
   async createStore(storeData: InsertStore): Promise<Store> {

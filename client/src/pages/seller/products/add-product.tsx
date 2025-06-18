@@ -55,7 +55,7 @@ const productSchema = z.object({
 type ProductFormValues = z.infer<typeof productSchema>;
 
 export default function AddProduct() {
-  const { isAuthenticated, isSeller } = useAuth();
+  const { isAuthenticated, isSeller, user } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -75,12 +75,17 @@ export default function AddProduct() {
     return null;
   }
 
-  // Fetch stores
-  const { data: stores = [] } = useQuery({
-    queryKey: ['/api/stores'],
+  // Fetch stores owned by the logged-in seller
+  const { 
+    data: stores = [], 
+    isLoading: isLoadingStores 
+  } = useQuery({
+    queryKey: ['/api/stores/my-stores'],
     queryFn: async () => {
       try {
-        const res = await fetch('/api/stores');
+        const res = await fetch('/api/stores/my-stores', {
+          credentials: 'include',
+        });
         if (!res.ok) {
           throw new Error('Falha ao carregar lojas');
         }
@@ -89,7 +94,8 @@ export default function AddProduct() {
         console.error('Error fetching stores:', error);
         return [];
       }
-    }
+    },
+    enabled: !!isAuthenticated && !!isSeller && !!user
   });
 
   // Fetch categories
@@ -123,7 +129,7 @@ export default function AddProduct() {
       storeId: '',
     },
   });
-  
+
   // Atualiza o valor de storeId quando stores é carregado
   useEffect(() => {
     if (stores.length > 0 && !form.getValues('storeId')) {
@@ -145,7 +151,7 @@ export default function AddProduct() {
           ? productImages 
           : (data.images || [])
       };
-      
+
       return apiRequest('POST', '/api/products', formattedData);
     },
     onSuccess: () => {
