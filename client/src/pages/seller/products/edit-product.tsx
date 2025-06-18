@@ -31,7 +31,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import { SafeImage } from "@/components/ui/safe-image";
-import { Label } from "@/components/ui/label";
 import { ArrowLeft, Save, X } from "lucide-react";
 
 // Esquema de validação para o formulário
