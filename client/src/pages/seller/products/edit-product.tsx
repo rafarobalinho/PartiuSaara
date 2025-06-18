@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import LoadingSpinner from '@/components/ui/loading-spinner';
+import { SafeImage } from "@/components/ui/safe-image";
+import { ArrowLeft, Save, X } from "lucide-react";
 
 // Esquema de validação para o formulário
 const productSchema = z.object({
@@ -55,32 +57,47 @@ export default function EditProduct() {
   const [selectedStore, setSelectedStore] = useState<string>('');
   const [imagesChanged, setImagesChanged] = useState(false);
 
+  // Estados separados para imagens existentes e previews
+  const [existingImages, setExistingImages] = useState<Array<{
+    id: number;
+    url: string;
+    thumbnail_url: string;
+    is_primary: boolean;
+  }>>([]);
+  const [previewImages, setPreviewImages] = useState<Array<{
+    file: File;
+    preview: string;
+  }>>([]);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
   // Estados para controle do produto
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Carregar dados do produto via useEffect para melhor controle de erros
   useEffect(() => {
     const fetchProductDetails = async () => {
       try {
         setLoading(true);
         setError(null);
-        
+
         const productId = id;
         console.log('Tentando carregar produto para edição, ID:', productId);
-        
+
         if (!productId) {
           console.error('ID do produto não fornecido na URL');
           setError('ID do produto não encontrado');
           setLoading(false);
           return;
         }
-        
+
         const response = await fetch(`/api/products/${productId}`);
         const data = await response.json();
         console.log('Dados do produto recebidos:', data);
-        
+
         // Verifique se os dados do produto existem
         if (!data.product || !data.product.id) {
           console.error('Produto não encontrado ou dados inválidos');
@@ -88,7 +105,7 @@ export default function EditProduct() {
           setLoading(false);
           return;
         }
-        
+
         // Crie um objeto produto com valores padrão seguros para evitar undefined
         const safeProduct = {
           id: data.product.id,
@@ -102,31 +119,31 @@ export default function EditProduct() {
           storeId: data.product.storeId || null,
           // Adicione outras propriedades conforme necessário
         };
-        
+
         console.log('Produto normalizado:', safeProduct);
-        
+
         // Atualize o estado principal
         setProduct(safeProduct);
-        
+
         // Atualize os estados individuais dos campos do formulário
         if (Array.isArray(safeProduct.images)) {
           setProductImages(safeProduct.images);
         } else {
           setProductImages([]);
         }
-        
+
         // Segurança para store_id
         if (safeProduct.storeId) {
           setSelectedStore(safeProduct.storeId.toString());
         }
-        
+
         // Se não houver imagens no objeto do produto, tente buscá-las separadamente
         if (!safeProduct.images || safeProduct.images.length === 0) {
           try {
             const imagesResponse = await fetch(`/api/products/${productId}/images`);
             const imagesData = await imagesResponse.json();
             console.log('Imagens do produto:', imagesData);
-            
+
             if (imagesData && Array.isArray(imagesData)) {
               setProductImages(imagesData);
             }
@@ -142,7 +159,7 @@ export default function EditProduct() {
         setLoading(false);
       }
     };
-    
+
     fetchProductDetails();
   }, [id]);
 
@@ -260,6 +277,43 @@ export default function EditProduct() {
     updateProductMutation.mutate(data);
   };
 
+    const handleImageUpload = (files: File[]) => {
+    setImageFiles(prev => [...prev, ...files]);
+
+    // Criar previews para as novas imagens
+    const newPreviews = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+
+    setPreviewImages(prev => [...prev, ...newPreviews]);
+
+    // Adicionar URLs de preview ao selectedImages para compatibilidade
+    const previewUrls = newPreviews.map(p => p.preview);
+    setSelectedImages(prev => [...prev, ...previewUrls]);
+  };
+
+  const removeExistingImage = (imageIndex: number) => {
+    setExistingImages(prev => prev.filter((_, index) => index !== imageIndex));
+    // Atualizar selectedImages removendo a imagem correspondente
+    const imageUrl = existingImages[imageIndex]?.url;
+    if (imageUrl) {
+      setSelectedImages(prev => prev.filter(url => url !== imageUrl));
+    }
+  };
+
+  const removePreviewImage = (previewIndex: number) => {
+    const imageToRemove = previewImages[previewIndex];
+    if (imageToRemove) {
+      // Revogar URL de preview para evitar vazamentos de memória
+      URL.revokeObjectURL(imageToRemove.preview);
+
+      setPreviewImages(prev => prev.filter((_, index) => index !== previewIndex));
+      setImageFiles(prev => prev.filter((_, index) => index !== previewIndex));
+      setSelectedImages(prev => prev.filter(url => url !== imageToRemove.preview));
+    }
+  };
+
   // O upload de imagens agora é gerenciado pelo componente ImageUpload
   // Removemos os manipuladores manuais já que o componente ImageUpload cuida disso
 
@@ -297,7 +351,7 @@ export default function EditProduct() {
             </div>
             <p className="text-gray-600">Atualize os detalhes do produto para refletir as alterações no marketplace</p>
           </div>
-    
+
           <div className="grid grid-cols-1 gap-6">
             <Card>
               <CardHeader>
@@ -320,7 +374,7 @@ export default function EditProduct() {
                           </FormItem>
                         )}
                       />
-    
+
                       <FormField
                         control={form.control}
                         name="category"
@@ -349,7 +403,7 @@ export default function EditProduct() {
                         )}
                       />
                     </div>
-    
+
                     <FormField
                       control={form.control}
                       name="description"
@@ -367,7 +421,7 @@ export default function EditProduct() {
                         </FormItem>
                       )}
                     />
-    
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField
                         control={form.control}
@@ -388,7 +442,7 @@ export default function EditProduct() {
                           </FormItem>
                         )}
                       />
-    
+
                       <FormField
                         control={form.control}
                         name="discountedPrice"
@@ -411,7 +465,7 @@ export default function EditProduct() {
                           </FormItem>
                         )}
                       />
-    
+
                       <FormField
                         control={form.control}
                         name="stock"
@@ -431,7 +485,7 @@ export default function EditProduct() {
                         )}
                       />
                     </div>
-    
+
                     <FormField
                       control={form.control}
                       name="storeId"
@@ -462,27 +516,91 @@ export default function EditProduct() {
                         </FormItem>
                       )}
                     />
-    
-                    <div>
-                      <FormLabel>Imagens do Produto</FormLabel>
-                      <div className="mt-2 border rounded-lg p-4">
-    
-                        <div>
-                          <ImageUpload
-                            name={`product-${id}`}
-                            multiple={true}
-                            maxImages={5}
-                            value={productImages}
-                            onChange={(urls) => {
-                              setProductImages(urls);
-                              setImagesChanged(true);
-                            }}
+
+                    {/* Imagens */}
+            <div className="space-y-4">
+              <Label>Imagens do Produto</Label>
+
+              {/* Imagens Existentes */}
+              {existingImages.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-gray-700">Imagens Atuais</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {existingImages.map((image, index) => (
+                      <div key={`existing-${index}`} className="relative group">
+                        <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                          <SafeImage
+                            src={image.url}
+                            alt={`${form.name || 'Produto'} - Imagem ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            productId={parseInt(id)}
                           />
-    
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => removeExistingImage(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                        {image.is_primary && (
+                          <Badge className="absolute bottom-2 left-2 bg-blue-600 text-white">
+                            Principal
+                          </Badge>
+                        )}
                       </div>
-                    </div>
-    
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Previews de Novas Imagens */}
+              {previewImages.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-gray-700">Novas Imagens</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {previewImages.map((image, index) => (
+                      <div key={`preview-${index}`} className="relative group">
+                        <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                          <SafeImage
+                            src={image.preview}
+                            alt={`Nova imagem ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removePreviewImage(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                        <Badge className="absolute bottom-2 left-2 bg-green-600 text-white">
+                          Nova
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Upload de Novas Imagens */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-gray-700">Adicionar Novas Imagens</h4>
+                <ImageUpload
+                  name={`product-${id}`}
+                  onImageUpload={handleImageUpload}
+                  selectedImages={[]} // Sempre vazio para não duplicar exibição
+                  onRemoveImage={() => {}} // Não usado neste contexto
+                  maxImages={Math.max(0, 5 - existingImages.length - previewImages.length)}
+                />
+                <p className="text-xs text-gray-500">
+                  Máximo de 5 imagens por produto. 
+                  Atual: {existingImages.length + previewImages.length}/5
+                </p>
+              </div>
+            </div>
+
                     <div className="flex justify-end space-x-2 pt-4">
                       <Button 
                         type="button" 
