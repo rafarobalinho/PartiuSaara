@@ -1,0 +1,160 @@
+SCRIPT DE MIGRAÇÃO CORRIGIDO
+Correção do Import
+Arquivo: scripts/migrate-images-to-structure.js
+Substituir o import incorreto por:
+javascript#!/usr/bin/env node
+
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { pool } from '../server/db.ts'; // ✅ Arquivo correto encontrado
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
+
+async function migrateImages() {
+  try {
+    console.log('🔄 Iniciando migração de imagens...');
+    
+    // Buscar todas as imagens de produtos que precisam ser migradas
+    const query = `
+      SELECT 
+        pi.id,
+        pi.product_id,
+        pi.image_url,
+        pi.thumbnail_url,
+        p.store_id,
+        p.name as product_name
+      FROM product_images pi
+      JOIN products p ON pi.product_id = p.id
+      WHERE pi.image_url LIKE '/uploads/%'
+        AND pi.image_url NOT LIKE '/uploads/stores/%'
+    `;
+    
+    const result = await pool.query(query);
+    console.log(`📋 Encontradas ${result.rows.length} imagens para migrar`);
+    
+    if (result.rows.length === 0) {
+      console.log('✅ Nenhuma imagem precisa ser migrada');
+      return;
+    }
+    
+    // Mostrar preview do que será migrado
+    console.log('📋 Preview da migração:');
+    result.rows.forEach(row => {
+      console.log(`  Produto ${row.product_id} (Loja ${row.store_id}): ${row.image_url}`);
+    });
+    
+    // Migrar cada imagem
+    for (const row of result.rows) {
+      await migrateImage(row);
+    }
+    
+    console.log('✅ Migração concluída!');
+    
+  } catch (error) {
+    console.error('❌ Erro na migração:', error);
+  }
+}
+
+async function migrateImage(imageData) {
+  const { id, product_id, image_url, thumbnail_url, store_id, product_name } = imageData;
+  
+  try {
+    console.log(`\n🔄 Migrando produto ${product_id}: ${product_name}`);
+    
+    // Criar estrutura de pastas
+    const storeDir = path.join(rootDir, 'public', 'uploads', 'stores', store_id.toString());
+    const productDir = path.join(storeDir, 'products', product_id.toString());
+    const thumbnailDir = path.join(productDir, 'thumbnails');
+    
+    // Criar todas as pastas necessárias
+    [storeDir, productDir, thumbnailDir].forEach(dir => {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`📁 Criada pasta: ${dir}`);
+      }
+    });
+    
+    let updateFields = [];
+    let updateValues = [];
+    let valueIndex = 1;
+    
+    // Migrar imagem principal
+    if (image_url && image_url.startsWith('/uploads/')) {
+      const newImageUrl = await moveImageFile(image_url, store_id, product_id, 'image');
+      if (newImageUrl) {
+        updateFields.push(`image_url = $${valueIndex}`);
+        updateValues.push(newImageUrl);
+        valueIndex++;
+      }
+    }
+    
+    // Migrar thumbnail
+    if (thumbnail_url && thumbnail_url.startsWith('/uploads/')) {
+      const newThumbnailUrl = await moveImageFile(thumbnail_url, store_id, product_id, 'thumbnail');
+      if (newThumbnailUrl) {
+        updateFields.push(`thumbnail_url = $${valueIndex}`);
+        updateValues.push(newThumbnailUrl);
+        valueIndex++;
+      }
+    }
+    
+    // Atualizar banco de dados se houve mudanças
+    if (updateFields.length > 0) {
+      updateValues.push(id);
+      const updateQuery = `UPDATE product_images SET ${updateFields.join(', ')} WHERE id = $${valueIndex}`;
+      
+      await pool.query(updateQuery, updateValues);
+      console.log(`✅ Banco atualizado para produto ${product_id}`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ Erro ao migrar produto ${product_id}:`, error);
+  }
+}
+
+async function moveImageFile(imageUrl, storeId, productId, type) {
+  const oldPath = path.join(rootDir, 'public', imageUrl);
+  const fileName = path.basename(imageUrl);
+  
+  let newPath, newUrl;
+  
+  if (type === 'thumbnail') {
+    newPath = path.join(rootDir, 'public', 'uploads', 'stores', storeId.toString(), 'products', productId.toString(), 'thumbnails', fileName);
+    newUrl = `/uploads/stores/${storeId}/products/${productId}/thumbnails/${fileName}`;
+  } else {
+    newPath = path.join(rootDir, 'public', 'uploads', 'stores', storeId.toString(), 'products', productId.toString(), fileName);
+    newUrl = `/uploads/stores/${storeId}/products/${productId}/${fileName}`;
+  }
+  
+  // Mover arquivo se existir
+  if (fs.existsSync(oldPath)) {
+    fs.renameSync(oldPath, newPath);
+    console.log(`📄 Movido: ${imageUrl} → ${newUrl}`);
+    return newUrl;
+  } else {
+    console.log(`⚠️ Arquivo não encontrado: ${oldPath}`);
+    return null;
+  }
+}
+
+// Executar migração
+migrateImages().then(() => {
+  console.log('🎉 Script concluído!');
+  process.exit(0);
+}).catch(error => {
+  console.error('💥 Erro fatal:', error);
+  process.exit(1);
+});
+Executar o Script
+No terminal do Replit:
+bashnode scripts/migrate-images-to-structure.js
+Resultado Esperado
+✅ Preview das imagens que serão migradas
+✅ Criação da estrutura de pastas /uploads/stores/{storeId}/products/{productId}/
+✅ Movimento dos arquivos físicos
+✅ Atualização das URLs no banco de dados
+✅ Isolamento correto das imagens por loja
+Execute o script e compartilhe o resultado para verificarmos se resolveu o problema de vazamento de imagens!
