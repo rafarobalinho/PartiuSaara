@@ -13,55 +13,79 @@ export const SafeImage: React.FC<SafeImageProps> = ({
   alt, 
   className = '', 
   fallbackSrc = '/placeholder-image.jpg',
-  productId 
+  productId,
+  storeId 
 }) => {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const handleImageError = () => {
+    console.error(`🔴 Erro ao carregar imagem:`, {
+      originalSrc: src,
+      processedSrc: imageSrc,
+      productId,
+      storeId
+    });
     setImageError(true);
     setIsLoading(false);
   };
 
   const handleImageLoad = () => {
+    console.log(`✅ Imagem carregada com sucesso:`, {
+      originalSrc: src,
+      processedSrc: imageSrc,
+      productId,
+      storeId
+    });
     setImageError(false);
     setIsLoading(false);
   };
 
   // Processar src para garantir que use URL direta em vez de API endpoint
-  const getDirectImageUrl = (originalSrc: string, productId?: number) => {
-    // Se não há src válida, usar fallback
-    if (!originalSrc || originalSrc.includes('placeholder') || originalSrc.includes('default')) {
+  const getDirectImageUrl = (originalSrc: string, productId?: number, storeId?: number) => {
+    console.log(`🔍 Processando URL de imagem:`, {
+      originalSrc,
+      productId,
+      storeId
+    });
+
+    // Se não há src ou é um placeholder, retornar fallback
+    if (!originalSrc || originalSrc.includes('placeholder')) {
+      console.log('⚠️ URL vazia ou placeholder, usando fallback');
       return fallbackSrc;
     }
 
-    // Se já é uma URL direta válida no formato correto, usar ela
-    if (originalSrc && originalSrc.startsWith('/uploads/stores/')) {
+    // Se já é uma URL direta válida com a estrutura correta, usar ela
+    if (originalSrc.startsWith('/uploads/stores/')) {
+      console.log('✅ URL já está no formato correto');
       return originalSrc;
     }
 
-    // Se é uma URL de uploads genérica, manter como está
-    if (originalSrc && originalSrc.startsWith('/uploads/')) {
+    // Se é um endpoint da API e temos os IDs necessários, construir URL direta
+    if (originalSrc.includes('/api/products/') && productId && storeId) {
+      const directUrl = `/uploads/stores/${storeId}/products/${productId}/image.jpg`;
+      console.log(`🔄 Convertendo endpoint API para URL direta: ${directUrl}`);
+      return directUrl;
+    }
+
+    // Se é um endpoint da API mas faltam IDs, manter endpoint
+    if (originalSrc.includes('/api/')) {
+      console.warn('⚠️ Endpoint API sem IDs necessários, mantendo original');
       return originalSrc;
     }
 
-    // EVITAR endpoints da API - usar URL direta se possível
-    if (originalSrc && originalSrc.includes('/api/products/')) {
-      // Se temos productId, tentar construir URL direta
-      if (productId) {
-        // Extrair informações do endpoint para construir URL direta
-        console.warn(`Convertendo endpoint API para URL direta: ${originalSrc}`);
-        return fallbackSrc; // Por enquanto usar fallback
-      }
+    // Se é uma URL absoluta (http/https), usar como está
+    if (originalSrc.startsWith('http://') || originalSrc.startsWith('https://')) {
+      console.log('✅ URL absoluta, mantendo como está');
       return originalSrc;
     }
 
-    // Retornar src original se for válida
+    console.log('⚠️ URL não reconhecida, usando original');
     return originalSrc;
   };
 
   // Se não há src ou houve erro, usar fallback
-  const processedSrc = getDirectImageUrl(src, productId);
+  const processedSrc = getDirectImageUrl(src, productId, storeId);
   const imageSrc = !processedSrc || imageError ? fallbackSrc : processedSrc;
 
   return (
