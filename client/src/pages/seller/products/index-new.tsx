@@ -52,15 +52,16 @@ export default function SellerProducts() {
     data: stores = [], 
     isLoading: isLoadingStores 
   } = useQuery({
-    queryKey: ['/api/stores'],
+    queryKey: ['/api/stores/my-stores'],
     queryFn: async () => {
       try {
-        const res = await fetch('/api/stores');
+        const res = await fetch('/api/stores/my-stores', {
+          credentials: 'include',
+        });
         if (!res.ok) {
           throw new Error('Falha ao carregar lojas');
         }
-        const allStores = await res.json();
-        return allStores.filter((store: Store) => store.userId === user?.id);
+        return await res.json();
       } catch (error) {
         console.error('Error fetching stores:', error);
         return [];

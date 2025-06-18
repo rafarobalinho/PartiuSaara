@@ -161,10 +161,12 @@ export default function EditProduct() {
 
   // Fetch stores
   const { data: stores = [] } = useQuery({
-    queryKey: ['/api/stores'],
+    queryKey: ['/api/stores/my-stores'],
     queryFn: async () => {
       try {
-        const res = await fetch('/api/stores');
+        const res = await fetch('/api/stores/my-stores', {
+          credentials: 'include',
+        });
         if (!res.ok) {
           throw new Error('Falha ao carregar lojas');
         }
