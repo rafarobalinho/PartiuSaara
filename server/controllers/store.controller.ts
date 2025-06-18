@@ -121,8 +121,9 @@ export async function createStore(req: Request, res: Response) {
         console.log('🔍 [STORE-CREATE] Convertendo categories para category:', req.body.categories[0]);
       }
 
-      // Validate store data
-      const storeSchema = insertStoreSchema.extend({
+      // Validate store data - usando schema base com campos adicionais
+      const storeSchema = z.object({
+        ...insertStoreSchema.shape,
         userId: z.number().optional(),
         images: z.array(z.string()).optional().default([]),
         place_id: z.string().optional(),
@@ -143,7 +144,8 @@ export async function createStore(req: Request, res: Response) {
           neighborhood: z.string().optional(),
           number: z.string().optional(),
           complement: z.string().optional()
-        }).optional()
+        }).optional(),
+        acceptLocationTerms: z.boolean().optional()
       });
 
       // === DIAGNÓSTICO COMPLETO ===

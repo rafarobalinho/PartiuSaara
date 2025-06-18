@@ -71,17 +71,6 @@ export const stores = pgTable("stores", {
 
 export const insertStoreSchema = createInsertSchema(stores, {
   // Validações customizadas se necessário
-}).extend({
-  // Permitir que categories seja enviado do frontend e transformado para category
-  categories: z.array(z.string()).optional(),
-  // category é o campo da tabela, será preenchido automaticamente
-  category: z.string().optional()
-}).transform((data) => {
-  // Se categories foi enviado, usar o primeiro item como category
-  if (data.categories && data.categories.length > 0) {
-    data.category = data.categories[0];
-  }
-  return data;
 });
 
 // Log para diagnóstico do schema
