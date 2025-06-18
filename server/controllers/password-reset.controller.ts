@@ -21,7 +21,7 @@ const resetPasswordSchema = z.object({
 async function createEmailTransporter() {
   // If we have Gmail credentials, use them
   if (process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD) {
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
@@ -38,7 +38,7 @@ async function createEmailTransporter() {
     console.log(`   User: ${testAccount.user}`);
     console.log(`   Pass: ${testAccount.pass}`);
     
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
       host: 'smtp.ethereal.email',
       port: 587,
       secure: false,
@@ -55,7 +55,7 @@ async function createEmailTransporter() {
 
 // Send password reset email
 async function sendPasswordResetEmail(email: string, token: string) {
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/auth/reset-password?token=${token}`;
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/reset-password?token=${token}`;
   
   // Log for debugging
   console.log('=== ENVIANDO EMAIL DE RECUPERAÇÃO ===');
