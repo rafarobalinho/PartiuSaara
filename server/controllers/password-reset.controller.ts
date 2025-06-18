@@ -208,11 +208,19 @@ export async function resetPassword(req: Request, res: Response) {
 
     const { token, password } = validationResult.data;
 
-    // Get and validate token
+    // Get and validate token first
     const resetToken = await storage.getPasswordResetToken(token);
     if (!resetToken) {
       return res.status(400).json({ 
         message: 'Token inválido ou expirado' 
+      });
+    }
+
+    // Get user to verify they exist (additional validation for password reset)
+    const user = await storage.getUser(resetToken.userId);
+    if (!user) {
+      return res.status(400).json({ 
+        message: 'Usuário não encontrado' 
       });
     }
 

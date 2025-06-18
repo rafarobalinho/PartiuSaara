@@ -92,9 +92,7 @@ export default function ResetPassword() {
     if (!token) return;
 
     startTransition(() => {
-      resetPasswordMutation.mutate({
-        password: values.password,
-      });
+      resetPasswordMutation.mutate(values);
     });
   };
 
