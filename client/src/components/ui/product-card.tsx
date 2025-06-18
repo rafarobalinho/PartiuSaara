@@ -40,6 +40,7 @@ interface Product {
     name: string;
     id: number;
   };
+  imageUrl?: string; // Adicionado imageUrl para a URL direta
 }
 
 interface ProductCardProps {
@@ -253,8 +254,8 @@ export default function ProductCard({
           )}
 
           <div className="absolute inset-0 w-full h-full">
-            <SafeImage 
-              src={product.images?.[0] || '/placeholder-image.jpg'}
+            <SafeImage
+              src={product.imageUrl || product.images?.[0] || '/placeholder-image.jpg'}
               alt={product.name}
               className="w-full h-full object-cover"
             />
