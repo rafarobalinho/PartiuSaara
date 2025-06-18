@@ -45,18 +45,21 @@ export function SafeImage({
     // Priorização de parâmetros de ID para rotas de API seguras
     if (type) {
       if (type === 'product' && productId) {
-        setImgSrc(`/api/products/${productId}/primary-image`);
-        console.log(`SafeImage: Usando caminho para produto: /api/products/${productId}/primary-image`);
+        const apiUrl = `/api/products/${productId}/primary-image`;
+        setImgSrc(apiUrl);
+        console.log(`🖼️ [SAFE-IMAGE] Usando API para produto ${productId}:`, apiUrl);
         return;
       } else if (type === 'store' && storeId) {
-        setImgSrc(`/api/stores/${storeId}/primary-image`);
-        console.log(`SafeImage: Usando caminho para loja: /api/stores/${storeId}/primary-image`);
+        const apiUrl = `/api/stores/${storeId}/primary-image`;
+        setImgSrc(apiUrl);
+        console.log(`🖼️ [SAFE-IMAGE] Usando API para loja ${storeId}:`, apiUrl);
         return;
       } else if (type === 'reservation' && reservationId) {
         // Para reservas, usamos o caminho do produto associado diretamente
         // em vez de tentar uma rota específica para reservas que pode estar com erro
-        setImgSrc(`/api/products/${productId}/primary-image`);
-        console.log(`SafeImage: Usando caminho para reserva convertido: /api/products/${productId}/primary-image`);
+        const apiUrl = `/api/products/${productId}/primary-image`;
+        setImgSrc(apiUrl);
+        console.log(`🖼️ [SAFE-IMAGE] Usando API para reserva (produto ${productId}):`, apiUrl);
         return;
       }
     }
@@ -154,7 +157,13 @@ export function SafeImage({
     // Registrar tentativa de erro
     const newAttemptCount = loadAttempts + 1;
     setLoadAttempts(newAttemptCount);
-    console.warn(`Erro ao carregar imagem (tentativa ${newAttemptCount}):`, imgSrc);
+    console.error(`❌ [SAFE-IMAGE] Erro ao carregar imagem (tentativa ${newAttemptCount}):`, {
+      src: imgSrc,
+      productId,
+      storeId,
+      type,
+      attempt: newAttemptCount
+    });
     
     // Se já tentamos três vezes, usar a imagem de fallback
     if (newAttemptCount >= 3) {

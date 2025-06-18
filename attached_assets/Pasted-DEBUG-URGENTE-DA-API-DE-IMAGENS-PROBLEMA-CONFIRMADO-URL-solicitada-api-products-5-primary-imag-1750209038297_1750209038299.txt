@@ -1,0 +1,94 @@
+DEBUG URGENTE DA API DE IMAGENS
+🔴 PROBLEMA CONFIRMADO
+
+URL solicitada: /api/products/5/primary-image ✅ Correta
+Imagem retornada: Produto 10 ❌ Incorreta
+Conclusão: A API /api/products/5/primary-image está retornando dados do produto 10
+
+DEBUG URGENTE NECESSÁRIO
+1️⃣ Adicionar Logs Detalhados na API
+Arquivo: server/controllers/image.controller.js
+Na função getProductPrimaryImage, adicionar logs ANTES e DEPOIS da query:
+typescriptexport const getProductPrimaryImage = async (req, res) => {
+  const productId = parseInt(req.params.id);
+  
+  console.log('🔍 [IMAGE-DEBUG] ========== INÍCIO ==========');
+  console.log('🔍 [IMAGE-DEBUG] URL solicitada:', req.originalUrl);
+  console.log('🔍 [IMAGE-DEBUG] Produto ID extraído:', productId);
+  console.log('🔍 [IMAGE-DEBUG] Tipo do productId:', typeof productId);
+  console.log('🔍 [IMAGE-DEBUG] req.params:', req.params);
+  
+  // Sua query aqui...
+  console.log('🔍 [IMAGE-DEBUG] Executando query para produto:', productId);
+  
+  const imageResult = await pool.query(imageQuery, [productId]);
+  
+  console.log('🔍 [IMAGE-DEBUG] Resultado da query:', {
+    rowCount: imageResult.rows.length,
+    firstRow: imageResult.rows[0],
+    parametroUsado: productId
+  });
+  
+  if (imageResult.rows.length > 0) {
+    const imageData = imageResult.rows[0];
+    console.log('🔍 [IMAGE-DEBUG] Imagem encontrada:', {
+      productIdSolicitado: productId,
+      imageUrl: imageData.image_url,
+      // Se sua query inclui product_id, adicione:
+      productIdNaImagem: imageData.product_id || 'N/A'
+    });
+  }
+  
+  console.log('🔍 [IMAGE-DEBUG] ========== FIM ==========');
+  
+  // ... resto da função
+};
+2️⃣ Verificar a Query SQL
+Mostrar a query exata que está sendo executada:
+typescriptconst imageQuery = `
+  SELECT 
+    pi.id,
+    pi.product_id,  -- IMPORTANTE: incluir este campo
+    pi.image_url,
+    pi.is_primary
+  FROM product_images pi
+  WHERE pi.product_id = $1 AND pi.is_primary = true
+  ORDER BY pi.id DESC
+  LIMIT 1
+`;
+
+console.log('🔍 [IMAGE-DEBUG] Query SQL:', imageQuery);
+console.log('🔍 [IMAGE-DEBUG] Parâmetro:', [productId]);
+3️⃣ Testar Diretamente no Banco
+Execute estas queries no banco para verificar:
+sql-- Verificar produto 5:
+SELECT 'PRODUTO 5' as debug, pi.id, pi.product_id, pi.image_url, pi.is_primary
+FROM product_images pi 
+WHERE pi.product_id = 5;
+
+-- Verificar produto 10:
+SELECT 'PRODUTO 10' as debug, pi.id, pi.product_id, pi.image_url, pi.is_primary  
+FROM product_images pi 
+WHERE pi.product_id = 10;
+
+-- Verificar se há confusão:
+SELECT 'TODAS PRIMÁRIAS' as debug, pi.id, pi.product_id, pi.image_url, pi.is_primary
+FROM product_images pi 
+WHERE pi.is_primary = true
+ORDER BY pi.product_id;
+4️⃣ Verificar Cache ou Problema de Estado
+Adicionar header para evitar cache:
+typescriptres.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+res.setHeader('Pragma', 'no-cache');
+res.setHeader('Expires', '0');
+RESULTADO ESPERADO
+Com esses logs, veremos exatamente:
+
+Que parâmetro está chegando na função
+Que resultado a query está retornando
+Se há mistura de dados na tabela
+Onde está o problema (query, dados, ou lógica)
+
+AÇÃO IMEDIATA
+Execute uma requisição para /api/products/5/primary-image e compartilhe TODOS os logs que aparecerem no console do servidor.
+Isso vai revelar exatamente onde está o bug!Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas.Pesquisabeta Sonnet 4
