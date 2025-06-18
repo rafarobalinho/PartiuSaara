@@ -1,0 +1,140 @@
+FALHA CRÍTICA DE SEGURANÇA - UPLOAD DE IMAGENS
+🎯 PROBLEMA GRAVÍSSIMO IDENTIFICADO
+TODAS as imagens estão sendo salvas como Loja ID 1 - Produto ID 2
+
+Usuário da Loja 2 salvando na pasta da Loja 1
+VAZAMENTO DE DADOS ENTRE LOJAS
+FALHA DE ISOLAMENTO DE DADOS
+
+🔍 VERIFICAÇÕES URGENTES NECESSÁRIAS
+1. VERIFICAR CONTROLLER DE UPLOAD
+javascript// Verificar em upload.controller.js - linha que define o caminho
+// SUSPEITA: Valores hardcoded ou variáveis erradas
+
+// PROCURAR POR:
+const storeId = req.query.entityId; // Pode estar pegando valor errado
+const productId = req.query.entityId; // Pode estar pegando valor errado
+
+// OU hardcoding:
+const path = '/uploads/stores/1/products/2/'; // PROBLEMA!
+2. VERIFICAR AUTENTICAÇÃO
+javascript// Verificar se req.user está correto
+console.log('User logado:', req.user);
+console.log('Store ID esperada:', req.user.storeId);
+console.log('Entity ID recebida:', req.query.entityId);
+3. VERIFICAR FRONTEND
+javascript// Verificar se o frontend está enviando IDs corretos
+// Na chamada de upload:
+fetch(`/api/upload/images?type=product&entityId=${PRODUCT_ID}`)
+
+// SUSPEITA: entityId sempre = 2
+🚀 SCRIPT DE DIAGNÓSTICO IMEDIATO
+javascript// scripts/diagnose-security-breach.js
+import pkg from 'pg';
+const { Pool } = pkg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+async function diagnoseCritical() {
+  const client = await pool.connect();
+  
+  try {
+    console.log('🚨 DIAGNÓSTICO CRÍTICO DE SEGURANÇA');
+    
+    // 1. Verificar usuários e suas lojas
+    const users = await client.query(`
+      SELECT u.id as user_id, u.email, s.id as store_id, s.name as store_name, s.user_id as store_owner
+      FROM users u 
+      LEFT JOIN stores s ON u.id = s.user_id
+      ORDER BY u.id
+    `);
+    
+    console.log('\n👥 USUÁRIOS E LOJAS:');
+    users.rows.forEach(row => {
+      console.log(`User ${row.user_id} (${row.email}) -> Loja ${row.store_id} (${row.store_name})`);
+    });
+    
+    // 2. Verificar produtos e suas lojas
+    const products = await client.query(`
+      SELECT p.id as product_id, p.name, p.store_id, s.name as store_name, s.user_id as store_owner
+      FROM products p
+      JOIN stores s ON p.store_id = s.id
+      ORDER BY p.id
+    `);
+    
+    console.log('\n📦 PRODUTOS E SUAS LOJAS:');
+    products.rows.forEach(row => {
+      console.log(`Produto ${row.product_id} (${row.name}) -> Loja ${row.store_id} (${row.store_name}) -> Owner ${row.store_owner}`);
+    });
+    
+    // 3. Verificar imagens e seus caminhos
+    const images = await client.query(`
+      SELECT pi.id, pi.product_id, pi.image_url, p.store_id, s.user_id as store_owner
+      FROM product_images pi
+      JOIN products p ON pi.product_id = p.id
+      JOIN stores s ON p.store_id = s.id
+      ORDER BY pi.id
+    `);
+    
+    console.log('\n📸 IMAGENS E SEUS CAMINHOS:');
+    images.rows.forEach(row => {
+      const urlParts = row.image_url.split('/');
+      const urlStoreId = urlParts[2]; // /uploads/stores/[ID]/...
+      const urlProductId = urlParts[4]; // /uploads/stores/X/products/[ID]/...
+      
+      console.log(`Imagem ${row.id}:`);
+      console.log(`  Produto Real: ${row.product_id} (Loja ${row.store_id}, Owner ${row.store_owner})`);
+      console.log(`  URL: ${row.image_url}`);
+      console.log(`  URL Store ID: ${urlStoreId}, URL Product ID: ${urlProductId}`);
+      
+      if (urlStoreId != row.store_id || urlProductId != row.product_id) {
+        console.log(`  ❌ INCONSISTÊNCIA DETECTADA!`);
+      } else {
+        console.log(`  ✅ OK`);
+      }
+    });
+    
+    // 4. Procurar URLs blob
+    const blobUrls = await client.query(`
+      SELECT id, name, images, logo 
+      FROM stores 
+      WHERE images::text LIKE '%blob:%' OR logo LIKE '%blob:%'
+    `);
+    
+    console.log('\n🔍 URLs BLOB ENCONTRADAS:');
+    blobUrls.rows.forEach(row => {
+      console.log(`Loja ${row.id} (${row.name}): ${row.images || row.logo}`);
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro no diagnóstico:', error);
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+diagnoseCritical();
+🎯 EXECUTE IMEDIATAMENTE
+bashnode scripts/diagnose-security-breach.js
+📋 RESULTADO ESPERADO
+O script vai mostrar:
+
+✅ Se os IDs estão corretos no banco
+❌ Onde está a inconsistência (frontend/backend)
+🚨 Se há vazamento entre lojas
+🔍 URLs blob ainda existentes
+
+🚀 PRÓXIMOS PASSOS
+Com base no resultado, vamos identificar:
+
+Se é hardcoding → Corrigir controller
+Se é frontend → Corrigir chamadas de API
+Se é autenticação → Corrigir middleware
+Se é segurança → Implementar isolamento
+
+EXECUTE O DIAGNÓSTICO AGORA E ME MOSTRE O RESULTADO!
+Este é um problema de segurança crítico que pode estar expondo dados de uma loja para outra. Precisamos resolver IMEDIATAMENTE.
