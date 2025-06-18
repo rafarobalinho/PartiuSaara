@@ -1,0 +1,139 @@
+CORREÇÃO DO SCRIPT DE MIGRAÇÃO
+Problema Identificado
+O script migrate-images-to-structure.js está usando require() em um projeto configurado para ES modules, causando erro.
+Correção Imediata
+1️⃣ Corrigir o Script de Migração
+Arquivo: scripts/migrate-images-to-structure.js
+Substituir todo o código por versão ES modules:
+javascript#!/usr/bin/env node
+
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { pool } from '../server/db.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '..');
+
+async function migrateImages() {
+  try {
+    console.log('🔄 Iniciando migração de imagens...');
+    
+    // Buscar todas as imagens de produtos
+    const query = `
+      SELECT 
+        pi.id,
+        pi.product_id,
+        pi.image_url,
+        pi.thumbnail_url,
+        p.store_id
+      FROM product_images pi
+      JOIN products p ON pi.product_id = p.id
+      WHERE pi.image_url LIKE '/uploads/%'
+        AND pi.image_url NOT LIKE '/uploads/stores/%'
+    `;
+    
+    const result = await pool.query(query);
+    console.log(`📋 Encontradas ${result.rows.length} imagens para migrar`);
+    
+    for (const row of result.rows) {
+      await migrateImage(row);
+    }
+    
+    console.log('✅ Migração concluída!');
+    process.exit(0);
+    
+  } catch (error) {
+    console.error('❌ Erro na migração:', error);
+    process.exit(1);
+  }
+}
+
+async function migrateImage(imageData) {
+  const { id, product_id, image_url, thumbnail_url, store_id } = imageData;
+  
+  try {
+    // Criar estrutura de pastas
+    const storeDir = path.join(rootDir, 'public', 'uploads', 'stores', store_id.toString());
+    const productDir = path.join(storeDir, 'products', product_id.toString());
+    
+    if (!fs.existsSync(productDir)) {
+      fs.mkdirSync(productDir, { recursive: true });
+      console.log(`📁 Criada pasta: ${productDir}`);
+    }
+    
+    // Migrar imagem principal
+    if (image_url) {
+      await moveImageFile(image_url, store_id, product_id, 'image');
+    }
+    
+    // Migrar thumbnail
+    if (thumbnail_url) {
+      await moveImageFile(thumbnail_url, store_id, product_id, 'thumbnail');
+    }
+    
+    console.log(`✅ Migrada imagem do produto ${product_id}`);
+    
+  } catch (error) {
+    console.error(`❌ Erro ao migrar produto ${product_id}:`, error);
+  }
+}
+
+async function moveImageFile(imageUrl, storeId, productId, type) {
+  const oldPath = path.join(rootDir, 'public', imageUrl);
+  const fileName = path.basename(imageUrl);
+  
+  let newPath;
+  let newUrl;
+  
+  if (type === 'thumbnail') {
+    newPath = path.join(rootDir, 'public', 'uploads', 'stores', storeId.toString(), 'products', productId.toString(), 'thumbnails', fileName);
+    newUrl = `/uploads/stores/${storeId}/products/${productId}/thumbnails/${fileName}`;
+  } else {
+    newPath = path.join(rootDir, 'public', 'uploads', 'stores', storeId.toString(), 'products', productId.toString(), fileName);
+    newUrl = `/uploads/stores/${storeId}/products/${productId}/${fileName}`;
+  }
+  
+  // Criar pasta de thumbnails se necessário
+  if (type === 'thumbnail') {
+    const thumbnailDir = path.dirname(newPath);
+    if (!fs.existsSync(thumbnailDir)) {
+      fs.mkdirSync(thumbnailDir, { recursive: true });
+    }
+  }
+  
+  // Mover arquivo se existir
+  if (fs.existsSync(oldPath)) {
+    fs.renameSync(oldPath, newPath);
+    console.log(`📄 Movido: ${imageUrl} → ${newUrl}`);
+    
+    // Atualizar banco de dados
+    const updateField = type === 'thumbnail' ? 'thumbnail_url' : 'image_url';
+    await pool.query(
+      `UPDATE product_images SET ${updateField} = $1 WHERE id = $2`,
+      [newUrl, imageData.id]
+    );
+  } else {
+    console.log(`⚠️ Arquivo não encontrado: ${oldPath}`);
+  }
+}
+
+// Executar migração
+migrateImages();
+2️⃣ Executar o Script Corrigido
+No terminal do Replit:
+bashnode scripts/migrate-images-to-structure.js
+3️⃣ Verificar Resultado
+Após a migração, as imagens devem estar em:
+
+/uploads/stores/{storeId}/products/{productId}/image.jpg
+/uploads/stores/{storeId}/products/{productId}/thumbnails/thumb.jpg
+
+E o banco deve ter URLs atualizadas.
+Resultado Esperado
+✅ Imagens movidas para estrutura correta
+✅ URLs atualizadas no banco
+✅ Isolamento de dados por loja funcionando
+✅ Produtos exibindo imagens corretas
+Execute o script corrigido e compartilhe o resultado!
