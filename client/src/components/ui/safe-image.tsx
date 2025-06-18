@@ -28,41 +28,8 @@ export const SafeImage: React.FC<SafeImageProps> = ({
     setIsLoading(false);
   };
 
-  // Processar src para garantir que use URL direta em vez de API endpoint
-  const getDirectImageUrl = (originalSrc: string, productId?: number) => {
-    // Se não há src válida, usar fallback
-    if (!originalSrc || originalSrc.includes('placeholder') || originalSrc.includes('default')) {
-      return fallbackSrc;
-    }
-
-    // Se já é uma URL direta válida no formato correto, usar ela
-    if (originalSrc && originalSrc.startsWith('/uploads/stores/')) {
-      return originalSrc;
-    }
-
-    // Se é uma URL de uploads genérica, manter como está
-    if (originalSrc && originalSrc.startsWith('/uploads/')) {
-      return originalSrc;
-    }
-
-    // EVITAR endpoints da API - usar URL direta se possível
-    if (originalSrc && originalSrc.includes('/api/products/')) {
-      // Se temos productId, tentar construir URL direta
-      if (productId) {
-        // Extrair informações do endpoint para construir URL direta
-        console.warn(`Convertendo endpoint API para URL direta: ${originalSrc}`);
-        return fallbackSrc; // Por enquanto usar fallback
-      }
-      return originalSrc;
-    }
-
-    // Retornar src original se for válida
-    return originalSrc;
-  };
-
   // Se não há src ou houve erro, usar fallback
-  const processedSrc = getDirectImageUrl(src, productId);
-  const imageSrc = !processedSrc || imageError ? fallbackSrc : processedSrc;
+  const imageSrc = !src || imageError ? fallbackSrc : src;
 
   return (
     <div className={`relative ${className}`}>

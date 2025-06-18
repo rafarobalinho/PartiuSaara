@@ -404,8 +404,12 @@ export const getStorePrimaryImage = async (req: Request, res: Response) => {
       return res.redirect('/placeholder-image.jpg');
     }
 
-    // Verificar se a loja existe
-    const storeQuery = `SELECT id FROM stores WHERE id = $1`;
+    // Verificar se a loja existe e buscar a imagem
+    const storeQuery = `
+      SELECT s.id, s.image_url as store_image_url
+      FROM stores s 
+      WHERE s.id = $1
+    `;
     const storeResult = await pool.query(storeQuery, [storeId]);
 
     if (storeResult.rows.length === 0) {
@@ -413,7 +417,19 @@ export const getStorePrimaryImage = async (req: Request, res: Response) => {
       return res.redirect('/placeholder-image.jpg');
     }
 
-    // Buscar a imagem principal da loja
+    const store = storeResult.rows[0];
+
+    // Se a loja tem uma imagem definida, tentar usar ela
+    if (store.store_image_url && !store.store_image_url.startsWith('blob:')) {
+      // Verificar se o arquivo existe fisicamente
+      const imagePath = path.join(process.cwd(), 'public', store.store_image_url);
+
+      if (fs.existsSync(imagePath)) {
+        return res.sendFile(imagePath);
+      }
+    }
+
+    // Buscar a imagem principal da loja na tabela store_images
     const imageQuery = `
       SELECT image_url, thumbnail_url
       FROM store_images
@@ -424,69 +440,40 @@ export const getStorePrimaryImage = async (req: Request, res: Response) => {
 
     const imageResult = await pool.query(imageQuery, [storeId]);
 
-    if (imageResult.rows.length === 0) {
-      // Se não houver imagem principal, buscar qualquer imagem
-      const fallbackQuery = `
-        SELECT image_url, thumbnail_url
-        FROM store_images
-        WHERE store_id = $1
-        ORDER BY display_order ASC, id DESC
-        LIMIT 1
-      `;
-
-      const fallbackResult = await pool.query(fallbackQuery, [storeId]);
-
-      if (fallbackResult.rows.length === 0) {
-        // Se não houver nenhuma imagem, verificar se existe um arquivo físico padrão
-        const defaultPath = path.join(process.cwd(), `public/uploads/stores/${storeId}/logo.jpg`);
-
-        if (fs.existsSync(defaultPath)) {
-          return res.sendFile(defaultPath);
-        }
-
-        // Se tudo falhar, usar o placeholder
-        return res.redirect('/placeholder-image.jpg');
-      }
-
-      // Usar a imagem encontrada
-      const imageUrl = fallbackResult.rows[0].image_url;
-
+    if (imageResult.rows.length > 0) {
+      const imageUrl = imageResult.rows[0].image_url;
+      
       // Verificar se o arquivo existe fisicamente
-      const imagePath = path.join(process.cwd(), `public${imageUrl}`);
+      const imagePath = path.join(process.cwd(), 'public', imageUrl);
 
       if (fs.existsSync(imagePath)) {
         return res.sendFile(imagePath);
       }
+    }
 
-      // Se o arquivo não existir, tentar o caminho correto baseado no ID da loja
-      const specificPath = path.join(process.cwd(), `public/uploads/stores/${storeId}/logo.jpg`);
+    // Se não houver imagem principal, buscar qualquer imagem
+    const fallbackQuery = `
+      SELECT image_url, thumbnail_url
+      FROM store_images
+      WHERE store_id = $1
+      ORDER BY display_order ASC, id DESC
+      LIMIT 1
+    `;
 
-      if (fs.existsSync(specificPath)) {
-        return res.sendFile(specificPath);
+    const fallbackResult = await pool.query(fallbackQuery, [storeId]);
+
+    if (fallbackResult.rows.length > 0) {
+      const imageUrl = fallbackResult.rows[0].image_url;
+      
+      // Verificar se o arquivo existe fisicamente
+      const imagePath = path.join(process.cwd(), 'public', imageUrl);
+
+      if (fs.existsSync(imagePath)) {
+        return res.sendFile(imagePath);
       }
-
-      // Se tudo falhar, usar o placeholder
-      return res.redirect('/placeholder-image.jpg');
     }
 
-    // Usar a imagem principal encontrada
-    const imageUrl = imageResult.rows[0].image_url;
-
-    // Verificar se o arquivo existe fisicamente
-    const imagePath = path.join(process.cwd(), `public${imageUrl}`);
-
-    if (fs.existsSync(imagePath)) {
-      return res.sendFile(imagePath);
-    }
-
-    // Se o arquivo não existir, tentar o caminho correto baseado no ID da loja
-    const specificPath = path.join(process.cwd(), `public/uploads/stores/${storeId}/logo.jpg`);
-
-    if (fs.existsSync(specificPath)) {
-      return res.sendFile(specificPath);
-    }
-
-    // Se tudo falhar, usar o placeholder
+    // Se não encontrar nenhuma imagem, usar o placeholder
     return res.redirect('/placeholder-image.jpg');
   } catch (error) {
     console.error('Erro ao servir imagem da loja:', error);
@@ -803,24 +790,29 @@ export const getPromotionImage = async (req: Request, res: Response) => {
 
     const { product_id, store_id, image_url } = promotionResult.rows[0];
 
-    // Validar e construir caminho de imagem seguro
-    let secureImageUrl = image_url;
-
-    // Garantir que a URL use o formato seguro para o ID da loja e produto corretos
-    if (!secureImageUrl || !secureImageUrl.includes(`/uploads/stores/${store_id}/products/${product_id}/`)) {
-      console.warn(`⚠️ Caminho de imagem suspeito detectado para promoção ${promotionId}: ${secureImageUrl}`);
-
-      if (!secureImageUrl) {
-        return res.redirect(`/api/products/${product_id}/primary-image`);
-      }
-
-      const fileName = secureImageUrl.split('/').pop();
-      secureImageUrl = `/uploads/stores/${store_id}/products/${product_id}/${fileName}`;
+    if (!image_url) {
+      console.error(`Nenhuma imagem encontrada para o produto ${product_id} da promoção ${promotionId}`);
+      return res.redirect('/placeholder-image.jpg');
     }
 
-    // Para promoções regulares, redirecionamos para a imagem do produto
-    // Isso garantirá que o produto seja exibido com o padrão visual de promoção regular
-    return res.redirect(secureImageUrl);
+    // Verificar se o arquivo existe fisicamente no caminho atual
+    const currentPath = path.join(process.cwd(), 'public', image_url);
+    
+    if (fs.existsSync(currentPath)) {
+      return res.sendFile(currentPath);
+    }
+
+    // Se não existir no caminho atual, tentar o caminho seguro
+    const fileName = path.basename(image_url);
+    const securePath = path.join(process.cwd(), 'public', 'uploads', 'stores', store_id.toString(), 'products', product_id.toString(), fileName);
+    
+    if (fs.existsSync(securePath)) {
+      return res.sendFile(securePath);
+    }
+
+    // Se não encontrar, usar placeholder
+    console.warn(`Imagem não encontrada para promoção ${promotionId}: ${image_url}`);
+    return res.redirect('/placeholder-image.jpg');
   } catch (error) {
     console.error('Erro ao buscar imagem da promoção regular:', error);
     return res.redirect('/placeholder-image.jpg');
@@ -876,24 +868,29 @@ export const getFlashPromotionImage = async (req: Request, res: Response) => {
 
     const { product_id, store_id, image_url } = promotionResult.rows[0];
 
-    // Validar e construir caminho de imagem seguro
-    let secureImageUrl = image_url;
-
-    // Garantir que a URL use o formato seguro para o ID da loja e produto corretos
-    if (!secureImageUrl || !secureImageUrl.includes(`/uploads/stores/${store_id}/products/${product_id}/`)) {
-      console.warn(`⚠️ Caminho de imagem suspeito detectado para promoção relâmpago ${promotionId}: ${secureImageUrl}`);
-
-      if (!secureImageUrl) {
-        return res.redirect(`/api/products/${product_id}/primary-image`);
-      }
-
-      const fileName = secureImageUrl.split('/').pop();
-      secureImageUrl = `/uploads/stores/${store_id}/products/${product_id}/${fileName}`;
+    if (!image_url) {
+      console.error(`Nenhuma imagem encontrada para o produto ${product_id} da promoção flash ${promotionId}`);
+      return res.redirect('/placeholder-image.jpg');
     }
 
-    // Para promoções relâmpago, redirecionamos para a imagem do produto
-    // Isso garantirá que o produto seja exibido com o padrão visual de promoção relâmpago 
-    return res.redirect(secureImageUrl);
+    // Verificar se o arquivo existe fisicamente no caminho atual
+    const currentPath = path.join(process.cwd(), 'public', image_url);
+    
+    if (fs.existsSync(currentPath)) {
+      return res.sendFile(currentPath);
+    }
+
+    // Se não existir no caminho atual, tentar o caminho seguro
+    const fileName = path.basename(image_url);
+    const securePath = path.join(process.cwd(), 'public', 'uploads', 'stores', store_id.toString(), 'products', product_id.toString(), fileName);
+    
+    if (fs.existsSync(securePath)) {
+      return res.sendFile(securePath);
+    }
+
+    // Se não encontrar, usar placeholder
+    console.warn(`Imagem não encontrada para promoção flash ${promotionId}: ${image_url}`);
+    return res.redirect('/placeholder-image.jpg');
   } catch (error) {
     console.error('Erro ao buscar imagem da promoção relâmpago:', error);
     return res.redirect('/placeholder-image.jpg');
