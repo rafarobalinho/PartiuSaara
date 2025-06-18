@@ -288,7 +288,7 @@ export async function createProduct(req: Request, res: Response) {
       const store = await storage.getStore(productData.storeId);
       if (!store || store.userId !== user.id) {
         return res.status(403).json({ 
-          success: false, 
+          success: false,
           product: null,
           error: 'Authorization error',
           message: 'Você não tem permissão para adicionar produtos a esta loja'

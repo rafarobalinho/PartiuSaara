@@ -232,7 +232,7 @@ export async function createStore(req: Request, res: Response) {
 
       console.log('🔍 [STORE-CREATE] Criando loja com dados finais:', storeData);
       console.log('🔍 [SECURITY] Loja será criada para o usuário:', user.id);
-      
+
       // LOGS CRÍTICOS para debug do PostgreSQL
       console.log('🔍 [STORAGE] Dados antes da inserção no BD:', {
         tags: storeData.tags,
