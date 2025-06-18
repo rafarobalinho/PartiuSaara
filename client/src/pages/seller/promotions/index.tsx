@@ -298,8 +298,6 @@ export default function SellerPromotions() {
       </AlertDialog>
 
       <Card className="mb-6">
-
-      <Card className="mb-6">
         <CardContent className="p-4">
           <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
