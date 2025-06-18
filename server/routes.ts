@@ -24,7 +24,7 @@ import * as PasswordResetController from "./controllers/password-reset.controlle
 import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
 import { db, pool } from "./db";
 import { eq, ne, and, like, or, gte, lte, desc, sql } from "drizzle-orm";
-import { storeImages, productImages, products, stores, users, reservations, promotions } from "@shared/schema";
+import { storeImages, productImages, products, stores, users, reservations, promotions, wishlists } from "@shared/schema";
 import imagesRoutes from "./routes/images";
 import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
 import { comparePasswords } from './utils/auth';
@@ -292,19 +292,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Produto não encontrado' });
       }
 
-      // 2. Excluir imagens do produto
+      // 2. Excluir referências da wishlist (lista de desejos)
+      await db.delete(wishlists)
+        .where(eq(wishlists.productId, productId));
+
+      // 3. Excluir imagens do produto
       await db.delete(productImages)
         .where(eq(productImages.productId, productId));
 
-      // 3. Excluir reservas do produto
+      // 4. Excluir reservas do produto
       await db.delete(reservations)
         .where(eq(reservations.productId, productId));
 
-      // 4. Excluir promoções do produto
+      // 5. Excluir promoções do produto
       await db.delete(promotions)
         .where(eq(promotions.productId, productId));
 
-      // 5. Excluir o produto
+      // 6. Excluir o produto
       await db.delete(products)
         .where(eq(products.id, productId));
 
