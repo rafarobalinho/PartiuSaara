@@ -1,0 +1,101 @@
+CORREÇÃO INTELIGENTE DO UPLOAD
+🔴 PROBLEMA IDENTIFICADO
+O upload controller precisa funcionar para DOIS casos diferentes:
+Caso 1: Upload de Lojas
+
+✅ Parâmetros: ?type=store&entityId={storeId}
+✅ Só precisa de: storeId
+
+Caso 2: Upload de Produtos
+
+❌ Parâmetros atuais: ?type=product&entityId={productId} (sem storeId)
+✅ Parâmetros necessários: ?type=product&entityId={productId}&storeId={storeId}
+
+SOLUÇÃO: Lógica Condicional Inteligente
+Correção no upload.controller.js
+typescriptexport const uploadImages = async (req, res) => {
+  try {
+    const { type, entityId, storeId } = req.query;
+    
+    console.log('🔍 [UPLOAD-DEBUG] Parâmetros recebidos:', { type, entityId, storeId });
+    
+    if (!type || !entityId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Parâmetros obrigatórios: type e entityId' 
+      });
+    }
+
+    if (type !== 'store' && type !== 'product') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Tipo inválido. Deve ser "store" ou "product"' 
+      });
+    }
+
+    let finalStoreId;
+    let finalEntityId = entityId;
+
+    // LÓGICA CONDICIONAL POR TIPO:
+    if (type === 'store') {
+      // Para lojas: entityId É o storeId
+      finalStoreId = entityId;
+      console.log('🔍 [UPLOAD-DEBUG] Upload de loja, storeId:', finalStoreId);
+      
+    } else if (type === 'product') {
+      // Para produtos: entityId é productId, precisamos do storeId
+      const productId = entityId;
+      
+      if (storeId) {
+        // Se storeId foi fornecido, usar ele
+        finalStoreId = storeId;
+      } else {
+        // Se não foi fornecido, buscar no banco
+        console.log('🔍 [UPLOAD-DEBUG] Buscando storeId para produto:', productId);
+        
+        const productResult = await pool.query(
+          'SELECT store_id FROM products WHERE id = $1',
+          [productId]
+        );
+        
+        if (productResult.rows.length === 0) {
+          return res.status(404).json({
+            success: false,
+            message: 'Produto não encontrado'
+          });
+        }
+        
+        finalStoreId = productResult.rows[0].store_id;
+      }
+      
+      console.log('🔍 [UPLOAD-DEBUG] Upload de produto, productId:', productId, 'storeId:', finalStoreId);
+    }
+
+    console.log('🔍 [UPLOAD-DEBUG] IDs finais:', {
+      type,
+      entityId: finalEntityId,
+      storeId: finalStoreId
+    });
+
+    // ... resto da função de upload usando finalStoreId e finalEntityId
+    
+  } catch (error) {
+    console.error('Erro no upload:', error);
+    res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+  }
+};
+URLs Esperadas:
+javascript// ✅ Para lojas (continua funcionando):
+/api/upload/images?type=store&entityId=5
+
+// ✅ Para produtos (com storeId opcional):
+/api/upload/images?type=product&entityId=10&storeId=5
+
+// ✅ Para produtos (sem storeId - busca no banco):
+/api/upload/images?type=product&entityId=10
+Vantagens desta Solução
+✅ Não quebra lojas - continua funcionando como antes
+✅ Melhora produtos - pode receber storeId ou buscar no banco
+✅ Retrocompatível - mantém URLs existentes funcionando
+✅ Flexível - funciona com ou sem storeId para produtos
+Esta solução mantém a compatibilidade com upload de lojas e corrige o upload de produtos!Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas.Pesquisabeta Sonnet 4
