@@ -144,13 +144,10 @@ export default function StoreCard({ store, distance }: StoreCardProps) {
         {/* Imagem com ratio 1:1 (quadrado) para seguir o modelo de referência */}
         <div className="aspect-square relative overflow-hidden bg-white">
           <SafeImage 
-            src={`/api/stores/${store.id}/primary-image`}
+            entityType="store"
+            entityId={store.id}
             alt={`Loja ${store.name}`}
             className="w-full h-full object-cover"
-            onLoad={() => console.log(`Imagem da loja ${store.id} carregada com sucesso`)}
-            fallbackSrc="/placeholder-image.jpg"
-            storeId={store.id}
-            type="store"
           />
           <div className="w-full h-full bg-gray-200 flex items-center justify-center hidden">
             <i className="fas fa-store text-gray-400 text-4xl"></i>
