@@ -255,7 +255,8 @@ export default function ProductCard({
 
           <div className="absolute inset-0 w-full h-full">
             <SafeImage
-              src={product.imageUrl || product.images?.[0] || '/placeholder-image.jpg'}
+              entityType="product"    // <-- Dizendo que é um produto
+              entityId={product.id}   // <-- Passando o ID do produto, que é o que ele precisa
               alt={product.name}
               className="w-full h-full object-cover"
             />
