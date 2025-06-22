@@ -74,7 +74,7 @@ export default function StoreDetail() {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
-  
+
   // Detectar se estamos no modo de edição baseado na URL
   const isEditMode = location.includes('/edit');
 
@@ -156,7 +156,7 @@ export default function StoreDetail() {
       // Invalidar a query para recarregar os dados
       queryClient.invalidateQueries({ queryKey: [`/api/stores/${id}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
-      
+
       // Redirecionar baseado no modo
       if (isEditMode) {
         navigate(`/seller/stores/${id}`);
@@ -231,11 +231,11 @@ export default function StoreDetail() {
         <div className="text-4xl mb-4"><i className="fas fa-exclamation-circle text-gray-300"></i></div>
         <h2 className="text-xl font-bold mb-2">Loja não encontrada</h2>
         <p className="text-gray-600 mb-6">A loja que você está procurando não existe ou foi removida.</p>
-        <Button asChild className="bg-primary text-white hover:bg-primary/90">
-          <Link href="/seller/stores">
-            <a>Voltar para minhas lojas</a>
-          </Link>
-        </Button>
+        <Link href="/seller/stores">
+          <Button className="bg-primary text-white hover:bg-primary/90">
+            Voltar para minhas lojas
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -260,34 +260,35 @@ export default function StoreDetail() {
           }
         </p>
       </div>
-            <div className="flex space-x-2">
-              {!isEditMode && (
-                <>
-                  <Button asChild>
-                    <Link href={`/seller/stores/${store.id}/edit`}>
-                      Editar Loja
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href={`/seller/stores/${store.id}/products`}>
-                      Ver Produtos
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href={`/seller/stores/${store.id}/analytics`}>
-                      Ver Analytics
-                    </Link>
-                  </Button>
-                </>
-              )}
-              {isEditMode && (
-                <Button asChild variant="outline">
-                  <Link href={`/seller/stores/${store.id}`}>
-                    Voltar para Visualização
-                  </Link>
-                </Button>
-              )}
-            </div>
+
+      <div className="flex space-x-2">
+        {!isEditMode && (
+          <>
+            <Link href={`/seller/stores/${store.id}/edit`}>
+              <Button>
+                Editar Loja
+              </Button>
+            </Link>
+            <Link href={`/seller/stores/${store.id}/products`}>
+              <Button variant="outline">
+                Ver Produtos
+              </Button>
+            </Link>
+            <Link href={`/seller/stores/${store.id}/analytics`}>
+              <Button variant="outline">
+                Ver Analytics
+              </Button>
+            </Link>
+          </>
+        )}
+        {isEditMode && (
+          <Link href={`/seller/stores/${store.id}`}>
+            <Button variant="outline">
+              Voltar para Visualização
+            </Button>
+          </Link>
+        )}
+      </div>
 
       <Tabs defaultValue="details">
         {!isEditMode && (
@@ -477,7 +478,7 @@ export default function StoreDetail() {
                     />
                   </div>
 
-                  {/* Imagem da Loja (Logo) */}
+                  {/* Imagem da Loja (Logo) - CORREÇÃO APLICADA AQUI */}
                   <FormField
                     control={form.control}
                     name="images"
@@ -485,14 +486,26 @@ export default function StoreDetail() {
                       <FormItem>
                         <FormLabel>Logo da Loja</FormLabel>
                         <FormControl>
-                          <ImageUpload
-                            name={`store-logo-${store.id}`}
-                            multiple={false}
-                            value={field.value}
-                            onChange={field.onChange}
-                            maxImages={1}
-                          />
+                          {store && store.id ? (
+                            <ImageUpload
+                              entityType="store"
+                              entityId={store.id}
+                              multiple={false}
+                              value={field.value || []}
+                              onChange={field.onChange}
+                              maxImages={1}
+                            />
+                          ) : (
+                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                              <p className="text-sm text-muted-foreground">
+                                Carregando informações para upload...
+                              </p>
+                            </div>
+                          )}
                         </FormControl>
+                        <FormDescription>
+                          Selecione uma imagem para representar sua loja (formato JPG, PNG ou WebP, máximo 10MB)
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

@@ -21,7 +21,7 @@ import * as AdminUserController from "./controllers/admin-user.controller";
 import * as PlaceDetailsController from "./controllers/place_details.controller";
 import * as DebugController from "./controllers/debug.controller";
 import * as PasswordResetController from "./controllers/password-reset.controller";
-import { uploadImages, deleteImage } from "./controllers/upload.controller.js";
+import { uploadImages, deleteImage } from "./controllers/upload.controller";
 import { db, pool } from "./db";
 import { eq, ne, and, like, or, gte, lte, desc, sql } from "drizzle-orm";
 import { storeImages, productImages, products, stores, users, reservations, promotions, wishlists } from "@shared/schema";
