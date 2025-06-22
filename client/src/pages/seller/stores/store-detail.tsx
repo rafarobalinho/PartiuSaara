@@ -71,9 +71,12 @@ type StoreFormValues = z.infer<typeof storeFormSchema>;
 
 export default function StoreDetail() {
   const { id } = useParams();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
+  
+  // Detectar se estamos no modo de edição baseado na URL
+  const isEditMode = location.includes('/edit');
 
   // Verificar autenticação
   const isAuthenticated = !!user;
@@ -153,6 +156,11 @@ export default function StoreDetail() {
       // Invalidar a query para recarregar os dados
       queryClient.invalidateQueries({ queryKey: [`/api/stores/${id}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
+      
+      // Redirecionar baseado no modo
+      if (isEditMode) {
+        navigate(`/seller/stores/${id}`);
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -241,34 +249,59 @@ export default function StoreDetail() {
               <i className="fas fa-arrow-left"></i>
             </span>
           </Link>
-          <h1 className="text-2xl font-bold">Gerenciar Loja</h1>
+          <h1 className="text-2xl font-bold">
+            {isEditMode ? 'Editar Loja' : 'Gerenciar Loja'}
+          </h1>
         </div>
-        <p className="text-gray-600">Edite as informações da sua loja e gerencie sua presença no marketplace</p>
+        <p className="text-gray-600">
+          {isEditMode 
+            ? 'Edite as informações da sua loja' 
+            : 'Edite as informações da sua loja e gerencie sua presença no marketplace'
+          }
+        </p>
       </div>
             <div className="flex space-x-2">
-              <Button asChild>
-                <Link href={`/seller/stores/${store.id}/products`}>
-                  Ver Produtos
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href={`/seller/stores/${store.id}/analytics`}>
-                  Ver Analytics
-                </Link>
-              </Button>
+              {!isEditMode && (
+                <>
+                  <Button asChild>
+                    <Link href={`/seller/stores/${store.id}/edit`}>
+                      Editar Loja
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href={`/seller/stores/${store.id}/products`}>
+                      Ver Produtos
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href={`/seller/stores/${store.id}/analytics`}>
+                      Ver Analytics
+                    </Link>
+                  </Button>
+                </>
+              )}
+              {isEditMode && (
+                <Button asChild variant="outline">
+                  <Link href={`/seller/stores/${store.id}`}>
+                    Voltar para Visualização
+                  </Link>
+                </Button>
+              )}
             </div>
 
       <Tabs defaultValue="details">
-        <TabsList>
-          <TabsTrigger value="details">Detalhes da Loja</TabsTrigger>
-          <TabsTrigger value="products">
-            <Link href={`/seller/stores/${id}/products`}>
-              <a className="flex items-center">
-                Produtos
-              </a>
-            </Link>
-          </TabsTrigger>
-        </TabsList>
+        {!isEditMode && (
+          <TabsList>
+            <TabsTrigger value="details">Detalhes da Loja</TabsTrigger>
+            <TabsTrigger value="products">
+              <Link href={`/seller/stores/${id}/products`}>
+                <a className="flex items-center">
+                  Produtos
+                </a>
+              </Link>
+            </TabsTrigger>
+          </TabsList>
+        )}
 
         <TabsContent value="details">
           <Card>
@@ -469,7 +502,7 @@ export default function StoreDetail() {
                     <Button 
                       type="button" 
                       variant="outline"
-                      onClick={() => navigate('/seller/stores')}
+                      onClick={() => navigate(isEditMode ? `/seller/stores/${id}` : '/seller/stores')}
                     >
                       Cancelar
                     </Button>

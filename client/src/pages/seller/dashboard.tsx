@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
@@ -100,7 +99,7 @@ export default function SellerDashboard() {
     queryKey: ['/api/seller/stats', activeStoreId],
     queryFn: async () => {
       if (!activeStoreId) return null;
-      
+
       try {
         const response = await fetch(`/api/seller/stats?storeId=${activeStoreId}`);
         if (!response.ok) {
@@ -451,7 +450,7 @@ export default function SellerDashboard() {
                       </a>
                     </Link>
                   </Button>
-                  
+
                   <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-center">
                     <Link href="/seller/promotions">
                       <a>
@@ -460,7 +459,7 @@ export default function SellerDashboard() {
                       </a>
                     </Link>
                   </Button>
-                  
+
                   <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-center">
                     <Link href="/seller/reservations">
                       <a>
@@ -469,9 +468,9 @@ export default function SellerDashboard() {
                       </a>
                     </Link>
                   </Button>
-                  
+
                   <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-center">
-                    <Link href={`/seller/stores/${store.id}`}>
+                    <Link href={`/seller/stores/${store.id}/edit`}>
                       <a>
                         <i className="fas fa-edit text-2xl mb-2"></i>
                         <span>Editar Loja</span>

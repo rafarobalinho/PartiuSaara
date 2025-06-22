@@ -103,6 +103,7 @@ function Router() {
           <Route path="/seller/stores" component={SellerStores} />
           <Route path="/seller/stores/add-store" component={AddStore} />
           <Route path="/seller/stores/:id" component={StoreDetail} />
+          <Route path="/seller/stores/:id/edit" component={StoreDetail} />
           <Route path="/seller/stores/:id/products" component={StoreProducts} />
           <Route path="/seller/stores/:storeId/analytics" component={StoreAnalyticsPage} />
           <Route path="/seller/analytics" component={SellerAnalytics} />
