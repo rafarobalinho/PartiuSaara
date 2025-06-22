@@ -219,15 +219,14 @@ const ImageUploadComponent = forwardRef(({
           {selectedImages.map((imageUrl, index) => (
             <div key={index} className="relative group rounded-md overflow-hidden border border-border">
               <div className="aspect-square w-full relative">
-                {/* NOTA: O preview usa o SafeImage antigo (com src) porque lida com URLs locais (blob:)
-                  e URLs do servidor. O novo SafeImage (com entityId) deve ser usado em páginas
-                  que apenas exibem dados já salvos. Esta abordagem aqui é correta para um preview.
-                */}
-                <SafeImage 
-                  src={imageUrl} 
-                  alt={`Preview ${index + 1}`} 
+                {/* Usando img normal para preview pois pode ser blob: URL ou URL do servidor */}
+                <img 
+                  src={imageUrl}
+                  alt={`Preview ${index + 1}`}
                   className="object-cover w-full h-full"
-                  fallbackSrc="/placeholder-image.jpg"
+                  onError={(e) => {
+                    e.currentTarget.src = '/placeholder-image.jpg';
+                  }}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
                   <Button
