@@ -1,0 +1,72 @@
+Correção de Exibição de Imagens de Loja
+Preciso que você corrija a exibição de imagens de loja que estão aparecendo como placeholder em algumas páginas. O problema é inconsistência na forma como diferentes componentes exibem as imagens.
+🚨 PROBLEMA IDENTIFICADO:
+
+Imagens de produtos funcionam corretamente (usam /api/products/{id}/primary-image)
+Imagens de loja mostram placeholder-image.jpg em algumas páginas
+Diferentes páginas usam métodos diferentes para exibir imagens de loja
+
+🔧 CORREÇÕES NECESSÁRIAS:
+1. Corrigir client/src/pages/seller/stores/index.tsx
+ENCONTRE este código (aproximadamente linha 70-80):
+jsx<div className="h-40 bg-cover bg-center bg-gray-200" style={{
+  backgroundImage: `url(${store.primary_image_api_url || '/placeholder-image.jpg'})`,
+}}>
+SUBSTITUA por:
+jsx<div className="h-40 relative overflow-hidden bg-gray-200">
+  <SafeImage
+    entityType="store"
+    entityId={store.id}
+    alt={`Loja ${store.name}`}
+    className="w-full h-full object-cover"
+  />
+ADICIONE a importação no topo do arquivo:
+jsximport { SafeImage } from '@/components/ui/safe-image';
+2. Corrigir client/src/components/ui/image-upload.tsx
+ENCONTRE este código (aproximadamente linha 140-150):
+jsx<SafeImage 
+  src={imageUrl} 
+  alt={`Preview ${index + 1}`} 
+  className="object-cover w-full h-full"
+  fallbackSrc="/placeholder-image.jpg"
+/>
+SUBSTITUA por:
+jsx<img 
+  src={imageUrl}
+  alt={`Preview ${index + 1}`}
+  className="object-cover w-full h-full"
+  onError={(e) => {
+    e.currentTarget.src = '/placeholder-image.jpg';
+  }}
+/>
+📋 CHECKLIST DE VERIFICAÇÃO:
+
+Verificar stores/index.tsx:
+
+ Remover style com backgroundImage
+ Adicionar SafeImage com entityType="store" e entityId={store.id}
+ Adicionar import do SafeImage
+
+
+Verificar image-upload.tsx:
+
+ Substituir SafeImage por img normal no preview
+ Adicionar onError handler para fallback
+
+
+Testar funcionamento:
+
+ Acessar /seller/stores
+ Verificar se logos de loja aparecem (não placeholder)
+ Testar upload de nova imagem e preview
+
+
+
+🎯 RESULTADO ESPERADO:
+Após as correções:
+
+✅ Logos de loja aparecerão corretamente em /seller/stores
+✅ Sistema usará /api/stores/{id}/primary-image automaticamente
+✅ Preview de upload continuará funcionando normalmente
+✅ Fallback automático para placeholder quando necessário
+
