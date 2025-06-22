@@ -1,0 +1,72 @@
+# Comando Final para Corrigir Imagens de Loja
+
+## 🎯 PROBLEMA CONFIRMADO:
+Arquivos de loja estão em `/uploads/thumbnails/` mas sistema busca em `/uploads/stores/{id}/`
+
+## 🔧 SOLUÇÃO DEFINITIVA:
+
+### 1. Primeiro, verificar quais arquivos precisam ser movidos:
+```bash
+# Ver arquivos na pasta legado que podem ser de lojas
+ls -la /home/runner/workspace/public/uploads/thumbnails/ | grep -E "174(6|7|8|9|5)"
+```
+
+### 2. Consultar banco para confirmar filenames:
+```sql
+SELECT store_id, filename, is_primary 
+FROM store_images 
+WHERE store_id IN (1,2,4,5) 
+ORDER BY store_id;
+```
+
+### 3. Mover arquivo da Loja 4 (exemplo confirmado):
+```bash
+# Criar pasta se não existir
+mkdir -p /home/runner/workspace/public/uploads/stores/4
+
+# Mover arquivo para local correto
+mv /home/runner/workspace/public/uploads/thumbnails/1746574875959-463379720.jpg \
+   /home/runner/workspace/public/uploads/stores/4/
+
+# Verificar se moveu
+ls -la /home/runner/workspace/public/uploads/stores/4/
+```
+
+### 4. Script automatizado para mover todos (CUIDADO - teste primeiro):
+```bash
+# Script para executar APÓS confirmar quais arquivos mover
+cd /home/runner/workspace/public/uploads
+
+# Para cada arquivo que você confirmar que pertence a uma loja específica
+# Substitua FILENAME e STORE_ID pelos valores corretos:
+
+# mv thumbnails/FILENAME stores/STORE_ID/
+```
+
+## 📋 CHECKLIST DE EXECUÇÃO:
+
+- [ ] **Consultar banco:** Ver quais `filename` existem para lojas 1,2,4,5
+- [ ] **Localizar arquivos:** Procurar esses filenames em `/thumbnails/`
+- [ ] **Criar pastas:** `mkdir -p stores/1 stores/2 stores/4 stores/5`
+- [ ] **Mover arquivos:** Um por vez, testando após cada movimento
+- [ ] **Verificar funcionamento:** Acessar página e ver se imagem aparece
+
+## ✅ TESTE RÁPIDO:
+
+Execute este comando para ver se a Loja 4 funciona:
+```bash
+# Mover arquivo da Loja 4
+mkdir -p /home/runner/workspace/public/uploads/stores/4
+mv /home/runner/workspace/public/uploads/thumbnails/1746574875959-463379720.jpg \
+   /home/runner/workspace/public/uploads/stores/4/
+
+# Depois teste acessando a página de lojas do vendedor
+```
+
+## 🎯 RESULTADO ESPERADO:
+
+- ✅ Imagem da Loja 4 aparecerá imediatamente
+- ✅ Log não mostrará mais "INCONSISTÊNCIA" para Loja 4
+- ✅ Confirmará que a solução está correta
+
+**Seu relatório está perfeito! A solução é simplesmente mover os arquivos do local legado para o local correto.** 🎯
