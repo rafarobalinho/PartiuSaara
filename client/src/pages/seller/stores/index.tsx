@@ -26,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { SafeImage } from '@/components/ui/safe-image';
 
 export default function SellerStores() {
   const [, navigate] = useLocation();
@@ -151,14 +152,13 @@ export default function SellerStores() {
     return filteredStores.map((store: any) => (
       <Card key={store.id} className="overflow-hidden flex flex-col">
         {/* Lógica de imagem simplificada */}
-        <div className="h-40 bg-cover bg-center bg-gray-200" style={{
-          backgroundImage: `url(${store.primary_image_api_url || '/placeholder-image.jpg'})`,
-        }}>
-          <div className="h-full w-full bg-gradient-to-t from-black/50 flex items-end p-2">
-            <Badge className={store.is_open ? 'bg-green-500' : 'bg-red-500'}>
-              {store.is_open ? 'Aberta' : 'Fechada'}
-            </Badge>
-          </div>
+        <div className="h-40 relative overflow-hidden bg-gray-200">
+          <SafeImage
+            entityType="store"
+            entityId={store.id}
+            alt={`Loja ${store.name}`}
+            className="w-full h-full object-cover"
+          />
         </div>
         <CardHeader>
           <CardTitle className="line-clamp-1">{store.name}</CardTitle>
@@ -176,7 +176,7 @@ export default function SellerStores() {
             <Button variant="outline" size="sm" onClick={() => navigate(`/seller/stores/${store.id}/edit`)}>
               Editar
             </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate(`/seller/stores/${store.id}/products`)}>
+            <Button variant="outline" size="sm" onClick={()={() => navigate(`/seller/stores/${store.id}/products`)}>
               Produtos
             </Button>
             <Button variant="outline" size="sm" onClick={() => navigate(`/seller/stores/${store.id}/analytics`)}>
