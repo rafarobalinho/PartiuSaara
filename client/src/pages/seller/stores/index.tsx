@@ -176,7 +176,7 @@ export default function SellerStores() {
             <Button variant="outline" size="sm" onClick={() => navigate(`/seller/stores/${store.id}/edit`)}>
               Editar
             </Button>
-            <Button variant="outline" size="sm" onClick={()={() => navigate(`/seller/stores/${store.id}/products`)}>
+            <Button variant="outline" size="sm" onClick={() => navigate(`/seller/stores/${store.id}/products`)}>
               Produtos
             </Button>
             <Button variant="outline" size="sm" onClick={() => navigate(`/seller/stores/${store.id}/analytics`)}>
