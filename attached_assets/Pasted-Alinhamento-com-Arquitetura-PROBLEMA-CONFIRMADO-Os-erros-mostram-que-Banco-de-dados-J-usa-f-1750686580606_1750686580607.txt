@@ -1,0 +1,138 @@
+Alinhamento com Arquitetura
+🚨 PROBLEMA CONFIRMADO
+Os erros mostram que:
+
+✅ Banco de dados: Já usa filename e thumbnail_filename (correto)
+❌ Scripts antigos: Tentam usar image_url e thumbnail_url (obsoletos)
+❌ Upload Controller: Ainda salva URLs em vez de filenames
+
+🎯 SOLUÇÃO DEFINITIVA
+Não precisamos de scripts de migração! Apenas corrigir o Upload Controller para usar a estrutura correta que já existe.
+🔧 CORREÇÃO DO UPLOAD CONTROLLER
+Encontre e substitua esta seção no server/controllers/upload.controller.ts:
+❌ CÓDIGO ATUAL (linhas ~140-180):
+javascript// URLs para o banco de dados - corrigir estrutura
+let imageUrl, thumbnailUrl;
+if (type === 'store') {
+  imageUrl = `/uploads/stores/${finalStoreId}/${fileName}`;
+  thumbnailUrl = `/uploads/stores/${finalStoreId}/thumbnails/${fileName}`;
+} else if (type === 'product') {
+  imageUrl = `/uploads/stores/${finalStoreId}/products/${finalEntityId}/${fileName}`;
+  thumbnailUrl = `/uploads/stores/${finalStoreId}/products/${finalEntityId}/thumbnails/${fileName}`;
+}
+
+// Salvar no banco de dados
+let insertQuery;
+let queryParams;
+
+if (type === 'store') {
+  insertQuery = `
+    INSERT INTO store_images (store_id, image_url, thumbnail_url, is_primary, display_order)
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING id
+  `;
+  queryParams = [finalStoreId, imageUrl, thumbnailUrl, isPrimary, 0];
+} else if (type === 'product') {
+  insertQuery = `
+    INSERT INTO product_images (product_id, image_url, thumbnail_url, is_primary, display_order)
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING id
+  `;
+  queryParams = [finalEntityId, imageUrl, thumbnailUrl, isPrimary, 0];
+}
+✅ CÓDIGO CORRETO (substituir por):
+javascript// Salvar no banco usando apenas filenames (estrutura correta)
+let insertQuery;
+let queryParams;
+
+if (type === 'store') {
+  insertQuery = `
+    INSERT INTO store_images (store_id, filename, thumbnail_filename, is_primary, display_order)
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING id
+  `;
+  
+  // Verificar se é a primeira imagem (será primary)
+  const existingImagesResult = await pool.query(
+    'SELECT COUNT(*) as count FROM store_images WHERE store_id = $1',
+    [finalStoreId]
+  );
+  const isPrimary = existingImagesResult.rows[0].count === '0';
+  
+  queryParams = [finalStoreId, fileName, fileName, isPrimary, 0];
+
+} else if (type === 'product') {
+  insertQuery = `
+    INSERT INTO product_images (product_id, filename, thumbnail_filename, is_primary, display_order)
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING id
+  `;
+  
+  // Verificar se é a primeira imagem (será primary)
+  const existingImagesResult = await pool.query(
+    'SELECT COUNT(*) as count FROM product_images WHERE product_id = $1',
+    [finalEntityId]
+  );
+  const isPrimary = existingImagesResult.rows[0].count === '0';
+  
+  queryParams = [finalEntityId, fileName, fileName, isPrimary, 0];
+}
+E substitua o objeto de resposta (linha ~190):
+❌ CÓDIGO ATUAL:
+javascriptuploadedImages.push({
+  id: result.rows[0].id,
+  url: imageUrl,
+  thumbnailUrl: thumbnailUrl,
+  fileName: fileName,
+  isPrimary: queryParams[3]
+});
+✅ CÓDIGO CORRETO:
+javascriptuploadedImages.push({
+  id: result.rows[0].id,
+  url: type === 'store' 
+    ? `/uploads/stores/${finalStoreId}/${fileName}`
+    : `/uploads/stores/${finalStoreId}/products/${finalEntityId}/${fileName}`,
+  thumbnailUrl: type === 'store'
+    ? `/uploads/stores/${finalStoreId}/thumbnails/${fileName}`
+    : `/uploads/stores/${finalStoreId}/products/${finalEntityId}/thumbnails/${fileName}`,
+  fileName: fileName,
+  isPrimary: queryParams[3]
+});
+📋 CORREÇÃO DO DELETE CONTROLLER
+Encontre e substitua esta seção no server/controllers/upload.controller.ts (função deleteImage):
+❌ CÓDIGO ATUAL:
+javascript// Extrai o nome do arquivo da URL
+const { imageUrl, thumbnailUrl } = imageRecord;
+
+// Constrói os caminhos completos para os arquivos no sistema
+const originalPath = path.join(process.cwd(), 'public', imageUrl);
+const thumbnailPath = path.join(process.cwd(), 'public', thumbnailUrl);
+✅ CÓDIGO CORRETO:
+javascript// Extrai o filename do registro
+const { filename, thumbnail_filename, store_id } = imageRecord;
+
+// Constrói os caminhos corretos baseados na estrutura
+let originalPath, thumbnailPath;
+
+if (type === 'store') {
+  originalPath = path.join(process.cwd(), 'public', 'uploads', 'stores', String(store_id), filename);
+  thumbnailPath = path.join(process.cwd(), 'public', 'uploads', 'stores', String(store_id), 'thumbnails', thumbnail_filename);
+} else {
+  // Para produtos, precisamos buscar o store_id
+  const productQuery = await pool.query('SELECT store_id FROM products WHERE id = $1', [imageRecord.product_id]);
+  const productStoreId = productQuery.rows[0].store_id;
+  
+  originalPath = path.join(process.cwd(), 'public', 'uploads', 'stores', String(productStoreId), 'products', String(imageRecord.product_id), filename);
+  thumbnailPath = path.join(process.cwd(), 'public', 'uploads', 'stores', String(productStoreId), 'products', String(imageRecord.product_id), 'thumbnails', thumbnail_filename);
+}
+✅ RESULTADO FINAL
+Após essas correções:
+
+Upload: Salva apenas filename no banco (correto)
+Exibição: Image Controller usa filename (já correto)
+Delete: Usa filename para deletar (corrigido)
+Arquitetura: 100% alinhada com estrutura definida
+
+🎯 NÃO EXECUTE OS SCRIPTS ANTIGOS
+Os scripts com erro podem ser ignorados - eles foram criados para uma estrutura antiga. O banco já está correto, só o Upload Controller precisa ser alinhado.
+Após essas correções, teste fazer upload de um novo logo de loja e verificar se aparece corretamente!
