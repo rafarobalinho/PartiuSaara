@@ -1,0 +1,75 @@
+Lojas 3 e 4
+🚨 PROBLEMAS IDENTIFICADOS
+Loja 3:
+
+✅ Arquivo existe: 1746934665553-131736427.jpg
+❌ Local errado: Pasta thumbnail legada (/uploads/thumbnails/)
+✅ Banco: Tem registro na store_images
+
+Loja 4:
+
+✅ Arquivo existe: 1746574875959-463379720.jpg (na estrutura correta)
+❌ Banco: SEM registro na store_images (FALHA CRÍTICA!)
+
+🔧 SOLUÇÕES ESPECÍFICAS
+1. CORRIGIR LOJA 3 - Mover arquivo para local correto
+bash# Criar pasta se não existir
+mkdir -p /home/runner/workspace/public/uploads/stores/3/thumbnails
+
+# Mover arquivo do local legado para local correto
+mv /home/runner/workspace/public/uploads/thumbnails/1746934665553-131736427.jpg \
+   /home/runner/workspace/public/uploads/stores/3/
+
+# Criar thumbnail na pasta correta
+cp /home/runner/workspace/public/uploads/stores/3/1746934665553-131736427.jpg \
+   /home/runner/workspace/public/uploads/stores/3/thumbnails/1746934665553-131736427.jpg
+2. CORRIGIR LOJA 4 - Adicionar registro no banco
+sql-- Inserir registro da imagem que existe fisicamente mas não está no banco
+INSERT INTO store_images (store_id, filename, thumbnail_filename, is_primary, display_order, created_at)
+VALUES (4, '1746574875959-463379720.jpg', '1746574875959-463379720.jpg', true, 0, NOW());
+3. VERIFICAR estrutura após correções
+bash# Verificar Loja 3
+ls -la /home/runner/workspace/public/uploads/stores/3/
+ls -la /home/runner/workspace/public/uploads/stores/3/thumbnails/
+
+# Verificar Loja 4
+ls -la /home/runner/workspace/public/uploads/stores/4/
+ls -la /home/runner/workspace/public/uploads/stores/4/thumbnails/
+4. VERIFICAR banco após correções
+sql-- Ver registros das lojas 3 e 4
+SELECT store_id, filename, thumbnail_filename, is_primary, created_at 
+FROM store_images 
+WHERE store_id IN (3, 4) 
+ORDER BY store_id;
+📋 SEQUÊNCIA DE EXECUÇÃO
+Passo 1: Corrigir Loja 3
+bashmkdir -p /home/runner/workspace/public/uploads/stores/3/thumbnails
+mv /home/runner/workspace/public/uploads/thumbnails/1746934665553-131736427.jpg \
+   /home/runner/workspace/public/uploads/stores/3/
+cp /home/runner/workspace/public/uploads/stores/3/1746934665553-131736427.jpg \
+   /home/runner/workspace/public/uploads/stores/3/thumbnails/
+Passo 2: Corrigir Loja 4
+sqlINSERT INTO store_images (store_id, filename, thumbnail_filename, is_primary, display_order, created_at)
+VALUES (4, '1746574875959-463379720.jpg', '1746574875959-463379720.jpg', true, 0, NOW());
+Passo 3: Testar APIs
+bash# Testar se as APIs retornam as imagens
+curl -I http://localhost:5000/api/stores/3/primary-image
+curl -I http://localhost:5000/api/stores/4/primary-image
+Passo 4: Verificar no Frontend
+
+Acessar página de lojas
+Verificar se logos das lojas 3 e 4 aparecem
+
+✅ RESULTADO ESPERADO
+Após essas correções:
+
+✅ Loja 3: Arquivo na estrutura correta + registro no banco
+✅ Loja 4: Arquivo existente + registro criado no banco
+✅ APIs: /api/stores/3/primary-image e /api/stores/4/primary-image funcionarão
+✅ Frontend: Logos aparecerão nas páginas
+
+🎯 RESUMO DO PROBLEMA
+Loja 3: Tinha dados mas arquivo no local errado
+Loja 4: Tinha arquivo mas sem dados no banco
+Solução: Mover arquivo da Loja 3 + Criar registro da Loja 4
+Execute essas correções específicas e as imagens aparecerão imediatamente!
