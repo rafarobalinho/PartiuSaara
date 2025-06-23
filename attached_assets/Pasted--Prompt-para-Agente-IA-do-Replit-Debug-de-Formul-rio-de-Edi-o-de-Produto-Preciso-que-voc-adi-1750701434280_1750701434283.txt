@@ -1,0 +1,111 @@
+# Prompt para Agente IA do Replit - Debug de Formulário de Edição de Produto
+
+Preciso que você adicione logs de debug temporários no arquivo `client/src/pages/seller/products/edit-product.tsx` para identificar por que os dados do produto não estão sendo carregados no formulário de edição.
+
+## 🔍 Problema:
+A página `/seller/products/1/edit` carrega, mas os campos do formulário aparecem vazios em vez de pré-preenchidos com os dados existentes do produto.
+
+## 📋 Ação Necessária:
+
+### 1. Abra o arquivo: `client/src/pages/seller/products/edit-product.tsx`
+
+### 2. Localize a seção do `useQuery` (aproximadamente linha 90) e substitua por:
+
+```typescript
+// Query para buscar dados do produto
+const { data: productData, isLoading: productLoading, error: productError } = useQuery({
+  queryKey: [`/api/products/${id}`],
+  queryFn: async () => {
+    console.log('🔍 [DEBUG] Fazendo fetch para:', `/api/products/${id}`);
+    console.log('🔍 [DEBUG] ID do produto:', id);
+    console.log('🔍 [DEBUG] isAuthenticated:', isAuthenticated);
+    console.log('🔍 [DEBUG] isSeller:', isSeller);
+    
+    const response = await fetch(`/api/products/${id}`);
+    console.log('🔍 [DEBUG] Response status:', response.status);
+    console.log('🔍 [DEBUG] Response OK:', response.ok);
+    
+    if (!response.ok) {
+      console.log('🔍 [DEBUG] Response erro:', response.statusText);
+      throw new Error('Produto não encontrado');
+    }
+    
+    const data = await response.json();
+    console.log('🔍 [DEBUG] Dados recebidos da API:', data);
+    return data;
+  },
+  enabled: !!id && !!isAuthenticated && !!isSeller,
+});
+
+// Log adicional para verificar estado do query
+console.log('🔍 [DEBUG] Query enabled:', !!id && !!isAuthenticated && !!isSeller);
+console.log('🔍 [DEBUG] productData:', productData);
+console.log('🔍 [DEBUG] productLoading:', productLoading);
+console.log('🔍 [DEBUG] productError:', productError);
+```
+
+### 3. Localize o `useEffect` (aproximadamente linha 110) e substitua por:
+
+```typescript
+// Atualizar formulário quando dados carregarem
+useEffect(() => {
+  console.log('🔍 [DEBUG] useEffect executado');
+  console.log('🔍 [DEBUG] productData no useEffect:', productData);
+  console.log('🔍 [DEBUG] form object:', form);
+  
+  if (productData) {
+    console.log('🔍 [DEBUG] Estrutura do productData:', Object.keys(productData));
+    
+    const formData = {
+      name: productData.name || '',
+      description: productData.description || '',
+      price: productData.price || 0,
+      discountedPrice: productData.discountedPrice || null,
+      category: productData.category || '',
+      stock: productData.stock || 0,
+      storeId: productData.storeId || productData.store_id || 0,
+    };
+    
+    console.log('🔍 [DEBUG] Dados que serão aplicados no form:', formData);
+    
+    form.reset(formData);
+    
+    console.log('🔍 [DEBUG] Form resetado - valores atuais:', form.getValues());
+
+    // Carregar imagens existentes
+    if (productData.images && productData.images.length > 0) {
+      console.log('🔍 [DEBUG] Definindo imagens:', productData.images);
+      setProductImages(productData.images);
+    }
+    
+    console.log('✅ Dados do produto carregados e aplicados no formulário');
+  } else {
+    console.log('❌ [DEBUG] productData é null/undefined');
+  }
+}, [productData, form]);
+```
+
+## 🧪 Como Testar:
+
+1. Salve o arquivo após fazer as mudanças
+2. Abra o navegador e pressione F12 para abrir Developer Tools
+3. Vá na aba "Console"
+4. Acesse a página: `/seller/products/1/edit` (ou qualquer ID de produto existente)
+5. Observe os logs que aparecem no console
+
+## 📊 Resultado Esperado:
+
+Você deve ver uma série de logs começando com `🔍 [DEBUG]` que mostrarão:
+- Se a API está sendo chamada
+- Se os dados estão sendo retornados
+- Se o formulário está sendo populado
+- Onde exatamente está falhando
+
+## ⚠️ Importante:
+
+- Estes logs são temporários para debug
+- Após identificar o problema, removeremos os logs
+- Mantenha o Developer Tools aberto para ver os logs
+- Teste com um produto que você sabe que existe
+
+Após implementar, me informe quais logs aparecem no console para que eu possa identificar onde está o problema!

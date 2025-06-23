@@ -84,8 +84,6 @@ console.log('🔍 [SCHEMA] insertStoreSchema fields:', Object.keys(insertStoreSc
 console.log('🔍 [SCHEMA] insertStoreSchema structure:', insertStoreSchema.shape);
 console.log('🔍 [SCHEMA] Tags field updated to support array:', insertStoreSchema.shape.tags);
 
-// Schema de validação criado
-
 // Products schema
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
@@ -124,10 +122,10 @@ export const insertPromotionSchema = createInsertSchema(promotions).omit({
   id: true,
   createdAt: true,
   updatedAt: true
-})
+});
 
 // Log do schema para debug
-console.log("Schema de validação de promoção:", insertPromotionSchema);;
+console.log("Schema de validação de promoção:", insertPromotionSchema);
 
 // Coupons schema
 export const coupons = pgTable("coupons", {
@@ -249,15 +247,16 @@ export const insertStoreImpressionSchema = createInsertSchema(storeImpressions).
   id: true
 });
 
-// Product Images schema
+// ✅ CORRIGIDO: Product Images schema - ESTRUTURA REAL DO BANCO
 export const productImages = pgTable("product_images", {
   id: serial("id").primaryKey(),
   productId: integer("product_id").notNull().references(() => products.id),
-  imageUrl: text("image_url").notNull(),
-  thumbnailUrl: text("thumbnail_url").notNull(),
+  filename: text("filename").notNull(),                    // ✅ Campo real do banco
+  thumbnailFilename: text("thumbnail_filename").notNull(), // ✅ Campo real do banco
   isPrimary: boolean("is_primary").default(false),
   displayOrder: integer("display_order").default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
 }, (table) => {
   return {
     productIdIdx: index("product_id_idx").on(table.productId),
@@ -270,15 +269,16 @@ export const insertProductImageSchema = createInsertSchema(productImages).omit({
   createdAt: true
 });
 
-// Store Images schema
+// ✅ CORRIGIDO: Store Images schema - ESTRUTURA REAL DO BANCO
 export const storeImages = pgTable("store_images", {
   id: serial("id").primaryKey(),
   storeId: integer("store_id").notNull().references(() => stores.id),
-  imageUrl: text("image_url").notNull(),
-  thumbnailUrl: text("thumbnail_url").notNull(),
+  filename: text("filename").notNull(),                    // ✅ Campo real do banco
+  thumbnailFilename: text("thumbnail_filename").notNull(), // ✅ Campo real do banco
   isPrimary: boolean("is_primary").default(false),
   displayOrder: integer("display_order").default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
 }, (table) => {
   return {
     storeIdIdx: index("store_id_idx").on(table.storeId),

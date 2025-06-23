@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 // Esquema de validação para o formulário
 const productSchema = z.object({
@@ -50,96 +50,180 @@ export default function EditProduct() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [productImages, setProductImages] = useState<string[]>([]);
-  const [product, setProduct] = useState<any>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Carregar dados do produto
+  // Verificar autenticação
   useEffect(() => {
-    const fetchProductDetails = async () => {
-      if (!id) {
-        setError('ID do produto não fornecido.');
-        setLoading(false);
-        return;
-      }
+    if (!isAuthenticated) {
+      navigate('/login');
+    } else if (!isSeller) {
+      navigate('/account');
+    }
+  }, [isAuthenticated, isSeller, navigate]);
 
-      setLoading(true);
-      try {
-        const response = await apiRequest('GET', `/api/products/${id}`);
-        if (!response.ok) throw new Error('Produto não encontrado');
-
-        const data = await response.json();
-
-        // Normalizando os dados recebidos da API
-        const safeProduct = {
-          id: data.product.id,
-          name: data.product.name || '',
-          description: data.product.description || '',
-          category: data.product.category || '',
-          price: data.product.price || 0,
-          discountedPrice: data.product.discounted_price || null,
-          stock: data.product.stock || null,
-          images: (data.images || []).map((img: any) => img.image_url), // Pega a URL correta
-          storeId: data.product.store_id,
-        };
-
-        setProduct(safeProduct);
-        setProductImages(safeProduct.images);
-
-        // Populando o formulário com os dados carregados
-        form.reset({
-          name: safeProduct.name,
-          description: safeProduct.description,
-          price: safeProduct.price,
-          discountedPrice: safeProduct.discountedPrice,
-          category: safeProduct.category,
-          stock: safeProduct.stock,
-          images: safeProduct.images,
-          storeId: safeProduct.storeId,
-        });
-
-      } catch (err) {
-        setError('Falha ao carregar os dados do produto.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProductDetails();
-  }, [id]);
-
+  // Configurar formulário PRIMEIRO
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      price: 0,
+      discountedPrice: null,
+      category: '',
+      stock: 0,
+      storeId: 0,
+    },
   });
 
+  // Buscar categorias disponíveis
+  const { data: categories = [] } = useQuery({
+    queryKey: ['/api/categories'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (!response.ok) throw new Error('Erro ao carregar categorias');
+        return await response.json();
+      } catch (error) {
+        console.error('Erro ao buscar categorias:', error);
+        return [];
+      }
+    }
+  });
+
+  // Query para buscar dados do produto
+  const { data: productData, isLoading: productLoading, error: productError } = useQuery({
+    queryKey: [`/api/products/${id}`],
+    queryFn: async () => {
+      const response = await fetch(`/api/products/${id}`);
+      if (!response.ok) {
+        throw new Error('Produto não encontrado');
+      }
+      return response.json();
+    },
+    enabled: !!id && !!isAuthenticated && !!isSeller,
+  });
+
+  // Atualizar formulário quando dados carregarem
+  useEffect(() => {
+    if (productData) {
+      // Popular formulário com dados existentes
+      form.reset({
+        name: productData.name || '',
+        description: productData.description || '',
+        price: productData.price || 0,
+        discountedPrice: productData.discountedPrice || null,
+        category: productData.category || '',
+        stock: productData.stock || 0,
+        storeId: productData.storeId || productData.store_id || 0,
+      });
+
+      // Carregar imagens existentes
+      if (productData.images && productData.images.length > 0) {
+        setProductImages(productData.images);
+      }
+
+      console.log('✅ Dados do produto carregados:', productData);
+    }
+  }, [productData, form]);
+
+  // Mutation para atualizar produto
   const updateProductMutation = useMutation({
-    mutationFn: (data: ProductFormValues) => apiRequest('PUT', `/api/products/${id}`, data),
+    mutationFn: async (data: ProductFormValues) => {
+      const response = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          images: productImages,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao atualizar produto');
+      }
+
+      return response.json();
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/products/${id}`] });
-      toast({ title: 'Produto atualizado com sucesso!' });
+      toast({
+        title: 'Produto atualizado',
+        description: 'As alterações foram salvas com sucesso.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
       navigate('/seller/products');
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: 'Erro ao atualizar produto',
-        description: error.message || 'Ocorreu um erro.',
+        description: error instanceof Error ? error.message : 'Ocorreu um erro inesperado.',
         variant: 'destructive',
       });
     },
   });
 
+  // Manipular envio do formulário
   const onSubmit = (data: ProductFormValues) => {
-    const finalData = { ...data, images: productImages };
-    updateProductMutation.mutate(finalData);
+    updateProductMutation.mutate(data);
   };
 
-  // Renderização condicional...
-  if (loading) return <div>Carregando...</div>;
-  if (error) return <div>Erro: {error}</div>;
+  if (!isAuthenticated || !isSeller) {
+    return null;
+  }
+
+  if (productLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-gray-600">Carregando produto...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (productError) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Erro</h1>
+          <p className="text-gray-600 mb-4">
+            {productError instanceof Error ? productError.message : 'Erro ao carregar produto'}
+          </p>
+          <Button onClick={() => navigate('/seller/products')}>
+            Voltar para Produtos
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!productData) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Produto não encontrado</h1>
+          <Button onClick={() => navigate('/seller/products')}>
+            Voltar para Produtos
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex items-center mb-6">
+        <Link href="/seller/products">
+          <span className="text-gray-500 hover:text-primary mr-2 cursor-pointer">
+            <i className="fas fa-arrow-left"></i>
+          </span>
+        </Link>
+        <h1 className="text-2xl font-bold">Editar Produto</h1>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Editar Produto</CardTitle>
@@ -148,8 +232,6 @@ export default function EditProduct() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Seus outros FormFields (nome, descrição, preço, etc.) vão aqui */}
-
               <FormField
                 control={form.control}
                 name="name"
@@ -164,18 +246,125 @@ export default function EditProduct() {
                 )}
               />
 
-              {/* ...adicione os outros campos do formulário aqui... */}
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Descrição detalhada do produto"
+                        className="min-h-[100px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preço (R$)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="discountedPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preço com Desconto (R$)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00 (opcional)"
+                          {...field}
+                          value={field.value || ''}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Deixe em branco se não houver desconto
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Categoria</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione uma categoria" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {categories.map((category: any) => (
+                            <SelectItem key={category.slug} value={category.slug}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="stock"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estoque</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          {...field}
+                          value={field.value || ''}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Quantidade disponível em estoque
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <div>
                 <FormLabel>Imagens do Produto</FormLabel>
                 <div className="mt-2 border rounded-lg p-4">
-
-                  {/* ===== CÓDIGO CORRIGIDO AQUI ===== */}
-                  {product && product.id && product.storeId ? (
+                  {productData && productData.id ? (
                     <ImageUpload
                       entityType="product"
-                      entityId={product.id}
-                      storeId={product.storeId}
+                      entityId={productData.id}
+                      storeId={productData.storeId || productData.store_id}
                       multiple={true}
                       maxImages={5}
                       value={productImages}
@@ -184,16 +373,25 @@ export default function EditProduct() {
                       }}
                     />
                   ) : (
-                    <p className="text-sm text-muted-foreground">Carregando informações para upload...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Carregando informações para upload...
+                    </p>
                   )}
                 </div>
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => navigate('/seller/products')}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => navigate('/seller/products')}
+                >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={updateProductMutation.isPending}>
+                <Button 
+                  type="submit" 
+                  disabled={updateProductMutation.isPending}
+                >
                   {updateProductMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
                 </Button>
               </div>
