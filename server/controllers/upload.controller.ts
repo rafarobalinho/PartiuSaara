@@ -1,3 +1,4 @@
+
 import { Request, Response } from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
@@ -182,8 +183,9 @@ export const uploadImages = async (req: Request, res: Response): Promise<Respons
               .toFile(thumbnailPath);
 
             // ✅ CORREÇÃO: Usar filename/thumbnail_filename para AMBAS as tabelas
-            let insertQuery: string;
-            let queryParams: (string | number | boolean)[];
+            // Salvar no banco usando apenas filenames (estrutura correta)
+            let insertQuery;
+            let queryParams;
 
             if (type === 'store') {
               insertQuery = `
@@ -201,7 +203,7 @@ export const uploadImages = async (req: Request, res: Response): Promise<Respons
 
               queryParams = [parseInt(finalStoreId), fileName, fileName, isPrimary, 0];
 
-            } else {
+            } else if (type === 'product') {
               insertQuery = `
                 INSERT INTO product_images (product_id, filename, thumbnail_filename, is_primary, display_order)
                 VALUES ($1, $2, $3, $4, $5)
@@ -221,6 +223,7 @@ export const uploadImages = async (req: Request, res: Response): Promise<Respons
             const result = await pool.query(insertQuery, queryParams);
 
             // Construir URLs de resposta para o frontend
+            // URLs para o banco de dados - corrigir estrutura
             let imageUrl: string, thumbnailUrl: string;
             if (type === 'store') {
               imageUrl = `/uploads/stores/${finalStoreId}/${fileName}`;
@@ -317,32 +320,22 @@ export const deleteImage = async (req: Request, res: Response): Promise<Response
     }
 
     // Construir caminhos usando filename para ambas as tabelas
-    let originalPath: string, thumbnailPath: string;
+    // Extrai o filename do registro
+    const { filename, thumbnail_filename, store_id } = imageRecord;
+
+    // Constrói os caminhos corretos baseados na estrutura
+    let originalPath, thumbnailPath;
 
     if (type === 'store') {
-      const { store_id, filename, thumbnail_filename } = imageRecord;
-      originalPath = path.join(process.cwd(), 'public', 'uploads', 'stores', store_id.toString(), filename);
-      thumbnailPath = path.join(process.cwd(), 'public', 'uploads', 'stores', store_id.toString(), 'thumbnails', thumbnail_filename);
+      originalPath = path.join(process.cwd(), 'public', 'uploads', 'stores', String(store_id), filename);
+      thumbnailPath = path.join(process.cwd(), 'public', 'uploads', 'stores', String(store_id), 'thumbnails', thumbnail_filename);
     } else {
-      // Para produtos, também usar filename/thumbnail_filename
-      const { product_id, filename, thumbnail_filename } = imageRecord;
+      // Para produtos, precisamos buscar o store_id
+      const productQuery = await pool.query('SELECT store_id FROM products WHERE id = $1', [imageRecord.product_id]);
+      const productStoreId = productQuery.rows[0].store_id;
 
-      // Buscar store_id do produto
-      const productResult = await pool.query(
-        'SELECT store_id FROM products WHERE id = $1',
-        [product_id]
-      );
-
-      if (productResult.rows.length === 0) {
-        return res.status(404).json({ 
-          success: false, 
-          message: 'Produto não encontrado' 
-        });
-      }
-
-      const store_id = productResult.rows[0].store_id;
-      originalPath = path.join(process.cwd(), 'public', 'uploads', 'stores', store_id.toString(), 'products', product_id.toString(), filename);
-      thumbnailPath = path.join(process.cwd(), 'public', 'uploads', 'stores', store_id.toString(), 'products', product_id.toString(), 'thumbnails', thumbnail_filename);
+      originalPath = path.join(process.cwd(), 'public', 'uploads', 'stores', String(productStoreId), 'products', String(imageRecord.product_id), filename);
+      thumbnailPath = path.join(process.cwd(), 'public', 'uploads', 'stores', String(productStoreId), 'products', String(imageRecord.product_id), 'thumbnails', thumbnail_filename);
     }
 
     console.log(`🗑️ [UPLOAD-CONTROLLER] Deletando arquivos:`, { originalPath, thumbnailPath });
