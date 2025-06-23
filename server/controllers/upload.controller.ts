@@ -1,6 +1,4 @@
-Refactoring upload and delete image functions to use filenames instead of URLs for database storage and retrieval, and dynamically construct URLs in the response.
-```
-```replit_final_file
+
 import { Request, Response } from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
