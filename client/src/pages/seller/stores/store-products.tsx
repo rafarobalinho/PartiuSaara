@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/auth-context';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SafeImage } from '@/components/ui/safe-image';
 
 export default function StoreProducts() {
   const { id } = useParams();
@@ -21,7 +22,7 @@ export default function StoreProducts() {
   const { user, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
   const queryClient = useQueryClient();
-  
+
   // Estado para controle de atualizações em andamento
   const [isUpdating, setIsUpdating] = useState<Record<number, boolean>>({});
 
@@ -76,7 +77,7 @@ export default function StoreProducts() {
     mutationFn: async (productId: number) => {
       // Marcar o produto como atualizando
       setIsUpdating(prev => ({ ...prev, [productId]: true }));
-      
+
       try {
         const response = await fetch(`/api/products/${productId}/toggle-status`, {
           method: 'PUT',
@@ -84,11 +85,11 @@ export default function StoreProducts() {
             'Content-Type': 'application/json'
           }
         });
-        
+
         if (!response.ok) {
           throw new Error('Falha ao alternar o status do produto');
         }
-        
+
         return await response.json();
       } finally {
         // Garantir que o status de atualização seja removido
@@ -100,7 +101,7 @@ export default function StoreProducts() {
       queryClient.invalidateQueries({ queryKey: ['/api/products', { storeId: id }] });
     }
   });
-  
+
   // Função para lidar com o clique no botão (sem hooks dentro)
   const handleToggleStatus = (productId: number) => {
     toggleProductStatusMutation.mutate(productId);
@@ -111,7 +112,7 @@ export default function StoreProducts() {
   }
 
   const isLoading = authLoading || storeLoading || productsLoading;
-  
+
   // Filter products based on active tab
   const filteredProducts = products.filter((product: any) => {
     if (activeTab === 'all') return true;
@@ -164,23 +165,12 @@ export default function StoreProducts() {
     return filteredProducts.map((product: any) => (
       <Card key={product.id} className="overflow-hidden">
         <div className="relative h-40 bg-gray-200 overflow-hidden">
-          {product.images && product.images.length > 0 ? (
-            <img 
-              src={product.images[0]} 
-              alt={product.name}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                // Fallback para quando a imagem falha ao carregar
-                e.currentTarget.src = '/uploads/default-product-image.jpg';
-              }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-100">
-              <span className="text-gray-400 text-4xl">
-                <i className="fas fa-image"></i>
-              </span>
-            </div>
-          )}
+          <SafeImage
+            entityType="product"
+            entityId={product.id}
+            alt={product.name}
+            className="w-full h-full object-cover"
+          />
           <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/50 flex items-end p-4">
             {product.discountedPrice && (
               <Badge className="bg-red-500">
@@ -262,23 +252,12 @@ export default function StoreProducts() {
       {store && (
         <div className="flex items-center mb-6">
           <div className="w-12 h-12 rounded-full bg-gray-200 mr-3 overflow-hidden">
-            {store.images && store.images.length > 0 ? (
-              <img 
-                src={store.images[0]} 
-                alt={store.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  // Fallback para quando a imagem falha ao carregar
-                  e.currentTarget.src = '/uploads/default-store-image.jpg';
-                }}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                <span className="text-gray-400 text-lg">
-                  <i className="fas fa-store"></i>
-                </span>
-              </div>
-            )}
+            <SafeImage
+              entityType="store"
+              entityId={store.id}
+              alt={store.name}
+              className="w-full h-full object-cover"
+            />
           </div>
           <div>
             <h2 className="font-bold">{store.name}</h2>
@@ -295,7 +274,7 @@ export default function StoreProducts() {
           <i className="fas fa-plus mr-2"></i>
           Novo Produto
         </Button>
-        
+
         <div className="w-full sm:order-1">
           <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-4">
