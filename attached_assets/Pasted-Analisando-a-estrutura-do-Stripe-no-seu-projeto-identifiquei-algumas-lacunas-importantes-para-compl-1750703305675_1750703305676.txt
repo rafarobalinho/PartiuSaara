@@ -1,0 +1,49 @@
+Analisando a estrutura do Stripe no seu projeto, identifiquei algumas lacunas importantes para completar a implementação da monetização. Vou destacar o que ainda falta:
+
+🔍 ANÁLISE DO STATUS ATUAL DO STRIPE
+✅ O que já está implementado:
+Sistema dinâmico de configuração (test/live)
+Controlador Stripe com checkout sessions
+Webhooks básicos funcionando
+Página de configuração administrativa
+Integração com tabela de stores para assinaturas
+❌ O que ainda falta implementar:
+1. Price IDs do Stripe configurados
+Você precisa criar os produtos e preços no Stripe Dashboard e configurar as variáveis de ambiente:
+
+.env
+Adicionar Price IDs do Stripe
+2. Interface completa de planos para lojistas
+client/src/pages/seller/plans.tsx
+Criar página de seleção de planos
+3. Sistema de controle de limites por plano
+server/middleware/plan-limits.ts
+Middleware para verificar limites dos planos
+4. Adicionar verificações de limite nas rotas
+server/routes.ts
+Adicionar middleware de verificação de limites Adicionar middleware de verificação de limites Adicionar importação do middleware de limites Adicionar middleware de verificação de limites Adicionar importação do middleware de limites Adicionar rota para verificar limites
+5. Componente para mostrar limites do plano
+client/src/components/ui/plan-usage.tsx
+Componente para mostrar uso do plano
+📋 PRÓXIMOS PASSOS PARA COMPLETAR A ESTRUTURA:
+Criar produtos no Stripe Dashboard:
+
+Acesse o Stripe Dashboard
+Crie 3 produtos (Start, Pro, Premium)
+Configure preços mensais e anuais
+Copie os Price IDs para o .env
+Configurar Webhooks:
+
+URL: https://seu-app.replit.dev/api/stripe/webhook
+Eventos: checkout.session.completed, customer.subscription.updated, customer.subscription.deleted
+Testar fluxo completo:
+
+Seleção de plano
+Checkout no Stripe
+Retorno via webhook
+Atualização do plano na loja
+Implementar sistema de cupons (próxima fase)
+
+Adicionar analytics por plano (próxima fase)
+
+Com essas implementações, você terá um sistema de monetização completo e funcional. O mais crítico agora é configurar os Price IDs reais no Stripe Dashboard e testar o fluxo de pagamento completo.
