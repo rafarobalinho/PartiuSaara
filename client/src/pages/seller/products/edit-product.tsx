@@ -51,15 +51,6 @@ export default function EditProduct() {
   const queryClient = useQueryClient();
   const [productImages, setProductImages] = useState<string[]>([]);
 
-  // Verificar autenticação
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
-    } else if (!isSeller) {
-      navigate('/account');
-    }
-  }, [isAuthenticated, isSeller, navigate]);
-
   // Configurar formulário PRIMEIRO
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -73,6 +64,15 @@ export default function EditProduct() {
       storeId: 0,
     },
   });
+
+  // Verificar autenticação
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+    } else if (!isSeller) {
+      navigate('/account');
+    }
+  }, [isAuthenticated, isSeller, navigate]);
 
   // Buscar categorias disponíveis
   const { data: categories = [] } = useQuery({
@@ -105,20 +105,22 @@ export default function EditProduct() {
   // Atualizar formulário quando dados carregarem
   useEffect(() => {
     if (productData) {
-      // Popular formulário com dados existentes
+      // ✅ CORREÇÃO: Acessar dados dentro de productData.product
+      const product = productData.product || productData;
+      
       form.reset({
-        name: productData.name || '',
-        description: productData.description || '',
-        price: productData.price || 0,
-        discountedPrice: productData.discountedPrice || null,
-        category: productData.category || '',
-        stock: productData.stock || 0,
-        storeId: productData.storeId || productData.store_id || 0,
+        name: product.name || '',
+        description: product.description || '',
+        price: product.price || 0,
+        discountedPrice: product.discounted_price || null, // underscore!
+        category: product.category || '',
+        stock: product.stock || 0,
+        storeId: product.store_id || 0, // underscore!
       });
 
       // Carregar imagens existentes
-      if (productData.images && productData.images.length > 0) {
-        setProductImages(productData.images);
+      if (product.images && product.images.length > 0) {
+        setProductImages(product.images);
       }
 
       console.log('✅ Dados do produto carregados:', productData);
@@ -360,11 +362,11 @@ export default function EditProduct() {
               <div>
                 <FormLabel>Imagens do Produto</FormLabel>
                 <div className="mt-2 border rounded-lg p-4">
-                  {productData && productData.id ? (
+                  {productData && productData.product ? (
                     <ImageUpload
                       entityType="product"
-                      entityId={productData.id}
-                      storeId={productData.storeId || productData.store_id}
+                      entityId={productData.product.id}
+                      storeId={productData.product.store_id}
                       multiple={true}
                       maxImages={5}
                       value={productImages}
