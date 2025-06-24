@@ -562,7 +562,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/coupons', CouponController.getActiveCoupons);
   app.get('/api/stores/:storeId/coupons', CouponController.getStoreCoupons);
   app.post('/api/stores/:storeId/coupons/:code/validate', CouponController.validateCoupon);
-  };
 
   // Coupon routes - Seller protected
   app.get('/api/seller/coupons', authMiddleware, CouponController.getSellerCoupons);
