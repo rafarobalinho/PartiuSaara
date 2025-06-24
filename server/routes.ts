@@ -26,12 +26,19 @@ import { db, pool } from "./db";
 import { eq, ne, and, like, or, gte, lte, desc, sql } from "drizzle-orm";
 import { storeImages, productImages, products, stores, users, reservations, promotions, wishlists } from "@shared/schema";
 import imagesRoutes from "./routes/images";
+import testDebugRoutes from "./routes/test-debug.js";
 import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
 import { comparePasswords } from './utils/auth';
 import { geocodingMiddleware } from "./middlewares/geocoding.middleware";
 import { processStoreMiddleware } from "./middleware/store-processor.middleware";
 import { secureImageMiddleware } from "./middleware/secure-image-middleware";
 import { preventBlobUrls, logUploadAttempt } from './middleware/prevent-blob-urls.js';
+import highlightRoutes from './routes/highlights.js';
+import trialRoutes from './routes/trial.js';
+import highlightsTestRoutes from "./routes/highlights-test.js";
+import plansRoutes from './routes/plans.js';
+import { validateProductLimitMiddleware, validatePromotionLimitMiddleware } from './middleware/plan-limits.middleware.js';
+ 
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Aplicar middleware de segurança de imagens
@@ -39,6 +46,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Registrar as rotas de imagens
   app.use('/api', imagesRoutes);
+
+  // ✅ NOVAS ROTAS: Trial e Highlights
+  app.use('/api/highlights', highlightRoutes);
+  app.use('/api/trial', trialRoutes);
+  app.use('/api/debug-test', testDebugRoutes);
+  app.use('/api/highlights-test', highlightsTestRoutes); // ← CORRIGIDO: Adicionada a barra inicial
+  app.use('/api/plans', plansRoutes);
 
   // Auth routes
   app.post('/api/auth/login', AuthController.login);
@@ -269,7 +283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Rotas de produtos que requerem autenticação e verificação de propriedade
-  app.post('/api/products', authMiddleware, logUploadAttempt, preventBlobUrls, ProductController.createProduct);
+  app.post('/api/products', authMiddleware, validateProductLimitMiddleware, logUploadAttempt, preventBlobUrls, ProductController.createProduct);
   app.put('/api/products/:id', authMiddleware, logUploadAttempt, preventBlobUrls, verifyProductOwnership, ProductController.updateProduct);
 
   // Rota para excluir um produto
@@ -538,7 +552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota específica para obter promoções do vendedor atual - deve vir antes da rota parametrizada (:id)
   app.get('/api/seller/promotions', authMiddleware, PromotionController.getSellerPromotions);
   app.get('/api/promotions/:id', PromotionController.getPromotion);
-  app.post('/api/promotions', authMiddleware, verifyProductOwnership, PromotionController.createPromotion);
+  app.post('/api/promotions', authMiddleware, validatePromotionLimitMiddleware, verifyProductOwnership, PromotionController.createPromotion); // Adicionado middleware de verificação de limite de promoções
   app.put('/api/promotions/:id', authMiddleware, verifyProductOwnership, PromotionController.updatePromotion);
   // New simplified endpoint for updating promotions
   app.post('/api/promotions/:id/simple-update', authMiddleware, PromotionController.simpleUpdatePromotion);
@@ -763,7 +777,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/upload/images', authMiddleware, uploadImages);
   app.delete('/api/upload/images/:id', authMiddleware, deleteImage);
 
-  
+
 
   // Rota para obter a imagem principal de um produto
   app.get('/api/products/:id/primary-image', async (req: Request, res: Response) => {
