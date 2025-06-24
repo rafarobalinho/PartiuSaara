@@ -74,6 +74,15 @@ export interface IStorage {
   getCouponsByStore(storeId: number): Promise<Coupon[]>;
   createCoupon(coupon: InsertCoupon): Promise<Coupon>;
   updateCoupon(id: number, coupon: Partial<Coupon>): Promise<Coupon | undefined>;
+  validateCouponCode(storeId: number, code: string): Promise<Coupon | null>;
+  getSellerCoupons(userId: number): Promise<Coupon[]>;
+  getCouponMetrics(storeId: number, startDate?: Date, endDate?: Date): Promise<{
+      totalCoupons: number;
+      activeCoupons: number;
+      usedCoupons: number;
+      totalUsage: number;
+      conversionRate: number;
+  }>;
 
   // Wishlist operations
   getWishlistItems(userId: number): Promise<Wishlist[]>;
@@ -277,7 +286,7 @@ export class MemStorage implements IStorage {
         storeId: 2,
         images: [
           'https://images.unsplash.com/photo-1574944985070-8f3ebc6b79d2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
-          'https://images.unsplash.com/photo-1598327105666-5b89351aff97?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1598327105666-5b89351aff97?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
         ]
       },
       {
@@ -289,7 +298,7 @@ export class MemStorage implements IStorage {
         stock: 30,
         storeId: 1,
         images: [
-          'https://images.unsplash.com/photo-1623609163859-ca93c959b5b8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1623609163859-ca93c959b5b8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1583400767692-c484b9e6ef36?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
         ]
       },
@@ -302,7 +311,7 @@ export class MemStorage implements IStorage {
         stock: 15,
         storeId: 3,
         images: [
-          'https://images.unsplash.com/photo-1584649096748-11d6f5802574?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1584649096748-11d6f5802574?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
           'https://images.unsplash.com/photo-1590794056499-4435a7273a64?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
         ]
       },
@@ -1511,7 +1520,7 @@ export class MemStorage implements IStorage {
   async updateUserPassword(userId: number, hashedPassword: string): Promise<boolean> {
     const user = this.users.get(userId);
     if (!user) return false;
-    
+
     user.password = hashedPassword;
     user.updatedAt = new Date();
     this.users.set(userId, user);
@@ -2125,12 +2134,164 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCoupon(id: number, couponData: Partial<Coupon>): Promise<Coupon | undefined> {
-    const [updatedCoupon] = await db
-      .update(coupons)
-      .set(couponData)
-      .where(eq(coupons.id, id))
-      .returning();
-    return updatedCoupon;
+    try {
+      const [updatedCoupon] = await db
+        .update(coupons)
+        .set(couponData)
+        .where(eq(coupons.id, id))
+        .returning();
+      return updatedCoupon;
+    } catch (error) {
+      console.log(`[Storage] Error updating coupon ${id}:`, error);
+      throw error;
+    }
+  }
+
+  async validateCouponCode(storeId: number, code: string): Promise<Coupon | null> {
+    try {
+      const results = await db.select()
+        .from(coupons)
+        .innerJoin(stores, eq(coupons.storeId, stores.id))
+        .where(
+          and(
+            eq(coupons.storeId, storeId),
+            eq(coupons.code, code),
+            eq(coupons.isActive, true)
+          )
+        );
+
+      if (results.length === 0) return null;
+
+      const result = results[0];
+
+      // Check date validity
+      const now = new Date();
+      const startTime = new Date(result.coupons.startTime);
+      const endTime = new Date(result.coupons.endTime);
+
+      if (now < startTime || now > endTime) {
+        return null;
+      }
+
+      // Check usage limits
+      if (result.coupons.maxUsageCount && 
+          result.coupons.usageCount >= result.coupons.maxUsageCount) {
+        return null;
+      }
+
+      return {
+        ...result.coupons,
+        store: {
+          id: result.stores.id,
+          name: result.stores.name,
+          images: result.stores.images
+        }
+      };
+
+    } catch (error) {
+      console.error('[Storage] Error validating coupon code:', error);
+      return null;
+    }
+  }
+
+  async getSellerCoupons(userId: number): Promise<Coupon[]> {
+    try {
+      const results = await db.select()
+        .from(coupons)
+        .innerJoin(stores, eq(coupons.storeId, stores.id))
+        .where(eq(stores.userId, userId))
+        .orderBy(desc(coupons.createdAt));
+
+      return results.map(result => ({
+        ...result.coupons,
+        store: {
+          id: result.stores.id,
+          name: result.stores.name,
+          images: result.stores.images
+        }
+      }));
+
+    } catch (error) {
+      console.error(`[Storage] Error getting seller coupons for user ${userId}:`, error);
+      return [];
+    }
+  }
+
+  async getCouponMetrics(storeId: number, startDate?: Date, endDate?: Date): Promise<{
+    totalCoupons: number;
+    activeCoupons: number;
+    usedCoupons: number;
+    totalUsage: number;
+    conversionRate: number;
+  }> {
+    try {
+      let query = db.select({
+        id: coupons.id,
+        isActive: coupons.isActive,
+        usageCount: coupons.usageCount,
+        maxUsageCount: coupons.maxUsageCount,
+        createdAt: coupons.createdAt
+      })
+      .from(coupons)
+      .where(eq(coupons.storeId, storeId));
+
+      if (startDate) {
+        query = query.where(
+          and(
+            eq(coupons.storeId, storeId),
+            gte(coupons.createdAt, startDate)
+          )
+        );
+      }
+
+      if (endDate) {
+        query = query.where(
+          and(
+            eq(coupons.storeId, storeId),
+            lte(coupons.createdAt, endDate)
+          )
+        );
+      }
+
+      const results = await query;
+
+      const now = new Date();
+      let totalCoupons = results.length;
+      let activeCoupons = 0;
+      let usedCoupons = 0;
+      let totalUsage = 0;
+
+      results.forEach(coupon => {
+        if (coupon.isActive) {
+          activeCoupons++;
+        }
+
+        if (coupon.usageCount > 0) {
+          usedCoupons++;
+          totalUsage += coupon.usageCount;
+        }
+      });
+
+      const conversionRate = totalCoupons > 0 ? (usedCoupons / totalCoupons) * 100 : 0;
+
+      return {
+        totalCoupons,
+        activeCoupons,
+        usedCoupons,
+        totalUsage,
+        conversionRate: Math.round(conversionRate * 100) / 100 // Round to 2 decimal places
+      };
+
+    } catch (error) {
+      console.error(`[Storage] Error getting coupon metrics for store ${storeId}:`, error);
+      return {
+        totalCoupons: 0,
+        activeCoupons: 0,
+        usedCoupons: 0,
+        totalUsage: 0,
+        conversionRate: 0
+      };
+    }
   }
 
   // Wishlist operations
@@ -2358,9 +2519,9 @@ export class DatabaseStorage implements IStorage {
           gte(passwordResetTokens.expiresAt, new Date())
         )
       );
-    
+
     if (!resetToken) return undefined;
-    
+
     return {
       userId: resetToken.userId,
       expiresAt: resetToken.expiresAt,
