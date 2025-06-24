@@ -3,7 +3,7 @@ import { storage } from '../storage';
 import { z } from 'zod';
 import { insertCouponSchema } from '@shared/schema';
 import { sellerMiddleware, authMiddleware } from '../middleware/auth';
-import { planLimitsMiddleware } from '../middleware/plan-limits.middleware';
+import { checkCouponLimits } from '../middleware/plan-limits.middleware';
 
 // Validation schema for coupon usage
 const useCouponSchema = z.object({
@@ -116,8 +116,18 @@ export async function createCoupon(req: Request, res: Response) {
         return res.status(403).json({ message: 'Not authorized to create coupons for this store' });
       }
 
-      // Check subscription plan limits via middleware
-      await planLimitsMiddleware.checkCouponLimits(user.id, store);
+      // Check subscription plan limits
+      const limitCheck = await checkCouponLimits(user.id, store);
+      if (!limitCheck.allowed) {
+        return res.status(403).json({
+          success: false,
+          message: limitCheck.message,
+          planLimitReached: true,
+          currentCount: limitCheck.currentCount,
+          maxAllowed: limitCheck.maxAllowed,
+          suggestedUpgrade: limitCheck.upgrade
+        });
+      }
 
       // Validate dates
       const startTime = new Date(couponData.startTime);
