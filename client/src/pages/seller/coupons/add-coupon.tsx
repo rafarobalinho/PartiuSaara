@@ -1,6 +1,6 @@
 // client/src/pages/seller/coupons/add-coupon.tsx
 import { useState, useEffect } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,7 @@ interface CouponLimits {
 export default function AddCoupon() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const history = useHistory();
+  const [, navigate] = useLocation();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -185,7 +185,7 @@ export default function AddCoupon() {
           title: "Cupom criado!",
           description: "Seu cupom foi criado com sucesso.",
         });
-        history.push('/seller/coupons');
+        navigate('/seller/coupons');
       } else {
         toast({
           title: "Erro ao criar cupom",
@@ -218,7 +218,7 @@ export default function AddCoupon() {
       <div className="mb-6">
         <Button 
           variant="ghost" 
-          onClick={() => history.push('/seller/coupons')}
+          onClick={() => navigate('/seller/coupons')}
           className="mb-4"
         >
           <i className="fas fa-arrow-left mr-2"></i>
@@ -494,7 +494,7 @@ export default function AddCoupon() {
               <Button 
                 type="button" 
                 variant="outline"
-                onClick={() => history.push('/seller/coupons')}
+                onClick={() => navigate('/seller/coupons')}
               >
                 Cancelar
               </Button>
