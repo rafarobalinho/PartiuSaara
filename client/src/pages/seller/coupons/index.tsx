@@ -1,6 +1,6 @@
 // client/src/pages/seller/coupons/index.tsx
 import { useState, useEffect } from 'react';
-import { Link, useHistory } from 'react-router-dom';
+import { Link, useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,7 +61,7 @@ interface PlanInfo {
 export default function SellerCoupons() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const history = useHistory();
+  const [, navigate] = useLocation();
 
   // State
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -307,7 +307,7 @@ export default function SellerCoupons() {
         </div>
 
         <Button asChild disabled={!planInfo?.canCreateCoupons}>
-          <Link to="/seller/coupons/add">
+          <Link href="/seller/coupons/add">
             <i className="fas fa-plus mr-2"></i>
             Criar Cupom
           </Link>
@@ -477,7 +477,7 @@ export default function SellerCoupons() {
               </p>
               {coupons.length === 0 && planInfo?.canCreateCoupons && (
                 <Button asChild>
-                  <Link to="/seller/coupons/add">
+                  <Link href="/seller/coupons/add">
                     <i className="fas fa-plus mr-2"></i>
                     Criar Primeiro Cupom
                   </Link>
@@ -585,7 +585,7 @@ export default function SellerCoupons() {
                               </DropdownMenuItem>
 
                               <DropdownMenuItem
-                                onClick={() => history.push(`/seller/coupons/${coupon.id}/edit`)}
+                                onClick={() => navigate(`/seller/coupons/${coupon.id}/edit`)}
                               >
                                 <i className="fas fa-edit mr-2"></i>
                                 Editar
@@ -620,7 +620,7 @@ export default function SellerCoupons() {
       <div className="md:hidden fixed bottom-6 right-6">
         {planInfo?.canCreateCoupons && (
           <Button asChild size="lg" className="rounded-full shadow-lg">
-            <Link to="/seller/coupons/add">
+            <Link href="/seller/coupons/add">
               <i className="fas fa-plus"></i>
             </Link>
           </Button>

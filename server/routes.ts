@@ -38,7 +38,7 @@ import trialRoutes from './routes/trial.js';
 import highlightsTestRoutes from "./routes/highlights-test.js";
 import plansRoutes from './routes/plans.js';
 import { validateProductLimitMiddleware, validatePromotionLimitMiddleware } from './middleware/plan-limits.middleware.js';
- 
+import * as CouponController from "./controllers/coupon.controller";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Aplicar middleware de segurança de imagens
@@ -558,12 +558,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/promotions/:id/simple-update', authMiddleware, PromotionController.simpleUpdatePromotion);
   app.delete('/api/promotions/:id', authMiddleware, PromotionController.deletePromotion);
 
-  // Coupon routes
-  app.get('/api/coupons', async (req: Request, res: Response) => {
-    const { search } = req.query;
-    const coupons = await storage.getCoupons(search as string);
-    res.json(coupons);
-  });
+  // Coupon routes - Public
+  app.get('/api/coupons', CouponController.getActiveCoupons);
+  app.get('/api/stores/:storeId/coupons', CouponController.getStoreCoupons);
+  app.post('/api/stores/:storeId/coupons/:code/validate', CouponController.validateCoupon);
+  };
+
+  // Coupon routes - Seller protected
+  app.get('/api/seller/coupons', authMiddleware, CouponController.getSellerCoupons);
+  app.post('/api/seller/coupons', authMiddleware, CouponController.createCoupon);
+  app.get('/api/seller/coupons/limits', authMiddleware, CouponController.getCouponLimits);
+  app.get('/api/seller/coupons/:id', authMiddleware, CouponController.getCoupon);
+  app.put('/api/seller/coupons/:id', authMiddleware, CouponController.updateCoupon);
+  app.delete('/api/seller/coupons/:id', authMiddleware, CouponController.deleteCoupon);
+  app.post('/api/seller/coupons/use', authMiddleware, CouponController.useCoupon);
 
   // Wishlist routes
   app.get('/api/wishlist', authMiddleware, WishlistController.getWishlistItems);
