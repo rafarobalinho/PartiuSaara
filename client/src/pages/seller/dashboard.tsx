@@ -340,7 +340,7 @@ export default function SellerDashboard() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-gray-500 text-sm">Promoções Ativas</p>
+                      <p className="text-gray-500 text-sm">Cupons Ativos</p>
                       <h3 className="text-2xl font-bold">
                         {isStatsLoading && activeStoreId === store.id.toString() ? '-' : stats?.totalCoupons || 0}
                       </h3>
@@ -435,6 +435,35 @@ export default function SellerDashboard() {
               </Card>
             </div>
 
+            {/* Coupons Summary Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <i className="fas fa-ticket-alt mr-2 text-blue-500"></i>
+                  Cupons
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {isStatsLoading && activeStoreId === store.id.toString() ? '-' : stats?.totalCoupons || 0}
+                    </div>
+                    <div className="text-sm text-gray-600">Ativos</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-blue-600">0</div>
+                    <div className="text-sm text-gray-600">Usos Total</div>
+                  </div>
+                </div>
+                <Button asChild variant="outline" className="w-full mt-4">
+                  <Link href="/seller/coupons">
+                    <span>Gerenciar Cupons</span>
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* Quick Actions */}
             <Card>
               <CardHeader>
@@ -465,6 +494,15 @@ export default function SellerDashboard() {
                       <a>
                         <i className="fas fa-bookmark text-2xl mb-2"></i>
                         <span>Reservas</span>
+                      </a>
+                    </Link>
+                  </Button>
+
+                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-center">
+                    <Link href="/seller/coupons">
+                      <a>
+                        <i className="fas fa-ticket-alt text-2xl mb-2"></i>
+                        <span>Cupons</span>
                       </a>
                     </Link>
                   </Button>
