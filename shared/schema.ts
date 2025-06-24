@@ -19,6 +19,14 @@ export interface StoreLocation {
   place_id?: string;
 }
 
+// Interface para notificações de trial
+export interface TrialNotifications {
+  day7?: boolean;
+  day12?: boolean;
+  day14?: boolean;
+  day15?: boolean;
+}
+
 // Users schema
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -44,7 +52,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   avatarThumbnailUrl: true
 });
 
-// Stores schema
+// Stores schema - ATUALIZADO COM CAMPOS DE TRIAL E DESTAQUES
 export const stores = pgTable("stores", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -64,6 +72,18 @@ export const stores = pgTable("stores", {
   stripeCustomerId: text("stripe_customer_id").unique(),
   stripeSubscriptionId: text("stripe_subscription_id").unique(),
   subscriptionStartDate: timestamp("subscription_start_date", { mode: 'string' }),
+
+  // ✅ NOVOS CAMPOS DE TRIAL
+  trialStartDate: timestamp("trial_start_date", { mode: 'string' }),
+  trialEndDate: timestamp("trial_end_date", { mode: 'string' }),
+  isInTrial: boolean("is_in_trial").default(false),
+  trialNotificationsSent: jsonb("trial_notifications_sent").$type<TrialNotifications>().default({}),
+
+  // ✅ NOVOS CAMPOS DE SISTEMA DE DESTAQUES
+  highlightWeight: integer("highlight_weight").default(0), // Peso para algoritmo de destaques
+  lastHighlightedAt: timestamp("last_highlighted_at", { mode: 'string' }),
+  totalHighlightImpressions: integer("total_highlight_impressions").default(0),
+
   createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull()
 });
@@ -247,6 +267,48 @@ export const insertStoreImpressionSchema = createInsertSchema(storeImpressions).
   id: true
 });
 
+// ✅ NOVA TABELA: Impressões de Destaques  
+export const highlightImpressions = pgTable("highlight_impressions", {
+  id: serial("id").primaryKey(),
+  storeId: integer("store_id").notNull().references(() => stores.id),
+  productId: integer("product_id").references(() => products.id), // Opcional - pode ser destaque da loja
+  section: text("section").notNull(), // "home_premium", "category_discover", etc.
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  userId: integer("user_id"), // Para analytics futuras  
+  ipAddress: text("ip_address") // Para prevenção de spam
+}, (table) => {
+  return {
+    storeIdIdx: index("highlight_impressions_store_id_idx").on(table.storeId),
+    timestampIdx: index("highlight_impressions_timestamp_idx").on(table.timestamp),
+    sectionIdx: index("highlight_impressions_section_idx").on(table.section)
+  };
+});
+
+export const insertHighlightImpressionSchema = createInsertSchema(highlightImpressions).omit({
+  id: true,
+  timestamp: true
+});
+
+// ✅ NOVA TABELA: Configurações de Destaque por Plano
+export const highlightConfigurations = pgTable("highlight_configurations", {
+  id: serial("id").primaryKey(),
+  planType: text("plan_type").notNull().unique(), // "freemium", "start", "pro", "premium", "trial"
+  weight: integer("weight").default(0), // Peso no algoritmo
+  impressionPercentage: integer("impression_percentage").default(0), // % das impressões totais
+  sections: text("sections", { mode: 'array' }).default([]), // Seções onde pode aparecer
+  rotationIntervalHours: integer("rotation_interval_hours").default(6), // Intervalo de rotação
+  maxDailyImpressions: integer("max_daily_impressions").default(-1), // -1 = ilimitado
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+export const insertHighlightConfigurationSchema = createInsertSchema(highlightConfigurations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
 // ✅ CORRIGIDO: Product Images schema - ESTRUTURA REAL DO BANCO
 export const productImages = pgTable("product_images", {
   id: serial("id").primaryKey(),
@@ -300,7 +362,7 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   createdAt: timestamp("created_at").defaultNow()
 });
 
-// Type exports
+// Type exports - ATUALIZADOS COM NOVOS SCHEMAS
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
@@ -339,6 +401,13 @@ export type InsertBanner = z.infer<typeof insertBannerSchema>;
 
 export type StoreImpression = typeof storeImpressions.$inferSelect;
 export type InsertStoreImpression = z.infer<typeof insertStoreImpressionSchema>;
+
+// ✅ NOVOS TYPES PARA SISTEMA DE DESTAQUES E TRIAL
+export type HighlightImpression = typeof highlightImpressions.$inferSelect;
+export type InsertHighlightImpression = z.infer<typeof insertHighlightImpressionSchema>;
+
+export type HighlightConfiguration = typeof highlightConfigurations.$inferSelect;
+export type InsertHighlightConfiguration = z.infer<typeof insertHighlightConfigurationSchema>;
 
 export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;

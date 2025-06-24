@@ -1,0 +1,580 @@
+// ========================================
+// GUIA DE IMPLEMENTAÇÃO STORAGE.TS
+// ========================================
+
+// 1️⃣ ATUALIZAR A INTERFACE IStorage 
+// Encontre esta seção e SUBSTITUA os métodos de cupons existentes:
+
+export interface IStorage {
+  // ... outros métodos existentes ...
+
+  // Coupon operations (SUBSTITUIR esta seção completamente)
+  getCoupon(id: number): Promise<Coupon | undefined>;
+  getCoupons(search?: string, limit?: number): Promise<Coupon[]>; // ← Adicionado limit
+  getCouponsByStore(storeId: number): Promise<Coupon[]>;
+  createCoupon(coupon: InsertCoupon): Promise<Coupon>;
+  updateCoupon(id: number, coupon: Partial<Coupon>): Promise<Coupon | undefined>;
+  
+  // Novos métodos (ADICIONAR):
+  validateCouponCode(storeId: number, code: string): Promise<Coupon | null>;
+  getSellerCoupons(userId: number): Promise<Coupon[]>;
+  getCouponMetrics(storeId: number, startDate?: Date, endDate?: Date): Promise<{
+    totalCoupons: number;
+    activeCoupons: number;
+    usedCoupons: number;
+    totalUsage: number;
+    conversionRate: number;
+  }>;
+
+  // ... continuar com outros métodos existentes ...
+}
+
+// ========================================
+// 2️⃣ ATUALIZAR MEMSTORAGE (linha ~200)
+// Encontre o método getCoupons na classe MemStorage e SUBSTITUA por:
+
+// Localizar este método:
+async getCoupons(search?: string): Promise<Coupon[]> {
+  // ... código antigo ...
+}
+
+// SUBSTITUIR por:
+async getCoupons(search?: string, limit?: number): Promise<Coupon[]> {
+  let coupons = Array.from(this.coupons.values());
+
+  if (search) {
+    const searchLower = search.toLowerCase();
+    coupons = coupons.filter(coupon => 
+      coupon.code.toLowerCase().includes(searchLower) || 
+      coupon.description?.toLowerCase().includes(searchLower)
+    );
+  }
+
+  // Filter active coupons
+  const now = new Date();
+  coupons = coupons.filter(coupon => 
+    coupon.isActive && 
+    new Date(coupon.startTime) <= now && 
+    new Date(coupon.endTime) >= now
+  );
+
+  // Sort by end time (closest to expiring first)
+  coupons.sort((a, b) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
+
+  // Apply limit if provided
+  if (limit) {
+    coupons = coupons.slice(0, limit);
+  }
+
+  // Add store information to each coupon
+  return coupons.map(coupon => {
+    const store = this.stores.get(coupon.storeId);
+    return {
+      ...coupon,
+      store: store ? { 
+        id: store.id, 
+        name: store.name,
+        images: store.images 
+      } : undefined
+    };
+  });
+}
+
+// Depois ADICIONAR estes métodos APÓS o updateCoupon na MemStorage:
+
+async validateCouponCode(storeId: number, code: string): Promise<Coupon | null> {
+  try {
+    // Find coupon by store and code
+    const coupon = Array.from(this.coupons.values())
+      .find(c => c.storeId === storeId && c.code.toLowerCase() === code.toLowerCase());
+
+    if (!coupon || !coupon.isActive) return null;
+
+    // Check date validity
+    const now = new Date();
+    const startTime = new Date(coupon.startTime);
+    const endTime = new Date(coupon.endTime);
+
+    if (now < startTime || now > endTime) {
+      return null;
+    }
+
+    // Check usage limits
+    if (coupon.maxUsageCount && coupon.usageCount >= coupon.maxUsageCount) {
+      return null;
+    }
+
+    // Add store information
+    const store = this.stores.get(storeId);
+    
+    return {
+      ...coupon,
+      store: store ? {
+        id: store.id,
+        name: store.name,
+        images: store.images
+      } : undefined
+    };
+
+  } catch (error) {
+    console.error('[MemStorage] Error validating coupon code:', error);
+    return null;
+  }
+}
+
+async getSellerCoupons(userId: number): Promise<Coupon[]> {
+  try {
+    // Get user's stores
+    const userStores = Array.from(this.stores.values())
+      .filter(store => store.userId === userId);
+
+    const storeIds = userStores.map(store => store.id);
+
+    // Get coupons for these stores
+    const coupons = Array.from(this.coupons.values())
+      .filter(coupon => storeIds.includes(coupon.storeId));
+
+    // Sort by creation date (newest first)
+    coupons.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // Add store information to each coupon
+    return coupons.map(coupon => {
+      const store = this.stores.get(coupon.storeId);
+      return {
+        ...coupon,
+        store: store ? {
+          id: store.id,
+          name: store.name,
+          images: store.images
+        } : undefined
+      };
+    });
+
+  } catch (error) {
+    console.error(`[MemStorage] Error getting seller coupons for user ${userId}:`, error);
+    return [];
+  }
+}
+
+async getCouponMetrics(storeId: number, startDate?: Date, endDate?: Date): Promise<{
+  totalCoupons: number;
+  activeCoupons: number;
+  usedCoupons: number;
+  totalUsage: number;
+  conversionRate: number;
+}> {
+  try {
+    let coupons = Array.from(this.coupons.values())
+      .filter(coupon => coupon.storeId === storeId);
+
+    // Filter by date range if provided
+    if (startDate) {
+      coupons = coupons.filter(coupon => new Date(coupon.createdAt) >= startDate);
+    }
+
+    if (endDate) {
+      coupons = coupons.filter(coupon => new Date(coupon.createdAt) <= endDate);
+    }
+
+    const now = new Date();
+    let totalCoupons = coupons.length;
+    let activeCoupons = 0;
+    let usedCoupons = 0;
+    let totalUsage = 0;
+
+    coupons.forEach(coupon => {
+      if (coupon.isActive) {
+        activeCoupons++;
+      }
+      
+      if (coupon.usageCount > 0) {
+        usedCoupons++;
+        totalUsage += coupon.usageCount;
+      }
+    });
+
+    const conversionRate = totalCoupons > 0 ? (usedCoupons / totalCoupons) * 100 : 0;
+
+    return {
+      totalCoupons,
+      activeCoupons,
+      usedCoupons,
+      totalUsage,
+      conversionRate: Math.round(conversionRate * 100) / 100 // Round to 2 decimal places
+    };
+
+  } catch (error) {
+    console.error(`[MemStorage] Error getting coupon metrics for store ${storeId}:`, error);
+    return {
+      totalCoupons: 0,
+      activeCoupons: 0,
+      usedCoupons: 0,
+      totalUsage: 0,
+      conversionRate: 0
+    };
+  }
+}
+
+// ========================================
+// 3️⃣ ATUALIZAR DATABASESTORAGE (linha ~800)
+// Encontre a seção "// Coupon operations" na DatabaseStorage e SUBSTITUA por:
+
+// Coupon operations (SUBSTITUIR seção completamente)
+async getCoupon(id: number): Promise<Coupon | undefined> {
+  try {
+    const results = await db.select()
+      .from(coupons)
+      .innerJoin(stores, eq(coupons.storeId, stores.id))
+      .where(eq(coupons.id, id));
+
+    if (results.length === 0) return undefined;
+
+    const result = results[0];
+    return {
+      ...result.coupons,
+      store: {
+        id: result.stores.id,
+        name: result.stores.name,
+        images: result.stores.images
+      }
+    };
+  } catch (error) {
+    console.error(`[Storage] Error getting coupon ${id}:`, error);
+    return undefined;
+  }
+}
+
+async getCoupons(search?: string, limit?: number): Promise<Coupon[]> {
+  try {
+    let query = db.select()
+      .from(coupons)
+      .innerJoin(stores, eq(coupons.storeId, stores.id))
+      .where(eq(coupons.isActive, true));
+
+    if (search) {
+      query = query.where(
+        and(
+          eq(coupons.isActive, true),
+          or(
+            like(coupons.code, `%${search}%`),
+            like(coupons.description, `%${search}%`),
+            like(stores.name, `%${search}%`)
+          )
+        )
+      );
+    }
+
+    // Filter by date validity
+    const now = new Date();
+    query = query.where(
+      and(
+        eq(coupons.isActive, true),
+        lte(coupons.startTime, now),
+        gte(coupons.endTime, now)
+      )
+    );
+
+    // Apply limit
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    // Order by end time (closest to expiring first)
+    query = query.orderBy(coupons.endTime);
+
+    const results = await query;
+
+    // Transform results to include store info
+    return results.map(result => ({
+      ...result.coupons,
+      store: {
+        id: result.stores.id,
+        name: result.stores.name,
+        images: result.stores.images
+      }
+    }));
+
+  } catch (error) {
+    console.error('[Storage] Error getting coupons:', error);
+    return [];
+  }
+}
+
+async getCouponsByStore(storeId: number): Promise<Coupon[]> {
+  try {
+    const results = await db.select()
+      .from(coupons)
+      .innerJoin(stores, eq(coupons.storeId, stores.id))
+      .where(eq(coupons.storeId, storeId))
+      .orderBy(desc(coupons.createdAt));
+
+    return results.map(result => ({
+      ...result.coupons,
+      store: {
+        id: result.stores.id,
+        name: result.stores.name,
+        images: result.stores.images
+      }
+    }));
+
+  } catch (error) {
+    console.error(`[Storage] Error getting coupons for store ${storeId}:`, error);
+    return [];
+  }
+}
+
+async createCoupon(couponData: InsertCoupon): Promise<Coupon> {
+  try {
+    console.log('[Storage] Creating coupon with data:', couponData);
+
+    // Validate dates
+    const startTime = new Date(couponData.startTime);
+    const endTime = new Date(couponData.endTime);
+    
+    if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+      throw new Error('Invalid dates provided');
+    }
+
+    if (endTime <= startTime) {
+      throw new Error('End time must be after start time');
+    }
+
+    // Create coupon
+    const [coupon] = await db.insert(coupons)
+      .values({
+        ...couponData,
+        usageCount: 0,
+        isActive: true
+      })
+      .returning();
+
+    console.log('[Storage] Coupon created successfully:', coupon);
+
+    // Get store information
+    const store = await this.getStore(coupon.storeId);
+
+    return {
+      ...coupon,
+      store: store ? {
+        id: store.id,
+        name: store.name,
+        images: store.images
+      } : undefined
+    };
+
+  } catch (error) {
+    console.error('[Storage] Error creating coupon:', error);
+    throw error;
+  }
+}
+
+async updateCoupon(id: number, couponData: Partial<Coupon>): Promise<Coupon | undefined> {
+  try {
+    console.log(`[Storage] Updating coupon ${id} with data:`, couponData);
+
+    // Validate dates if provided
+    if (couponData.startTime || couponData.endTime) {
+      const startTime = new Date(couponData.startTime || new Date());
+      const endTime = new Date(couponData.endTime || new Date());
+      
+      if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+        throw new Error('Invalid dates provided');
+      }
+    }
+
+    // Update with current timestamp
+    const updateData = {
+      ...couponData,
+      updatedAt: new Date()
+    };
+
+    const [updatedCoupon] = await db
+      .update(coupons)
+      .set(updateData)
+      .where(eq(coupons.id, id))
+      .returning();
+
+    if (!updatedCoupon) {
+      console.log(`[Storage] Coupon ${id} not found for update`);
+      return undefined;
+    }
+
+    console.log('[Storage] Coupon updated successfully:', updatedCoupon);
+
+    // Get store information
+    const store = await this.getStore(updatedCoupon.storeId);
+
+    return {
+      ...updatedCoupon,
+      store: store ? {
+        id: store.id,
+        name: store.name,
+        images: store.images
+      } : undefined
+    };
+
+  } catch (error) {
+    console.error(`[Storage] Error updating coupon ${id}:`, error);
+    throw error;
+  }
+}
+
+// E ADICIONAR estes novos métodos APÓS o updateCoupon na DatabaseStorage:
+
+async validateCouponCode(storeId: number, code: string): Promise<Coupon | null> {
+  try {
+    const results = await db.select()
+      .from(coupons)
+      .innerJoin(stores, eq(coupons.storeId, stores.id))
+      .where(
+        and(
+          eq(coupons.storeId, storeId),
+          eq(coupons.code, code),
+          eq(coupons.isActive, true)
+        )
+      );
+
+    if (results.length === 0) return null;
+
+    const result = results[0];
+
+    // Check date validity
+    const now = new Date();
+    const startTime = new Date(result.coupons.startTime);
+    const endTime = new Date(result.coupons.endTime);
+
+    if (now < startTime || now > endTime) {
+      return null;
+    }
+
+    // Check usage limits
+    if (result.coupons.maxUsageCount && 
+        result.coupons.usageCount >= result.coupons.maxUsageCount) {
+      return null;
+    }
+
+    return {
+      ...result.coupons,
+      store: {
+        id: result.stores.id,
+        name: result.stores.name,
+        images: result.stores.images
+      }
+    };
+
+  } catch (error) {
+    console.error('[Storage] Error validating coupon code:', error);
+    return null;
+  }
+}
+
+async getSellerCoupons(userId: number): Promise<Coupon[]> {
+  try {
+    const results = await db.select()
+      .from(coupons)
+      .innerJoin(stores, eq(coupons.storeId, stores.id))
+      .where(eq(stores.userId, userId))
+      .orderBy(desc(coupons.createdAt));
+
+    return results.map(result => ({
+      ...result.coupons,
+      store: {
+        id: result.stores.id,
+        name: result.stores.name,
+        images: result.stores.images
+      }
+    }));
+
+  } catch (error) {
+    console.error(`[Storage] Error getting seller coupons for user ${userId}:`, error);
+    return [];
+  }
+}
+
+async getCouponMetrics(storeId: number, startDate?: Date, endDate?: Date): Promise<{
+  totalCoupons: number;
+  activeCoupons: number;
+  usedCoupons: number;
+  totalUsage: number;
+  conversionRate: number;
+}> {
+  try {
+    let query = db.select({
+      id: coupons.id,
+      isActive: coupons.isActive,
+      usageCount: coupons.usageCount,
+      maxUsageCount: coupons.maxUsageCount,
+      createdAt: coupons.createdAt
+    })
+    .from(coupons)
+    .where(eq(coupons.storeId, storeId));
+
+    if (startDate) {
+      query = query.where(
+        and(
+          eq(coupons.storeId, storeId),
+          gte(coupons.createdAt, startDate)
+        )
+      );
+    }
+
+    if (endDate) {
+      query = query.where(
+        and(
+          eq(coupons.storeId, storeId),
+          lte(coupons.createdAt, endDate)
+        )
+      );
+    }
+
+    const results = await query;
+
+    const now = new Date();
+    let totalCoupons = results.length;
+    let activeCoupons = 0;
+    let usedCoupons = 0;
+    let totalUsage = 0;
+
+    results.forEach(coupon => {
+      if (coupon.isActive) {
+        activeCoupons++;
+      }
+      
+      if (coupon.usageCount > 0) {
+        usedCoupons++;
+        totalUsage += coupon.usageCount;
+      }
+    });
+
+    const conversionRate = totalCoupons > 0 ? (usedCoupons / totalCoupons) * 100 : 0;
+
+    return {
+      totalCoupons,
+      activeCoupons,
+      usedCoupons,
+      totalUsage,
+      conversionRate: Math.round(conversionRate * 100) / 100 // Round to 2 decimal places
+    };
+
+  } catch (error) {
+    console.error(`[Storage] Error getting coupon metrics for store ${storeId}:`, error);
+    return {
+      totalCoupons: 0,
+      activeCoupons: 0,
+      usedCoupons: 0,
+      totalUsage: 0,
+      conversionRate: 0
+    };
+  }
+}
+
+// ========================================
+// ⚠️ RESUMO DO QUE FAZER:
+// ========================================
+// 1. Atualizar interface IStorage 
+// 2. Atualizar método getCoupons na MemStorage 
+// 3. Adicionar 3 novos métodos na MemStorage 
+// 4. Substituir seção de cupons na DatabaseStorage
+// 5. Adicionar 3 novos métodos na DatabaseStorage
+
+// ✅ Faça uma seção por vez e teste!
