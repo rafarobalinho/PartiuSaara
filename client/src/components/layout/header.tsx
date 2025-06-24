@@ -205,6 +205,14 @@ export default function Header() {
                           <i className="fas fa-percent w-8 text-primary"></i>
                           <span>Criar Promoção</span>
                         </Link>
+                        <Link href="/seller/coupons" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                          <i className="fas fa-ticket-alt w-8 text-primary"></i>
+                          <span>Meus Cupons</span>
+                        </Link>
+                        <Link href="/seller/coupons/add" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
+                          <i className="fas fa-plus-circle w-8 text-primary"></i>
+                          <span>Criar Cupom</span>
+                        </Link>
                         <Link href="/seller/analytics" onClick={closeMenu} className="flex items-center p-2 hover:bg-gray-100 rounded">
                           <i className="fas fa-chart-line w-8 text-primary"></i>
                           <span>Analytics</span>
@@ -370,6 +378,14 @@ export default function Header() {
                   <Link href="/seller/promotions/add" className={`flex items-center p-2 text-sm hover:bg-gray-100 ${location === '/seller/promotions/add' ? 'text-primary' : 'text-gray-700'}`}>
                     <i className="fas fa-percent w-8 text-primary"></i>
                     <span>Criar Promoção</span>
+                  </Link>
+                  <Link href="/seller/coupons" className={`flex items-center p-2 text-sm hover:bg-gray-100 ${location === '/seller/coupons' || location.startsWith('/seller/coupons/') ? 'text-primary' : 'text-gray-700'}`}>
+                    <i className="fas fa-ticket-alt w-8 text-primary"></i>
+                    <span>Meus Cupons</span>
+                  </Link>
+                  <Link href="/seller/coupons/add" className={`flex items-center p-2 text-sm hover:bg-gray-100 ${location === '/seller/coupons/add' ? 'text-primary' : 'text-gray-700'}`}>
+                    <i className="fas fa-plus-circle w-8 text-primary"></i>
+                    <span>Criar Cupom</span>
                   </Link>
                   <Link href="/seller/analytics" className={`flex items-center p-2 text-sm hover:bg-gray-100 ${location === '/seller/analytics' ? 'text-primary' : 'text-gray-700'}`}>
                     <i className="fas fa-chart-line w-8 text-primary"></i>

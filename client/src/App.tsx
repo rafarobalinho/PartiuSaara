@@ -105,7 +105,6 @@ function Router() {
           {/* Coupon routes */}
           <Route path="/seller/coupons" component={SellerCoupons} />
           <Route path="/seller/coupons/add" component={AddCoupon} />
-          <Route path="/seller/coupons/:id/edit" component={EditCoupon} />
           <Route path="/seller/stores" component={SellerStores} />
           <Route path="/seller/stores/add-store" component={AddStore} />
           <Route path="/seller/stores/:id" component={StoreDetail} />
