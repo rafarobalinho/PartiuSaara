@@ -54,6 +54,8 @@ import StoreProducts from "@/pages/seller/stores/store-products";
 import StoreAnalyticsPage from "@/pages/seller/stores/store-analytics";
 import LocationSettingsPage from "@/pages/seller/settings/location";
 import SellerLanding from "@/pages/seller-landing";
+import SellerCoupons from "@/pages/seller/coupons/index";
+import AddCoupon from "@/pages/seller/coupons/add-coupon";
 
 // Componente especial para a página de apresentação sem autenticação
 function PresentationRoute() {
@@ -100,6 +102,10 @@ function Router() {
           <Route path="/seller/promotions/edit/:id" component={RedirectEditPromotion} />
           {/* Alternative simple edit page that doesn't use dynamic routing */}
           <Route path="/seller/edit-promotion" component={SimpleEditPromotion} />
+          {/* Coupon routes */}
+          <Route path="/seller/coupons" component={SellerCoupons} />
+          <Route path="/seller/coupons/add" component={AddCoupon} />
+          <Route path="/seller/coupons/:id/edit" component={EditCoupon} />
           <Route path="/seller/stores" component={SellerStores} />
           <Route path="/seller/stores/add-store" component={AddStore} />
           <Route path="/seller/stores/:id" component={StoreDetail} />
