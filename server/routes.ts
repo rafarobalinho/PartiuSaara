@@ -40,6 +40,14 @@ import plansRoutes from './routes/plans.js';
 import { validateProductLimitMiddleware, validatePromotionLimitMiddleware } from './middleware/plan-limits.middleware.js';
 import * as CouponController from "./controllers/coupon.controller";
 
+// DEBUG - Verificar métodos específicos
+console.log('=== DEBUG COUPON CONTROLLER ===');
+console.log('createCoupon:', typeof CouponController.createCoupon);
+console.log('validateCouponCode:', typeof CouponController.validateCouponCode);
+console.log('useCoupon:', typeof CouponController.useCoupon);
+console.log('getCouponLimits:', typeof CouponController.getCouponLimits);
+console.log('===============================');
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Aplicar middleware de segurança de imagens
   app.use(secureImageMiddleware);
@@ -558,10 +566,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/promotions/:id/simple-update', authMiddleware, PromotionController.simpleUpdatePromotion);
   app.delete('/api/promotions/:id', authMiddleware, PromotionController.deletePromotion);
 
-  // Coupon routes - Public
+  // Coupon routes - Public  
   app.get('/api/coupons', CouponController.getActiveCoupons);
   app.get('/api/stores/:storeId/coupons', CouponController.getStoreCoupons);
-  app.post('/api/stores/:storeId/coupons/:code/validate', CouponController.validateCoupon);
+  app.post('/api/stores/:storeId/coupons/:code/validate', CouponController.validateCouponCode);
 
   // Coupon routes - Seller protected
   app.get('/api/seller/coupons', authMiddleware, CouponController.getSellerCoupons);

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { insertCouponSchema } from '@shared/schema';
 import { sellerMiddleware, authMiddleware } from '../middleware/auth';
 import { checkCouponLimits } from '../middleware/plan-limits.middleware';
+import { getCouponLimitsInfo } from '../middleware/plan-limits.middleware';
 
 // Validation schema for coupon usage
 const useCouponSchema = z.object({
@@ -460,5 +461,35 @@ export async function deleteCoupon(req: Request, res: Response) {
   } catch (error) {
     console.error('Error deleting coupon:', error);
     res.status(500).json({ message: 'Internal server error' });
+    }
   }
-}
+    // Get coupon limits information for the current seller
+    export async function getCouponLimits(req: Request, res: Response) {
+      try {
+        sellerMiddleware(req, res, async () => {
+          const user = req.user!;
+
+          console.log("======= OBTENDO LIMITES DE CUPONS =======");
+          console.log(`User ID: ${user.id}`);
+          console.log("========================================");
+
+          // Get coupon limits info
+          const limitsInfo = await getCouponLimitsInfo(user);
+
+          if (limitsInfo.error) {
+            return res.status(500).json({ 
+              message: limitsInfo.error 
+            });
+          }
+
+          console.log("======= LIMITES OBTIDOS COM SUCESSO =======");
+          console.log(JSON.stringify(limitsInfo, null, 2));
+          console.log("==========================================");
+
+          res.json(limitsInfo);
+        });
+      } catch (error) {
+        console.error('Error getting coupon limits:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
+    }
