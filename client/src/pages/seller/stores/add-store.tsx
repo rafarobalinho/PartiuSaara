@@ -81,7 +81,43 @@ export default function AddStore() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* ... (seus FormFields para nome, descrição, etc. ficam aqui) ... */}
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome da Loja*</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Digite o nome da sua loja" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      O nome da sua loja como aparecerá para os clientes.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição*</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Descreva sua loja, produtos e serviços"
+                        className="min-h-[100px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Uma descrição detalhada da sua loja para atrair clientes.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
