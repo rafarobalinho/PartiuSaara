@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useSearch } from 'wouter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -45,7 +45,7 @@ export default function Products() {
   const [sortBy, setSortBy] = useState('popularity');
   
   // Estado para armazenar os produtos após processamento
-  const [processedProducts, setProcessedProducts] = useState([]);
+  //const [processedProducts, setProcessedProducts] = useState([]);//
 
   // Products query
   const { data: productsData = { products: [], count: 0 }, isLoading: isProductsLoading } = useQuery({
@@ -89,7 +89,7 @@ export default function Products() {
         const params = new URLSearchParams({
           search: searchTerm
         });
-        
+
         const response = await fetch(`/api/coupons?${params}`);
         if (!response.ok) {
           throw new Error('Failed to fetch coupons');
@@ -103,31 +103,25 @@ export default function Products() {
     enabled: currentTab === 'coupons'
   });
 
-  // Efeito para processar os dados da API quando eles mudarem
-  useEffect(() => {
-    if (productsData && productsData.products) {
-      console.log('Produtos recebidos da API:', productsData.products);
-      
-      // Transformar os dados para o formato esperado pelo ProductCard
-      const transformedProducts = productsData.products.map(product => ({
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        discountedPrice: product.discounted_price,
-        category: product.category,
-        images: product.images || [],
-        store: {
-          id: product.store?.id,
-          name: product.store?.name || 'Loja'
-        },
-        isActive: product.is_active
-      }));
-      
-      console.log('Produtos transformados:', transformedProducts);
-      setProcessedProducts(transformedProducts);
-    }
-  }, [productsData]);
+  // ✅ ADICIONAR: Processar dados diretamente no render com useMemo
+  const processedProducts = React.useMemo(() => {
+    if (!productsData?.products) return [];
+
+    return productsData.products.map(product => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      discountedPrice: product.discounted_price,
+      category: product.category,
+      images: product.images || [],
+      store: {
+        id: product.store?.id,
+        name: product.store?.name || 'Loja'
+      },
+      isActive: product.is_active
+    }));
+  }, [productsData?.products]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,7 +287,11 @@ export default function Products() {
                   <div className="p-4">
                     <div className="flex items-center mb-2">
                       <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
-                        <img src={coupon.store.images[0]} alt={coupon.store.name} className="w-full h-full object-cover" />
+                        <img 
+                          src={coupon.store?.id ? `/api/stores/${coupon.store.id}/primary-image` : '/placeholder-store.jpg'} 
+                          alt={coupon.store?.name || 'Loja'} 
+                          className="w-full h-full object-cover" 
+                        />
                       </div>
                       <div>
                         <h3 className="font-medium">{coupon.store.name}</h3>

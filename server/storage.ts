@@ -70,7 +70,7 @@ export interface IStorage {
 
   // Coupon operations
   getCoupon(id: number): Promise<Coupon | undefined>;
-  getCoupons(search?: string): Promise<Coupon[]>;
+  getCoupons(search?: string, limit?: number): Promise<Coupon[]>;
   getCouponsByStore(storeId: number): Promise<Coupon[]>;
   createCoupon(coupon: InsertCoupon): Promise<Coupon>;
   updateCoupon(id: number, coupon: Partial<Coupon>): Promise<Coupon | undefined>;
@@ -2109,19 +2109,51 @@ export class DatabaseStorage implements IStorage {
     return coupon;
   }
 
-  async getCoupons(search?: string): Promise<Coupon[]> {
-    let query = db.select().from(coupons);
+  async getCoupons(search?: string, limit?: number): Promise<Coupon[]> {
+    try {
+      // Base query com JOIN para incluir dados da store
+      let query = db.select()
+        .from(coupons)
+        .innerJoin(stores, eq(coupons.storeId, stores.id))
+        .where(eq(coupons.isActive, true)); // Só cupons ativos
 
-    if (search) {
-      query = query.where(
-        or(
-          like(coupons.code, `%${search}%`),
-          like(coupons.description, `%${search}%`)
-        )
-      );
+      // Adicionar filtro de busca se fornecido
+      if (search) {
+        query = query.where(
+          and(
+            eq(coupons.isActive, true),
+            or(
+              like(coupons.code, `%${search}%`),
+              like(coupons.description, `%${search}%`)
+            )
+          )
+        );
+      }
+
+      // Adicionar limite se fornecido
+      if (limit) {
+        query = query.limit(limit);
+      }
+
+      // Ordenar por data de criação (mais recentes primeiro)
+      query = query.orderBy(desc(coupons.createdAt));
+
+      const results = await query;
+
+      // Transformar resultado para incluir dados da store
+      return results.map(result => ({
+        ...result.coupons,
+        store: {
+          id: result.stores.id,
+          name: result.stores.name,
+          images: result.stores.images || [] // Garantir que sempre seja um array
+        }
+      }));
+
+    } catch (error) {
+      console.error('[Storage] Error getting coupons:', error);
+      return [];
     }
-
-    return await query;
   }
 
   async getCouponsByStore(storeId: number): Promise<Coupon[]> {
