@@ -397,20 +397,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Seller store routes (seguindo o padrão /api/seller/*)
-  app.get('/api/seller/stores', authMiddleware, async (req: Request, res: Response) => {
-    try {
-      const user = req.user;
-      if (!user) return res.status(401).json({ message: 'Unauthorized' });
+   app.get('/api/seller/stores', authMiddleware, async (req: Request, res: Response) => {
+     console.log('🚨 ROTA /api/seller/stores CHAMADA!');
+     console.log('🚨 User:', req.user);
 
-      console.log('🔍 [SELLER] Buscando lojas do vendedor:', user.id);
-      const stores = await storage.getStoresByUserId(user.id);
-      console.log('🔍 [SELLER] Lojas encontradas:', stores.length);
-      res.json(stores);
-    } catch (error) {
-      console.error('Error fetching seller stores:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
+     try {
+       const user = req.user;
+       if (!user) {
+         console.log('🚨 User não encontrado!');
+         return res.status(401).json({ message: 'Unauthorized' });
+       }
+
+       console.log('🔍 [SELLER] Buscando lojas do vendedor:', user.id);
+       const stores = await storage.getStoresByUserId(user.id);
+       console.log('🔍 [SELLER] Lojas encontradas:', stores.length);
+       res.json(stores);
+     } catch (error) {
+       console.error('Error fetching seller stores:', error);
+       res.status(500).json({ message: 'Internal server error' });
+     }
+   });
 
   // Rotas públicas de lojas (para consumo público)
   app.get('/api/stores', StoreController.getStores);

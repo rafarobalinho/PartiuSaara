@@ -3,8 +3,7 @@ import { storage } from '../storage';
 import { z } from 'zod';
 import { insertCouponSchema } from '@shared/schema';
 import { sellerMiddleware, authMiddleware } from '../middleware/auth';
-import { checkCouponLimits } from '../middleware/plan-limits.middleware';
-import { getCouponLimitsInfo } from '../middleware/plan-limits.middleware';
+import { checkCouponLimits, getCouponLimitsInfo } from '../middleware/plan-limits.middleware';
 
 // Validation schema for coupon usage
 const useCouponSchema = z.object({
@@ -96,8 +95,21 @@ export async function createCoupon(req: Request, res: Response) {
       console.log(JSON.stringify(req.body, null, 2));
       console.log("===================================================");
 
+      // 🔧 CORREÇÃO: Converter datas de string para Date ANTES da validação
+      const requestData = {
+        ...req.body,
+        userId: user.id, // 🛡️ SEGURANÇA: Adicionar user_id automaticamente
+        startTime: new Date(req.body.startTime),
+        endTime: new Date(req.body.endTime)
+      };
+
+      console.log("======= DADOS APÓS CONVERSÃO DE DATA =======");
+      console.log('startTime convertido:', requestData.startTime);
+      console.log('endTime convertido:', requestData.endTime);
+      console.log("==========================================");
+
       // Validate coupon data
-      const validationResult = insertCouponSchema.safeParse(req.body);
+      const validationResult = insertCouponSchema.safeParse(requestData);
       if (!validationResult.success) {
         console.log("======= ERROS DE VALIDAÇÃO =======");
         console.log(JSON.stringify(validationResult.error.errors, null, 2));
@@ -130,9 +142,9 @@ export async function createCoupon(req: Request, res: Response) {
         });
       }
 
-      // Validate dates
-      const startTime = new Date(couponData.startTime);
-      const endTime = new Date(couponData.endTime);
+      // Validate dates (já convertidas)
+      const startTime = couponData.startTime;
+      const endTime = couponData.endTime;
 
       if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
         return res.status(400).json({ message: 'Invalid dates provided' });
@@ -188,9 +200,18 @@ export async function updateCoupon(req: Request, res: Response) {
         return res.status(403).json({ message: 'Not authorized to update this coupon' });
       }
 
+      // 🔧 CORREÇÃO: Converter datas se fornecidas
+      const requestData = { ...req.body };
+      if (req.body.startTime) {
+        requestData.startTime = new Date(req.body.startTime);
+      }
+      if (req.body.endTime) {
+        requestData.endTime = new Date(req.body.endTime);
+      }
+
       // Validate update data (partial validation)
       const updateSchema = insertCouponSchema.partial();
-      const validationResult = updateSchema.safeParse(req.body);
+      const validationResult = updateSchema.safeParse(requestData);
 
       if (!validationResult.success) {
         return res.status(400).json({ 
@@ -203,14 +224,14 @@ export async function updateCoupon(req: Request, res: Response) {
 
       // Validate dates if provided
       if (updateData.startTime || updateData.endTime) {
-        const startTime = new Date(updateData.startTime || existingCoupon.startTime);
-        const endTime = new Date(updateData.endTime || existingCoupon.endTime);
+        const startTime = updateData.startTime || existingCoupon.startTime;
+        const endTime = updateData.endTime || existingCoupon.endTime;
 
-        if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+        if (isNaN(new Date(startTime).getTime()) || isNaN(new Date(endTime).getTime())) {
           return res.status(400).json({ message: 'Invalid dates provided' });
         }
 
-        if (endTime <= startTime) {
+        if (new Date(endTime) <= new Date(startTime)) {
           return res.status(400).json({ message: 'End time must be after start time' });
         }
       }
@@ -461,35 +482,36 @@ export async function deleteCoupon(req: Request, res: Response) {
   } catch (error) {
     console.error('Error deleting coupon:', error);
     res.status(500).json({ message: 'Internal server error' });
-    }
   }
-    // Get coupon limits information for the current seller
-    export async function getCouponLimits(req: Request, res: Response) {
-      try {
-        sellerMiddleware(req, res, async () => {
-          const user = req.user!;
+}
 
-          console.log("======= OBTENDO LIMITES DE CUPONS =======");
-          console.log(`User ID: ${user.id}`);
-          console.log("========================================");
+// Get coupon limits information for the current seller
+export async function getCouponLimits(req: Request, res: Response) {
+  try {
+    sellerMiddleware(req, res, async () => {
+      const user = req.user!;
 
-          // Get coupon limits info
-          const limitsInfo = await getCouponLimitsInfo(user);
+      console.log("======= OBTENDO LIMITES DE CUPONS =======");
+      console.log(`User ID: ${user.id}`);
+      console.log("========================================");
 
-          if (limitsInfo.error) {
-            return res.status(500).json({ 
-              message: limitsInfo.error 
-            });
-          }
+      // Get coupon limits info
+      const limitsInfo = await getCouponLimitsInfo(user);
 
-          console.log("======= LIMITES OBTIDOS COM SUCESSO =======");
-          console.log(JSON.stringify(limitsInfo, null, 2));
-          console.log("==========================================");
-
-          res.json(limitsInfo);
+      if (limitsInfo.error) {
+        return res.status(500).json({ 
+          message: limitsInfo.error 
         });
-      } catch (error) {
-        console.error('Error getting coupon limits:', error);
-        res.status(500).json({ message: 'Internal server error' });
       }
-    }
+
+      console.log("======= LIMITES OBTIDOS COM SUCESSO =======");
+      console.log(JSON.stringify(limitsInfo, null, 2));
+      console.log("==========================================");
+
+      res.json(limitsInfo);
+    });
+  } catch (error) {
+    console.error('Error getting coupon limits:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
