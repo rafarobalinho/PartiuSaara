@@ -1,0 +1,477 @@
+IMPLEMENTAR SISTEMA COMPLETO DE RESGATE E VALIDAÇÃO DE CUPONS
+
+OBJETIVO: Criar um sistema onde clientes resgatam cupons online e lojistas validam na loja física, com controle de uso e limites.
+
+=== PARTE 1: ESTRUTURA DO BANCO DE DADOS ===
+
+1. CRIAR NOVA TABELA coupon_redemptions:
+
+```sql
+CREATE TABLE coupon_redemptions (
+  id SERIAL PRIMARY KEY,
+  coupon_id INTEGER NOT NULL REFERENCES coupons(id),
+  validation_code VARCHAR(20) NOT NULL UNIQUE,
+  customer_name VARCHAR(255),
+  customer_phone VARCHAR(50),
+  redeemed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  used_at TIMESTAMP WITH TIME ZONE NULL,
+  used_by_store_user_id INTEGER REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_coupon_redemptions_validation_code ON coupon_redemptions(validation_code);
+CREATE INDEX idx_coupon_redemptions_coupon_id ON coupon_redemptions(coupon_id);
+
+ATUALIZAR SCHEMA em shared/schema.ts:
+
+typescriptexport const couponRedemptions = pgTable("coupon_redemptions", {
+  id: serial("id").primaryKey(),
+  couponId: integer("coupon_id").notNull().references(() => coupons.id),
+  validationCode: text("validation_code").notNull().unique(),
+  customerName: text("customer_name"),
+  customerPhone: text("customer_phone"),
+  redeemedAt: timestamp("redeemed_at", { withTimezone: true }).defaultNow().notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  usedByStoreUserId: integer("used_by_store_user_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+});
+
+export const insertCouponRedemptionSchema = createInsertSchema(couponRedemptions).omit({
+  id: true,
+  createdAt: true
+});
+
+export type CouponRedemption = typeof couponRedemptions.$inferSelect;
+export type InsertCouponRedemption = z.infer<typeof insertCouponRedemptionSchema>;
+=== PARTE 2: BACKEND - STORAGE ===
+Adicionar em server/storage.ts na interface IStorage:
+typescript// Coupon redemption operations
+redeemCoupon(couponId: number, customerData: { name?: string, phone?: string }): Promise<{ validationCode: string; redemption: CouponRedemption }>;
+validateCouponCode(validationCode: string, storeUserId: number): Promise<{ success: boolean; coupon?: any; message: string }>;
+getPendingRedemptions(storeId: number): Promise<CouponRedemption[]>;
+getRedemptionHistory(storeId: number): Promise<CouponRedemption[]>;
+Implementar na DatabaseStorage:
+typescriptasync redeemCoupon(couponId: number, customerData: { name?: string, phone?: string }) {
+  // Verificar se cupom existe e está ativo
+  const coupon = await this.getCoupon(couponId);
+  if (!coupon || !coupon.isActive) {
+    throw new Error('Cupom não encontrado ou inativo');
+  }
+
+  // Verificar limites de uso
+  if (coupon.maxUsageCount && coupon.usageCount >= coupon.maxUsageCount) {
+    throw new Error('Cupom esgotado');
+  }
+
+  // Gerar código de validação único
+  const validationCode = 'VAL-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+
+  // Criar resgate
+  const [redemption] = await db.insert(couponRedemptions).values({
+    couponId,
+    validationCode,
+    customerName: customerData.name,
+    customerPhone: customerData.phone
+  }).returning();
+
+  return { validationCode, redemption };
+}
+
+async validateCouponCode(validationCode: string, storeUserId: number) {
+  // Buscar resgate
+  const [redemption] = await db.select()
+    .from(couponRedemptions)
+    .innerJoin(coupons, eq(couponRedemptions.couponId, coupons.id))
+    .innerJoin(stores, eq(coupons.storeId, stores.id))
+    .where(
+      and(
+        eq(couponRedemptions.validationCode, validationCode),
+        eq(couponRedemptions.usedAt, null), // Ainda não usado
+        eq(stores.userId, storeUserId) // Verificar se é da loja do usuário
+      )
+    );
+
+  if (!redemption) {
+    return { success: false, message: 'Código inválido ou já utilizado' };
+  }
+
+  // Marcar como usado
+  await db.update(couponRedemptions)
+    .set({ 
+      usedAt: new Date(),
+      usedByStoreUserId: storeUserId 
+    })
+    .where(eq(couponRedemptions.id, redemption.coupon_redemptions.id));
+
+  // Incrementar contador do cupom
+  await db.update(coupons)
+    .set({ usageCount: redemption.coupons.usageCount + 1 })
+    .where(eq(coupons.id, redemption.coupons.id));
+
+  return { 
+    success: true, 
+    coupon: redemption.coupons,
+    message: 'Cupom validado com sucesso!' 
+  };
+}
+=== PARTE 3: BACKEND - ROTAS ===
+Adicionar em server/routes.ts:
+typescript// Rotas públicas para resgate de cupons
+app.post('/api/coupons/:id/redeem', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { customerName, customerPhone } = req.body;
+    
+    const result = await storage.redeemCoupon(Number(id), {
+      name: customerName,
+      phone: customerPhone
+    });
+    
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Rotas do seller para validação
+app.post('/api/seller/coupons/validate', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const user = req.user!;
+    const { validationCode } = req.body;
+    
+    const result = await storage.validateCouponCode(validationCode, user.id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+
+app.get('/api/seller/coupons/pending', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const user = req.user!;
+    const stores = await storage.getStoresByUserId(user.id);
+    
+    const allPending = [];
+    for (const store of stores) {
+      const pending = await storage.getPendingRedemptions(store.id);
+      allPending.push(...pending);
+    }
+    
+    res.json(allPending);
+  } catch (error) {
+    res.status(500).json({ message: 'Erro interno' });
+  }
+});
+=== PARTE 4: FRONTEND - MODAL DE RESGATE ===
+Criar client/src/components/coupon-redeem-modal.tsx:
+typescriptimport { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+
+interface Coupon {
+  id: number;
+  code: string;
+  description: string;
+  store: { name: string };
+  discountPercentage?: number;
+  discountAmount?: number;
+}
+
+interface Props {
+  coupon: Coupon;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function CouponRedeemModal({ coupon, isOpen, onClose }: Props) {
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [validationCode, setValidationCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const { toast } = useToast();
+
+  const handleRedeem = async () => {
+    if (!customerName.trim()) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Por favor, informe seu nome",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/coupons/${coupon.id}/redeem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerName, customerPhone })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setValidationCode(data.validationCode);
+        setIsSuccess(true);
+        toast({
+          title: "Cupom resgatado! 🎉",
+          description: "Apresente o código na loja para usar o desconto",
+          variant: "default"
+        });
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao resgatar cupom",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    setCustomerName('');
+    setCustomerPhone('');
+    setValidationCode('');
+    setIsSuccess(false);
+    onClose();
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {isSuccess ? 'Cupom Resgatado!' : 'Resgatar Cupom'}
+          </DialogTitle>
+        </DialogHeader>
+
+        {!isSuccess ? (
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="font-medium">{coupon.store.name}</h3>
+              <p className="text-sm text-gray-600">{coupon.description}</p>
+              <p className="font-bold text-primary">
+                {coupon.discountPercentage 
+                  ? `${coupon.discountPercentage}% OFF` 
+                  : `R$ ${coupon.discountAmount} OFF`}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">Nome *</label>
+                <Input
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="Seu nome completo"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Telefone (opcional)</label>
+                <Input
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="(11) 99999-9999"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleClose} className="flex-1">
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleRedeem} 
+                disabled={isLoading}
+                className="flex-1"
+              >
+                {isLoading ? 'Resgatando...' : 'Resgatar Cupom'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center space-y-4">
+            <div className="bg-green-50 p-6 rounded-lg">
+              <div className="text-2xl mb-2">🎉</div>
+              <h3 className="font-bold text-lg">Código de Validação</h3>
+              <div className="text-3xl font-mono font-bold text-green-600 bg-white p-3 rounded border-2 border-green-200 mt-3">
+                {validationCode}
+              </div>
+            </div>
+
+            <div className="text-sm text-gray-600 space-y-2">
+              <p><strong>Importante:</strong></p>
+              <p>• Apresente este código na loja {coupon.store.name}</p>
+              <p>• O desconto será aplicado pelo lojista</p>
+              <p>• Este código só pode ser usado uma vez</p>
+            </div>
+
+            <Button onClick={handleClose} className="w-full">
+              Entendi
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+=== PARTE 5: FRONTEND - ATUALIZAR PÁGINA DE PRODUTOS ===
+Modificar client/src/pages/products/index.tsx:
+
+Adicionar imports:
+
+typescriptimport { CouponRedeemModal } from '@/components/coupon-redeem-modal';
+
+Adicionar states:
+
+typescriptconst [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
+const [isRedeemModalOpen, setIsRedeemModalOpen] = useState(false);
+
+Trocar o botão "Copiar Cupom" por:
+
+typescript<Button 
+  className="w-full bg-primary text-white hover:bg-primary/90"
+  onClick={() => {
+    setSelectedCoupon(coupon);
+    setIsRedeemModalOpen(true);
+  }}
+>
+  Resgatar Cupom
+</Button>
+
+Adicionar o modal antes do fechamento do return:
+
+typescript{selectedCoupon && (
+  <CouponRedeemModal
+    coupon={selectedCoupon}
+    isOpen={isRedeemModalOpen}
+    onClose={() => {
+      setIsRedeemModalOpen(false);
+      setSelectedCoupon(null);
+    }}
+  />
+)}
+=== PARTE 6: FRONTEND - PÁGINA DE VALIDAÇÃO DO SELLER ===
+Criar client/src/pages/seller/coupons/validate.tsx:
+typescriptimport { useState } from 'react';
+import { useAuth } from '@/context/auth-context';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+
+export default function ValidateCoupons() {
+  const [validationCode, setValidationCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastValidated, setLastValidated] = useState(null);
+  const { toast } = useToast();
+
+  const handleValidate = async () => {
+    if (!validationCode.trim()) {
+      toast({
+        title: "Código obrigatório",
+        description: "Digite o código de validação",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/seller/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ validationCode })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setLastValidated(data.coupon);
+        setValidationCode('');
+        toast({
+          title: "Cupom validado! ✅",
+          description: data.message,
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Erro na validação",
+          description: data.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao validar cupom",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-2xl font-bold mb-6">Validar Cupons</h1>
+
+      <Card className="max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle>Código de Validação</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input
+            value={validationCode}
+            onChange={(e) => setValidationCode(e.target.value.toUpperCase())}
+            placeholder="VAL-XXXXXXXX"
+            className="text-center font-mono"
+          />
+          
+          <Button 
+            onClick={handleValidate}
+            disabled={isLoading}
+            className="w-full"
+          >
+            {isLoading ? 'Validando...' : 'Validar Cupom'}
+          </Button>
+
+          {lastValidated && (
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <h3 className="font-medium text-green-800">Último cupom validado:</h3>
+              <p className="text-sm text-green-600">
+                {lastValidated.description}
+              </p>
+              <p className="text-sm font-mono text-green-800">
+                Código: {lastValidated.code}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+=== PARTE 7: ADICIONAR ROTA NO APP ===
+Em client/src/App.tsx, adicionar:
+typescriptimport ValidateCoupons from "@/pages/seller/coupons/validate";
+
+// Dentro das rotas:
+<Route path="/seller/coupons/validate" component={ValidateCoupons} />
+=== RESULTADO FINAL ===
+
+Cliente: Vê cupons → Clica "Resgatar" → Preenche dados → Recebe código de validação
+Lojista: Acessa /seller/coupons/validate → Digite código → Sistema valida e dá baixa
+Sistema: Controla limites de uso automaticamente
+Métricas: Rastreamento completo de resgates e uso dos cupons
+
+Este sistema fornece controle total sobre os cupons com experiência clara para cliente e lojista.

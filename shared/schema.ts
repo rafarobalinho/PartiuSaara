@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, numeric, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -154,14 +154,33 @@ export const coupons = pgTable("coupons", {
   code: text("code").notNull(),
   description: text("description"),
   discountAmount: doublePrecision("discount_amount"),
-  discountPercentage: integer("discount_percentage"),
+  discountPercentage: numeric("discount_percentage", { precision: 5, scale: 2 }), // CORRIGIDO: manter numeric para permitir decimais
+  minimumPurchase: doublePrecision("minimum_purchase"), // ADICIONADO: campo essencial para regras de negócio
   maxUsageCount: integer("max_usage_count"),
   usageCount: integer("usage_count").default(0),
   isActive: boolean("is_active").default(true),
-  startTime: timestamp("start_time").notNull(),
-  endTime: timestamp("end_time").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull()
+  startTime: timestamp("start_time", { withTimezone: true }).notNull(), // CORRIGIDO: manter timezone para Brasil
+  endTime: timestamp("end_time", { withTimezone: true }).notNull(), // CORRIGIDO: manter timezone para Brasil
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+});
+
+// Coupon redemptions schema
+export const couponRedemptions = pgTable("coupon_redemptions", {
+  id: serial("id").primaryKey(),
+  couponId: integer("coupon_id").notNull().references(() => coupons.id),
+  validationCode: text("validation_code").notNull().unique(),
+  customerName: text("customer_name"),
+  customerPhone: text("customer_phone"),
+  redeemedAt: timestamp("redeemed_at", { withTimezone: true }).defaultNow().notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  usedByStoreUserId: integer("used_by_store_user_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+});
+
+export const insertCouponRedemptionSchema = createInsertSchema(couponRedemptions).omit({
+  id: true,
+  createdAt: true
 });
 
 export const insertCouponSchema = createInsertSchema(coupons).omit({
@@ -383,6 +402,9 @@ export type InsertPromotion = z.infer<typeof insertPromotionSchema>;
 
 export type Coupon = typeof coupons.$inferSelect;
 export type InsertCoupon = z.infer<typeof insertCouponSchema>;
+
+export type CouponRedemption = typeof couponRedemptions.$inferSelect;
+export type InsertCouponRedemption = z.infer<typeof insertCouponRedemptionSchema>;
 
 export type Wishlist = typeof wishlists.$inferSelect;
 export type InsertWishlist = z.infer<typeof insertWishlistSchema>;
