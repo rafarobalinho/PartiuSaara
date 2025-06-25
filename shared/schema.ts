@@ -176,6 +176,11 @@ export const couponRedemptions = pgTable("coupon_redemptions", {
   usedAt: timestamp("used_at", { withTimezone: true }),
   usedByStoreUserId: integer("used_by_store_user_id").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => {
+  return {
+    validationCodeIdx: index("idx_coupon_redemptions_validation_code").on(table.validationCode),
+    couponIdIdx: index("idx_coupon_redemptions_coupon_id").on(table.couponId)
+  };
 });
 
 export const insertCouponRedemptionSchema = createInsertSchema(couponRedemptions).omit({
