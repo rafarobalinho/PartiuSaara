@@ -142,6 +142,14 @@ export default function StoreDetail() {
     enabled: !!store && activeTab === 'coupons'
   });
 
+  // Debug temporário para verificar tipo de tags
+  useEffect(() => {
+    if (store) {
+      console.log('🔍 Tipo de tags:', typeof store.tags);
+      console.log('🔍 Valor de tags:', store.tags);
+    }
+  }, [store]);
+
   const handleFavoriteToggle = async () => {
     if (!isAuthenticated) {
       toast({
@@ -222,14 +230,6 @@ export default function StoreDetail() {
   }
 
   const distance = getDistance();
-
-  // Debug temporário para verificar tipo de tags
-  useEffect(() => {
-    if (store) {
-      console.log('🔍 Tipo de tags:', typeof store.tags);
-      console.log('🔍 Valor de tags:', store.tags);
-    }
-  }, [store]);
 
   return (
     <div className="container mx-auto px-4 py-8">
