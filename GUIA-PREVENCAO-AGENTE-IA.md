@@ -1,0 +1,350 @@
+
+# 🛡️ GUIA DE PREVENÇÃO: Protegendo o Projeto contra Agentes IA Destrutivos
+
+## 🎯 OBJETIVO
+Este documento visa prevenir regressões destrutivas causadas por agentes IA que simplificam, removem ou quebram funcionalidades já implementadas e testadas.
+
+---
+
+## 🚨 PADRÕES DESTRUTIVOS IDENTIFICADOS
+
+### **1. SIMPLIFICAÇÃO EXCESSIVA DE FORMULÁRIOS**
+❌ **Comportamento Destrutivo**:
+- Remove campos obrigatórios de formulários
+- Simplifica schemas de validação
+- Remove funcionalidades de upload
+- Quebra lógica de duas etapas
+
+✅ **Prevenção**:
+- SEMPRE verificar se TODOS os campos estão presentes após mudanças
+- Manter lista de campos obrigatórios por formulário
+- Testar funcionalidade completa após alterações
+
+### **2. VIOLAÇÃO DAS REGRAS DE HOOKS DO REACT**
+❌ **Comportamento Destrutivo**:
+- Coloca hooks após condicionais
+- Cria useState/useEffect em ordem inconsistente
+- Remove verificações de loading/error
+
+✅ **Prevenção**:
+- SEMPRE manter hooks no TOPO dos componentes
+- NUNCA colocar hooks após if/return statements
+- Verificar que a ordem dos hooks não mudou
+
+### **3. QUEBRA DE TIPOS TYPESCRIPT**
+❌ **Comportamento Destrutivo**:
+- Mistura tipos string/number inconsistentemente
+- Remove tipagem importante
+- Cria incompatibilidades entre schema e formulários
+
+✅ **Prevenção**:
+- Executar TypeScript check após cada mudança
+- Manter consistência entre schemas e interfaces
+- Validar que tipos não foram alterados indevidamente
+
+### **4. REMOÇÃO DE FUNCIONALIDADES CRÍTICAS**
+❌ **Comportamento Destrutivo**:
+- Remove upload em duas etapas
+- Simplifica middleware de segurança
+- Remove validações importantes
+
+✅ **Prevenção**:
+- Manter checklist de funcionalidades críticas
+- Testar fluxos completos após mudanças
+- Verificar que APIs funcionam end-to-end
+
+---
+
+## 📋 PROTOCOLO DE PREVENÇÃO OBRIGATÓRIO
+
+### **ANTES DE ACEITAR QUALQUER MUDANÇA**
+
+#### **1. VERIFICAÇÃO DE ESCOPO** ⚠️
+```
+❓ A mudança solicitada é ESPECÍFICA e LIMITADA?
+❓ O agente IA está tentando "melhorar" além do solicitado?
+❓ A mudança afeta apenas o que foi pedido?
+
+🚨 SE SIM para "melhorar além do solicitado" → REJEITAR
+```
+
+#### **2. VERIFICAÇÃO DE FORMULÁRIOS** 📝
+```
+✅ TODOS os campos obrigatórios estão presentes?
+✅ Upload de imagens funciona?
+✅ Validações estão completas?
+✅ Schema Zod não foi simplificado?
+
+📋 CAMPOS OBRIGATÓRIOS POR FORMULÁRIO:
+
+add-store.tsx (12 campos):
+- name, description, address, city, state, zipCode
+- phoneNumber, category, businessHours, isOpen, images, location
+
+add-product.tsx (10 campos):
+- name, description, price, storeId, category
+- stock, brand, isActive, images, discountedPrice
+```
+
+#### **3. VERIFICAÇÃO DE HOOKS** ⚛️
+```
+✅ Todos os hooks estão no TOPO do componente?
+✅ Nenhum hook está após if/return?
+✅ Ordem dos hooks não mudou?
+✅ useEffect com dependências corretas?
+
+🔴 ESTRUTURA OBRIGATÓRIA:
+export default function Component() {
+  // ✅ HOOKS PRIMEIRO
+  const hook1 = useState();
+  const hook2 = useQuery();
+  const hook3 = useEffect();
+  
+  // ✅ DEPOIS verificações
+  if (loading) return <Loading />;
+  
+  // ✅ DEPOIS JSX
+  return <div>...</div>;
+}
+```
+
+#### **4. VERIFICAÇÃO DE TIPOS** 🔍
+```
+✅ TypeScript compila sem erros?
+✅ Tipos string/number são consistentes?
+✅ Interfaces correspondem aos schemas?
+✅ Props dos componentes estão corretas?
+
+💻 COMANDO OBRIGATÓRIO:
+npm run type-check (ou tsc --noEmit)
+```
+
+#### **5. VERIFICAÇÃO FUNCIONAL** 🧪
+```
+✅ Página carrega sem erros no console?
+✅ Formulário submete com sucesso?
+✅ Upload de imagens funciona?
+✅ Navegação funciona corretamente?
+✅ APIs retornam dados esperados?
+
+🧪 TESTE OBRIGATÓRIO após QUALQUER mudança:
+1. Recarregar página
+2. Testar fluxo completo
+3. Verificar console de erros
+4. Testar em modo incógnito
+```
+
+---
+
+## 🛠️ INSTRUÇÕES ESPECÍFICAS PARA AGENTE IA
+
+### **REGRAS INVIOLÁVEIS** 🚫
+
+#### **1. NUNCA SIMPLIFICAR FORMULÁRIOS**
+```
+❌ NÃO REMOVER campos de formulários existentes
+❌ NÃO "otimizar" schemas Zod já funcionando
+❌ NÃO alterar estrutura de upload de imagens
+❌ NÃO remover validações sem autorização explícita
+```
+
+#### **2. NUNCA ALTERAR ORDEM DE HOOKS**
+```
+❌ NÃO mover hooks para depois de condicionais
+❌ NÃO remover verificações de loading/error
+❌ NÃO alterar dependências de useEffect sem justificativa
+❌ NÃO criar novos hooks no meio do código
+```
+
+#### **3. NUNCA QUEBRAR TIPOS**
+```
+❌ NÃO misturar string/number aleatoriamente
+❌ NÃO remover tipagem TypeScript
+❌ NÃO alterar interfaces sem verificar impacto
+❌ NÃO ignorar erros de tipo
+```
+
+#### **4. SEMPRE PRESERVAR FUNCIONALIDADES**
+```
+✅ MANTER upload em duas etapas funcionando
+✅ PRESERVAR middleware de segurança
+✅ MANTER validações existentes
+✅ PRESERVAR estrutura de dados existente
+```
+
+---
+
+## 📊 CHECKLIST DE VALIDAÇÃO PÓS-MUDANÇA
+
+### **CHECKLIST OBRIGATÓRIO** ✅
+
+#### **FRONTEND**
+- [ ] Página carrega sem erros de JavaScript
+- [ ] Não há warnings de hooks no console
+- [ ] TypeScript compila sem erros
+- [ ] Formulários têm todos os campos esperados
+- [ ] Upload de imagens funciona
+- [ ] Navegação entre páginas funciona
+- [ ] Estado é preservado entre navegações
+
+#### **FUNCIONALIDADE**
+- [ ] Fluxo completo de criação funciona
+- [ ] APIs retornam dados corretos
+- [ ] Validações funcionam como esperado
+- [ ] Upload em duas etapas preservado
+- [ ] Feedback visual funciona (loading, success, error)
+
+#### **DADOS**
+- [ ] Dados são salvos corretamente no banco
+- [ ] Relacionamentos entre tabelas preservados
+- [ ] Consultas retornam dados esperados
+- [ ] Não há vazamentos de memória
+
+#### **SEGURANÇA**
+- [ ] Middleware de autenticação funcionando
+- [ ] Validação de propriedade preservada
+- [ ] URLs blob são bloqueadas
+- [ ] Validação de tipos no backend funciona
+
+---
+
+## 🚨 SINAIS DE ALERTA - REJEITAR IMEDIATAMENTE
+
+### **RED FLAGS** 🔴
+
+#### **1. LINGUAGEM PERIGOSA**
+```
+🚨 "Vou otimizar este código"
+🚨 "Vou simplificar este formulário"
+🚨 "Vou melhorar a estrutura"
+🚨 "Vou refatorar para ficar mais limpo"
+🚨 "Vou remover campos desnecessários"
+```
+
+#### **2. MUDANÇAS NÃO SOLICITADAS**
+```
+🚨 Alterações além do escopo pedido
+🚨 "Melhorias" não requisitadas
+🚨 Remoção de funcionalidades "não usadas"
+🚨 Simplificação de schemas complexos
+🚨 Alteração de estruturas funcionais
+```
+
+#### **3. PADRÕES DESTRUTIVOS**
+```
+🚨 Hooks movidos para depois de condicionais
+🚨 Campos removidos de formulários
+🚨 Validações simplificadas ou removidas
+🚨 Upload de imagens quebrado
+🚨 Tipos TypeScript inconsistentes
+```
+
+---
+
+## 💡 ESTRATÉGIAS DE PROTEÇÃO
+
+### **1. BACKUP PREVENTIVO**
+```bash
+# SEMPRE fazer backup antes de mudanças críticas
+git add .
+git commit -m "Backup antes de mudança do agente IA"
+git push origin backup-branch
+```
+
+### **2. MUDANÇAS INCREMENTAIS**
+```
+✅ Solicitar mudanças PEQUENAS e ESPECÍFICAS
+✅ Testar cada mudança antes da próxima
+✅ Não permitir refatorações grandes
+✅ Revisar código linha por linha
+```
+
+### **3. VALIDAÇÃO CONTÍNUA**
+```bash
+# Scripts de validação automática
+npm run lint
+npm run type-check
+npm run test
+npm run build
+```
+
+### **4. DOCUMENTAÇÃO DEFENSIVA**
+```
+✅ Manter lista de funcionalidades críticas
+✅ Documentar estruturas importantes
+✅ Criar testes para fluxos principais
+✅ Manter exemplos de uso correto
+```
+
+---
+
+## 📝 TEMPLATE DE INSTRUÇÃO SEGURA
+
+### **MODELO PARA SOLICITAÇÕES AO AGENTE IA**
+
+```
+INSTRUÇÃO ESPECÍFICA:
+[Descrever EXATAMENTE o que precisa ser mudado]
+
+RESTRIÇÕES OBRIGATÓRIAS:
+❌ NÃO alterar nenhum outro arquivo além do especificado
+❌ NÃO remover campos de formulários
+❌ NÃO alterar ordem de hooks
+❌ NÃO simplificar validações existentes
+❌ NÃO quebrar funcionalidades existentes
+
+VALIDAÇÃO OBRIGATÓRIA:
+✅ Verificar que TypeScript compila
+✅ Testar que página carrega sem erros
+✅ Confirmar que funcionalidade específica funciona
+✅ Não introduzir novos warnings
+
+ESCOPO LIMITADO:
+Alterar APENAS: [especificar exatamente]
+NÃO alterar: [listar o que deve ser preservado]
+```
+
+---
+
+## 🎯 IMPLEMENTAÇÃO IMEDIATA
+
+### **PASSOS PARA IMPLEMENTAR ESTE GUIA**
+
+#### **1. CRIAR PROCESSO OBRIGATÓRIO**
+- [ ] Sempre fazer backup antes de mudanças
+- [ ] Usar template de instrução segura
+- [ ] Executar checklist de validação
+- [ ] Testar em ambiente separado primeiro
+
+#### **2. CRIAR SCRIPTS DE VALIDAÇÃO**
+```bash
+# Criar package.json scripts
+"scripts": {
+  "validate": "npm run lint && npm run type-check",
+  "pre-deploy": "npm run validate && npm run build",
+  "check-hooks": "eslint --rule 'react-hooks/rules-of-hooks: error'"
+}
+```
+
+#### **3. ESTABELECER PONTOS DE CONTROLE**
+- [ ] Revisar toda mudança linha por linha
+- [ ] Testar funcionalidade completa após mudanças
+- [ ] Manter log de mudanças e seus impactos
+- [ ] Criar rollback plan para mudanças críticas
+
+---
+
+## 🏆 CONCLUSÃO
+
+Este guia deve ser seguido **RELIGIOSAMENTE** para prevenir regressões destrutivas. Lembre-se:
+
+> **"Um agente IA destrutivo pode em 5 minutos desfazer semanas de trabalho. A prevenção é sempre melhor que a correção."**
+
+### **PRINCÍPIOS FUNDAMENTAIS:**
+1. **Desconfie de "melhorias" não solicitadas**
+2. **Teste TUDO após qualquer mudança**
+3. **Preserve funcionalidades que já funcionam**
+4. **Mantenha validações rigorosas**
+5. **Documente e proteja código crítico**
+
+**LEMBRE-SE**: Se algo já funciona, a prioridade é **PRESERVAR**, não "melhorar".
