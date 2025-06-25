@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link } from 'wouter';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,11 +10,27 @@ import { apiRequest } from '@/lib/queryClient';
 import ProductCard from '@/components/ui/product-card';
 import { useLocation, calculateDistance, formatDistance } from '@/hooks/use-location';
 
+// Helper function to safely handle tags that might come as string or array
+function getSafeTags(tags: any): string[] {
+  if (!tags) return [];
+  if (Array.isArray(tags)) return tags;
+  if (typeof tags === 'string') {
+    try {
+      const parsed = JSON.parse(tags);
+      if (Array.isArray(parsed)) return parsed;
+      return [tags];
+    } catch {
+      return tags.trim() ? [tags] : [];
+    }
+  }
+  return [];
+}
+
 // Função que verifica se uma imagem deve ser usada
 function getValidImage(imageUrl: string | undefined, fallbackUrl: string): string {
   // Se não tiver URL, usa a imagem padrão
   if (!imageUrl) return fallbackUrl;
-  
+
   // Retorna a URL original passada pelo banco de dados
   return imageUrl;
 }
@@ -24,7 +40,7 @@ interface Store {
   name: string;
   description: string;
   category: string;
-  tags: string[] | null;
+  tags: any; // Can be string or array depending on PostgreSQL return
   rating: number;
   reviewCount: number;
   images: string[];
@@ -126,6 +142,14 @@ export default function StoreDetail() {
     enabled: !!store && activeTab === 'coupons'
   });
 
+  // Debug temporário para verificar tipo de tags
+  useEffect(() => {
+    if (store) {
+      console.log('🔍 Tipo de tags:', typeof store.tags);
+      console.log('🔍 Valor de tags:', store.tags);
+    }
+  }, [store]);
+
   const handleFavoriteToggle = async () => {
     if (!isAuthenticated) {
       toast({
@@ -142,7 +166,7 @@ export default function StoreDetail() {
         `/api/favorite-stores/${id}`,
         {}
       );
-      
+
       setIsFavorite(!isFavorite);
       toast({
         title: isFavorite ? 'Loja removida dos favoritos' : 'Loja adicionada aos favoritos',
@@ -163,14 +187,14 @@ export default function StoreDetail() {
 
   const getDistance = () => {
     if (!coordinates || !store?.location) return null;
-    
+
     const distance = calculateDistance(
       coordinates.latitude,
       coordinates.longitude,
       store.location.latitude,
       store.location.longitude
     );
-    
+
     return formatDistance(distance);
   };
 
@@ -252,7 +276,7 @@ export default function StoreDetail() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 <Button
                   onClick={handleFavoriteToggle}
@@ -262,7 +286,7 @@ export default function StoreDetail() {
                   <i className={`${isFavorite ? 'fas' : 'far'} fa-heart mr-2`}></i>
                   {isFavorite ? 'Favoritada' : 'Favoritar'}
                 </Button>
-                
+
                 <Button asChild className="bg-primary text-white hover:bg-primary/90">
                   <a href={`https://maps.google.com/?q=${store.address.street},${store.address.city}`} target="_blank" rel="noopener noreferrer">
                     <i className="fas fa-directions mr-2"></i>
@@ -273,7 +297,7 @@ export default function StoreDetail() {
             </div>
           </div>
         </div>
-        
+
         {/* Store Info */}
         <div className="p-6">
           <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -281,25 +305,25 @@ export default function StoreDetail() {
               <i className={`fas fa-${store.isOpen ? 'check-circle' : 'times-circle'} mr-1`}></i>
               {store.isOpen ? 'Aberta agora' : 'Fechada'}
             </span>
-            
+
             {distance && (
               <span className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 text-gray-800 text-sm">
                 <i className="fas fa-map-marker-alt mr-1"></i>
                 {distance} de distância
               </span>
             )}
-            
-            {(store.tags || []).map((tag, index) => (
+
+            {getSafeTags(store.tags).map((tag, index) => (
               <span key={index} className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 text-gray-800 text-sm">
                 {tag}
               </span>
             ))}
           </div>
-          
+
           <div className="prose max-w-none mb-6">
             <p className="text-gray-700">{store.description}</p>
           </div>
-          
+
           <div className="border-t border-gray-200 pt-4">
             <h3 className="font-medium mb-2">Endereço</h3>
             <address className="not-italic text-gray-700">
@@ -318,7 +342,7 @@ export default function StoreDetail() {
           <TabsTrigger value="coupons">Cupons</TabsTrigger>
           <TabsTrigger value="info">Informações</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="products" className="mt-0">
           {isProductsLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -353,7 +377,7 @@ export default function StoreDetail() {
             </div>
           )}
         </TabsContent>
-        
+
         <TabsContent value="coupons" className="mt-0">
           {isCouponsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -409,7 +433,7 @@ export default function StoreDetail() {
             </div>
           )}
         </TabsContent>
-        
+
         <TabsContent value="info" className="mt-0">
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -418,7 +442,7 @@ export default function StoreDetail() {
                 <div className="prose max-w-none">
                   <p className="text-gray-700">{store.description}</p>
                 </div>
-                
+
                 <h3 className="text-lg font-medium mt-6 mb-3">Horário de Funcionamento</h3>
                 <table className="min-w-full">
                   <tbody className="divide-y divide-gray-200">
@@ -437,7 +461,7 @@ export default function StoreDetail() {
                   </tbody>
                 </table>
               </div>
-              
+
               <div>
                 <h3 className="text-lg font-medium mb-4">Localização</h3>
                 <div className="h-64 bg-gray-200 rounded-lg mb-4 relative">
@@ -445,18 +469,18 @@ export default function StoreDetail() {
                   <div className="w-full h-full bg-cover bg-center" style={{backgroundImage: `url('/api/stores/${store.id}/primary-image')`}}>
                     <div className="absolute inset-0 bg-black/10"></div>
                   </div>
-                  
+
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-3 shadow-lg pulse-animation">
                     <i className="fas fa-map-marker-alt text-primary text-xl"></i>
                   </div>
                 </div>
-                
+
                 <address className="not-italic text-gray-700 mb-4">
                   {store.address.street}<br />
                   {store.address.city}, {store.address.state}<br />
                   CEP: {store.address.zipCode}
                 </address>
-                
+
                 <div className="flex space-x-2">
                   <Button asChild className="bg-primary text-white hover:bg-primary/90">
                     <a href={`https://maps.google.com/?q=${store.address.street},${store.address.city}`} target="_blank" rel="noopener noreferrer">
@@ -464,7 +488,7 @@ export default function StoreDetail() {
                       Como chegar
                     </a>
                   </Button>
-                  
+
                   <Button variant="outline">
                     <i className="fas fa-phone mr-2"></i>
                     Contato
