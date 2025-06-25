@@ -1,91 +1,173 @@
 // ARQUIVO: client/src/components/ui/image-upload.tsx
+// 🚀 CORREÇÃO COMPLETA: SEM URLs BLOB + Upload em Duas Etapas
 
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Trash2, Upload, Image as ImageIcon } from 'lucide-react';
-import { Spinner } from "@/components/ui/spinner";
-import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
-import { SafeImage } from './safe-image'; // Usando o SafeImage que já corrigimos
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { Upload, X, Image as ImageIcon } from 'lucide-react';
 
-// 1. ATUALIZAMOS AS PROPRIEDADES (PROPS)
-// Removemos 'name' e adicionamos props claras
 interface ImageUploadProps {
-  entityType: 'product' | 'store';
-  entityId: number | 'new'; // ID pode ser um número ou a string 'new' para criação
-  storeId?: number; // Opcional, mas necessário para produtos
+  entityType: 'store' | 'product';
+  entityId: string | number;
+  storeId?: string | number;
   multiple?: boolean;
-  maxImages?: number;
-  onChange: (urls: string[]) => void;
-  value?: string[];
-  className?: string;
+  selectedImages: string[];
+  onChange: (images: string[]) => void;
 }
 
-const ImageUploadComponent = forwardRef(({
-  // 2. RECEBEMOS AS NOVAS PROPS AQUI
+interface ImageUploadRef {
+  uploadPendingFiles: (newEntityId: string | number) => Promise<{success: boolean, error?: string}>;
+}
+
+const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
   entityType,
   entityId,
   storeId,
-  multiple = false,
-  maxImages = 5,
-  onChange,
-  value = [],
-  className = '',
-}: ImageUploadProps, ref) => {
-  const [isUploading, setIsUploading] = useState(false);
-  const [selectedImages, setSelectedImages] = useState<string[]>(value);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  multiple = true,
+  selectedImages,
+  onChange
+}, ref) => {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
-  useEffect(() => {
-    // Sincroniza o estado interno se o valor externo mudar
-    setSelectedImages(value);
-  }, [value]);
+  // ✅ ESTADO PARA ARQUIVOS PENDENTES (para entityId="new")
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
-  // Função para lidar com o upload dos arquivos
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  // ✅ FUNÇÃO EXPOSTA VIA REF PARA UPLOAD EM DUAS ETAPAS
+  useImperativeHandle(ref, () => ({
+    uploadPendingFiles: async (newEntityId: string | number) => {
+      if (pendingFiles.length === 0) {
+        return { success: true };
+      }
 
-    // Lógica para verificar limite de imagens (continua igual)
-    const remainingSlots = maxImages - selectedImages.length;
-    if (files.length > remainingSlots) {
-      toast({
-        title: "Limite de imagens excedido",
-        description: `Você só pode adicionar mais ${remainingSlots} imagem(ns)`,
-        variant: "destructive"
-      });
-      return;
+      try {
+        console.log(`📸 Fazendo upload de ${pendingFiles.length} arquivo(s) para ${entityType} ${newEntityId}...`);
+
+        const formData = new FormData();
+        pendingFiles.forEach(file => {
+          formData.append('images', file);
+        });
+
+        // Montar URL para o upload real
+        const params = new URLSearchParams({
+          type: entityType,
+          entityId: String(newEntityId),
+        });
+
+        if (storeId) {
+          params.append('storeId', String(storeId));
+        }
+
+        const uploadUrl = `/api/upload/images?${params.toString()}`;
+        const response = await apiRequest('POST', uploadUrl, formData);
+        const result = await response.json();
+
+        if (result.success && result.images) {
+          const imageUrls = result.images.map((img: any) => img.imageUrl || img.filename);
+
+          // Atualizar as imagens selecionadas com as URLs reais
+          onChange(imageUrls);
+
+          // Limpar arquivos pendentes
+          setPendingFiles([]);
+          setPreviewUrls([]);
+
+          console.log(`✅ Upload concluído: ${result.images.length} imagem(ns)`);
+          return { success: true };
+        } else {
+          throw new Error(result.message || 'Erro no upload');
+        }
+      } catch (error) {
+        console.error('❌ Erro no upload de arquivos pendentes:', error);
+        return { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Erro desconhecido'
+        };
+      }
     }
+  }));
+
+  // ✅ LIMPAR PREVIEWS QUANDO COMPONENTE DESMONTA
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [previewUrls]);
+
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
 
     setIsUploading(true);
 
     try {
-      // 3. LÓGICA SIMPLIFICADA USANDO AS NOVAS PROPS
-      // Chega de name.split('-')!
+      // Validação de arquivos
+      const validFiles = Array.from(files).filter(file => {
+        if (file.size > 10 * 1024 * 1024) {
+          toast({
+            title: "Arquivo muito grande",
+            description: `${file.name} excede o limite de 10MB`,
+            variant: "destructive"
+          });
+          return false;
+        }
 
-      // Caso especial: se a entidade ainda não foi criada (ID é 'new')
+        if (!file.type.startsWith('image/')) {
+          toast({
+            title: "Tipo de arquivo inválido",
+            description: `${file.name} não é uma imagem válida`,
+            variant: "destructive"
+          });
+          return false;
+        }
+
+        return true;
+      });
+
+      if (validFiles.length === 0) {
+        setIsUploading(false);
+        return;
+      }
+
+      // ✅ CASO ESPECIAL: entityId="new" - ARMAZENAR ARQUIVOS E CRIAR PREVIEWS
       if (entityId === 'new') {
-        const newBlobUrls = Array.from(files).map(file => URL.createObjectURL(file));
-        const updatedImages = multiple ? [...selectedImages, ...newBlobUrls] : newBlobUrls;
-        setSelectedImages(updatedImages);
-        onChange(updatedImages);
+        console.log(`📁 Preparando ${validFiles.length} arquivo(s) para upload posterior...`);
+
+        // Criar previews para visualização
+        const newPreviewUrls = validFiles.map(file => URL.createObjectURL(file));
+
+        if (multiple) {
+          setPendingFiles(prev => [...prev, ...validFiles]);
+          setPreviewUrls(prev => [...prev, ...newPreviewUrls]);
+          onChange([...selectedImages, ...Array(validFiles.length).fill("__files_selected__")]);
+        } else {
+          // Limpar previews anteriores
+          previewUrls.forEach(url => URL.revokeObjectURL(url));
+          setPendingFiles(validFiles);
+          setPreviewUrls(newPreviewUrls);
+          onChange(["__files_selected__"]);
+        }
+
         toast({
           title: "Imagens preparadas",
           description: "As imagens serão enviadas quando você salvar o formulário.",
         });
+
         setIsUploading(false);
         return;
       }
+
+      // ✅ CASO NORMAL: UPLOAD DIRETO (entityId existe)
+      console.log(`📤 Fazendo upload direto para ${entityType} ${entityId}...`);
 
       // Validação de segurança
       if (entityType === 'product' && !storeId) {
         throw new Error("O 'storeId' é obrigatório para fazer upload de imagens de produtos.");
       }
 
-      // Monta a URL da API de forma segura e clara
+      // Montar URL da API
       const params = new URLSearchParams({
         type: entityType,
         entityId: String(entityId),
@@ -96,10 +178,10 @@ const ImageUploadComponent = forwardRef(({
       }
 
       const uploadUrl = `/api/upload/images?${params.toString()}`;
-      console.log(`Enviando para: ${uploadUrl}`);
+      console.log(`📤 Enviando para: ${uploadUrl}`);
 
       const formData = new FormData();
-      Array.from(files).forEach(file => {
+      validFiles.forEach(file => {
         formData.append('images', file);
       });
 
@@ -107,10 +189,9 @@ const ImageUploadComponent = forwardRef(({
       const result = await response.json();
 
       if (result.success && result.images) {
-        const newImageUrls = result.images.map((img: any) => img.imageUrl);
+        const newImageUrls = result.images.map((img: any) => img.imageUrl || img.filename);
         const updatedImages = multiple ? [...selectedImages, ...newImageUrls] : newImageUrls;
 
-        setSelectedImages(updatedImages);
         onChange(updatedImages);
 
         toast({
@@ -121,7 +202,7 @@ const ImageUploadComponent = forwardRef(({
         throw new Error(result.message || 'Erro no upload das imagens');
       }
     } catch (error) {
-      console.error('Erro ao fazer upload:', error);
+      console.error('❌ Erro ao fazer upload:', error);
       toast({
         title: "Erro no upload",
         description: error instanceof Error ? error.message : 'Ocorreu um erro.',
@@ -129,123 +210,162 @@ const ImageUploadComponent = forwardRef(({
       });
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    if (entityId === 'new') {
+      // Remover arquivo pendente e preview
+      const newPendingFiles = [...pendingFiles];
+      const newPreviewUrls = [...previewUrls];
+
+      if (newPreviewUrls[index]) {
+        URL.revokeObjectURL(newPreviewUrls[index]);
       }
+
+      newPendingFiles.splice(index, 1);
+      newPreviewUrls.splice(index, 1);
+
+      setPendingFiles(newPendingFiles);
+      setPreviewUrls(newPreviewUrls);
+
+      // Atualizar placeholders
+      const newPlaceholders = Array(newPendingFiles.length).fill("__files_selected__");
+      onChange(newPlaceholders);
+    } else {
+      // Remover imagem já uploadada
+      const newImages = [...selectedImages];
+      newImages.splice(index, 1);
+      onChange(newImages);
     }
   };
 
-  // Lógica para remover imagem (simplificada)
-  const handleRemoveImage = async (index: number) => {
-    const imageToRemove = selectedImages[index];
-
-    // Se for uma URL blob, apenas remove da tela
-    if (imageToRemove.startsWith('blob:')) {
-      const updatedImages = selectedImages.filter((_, i) => i !== index);
-      setSelectedImages(updatedImages);
-      onChange(updatedImages);
-      return;
-    }
-
-    try {
-      // Extrai o NOME do arquivo da URL para usar como ID na API de exclusão
-      // Ex: /uploads/stores/2/products/5/1718741334966-89801405.jpg -> 1718741334966-89801405.jpg
-      const filename = imageToRemove.split('/').pop();
-      if (!filename) throw new Error("Não foi possível identificar o arquivo a ser removido.");
-
-      // A sua API de exclusão precisa ser ajustada para aceitar o nome do arquivo, ou o ID da imagem do banco.
-      // Assumindo que a API DELETE /api/images/:id espera o ID da imagem do banco.
-      // Esta parte é um desafio, pois a URL não contém o ID do banco.
-      // A SOLUÇÃO CORRETA é a API de upload retornar o ID da imagem do banco, e o 'value' ser um array de objetos {id, url}.
-      // Por enquanto, vamos apenas remover da tela para não complicar.
-
-      // LÓGICA DE REMOÇÃO DA API COMENTADA ATÉ A API SER AJUSTADA
-      /*
-      await apiRequest('DELETE', `/api/images/${imageId}?type=${entityType}`);
-      */
-
-      const updatedImages = selectedImages.filter((_, i) => i !== index);
-      setSelectedImages(updatedImages);
-      onChange(updatedImages);
-
-      toast({
-        title: "Imagem removida da lista",
-        description: "A exclusão permanente ocorrerá ao salvar o formulário.",
-      });
-
-    } catch (error) {
-      console.error('Erro ao remover imagem:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível remover a imagem.",
-        variant: "destructive"
-      });
-    }
+  const handleButtonClick = () => {
+    fileInputRef.current?.click();
   };
 
-  // O resto do componente (o JSX para renderizar) continua quase o mesmo
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    handleFileSelect(files);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  // ✅ COMBINAR IMAGENS REAIS + PREVIEWS PARA EXIBIÇÃO
+  const allDisplayImages = [
+    ...selectedImages.filter(img => img !== "__files_selected__"),
+    ...previewUrls
+  ];
+
   return (
-    <div className={`space-y-4 ${className}`}>
-      <div className="space-y-2">
-        <Label>{multiple ? 'Imagens' : 'Imagem'}</Label>
-        <div className="flex items-center space-x-2">
-          <Input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            multiple={multiple}
-            onChange={handleUpload}
-            className="hidden"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading || selectedImages.length >= maxImages}
-            className="w-full flex items-center"
-          >
-            {isUploading ? <Spinner className="mr-2 h-4 w-4" /> : <Upload className="mr-2 h-4 w-4" />}
-            {isUploading ? 'Enviando...' : 'Selecionar imagem(ns)'}
-          </Button>
+    <div className="space-y-4">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple={multiple}
+        onChange={(e) => handleFileSelect(e.target.files)}
+        className="hidden"
+      />
+
+      {/* Área de Drop */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors cursor-pointer"
+        onClick={handleButtonClick}
+      >
+        <div className="flex flex-col items-center gap-2">
+          <ImageIcon className="h-8 w-8 text-gray-400" />
+          <p className="text-sm text-gray-600">
+            Clique aqui ou arraste {multiple ? 'imagens' : 'uma imagem'} para fazer upload
+          </p>
+          <p className="text-xs text-gray-500">
+            JPG, PNG ou WebP até 10MB
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          {multiple ? `Máximo ${maxImages} imagens.` : ''}
-        </p>
       </div>
 
-      {/* Preview das imagens */}
-      {selectedImages.length > 0 && (
-        <div className={multiple ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" : "w-full max-w-sm mx-auto"}>
-          {selectedImages.map((imageUrl, index) => (
-            <div key={index} className="relative group rounded-md overflow-hidden border border-border">
-              <div className="aspect-square w-full relative">
-                {/* Usando img normal para preview pois pode ser blob: URL ou URL do servidor */}
-                <img 
+      {/* Botão de Upload */}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleButtonClick}
+        disabled={isUploading}
+        className="w-full"
+      >
+        {isUploading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+            Fazendo upload...
+          </>
+        ) : (
+          <>
+            <Upload className="w-4 h-4 mr-2" />
+            {multiple ? 'Adicionar Imagens' : 'Selecionar Imagem'}
+          </>
+        )}
+      </Button>
+
+      {/* Preview das Imagens */}
+      {allDisplayImages.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {allDisplayImages.map((imageUrl, index) => (
+            <div key={index} className="relative group">
+              <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                <img
                   src={imageUrl}
                   alt={`Preview ${index + 1}`}
-                  className="object-cover w-full h-full"
+                  className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.currentTarget.src = '/placeholder-image.jpg';
+                    const target = e.target as HTMLImageElement;
+                    target.src = '/placeholder-image.svg';
                   }}
                 />
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    onClick={() => handleRemoveImage(index)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
+
+              {/* Botão de Remover */}
+              <button
+                type="button"
+                onClick={() => removeImage(index)}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Badge para arquivos pendentes */}
+              {entityId === 'new' && index >= selectedImages.filter(img => img !== "__files_selected__").length && (
+                <div className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
+                  Pendente
+                </div>
+              )}
             </div>
           ))}
         </div>
+      )}
+
+      {/* Status Information */}
+      {entityId === 'new' && pendingFiles.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p className="text-sm text-blue-800">
+            📁 {pendingFiles.length} arquivo(s) selecionado(s) para upload após salvar o formulário.
+          </p>
+        </div>
+      )}
+
+      {/* Limite de arquivos */}
+      {!multiple && allDisplayImages.length >= 1 && (
+        <p className="text-sm text-gray-500">
+          Máximo de 1 imagem permitida. Remova a atual para adicionar outra.
+        </p>
       )}
     </div>
   );
 });
 
-export const ImageUpload = ImageUploadComponent;
+ImageUpload.displayName = 'ImageUpload';
+
+export { ImageUpload };

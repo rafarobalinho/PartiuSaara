@@ -1,0 +1,56 @@
+Preciso que você corrija o erro "store.tags.map is not a function" no arquivo client/src/pages/stores/store-detail.tsx.
+
+PROBLEMA: O campo tags está vindo do PostgreSQL como string ao invés de array, causando erro na linha 292.
+
+INSTRUÇÕES:
+
+1. ADICIONAR esta função helper no TOPO do arquivo (após os imports):
+
+```typescript
+function getSafeTags(tags: any): string[] {
+  if (!tags) return [];
+  if (Array.isArray(tags)) return tags;
+  if (typeof tags === 'string') {
+    try {
+      const parsed = JSON.parse(tags);
+      if (Array.isArray(parsed)) return parsed;
+      return [tags];
+    } catch {
+      return tags.trim() ? [tags] : [];
+    }
+  }
+  return [];
+}
+
+LOCALIZAR a linha 292 que contém:
+{(store.tags || []).map((tag, index) => (
+SUBSTITUIR por:
+{getSafeTags(store.tags).map((tag, index) => (
+ATUALIZAR a interface Store para:
+tags: any; // ao invés de tags: string[];
+ADICIONAR debug temporário após as queries:
+
+typescriptuseEffect(() => {
+  if (store) {
+    console.log('🔍 Tipo de tags:', typeof store.tags);
+    console.log('🔍 Valor de tags:', store.tags);
+  }
+}, [store]);
+RESULTADO ESPERADO: A página /stores/7 deve carregar sem erro e exibir as tags corretamente.
+TESTE: Após implementar, acesse /stores/7 e verifique no console do navegador os logs de debug para confirmar como os dados estão chegando.
+
+---
+
+## 📋 RESUMO ALTERNATIVO (MAIS DIRETO)
+
+Se preferir uma versão mais concisa:
+ERRO: store.tags.map is not a function na linha 292 de client/src/pages/stores/store-detail.tsx
+CORREÇÃO:
+
+Adicionar função: function getSafeTags(tags: any): string[] { if (!tags) return []; if (Array.isArray(tags)) return tags; if (typeof tags === 'string') { try { const parsed = JSON.parse(tags); if (Array.isArray(parsed)) return parsed; return [tags]; } catch { return tags.trim() ? [tags] : []; } } return []; }
+Linha 292: substituir (store.tags || []).map por getSafeTags(store.tags).map
+Interface Store: mudar tags: string[] para tags: any
+
+MOTIVO: PostgreSQL está retornando tags como string, não array.
+
+Ambos os prompts devem funcionar para orientar o agente do Replit a fazer a correção necessária! 🚀Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas.Pesquisa Sonnet 4

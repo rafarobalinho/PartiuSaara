@@ -24,7 +24,7 @@ interface Store {
   name: string;
   description: string;
   category: string;
-  tags: string[];
+  tags: string[] | null;
   rating: number;
   reviewCount: number;
   images: string[];
@@ -289,7 +289,7 @@ export default function StoreDetail() {
               </span>
             )}
             
-            {store.tags.map((tag, index) => (
+            {(store.tags || []).map((tag, index) => (
               <span key={index} className="inline-flex items-center px-3 py-1 rounded-full bg-gray-100 text-gray-800 text-sm">
                 {tag}
               </span>
