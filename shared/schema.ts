@@ -171,6 +171,30 @@ export const insertCouponSchema = createInsertSchema(coupons).omit({
   updatedAt: true
 });
 
+export type Coupon = typeof coupons.$inferSelect;
+export type InsertCoupon = z.infer<typeof insertCouponSchema>;
+
+// Coupon Redemptions table
+export const couponRedemptions = pgTable("coupon_redemptions", {
+  id: serial("id").primaryKey(),
+  couponId: integer("coupon_id").notNull().references(() => coupons.id),
+  validationCode: text("validation_code").notNull().unique(),
+  customerName: text("customer_name"),
+  customerPhone: text("customer_phone"),
+  redeemedAt: timestamp("redeemed_at", { withTimezone: true }).defaultNow().notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  usedByStoreUserId: integer("used_by_store_user_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+});
+
+export const insertCouponRedemptionSchema = createInsertSchema(couponRedemptions).omit({
+  id: true,
+  createdAt: true
+});
+
+export type CouponRedemption = typeof couponRedemptions.$inferSelect;
+export type InsertCouponRedemption = z.infer<typeof insertCouponRedemptionSchema>;
+
 // Wishlists schema
 export const wishlists = pgTable("wishlists", {
   id: serial("id").primaryKey(),
