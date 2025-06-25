@@ -1,0 +1,86 @@
+CORRIGIR SCHEMA DE CUPONS ANTES DE EXECUTAR DRIZZLE PUSH
+
+CONTEXTO: O comando `npx drizzle-kit push` está tentando fazer mudanças problemáticas no schema de cupons. Preciso corrigir o schema antes de executar o push para evitar perda de funcionalidade.
+
+LOCALIZAÇÃO: shared/schema.ts
+
+TAREFA: Encontrar a seção "Coupons schema" e corrigir a definição da tabela coupons para preservar campos essenciais e tipos de dados corretos.
+
+SUBSTITUIR A SEÇÃO ATUAL:
+```typescript
+// Coupons schema
+export const coupons = pgTable("coupons", {
+ id: serial("id").primaryKey(),
+ storeId: integer("store_id").notNull().references(() => stores.id),
+ code: text("code").notNull(),
+ description: text("description"),
+ discountAmount: doublePrecision("discount_amount"),
+ discountPercentage: integer("discount_percentage"),
+ maxUsageCount: integer("max_usage_count"),
+ usageCount: integer("usage_count").default(0),
+ isActive: boolean("is_active").default(true),
+ startTime: timestamp("start_time").notNull(),
+ endTime: timestamp("end_time").notNull(),
+ createdAt: timestamp("created_at").defaultNow().notNull(),
+ updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+PELA VERSÃO CORRIGIDA:
+typescript// Coupons schema
+export const coupons = pgTable("coupons", {
+  id: serial("id").primaryKey(),
+  storeId: integer("store_id").notNull().references(() => stores.id),
+  code: text("code").notNull(),
+  description: text("description"),
+  discountAmount: doublePrecision("discount_amount"),
+  discountPercentage: numeric("discount_percentage", { precision: 5, scale: 2 }), // CORRIGIDO: manter numeric para permitir decimais
+  minimumPurchase: doublePrecision("minimum_purchase"), // ADICIONADO: campo essencial para regras de negócio
+  maxUsageCount: integer("max_usage_count"),
+  usageCount: integer("usage_count").default(0),
+  isActive: boolean("is_active").default(true),
+  startTime: timestamp("start_time", { withTimezone: true }).notNull(), // CORRIGIDO: manter timezone para Brasil
+  endTime: timestamp("end_time", { withTimezone: true }).notNull(), // CORRIGIDO: manter timezone para Brasil
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+});
+VERIFICAR SE JÁ EXISTE TABELA coupon_redemptions NO SCHEMA. Se não existir, ADICIONAR após a tabela coupons:
+typescript// Coupon redemptions schema
+export const couponRedemptions = pgTable("coupon_redemptions", {
+  id: serial("id").primaryKey(),
+  couponId: integer("coupon_id").notNull().references(() => coupons.id),
+  validationCode: text("validation_code").notNull().unique(),
+  customerName: text("customer_name"),
+  customerPhone: text("customer_phone"),
+  redeemedAt: timestamp("redeemed_at", { withTimezone: true }).defaultNow().notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  usedByStoreUserId: integer("used_by_store_user_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+});
+
+export const insertCouponRedemptionSchema = createInsertSchema(couponRedemptions).omit({
+  id: true,
+  createdAt: true
+});
+VERIFICAR SE EXISTE export type para CouponRedemption. Se não existir, ADICIONAR na seção de exports de tipos:
+typescriptexport type CouponRedemption = typeof couponRedemptions.$inferSelect;
+export type InsertCouponRedemption = z.infer<typeof insertCouponRedemptionSchema>;
+JUSTIFICATIVAS DAS CORREÇÕES:
+
+discountPercentage como numeric(5,2): Permite valores como 12.50%, 7.25% (essencial para flexibilidade de descontos)
+minimumPurchase adicionado: Campo fundamental para regras como "válido para compras acima de R$ 100"
+timestamps com timezone: Necessário para manter horários corretos no Brasil (GMT-3)
+couponRedemptions: Nova tabela para sistema de validação de cupons
+
+APÓS FAZER AS CORREÇÕES:
+
+Salvar o arquivo shared/schema.ts
+Executar: npx drizzle-kit push
+Confirmar que aceita as mudanças (agora serão seguras)
+
+RESULTADO ESPERADO:
+
+Schema alinhado com necessidades do negócio
+Preservação de campos essenciais
+Criação da nova tabela coupon_redemptions
+Manutenção de tipos de dados apropriados para valores monetários e percentuais
+
+Tentar novamenteO Claude pode cometer erros. Confira sempre as respostas.Pesquisa Sonnet 4
