@@ -1,0 +1,86 @@
+ERRO CRÍTICO SISTÊMICO: ImageUpload quebrado em TODAS as páginas
+
+PROBLEMA: selectedImages está undefined na linha 259 de client/src/components/ui/image-upload.tsx
+
+CORREÇÃO IMEDIATA:
+
+1. ABRIR client/src/components/ui/image-upload.tsx
+
+2. LOCALIZAR a linha 259:
+```typescript
+...selectedImages.filter(img => img !== "__files_selected__"),
+
+SUBSTITUIR por versão segura:
+
+typescript...(selectedImages || []).filter(img => img !== "__files_selected__"),
+
+LOCALIZAR todas as outras ocorrências de selectedImages e proteger:
+
+PROCURAR e CORRIGIR estas linhas:
+
+selectedImages.length → (selectedImages || []).length
+selectedImages.filter → (selectedImages || []).filter
+selectedImages.map → (selectedImages || []).map
+[...selectedImages, ... → [...(selectedImages || []), ...
+
+
+ATUALIZAR a interface ImageUploadProps para tornar selectedImages opcional:
+
+typescriptinterface ImageUploadProps {
+  entityType: 'store' | 'product';
+  entityId: string | number;
+  storeId?: string | number;
+  multiple?: boolean;
+  selectedImages?: string[]; // ← ADICIONAR ? para tornar opcional
+  onChange: (images: string[]) => void;
+}
+
+ADICIONAR valor padrão no início do componente:
+
+typescriptconst ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
+  entityType,
+  entityId,
+  storeId,
+  multiple = true,
+  selectedImages = [], // ← ADICIONAR valor padrão
+  onChange
+}, ref) => {
+
+VERIFICAR se todos os componentes que usam ImageUpload estão passando selectedImages:
+
+
+add-product.tsx
+add-store.tsx
+edit-product.tsx
+store-detail.tsx (seller)
+
+EXEMPLO de uso correto:
+typescript<ImageUpload
+  entityType="product"
+  entityId="new"
+  multiple={true}
+  selectedImages={form.watch('images') || []} // ← Sempre passar array
+  onChange={(images) => form.setValue('images', images)}
+/>
+CRÍTICO: Todos os componentes devem passar selectedImages como array, nunca undefined.
+TESTE: Após corrigir, todas as páginas com upload devem funcionar.
+
+## 📋 CAUSA RAIZ DO PROBLEMA
+
+O componente `ImageUpload` foi atualizado para esperar `selectedImages` como prop obrigatória, mas alguns componentes que o usam não estão passando essa prop ou estão passando `undefined`.
+
+## 🎯 PÁGINAS AFETADAS
+
+Provavelmente todas que usam ImageUpload:
+- `/seller/products/add`
+- `/seller/stores/add`
+- `/seller/products/edit/:id`
+- `/seller/stores/:id/edit`
+
+## ⚡ CORREÇÃO RÁPIDA ALTERNATIVA
+
+Se preferir uma correção mais rápida, apenas adicione esta linha no início do componente ImageUpload:
+
+```typescript
+selectedImages = selectedImages || [];
+Isso resolve o problema imediatamente enquanto se corrige os outros componentes! 🚀
