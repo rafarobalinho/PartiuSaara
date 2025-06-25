@@ -1,0 +1,71 @@
+=== PARTE 2: BACKEND - STORAGE ===
+Adicionar em server/storage.ts na interface IStorage:
+typescript// Coupon redemption operations
+redeemCoupon(couponId: number, customerData: { name?: string, phone?: string }): Promise<{ validationCode: string; redemption: CouponRedemption }>;
+validateCouponCode(validationCode: string, storeUserId: number): Promise<{ success: boolean; coupon?: any; message: string }>;
+getPendingRedemptions(storeId: number): Promise<CouponRedemption[]>;
+getRedemptionHistory(storeId: number): Promise<CouponRedemption[]>;
+Implementar na DatabaseStorage:
+typescriptasync redeemCoupon(couponId: number, customerData: { name?: string, phone?: string }) {
+  // Verificar se cupom existe e está ativo
+  const coupon = await this.getCoupon(couponId);
+  if (!coupon || !coupon.isActive) {
+    throw new Error('Cupom não encontrado ou inativo');
+  }
+
+  // Verificar limites de uso
+  if (coupon.maxUsageCount && coupon.usageCount >= coupon.maxUsageCount) {
+    throw new Error('Cupom esgotado');
+  }
+
+  // Gerar código de validação único
+  const validationCode = 'VAL-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+
+  // Criar resgate
+  const [redemption] = await db.insert(couponRedemptions).values({
+    couponId,
+    validationCode,
+    customerName: customerData.name,
+    customerPhone: customerData.phone
+  }).returning();
+
+  return { validationCode, redemption };
+}
+
+async validateCouponCode(validationCode: string, storeUserId: number) {
+  // Buscar resgate
+  const [redemption] = await db.select()
+    .from(couponRedemptions)
+    .innerJoin(coupons, eq(couponRedemptions.couponId, coupons.id))
+    .innerJoin(stores, eq(coupons.storeId, stores.id))
+    .where(
+      and(
+        eq(couponRedemptions.validationCode, validationCode),
+        eq(couponRedemptions.usedAt, null), // Ainda não usado
+        eq(stores.userId, storeUserId) // Verificar se é da loja do usuário
+      )
+    );
+
+  if (!redemption) {
+    return { success: false, message: 'Código inválido ou já utilizado' };
+  }
+
+  // Marcar como usado
+  await db.update(couponRedemptions)
+    .set({ 
+      usedAt: new Date(),
+      usedByStoreUserId: storeUserId 
+    })
+    .where(eq(couponRedemptions.id, redemption.coupon_redemptions.id));
+
+  // Incrementar contador do cupom
+  await db.update(coupons)
+    .set({ usageCount: redemption.coupons.usageCount + 1 })
+    .where(eq(coupons.id, redemption.coupons.id));
+
+  return { 
+    success: true, 
+    coupon: redemption.coupons,
+    message: 'Cupom validado com sucesso!' 
+  };
+}
