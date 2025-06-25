@@ -141,7 +141,7 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
         if (multiple) {
           setPendingFiles(prev => [...prev, ...validFiles]);
           setPreviewUrls(prev => [...prev, ...newPreviewUrls]);
-          onChange([...selectedImages, ...Array(validFiles.length).fill("__files_selected__")]);
+          onChange([...(selectedImages || []), ...Array(validFiles.length).fill("__files_selected__")]);
         } else {
           // Limpar previews anteriores
           previewUrls.forEach(url => URL.revokeObjectURL(url));
@@ -190,7 +190,7 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
 
       if (result.success && result.images) {
         const newImageUrls = result.images.map((img: any) => img.imageUrl || img.filename);
-        const updatedImages = multiple ? [...selectedImages, ...newImageUrls] : newImageUrls;
+        const updatedImages = multiple ? [...(selectedImages || []), ...newImageUrls] : newImageUrls;
 
         onChange(updatedImages);
 
@@ -234,7 +234,7 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
       onChange(newPlaceholders);
     } else {
       // Remover imagem já uploadada
-      const newImages = [...selectedImages];
+      const newImages = [...(selectedImages || [])];
       newImages.splice(index, 1);
       onChange(newImages);
     }
@@ -256,7 +256,7 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
 
   // ✅ COMBINAR IMAGENS REAIS + PREVIEWS PARA EXIBIÇÃO
   const allDisplayImages = [
-    ...selectedImages.filter(img => img !== "__files_selected__"),
+    ...(selectedImages || []).filter(img => img !== "__files_selected__"),
     ...previewUrls
   ];
 
@@ -311,9 +311,13 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
       </Button>
 
       {/* Preview das Imagens */}
-      {allDisplayImages.length > 0 && (
+      {(selectedImages || []).length === 0 && (
+        <p>Nenhuma imagem selecionada.</p>
+      )}
+
+      {(selectedImages || []).length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {allDisplayImages.map((imageUrl, index) => (
+          {(selectedImages || []).map((imageUrl, index) => (
             <div key={index} className="relative group">
               <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
                 <img
@@ -337,7 +341,7 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
               </button>
 
               {/* Badge para arquivos pendentes */}
-              {entityId === 'new' && index >= selectedImages.filter(img => img !== "__files_selected__").length && (
+              {entityId === 'new' && index >= (selectedImages || []).filter(img => img !== "__files_selected__").length && (
                 <div className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
                   Pendente
                 </div>
