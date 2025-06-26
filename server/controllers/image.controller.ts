@@ -128,16 +128,37 @@ const getProductImages = async (req: Request, res: Response) => {
 const getProductImage = async (req: Request, res: Response) => {
     try {
         const productId = parseInt(req.params.id, 10);
-        const imageId = parseInt(req.params.imageId, 10);
-        if (isNaN(productId) || isNaN(imageId)) return sendPlaceholder(res);
+        const imageParam = req.params.imageId;
 
-        const query = `
-            SELECT pi.filename, p.store_id
-            FROM product_images AS pi
-            JOIN products AS p ON pi.product_id = p.id
-            WHERE pi.id = $1 AND pi.product_id = $2;
-        `;
-        const result = await pool.query(query, [imageId, productId]);
+        if (isNaN(productId)) return sendPlaceholder(res);
+
+        // Verificar se é um ID numérico válido
+        const imageId = parseInt(imageParam, 10);
+
+        let query: string;
+        let queryParams: any[];
+
+        if (!isNaN(imageId) && imageId.toString() === imageParam && imageId <= 2147483647) {
+            // É um ID válido
+            query = `
+                SELECT pi.filename, p.store_id
+                FROM product_images AS pi
+                JOIN products AS p ON pi.product_id = p.id
+                WHERE pi.id = $1 AND pi.product_id = $2;
+            `;
+            queryParams = [imageId, productId];
+        } else {
+            // É um filename
+            query = `
+                SELECT pi.filename, p.store_id
+                FROM product_images AS pi
+                JOIN products AS p ON pi.product_id = p.id
+                WHERE pi.filename = $1 AND pi.product_id = $2;
+            `;
+            queryParams = [imageParam, productId];
+        }
+
+        const result = await pool.query(query, queryParams);
         if (result.rows.length === 0) return sendPlaceholder(res);
 
         const { filename, store_id } = result.rows[0];
@@ -145,10 +166,10 @@ const getProductImage = async (req: Request, res: Response) => {
 
         if (fs.existsSync(secureFilePath)) return res.sendFile(secureFilePath);
 
-        console.warn(`[INCONSISTÊNCIA] Arquivo de imagem específico não encontrado: ${secureFilePath}`);
+        console.warn(`[INCONSISTÊNCIA] Arquivo não encontrado: ${secureFilePath}`);
         return sendPlaceholder(res);
     } catch (error) {
-        console.error(`[ERRO] getProductImage (ID: ${req.params.imageId}):`, error);
+        console.error(`[ERRO] getProductImage (Param: ${req.params.imageId}):`, error);
         return sendPlaceholder(res);
     }
 };

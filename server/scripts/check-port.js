@@ -1,57 +1,19 @@
-
-<old_str>import { exec } from 'child_process';
-
-function checkPortAndStart(port = 5000) {
-  console.log(`Verificando se a porta ${port} está disponível...`);
-  
-  // Comando para encontrar processos usando a porta (funciona no Linux, incluindo o ambiente Replit)
-  const cmd = `lsof -i :${port} -t`;
-  
-  exec(cmd, (error, stdout, stderr) => {
-    if (stdout) {
-      const pids = stdout.trim().split('\n');
-      console.log(`Porta ${port} está em uso pelos processos: ${pids.join(', ')}`);
-      
-      // Mata os processos encontrados
-      pids.forEach(pid => {
-        console.log(`Terminando processo ${pid}...`);
-        try {
-          process.kill(parseInt(pid), 'SIGTERM');
-        } catch (e) {
-          console.log(`Não foi possível terminar o processo ${pid}: ${e.message}`);
-        }
-      });
-      
-      console.log(`Porta ${port} liberada com sucesso!`);
-    } else {
-      console.log(`Porta ${port} está disponível.`);
-    }
-  });
-}
-
-// Exporta a função para uso em outros arquivos
-export { checkPortAndStart };
-
-// Se for executado diretamente
-if (import.meta.url === import.meta.main) {
-  checkPortAndStart();
-}</old_str>
-<new_str>import { exec } from 'child_process';
+import { exec } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
 async function killPortProcesses(port = 5000) {
   console.log(`🔍 Verificando porta ${port}...`);
-  
+
   try {
     // Comando para encontrar processos usando a porta
     const { stdout } = await execAsync(`lsof -i :${port} -t`);
-    
+
     if (stdout.trim()) {
       const pids = stdout.trim().split('\n').filter(pid => pid);
       console.log(`🚫 Porta ${port} ocupada pelos processos: ${pids.join(', ')}`);
-      
+
       // Mata os processos encontrados
       for (const pid of pids) {
         try {
@@ -62,7 +24,7 @@ async function killPortProcesses(port = 5000) {
           console.log(`⚠️ Não foi possível terminar o processo ${pid}: ${e.message}`);
         }
       }
-      
+
       // Aguarda um momento para garantir que a porta seja liberada
       await new Promise(resolve => setTimeout(resolve, 1000));
       console.log(`🎉 Porta ${port} liberada com sucesso!`);
@@ -81,7 +43,7 @@ async function killPortProcesses(port = 5000) {
 
 async function checkAndKillPort(port = 5000) {
   await killPortProcesses(port);
-  
+
   // Verificação adicional para garantir que a porta está realmente livre
   try {
     const { stdout } = await execAsync(`lsof -i :${port} -t`);
@@ -114,4 +76,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error('❌ Erro durante verificação de porta:', error);
     process.exit(1);
   });
-}</new_str>
+}

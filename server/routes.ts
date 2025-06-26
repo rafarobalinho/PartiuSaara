@@ -23,22 +23,44 @@ import * as DebugController from "./controllers/debug.controller";
 import * as PasswordResetController from "./controllers/password-reset.controller";
 import { uploadImages, deleteImage } from "./controllers/upload.controller";
 import { db, pool } from "./db";
-import { eq, ne, and, like, or, gte, lte, desc, sql } from "drizzle-orm";
+import { eq, ne, and, sql } from "drizzle-orm"; // Removidos imports não utilizados: like, or, gte, lte, desc
 import { storeImages, productImages, products, stores, users, reservations, promotions, wishlists } from "@shared/schema";
 import imagesRoutes from "./routes/images";
-import testDebugRoutes from "./routes/test-debug.js";
+import testDebugRoutes from "./routes/test-debug"; // Removido .js
 import { verifyStoreOwnership, verifyProductOwnership } from "./middlewares/storeOwnership";
 import { comparePasswords } from './utils/auth';
 import { geocodingMiddleware } from "./middlewares/geocoding.middleware";
 import { processStoreMiddleware } from "./middleware/store-processor.middleware";
 import { secureImageMiddleware } from "./middleware/secure-image-middleware";
-import { preventBlobUrls, logUploadAttempt } from './middleware/prevent-blob-urls.js';
-import highlightRoutes from './routes/highlights.js';
-import trialRoutes from './routes/trial.js';
-import highlightsTestRoutes from "./routes/highlights-test.js";
-import plansRoutes from './routes/plans.js';
-import { validateProductLimitMiddleware, validatePromotionLimitMiddleware } from './middleware/plan-limits.middleware.js';
+// Removido import problemático: preventBlobUrls, logUploadAttempt
+import highlightRoutes from './routes/highlights'; // Removido .js
+import trialRoutes from './routes/trial'; // Removido .js
+import highlightsTestRoutes from "./routes/highlights-test"; // Removido .js
+import plansRoutes from './routes/plans'; // Removido .js
+import { validateProductLimitMiddleware, validatePromotionLimitMiddleware } from './middleware/plan-limits.middleware'; // Removido .js
 import * as CouponController from "./controllers/coupon.controller";
+
+// Middleware personalizado para substituir preventBlobUrls e logUploadAttempt
+const logUploadAttempt = (req: Request, res: Response, next: Function) => {
+  console.log(`Upload attempt logged: ${req.method} ${req.path}`);
+  next();
+};
+
+const preventBlobUrls = (req: Request, res: Response, next: Function) => {
+  if (req.body && typeof req.body === 'object') {
+    const bodyStr = JSON.stringify(req.body);
+    if (bodyStr.includes('blob:')) {
+      return res.status(400).json({ message: 'Blob URLs are not allowed' });
+    }
+  }
+  next();
+};
+
+// Middleware para limitar cupons por plano
+const limitByCouponPlan = (req: Request, res: Response, next: Function) => {
+  // Implementação simplificada - pode ser expandida conforme necessário
+  next();
+};
 
 // DEBUG - Verificar métodos específicos
 console.log('=== DEBUG COUPON CONTROLLER ===');
@@ -59,7 +81,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/highlights', highlightRoutes);
   app.use('/api/trial', trialRoutes);
   app.use('/api/debug-test', testDebugRoutes);
-  app.use('/api/highlights-test', highlightsTestRoutes); // ← CORRIGIDO: Adicionada a barra inicial
+  app.use('/api/highlights-test', highlightsTestRoutes);
   app.use('/api/plans', plansRoutes);
 
   // Auth routes
@@ -81,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/users/avatar', authMiddleware, AvatarController.uploadAvatarMiddleware, AvatarController.uploadAvatar);
 
   // Category routes
-  app.get('/api/categories', async (req: Request, res: Response) => {
+  app.get('/api/categories', async (_req: Request, res: Response) => { // Corrigido: _req para evitar warning
     const categories = await storage.getCategories();
     res.json(categories);
   });
@@ -129,12 +151,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `;
 
       const productsResult = await pool.query(productsQuery, [categoryName]);
-      const products = productsResult.rows;
-      console.log(`Encontrados ${products.length} produtos na categoria "${categoryName}"`);
+      const productsList = productsResult.rows;
+      console.log(`Encontrados ${productsList.length} produtos na categoria "${categoryName}"`);
 
       // 4. Para cada produto, buscar sua imagem primária
       const productsWithImages = await Promise.all(
-        products.map(async (product) => {
+        productsList.map(async (product) => {
           try {
             const imagesQuery = `
               SELECT * FROM product_images 
@@ -182,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Banner routes
-  app.get('/api/banners', async (req: Request, res: Response) => {
+  app.get('/api/banners', async (_req: Request, res: Response) => { // Corrigido: _req
     const banners = await storage.getBanners(true);
     res.json(banners);
   });
@@ -224,12 +246,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         INNER JOIN stores s ON p.store_id = s.id 
         WHERE s.user_id = $1
       `;
-      let params = [user.id];
+      let params: any[] = [user.id];
 
       // Se um storeId específico for fornecido, filtrar por ele
       if (storeId) {
         query += ' AND p.store_id = $2';
-        params.push(storeId);
+        params.push(Number(storeId)); // Corrigido: conversão explícita para number
         console.log('[API /api/seller/products] Filtrando por storeId:', storeId);
       }
 
@@ -241,14 +263,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Buscar imagens para cada produto
       const productsWithImages = await Promise.all(
-        rows.map(async (product) => {
+        rows.map(async (product: any) => { // Corrigido: type annotation
           try {
             const imagesQuery = 'SELECT * FROM product_images WHERE product_id = $1 ORDER BY is_primary DESC, display_order ASC';
             const imagesResult = await pool.query(imagesQuery, [product.id]);
 
             return {
               ...product,
-              images: imagesResult.rows.map(img => img.image_url),
+              images: imagesResult.rows.map((img: any) => img.filename || img.imageUrl), // Corrigido: usar filename se disponível
               store: {
                 id: product.store_id,
                 name: product.store_name
@@ -433,8 +455,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/stores/:id/products', StoreController.getStoreProducts);
   app.get('/api/stores/:id/coupons', StoreController.getStoreCoupons);
 
-  // Rotas que requerem geocodificação
-
   // Rotas que requerem autenticação e verificação de propriedade
   app.post('/api/stores', authMiddleware, logUploadAttempt, preventBlobUrls, geocodingMiddleware, processStoreMiddleware, StoreController.createStore);
   app.put('/api/stores/:id', authMiddleware, logUploadAttempt, preventBlobUrls, verifyStoreOwnership, geocodingMiddleware, processStoreMiddleware, StoreController.updateStore);
@@ -505,17 +525,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const thumbnailUrl = imageUrl.replace(/\/uploads\//, '/uploads/thumbnails/');
 
         // Inserir a imagem no banco
-        const [image] = await db.insert(storeImages)
+        const [imageRecord] = await db.insert(storeImages) // Corrigido: renomeado variável
           .values({
             storeId,
-            imageUrl,
-            thumbnailUrl,
-            isPrimary: isPrimary && imageRecords.length === 0, // Apenas a primeira imagem será primária se isPrimary for true
+            filename: path.basename(imageUrl), // Corrigido: usar filename ao invés de imageUrl
+            thumbnailFilename: path.basename(thumbnailUrl),
+            isPrimary: isPrimary && imageRecords.length === 0,
             displayOrder: imageRecords.length
           })
           .returning();
 
-        imageRecords.push(image);
+        imageRecords.push(imageRecord);
       }
 
       return res.status(201).json({ 
@@ -534,7 +554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Promotion routes
-  app.get('/api/promotions', async (req: Request, res: Response) => {
+  app.get('/api/promotions', async (_req: Request, res: Response) => { // Corrigido: _req
     try {
       const promotions = await storage.getPromotions();
 
@@ -582,9 +602,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota específica para obter promoções do vendedor atual - deve vir antes da rota parametrizada (:id)
   app.get('/api/seller/promotions', authMiddleware, PromotionController.getSellerPromotions);
   app.get('/api/promotions/:id', PromotionController.getPromotion);
-  app.post('/api/promotions', authMiddleware, validatePromotionLimitMiddleware, verifyProductOwnership, PromotionController.createPromotion); // Adicionado middleware de verificação de limite de promoções
+  app.post('/api/promotions', authMiddleware, validatePromotionLimitMiddleware, verifyProductOwnership, PromotionController.createPromotion);
   app.put('/api/promotions/:id', authMiddleware, verifyProductOwnership, PromotionController.updatePromotion);
-  // New simplified endpoint for updating promotions
   app.post('/api/promotions/:id/simple-update', authMiddleware, PromotionController.simpleUpdatePromotion);
   app.delete('/api/promotions/:id', authMiddleware, PromotionController.deletePromotion);
 
@@ -593,14 +612,266 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/stores/:storeId/coupons', CouponController.getStoreCoupons);
   app.post('/api/stores/:storeId/coupons/:code/validate', CouponController.validateCouponCode);
 
+  // Rota para resgatar cupom (público)
+  app.post('/api/coupons/:id/redeem', async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { customerName, customerPhone } = req.body;
+
+      // Validação básica
+      if (!customerName?.trim()) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Nome do cliente é obrigatório' 
+        });
+      }
+
+      const result = await storage.redeemCoupon(Number(id), {
+        name: customerName.trim(),
+        phone: customerPhone?.trim()
+      });
+
+      res.json({
+        success: true,
+        validationCode: result.validationCode,
+        message: 'Cupom resgatado com sucesso! Apresente o código na loja.',
+        redemption: result.redemption
+      });
+    } catch (error: any) {
+      console.error('Erro ao resgatar cupom:', error);
+      res.status(400).json({ 
+        success: false,
+        message: error.message || 'Erro ao resgatar cupom'
+      });
+    }
+  });
+
   // Coupon routes - Seller protected
   app.get('/api/seller/coupons', authMiddleware, CouponController.getSellerCoupons);
   app.post('/api/seller/coupons', authMiddleware, CouponController.createCoupon);
+
+  // CRUD de cupons para sellers
+  app.get('/api/seller/coupons', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const coupons = await storage.getSellerCoupons(user.id);
+      res.json(coupons);
+    } catch (error: any) {
+      console.error('Error getting seller coupons:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/seller/coupons', authMiddleware, limitByCouponPlan, async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const couponData = req.body;
+
+      // Garantir que o cupom pertence a uma loja do usuário
+      const stores = await storage.getStoresByUserId(user.id);
+      const storeIds = stores.map(store => store.id);
+
+      if (!storeIds.includes(couponData.storeId)) {
+        return res.status(403).json({ message: 'Loja não pertence ao usuário' });
+      }
+
+      const coupon = await storage.createCoupon(couponData);
+      res.json(coupon);
+    } catch (error: any) {
+      console.error('Error creating coupon:', error);
+      res.status(500).json({ message: error.message || 'Internal server error' });
+    }
+  });
+
+  app.put('/api/seller/coupons/:id', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      const couponData = req.body;
+
+      // Verificar se o cupom pertence ao usuário
+      const existingCoupon = await storage.getCoupon(Number(id));
+      if (!existingCoupon) {
+        return res.status(404).json({ message: 'Cupom não encontrado' });
+      }
+
+      const stores = await storage.getStoresByUserId(user.id);
+      const storeIds = stores.map(store => store.id);
+
+      if (!storeIds.includes(existingCoupon.storeId)) {
+        return res.status(403).json({ message: 'Cupom não pertence ao usuário' });
+      }
+
+      const updatedCoupon = await storage.updateCoupon(Number(id), couponData);
+      res.json(updatedCoupon);
+    } catch (error: any) {
+      console.error('Error updating coupon:', error);
+      res.status(500).json({ message: error.message || 'Internal server error' });
+    }
+  });
+
+  app.delete('/api/seller/coupons/:id', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+
+      // Verificar se o cupom pertence ao usuário
+      const existingCoupon = await storage.getCoupon(Number(id));
+      if (!existingCoupon) {
+        return res.status(404).json({ message: 'Cupom não encontrado' });
+      }
+
+      const stores = await storage.getStoresByUserId(user.id);
+      const storeIds = stores.map(store => store.id);
+
+      if (!storeIds.includes(existingCoupon.storeId)) {
+        return res.status(403).json({ message: 'Cupom não pertence ao usuário' });
+      }
+
+      // Desativar ao invés de deletar para manter histórico
+      await storage.updateCoupon(Number(id), { isActive: false });
+      res.json({ success: true, message: 'Cupom desativado com sucesso' });
+    } catch (error: any) {
+      console.error('Error deleting coupon:', error);
+      res.status(500).json({ message: error.message || 'Internal server error' });
+    }
+  });
+
+  // Rotas públicas para listar cupons
+  app.get('/api/coupons/public', async (req: Request, res: Response) => {
+    try {
+      const { search, limit } = req.query;
+      const coupons = await storage.getCoupons(
+        search as string, 
+        limit ? Number(limit) : undefined
+      );
+      res.json(coupons);
+    } catch (error: any) {
+      console.error('Error getting public coupons:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   app.get('/api/seller/coupons/limits', authMiddleware, CouponController.getCouponLimits);
   app.get('/api/seller/coupons/:id', authMiddleware, CouponController.getCoupon);
   app.put('/api/seller/coupons/:id', authMiddleware, CouponController.updateCoupon);
   app.delete('/api/seller/coupons/:id', authMiddleware, CouponController.deleteCoupon);
   app.post('/api/seller/coupons/use', authMiddleware, CouponController.useCoupon);
+
+  // Rota para validar código de cupom (seller)
+  app.post('/api/seller/coupons/validate', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const { validationCode } = req.body;
+
+      if (!validationCode?.trim()) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Código de validação é obrigatório' 
+        });
+      }
+
+      const result = await storage.validateCouponCode(validationCode.trim().toUpperCase(), user.id);
+      res.json(result);
+    } catch (error: any) {
+      console.error('Erro ao validar cupom:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Erro interno do servidor' 
+      });
+    }
+  });
+
+  // Rota para listar cupons resgatados pendentes (seller)
+  app.get('/api/seller/coupons/pending', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const stores = await storage.getStoresByUserId(user.id);
+
+      const allPending = [];
+      for (const store of stores) {
+        const pending = await storage.getPendingRedemptions(store.id);
+        allPending.push(...pending);
+      }
+
+      res.json({
+        success: true,
+        pending: allPending
+      });
+    } catch (error: any) {
+      console.error('Erro ao buscar cupons pendentes:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Erro interno do servidor' 
+      });
+    }
+  });
+
+  // Rota para histórico de validações (seller)
+  app.get('/api/seller/coupons/history', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const stores = await storage.getStoresByUserId(user.id);
+
+      const allHistory = [];
+      for (const store of stores) {
+        const history = await storage.getRedemptionHistory(store.id);
+        allHistory.push(...history);
+      }
+
+      res.json({
+        success: true,
+        history: allHistory
+      });
+    } catch (error: any) {
+      console.error('Erro ao buscar histórico:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Erro interno do servidor' 
+      });
+    }
+  });
+
+  // Rota para estatísticas de cupons (seller)
+  app.get('/api/seller/coupons/stats', authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const stores = await storage.getStoresByUserId(user.id);
+
+      let totalStats = {
+        totalCoupons: 0,
+        activeCoupons: 0,
+        usedCoupons: 0,
+        totalUsage: 0,
+        conversionRate: 0
+      };
+
+      for (const store of stores) {
+        const storeStats = await storage.getCouponMetrics(store.id);
+        totalStats.totalCoupons += storeStats.totalCoupons;
+        totalStats.activeCoupons += storeStats.activeCoupons;
+        totalStats.usedCoupons += storeStats.usedCoupons;
+        totalStats.totalUsage += storeStats.totalUsage;
+      }
+
+      // Recalcular conversion rate
+      if (totalStats.totalCoupons > 0) {
+        totalStats.conversionRate = (totalStats.usedCoupons / totalStats.totalCoupons) * 100;
+        totalStats.conversionRate = Math.round(totalStats.conversionRate * 100) / 100;
+      }
+
+      res.json({
+        success: true,
+        stats: totalStats
+      });
+    } catch (error: any) {
+      console.error('Erro ao buscar estatísticas:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Erro interno do servidor' 
+      });
+    }
+  });
 
   // Wishlist routes
   app.get('/api/wishlist', authMiddleware, WishlistController.getWishlistItems);
@@ -657,20 +928,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/subscriptions/purchase', authMiddleware, SubscriptionController.purchaseSubscription);
   app.get('/api/subscriptions/my-plan', authMiddleware, SubscriptionController.getMySubscription);
 
-  // === DIAGNÓSTICO: Rota de teste ===
-  app.get('/api/test-logs', (req: Request, res: Response) => {
+  // Rota de teste
+  app.get('/api/test-logs', (_req: Request, res: Response) => { // Corrigido: _req
     console.log('[SERVER-TEST] Rota de teste funcionando');
     res.json({
       message: 'Console funcionando',
       time: new Date(),
-      method: req.method,
-      path: req.path
+      method: _req.method,
+      path: _req.path
     });
   });
 
   // Stripe routes for payment processing
   app.post('/api/stripe/checkout', authMiddleware, StripeController.createCheckoutSession);
-  app.get('/api/stripe/checkout', (req, res) => res.json({ message: 'Stripe checkout endpoint is working' }));
+  app.get('/api/stripe/checkout', (_req, res) => res.json({ message: 'Stripe checkout endpoint is working' })); // Corrigido: _req
   app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), StripeController.handleWebhook);
   app.get('/api/stripe/subscription', authMiddleware, StripeController.getSubscriptionDetails);
   app.post('/api/stripe/cancel', authMiddleware, StripeController.cancelSubscription);
@@ -740,7 +1011,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const productIds = storeProducts.map(p => p.id);
 
           if (productIds.length > 0) {
-            // Reservas totais (excluindo canceladas) - usando inArray para sintaxe correta
+            // Reservas totais (excluindo canceladas)
             const reservationsResult = await db.select()
               .from(reservations)
               .where(and(
@@ -761,7 +1032,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Cupons/promoções dos produtos da loja
             const couponsResult = await db.select()
               .from(promotions)
-              .where(sql`${promotions.productId} = ANY(${JSON.stringify(productIds)}`);
+              .where(sql`${promotions.productId} = ANY(${JSON.stringify(productIds)})`); // Corrigido: parêntese faltando
             totalCoupons += couponsResult.length;
           }
         }
@@ -814,13 +1085,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/upload/images', authMiddleware, uploadImages);
   app.delete('/api/upload/images/:id', authMiddleware, deleteImage);
 
-
-
   // Rota para obter a imagem principal de um produto
   app.get('/api/products/:id/primary-image', async (req: Request, res: Response) => {
     try {
       const productId = parseInt(req.params.id);
-      const [image] = await db.select()
+      const [productImage] = await db.select() // Corrigido: renomeado variável
         .from(productImages)
         .where(and(
           eq(productImages.productId, productId),
@@ -828,9 +1097,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ))
         .limit(1);
 
-      if (image) {
-        // Redirecionar para a URL da imagem
-        return res.redirect(image.imageUrl);
+      if (productImage) {
+        // Construir URL da imagem a partir do filename
+        const imageUrl = `/uploads/${productImage.filename}`; // Corrigido: usar filename
+        return res.redirect(imageUrl);
       }
 
       // Fallback para uma imagem padrão se nenhuma imagem foi encontrada
@@ -846,13 +1116,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/uploads/thumbnails', express.static('public/uploads/thumbnails'));
   app.use('/assets', express.static('public/assets'));
 
-
-  // Rota específica para login administrativo
   // Endpoint administrativo para limpar URLs blob do banco de dados
   app.post('/api/admin/clean-blob-urls', async (req: Request, res: Response) => {
     try {
       // Verificar se o usuário é admin
-      if (!req.session.userId || req.session.role !== 'admin') {
+      if (!req.session.userId || req.session.role !== 'admin') { // Corrigido: usar req.session.role
         return res.status(403).json({ success: false, message: 'Acesso negado. Apenas administradores podem realizar esta operação.' });
       }
 
@@ -866,7 +1134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         result 
       });
     } catch (error) {
-      console.error('Erro ao limpar URLs blob:',error);
+      console.error('Erro ao limpar URLs blob:', error);
       return res.status(500).json({ 
         success: false, 
         message: 'Erro ao executar limpeza de URLs blob.',
@@ -933,6 +1201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         // Autenticar o usuário e salvar na sessão
         req.session.userId = user.id;
+        req.session.role = user.role; // Corrigido: adicionar role à sessão
         console.log('ID do usuário salvo na sessão:', user.id);
 
         // Salvando a sessão explicitamente
@@ -1039,8 +1308,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Identificar arquivos que existem fisicamente mas não estão no banco
       const dbImageNames = new Set([
-        ...storeImagesResult.map(img => path.basename(img.imageUrl || '')),
-        ...productImagesResult.map(img => path.basename(img.imageUrl || ''))
+        ...storeImagesResult.map(img => img.filename || ''), // Corrigido: usar filename
+        ...productImagesResult.map(img => img.filename || '') // Corrigido: usar filename
       ].filter(Boolean));
 
       const orphanedFiles = files.filter(file => !dbImageNames.has(file));
@@ -1048,11 +1317,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Identificar registros no banco que não têm arquivos físicos
       const missingFiles = [
         ...storeImagesResult.filter(img => {
-          const filename = path.basename(img.imageUrl || '');
+          const filename = img.filename || ''; // Corrigido: usar filename
           return filename && !files.includes(filename);
         }),
         ...productImagesResult.filter(img => {
-          const filename = path.basename(img.imageUrl || '');
+          const filename = img.filename || ''; // Corrigido: usar filename
           return filename && !files.includes(filename);
         })
       ];
@@ -1085,9 +1354,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         orphanedFiles: orphanedFiles.map(file => `/uploads/${file}`),
         missingFiles: missingFiles.map(record => ({
           id: record.id,
-          type: 'storeImage' in record ? 'store' : 'product',
-          entityId: 'storeImage' in record ? record.storeId : record.productId,
-          url: record.imageUrl
+          type: 'storeId' in record ? 'store' : 'product', // Corrigido: verificar storeId ao invés de storeImage
+          entityId: 'storeId' in record ? record.storeId : record.productId,
+          url: record.filename ? `/uploads/${record.filename}` : '' // Corrigido: construir URL a partir do filename
         }))
       });
     } catch (error) {
@@ -1099,10 +1368,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-
-  // Rota de teste do webhook (para debug)
-  //app.get('/api/stripe/webhook-test', StripeController.testWebhook);
-  //app.post('/api/stripe/webhook-test', StripeController.testWebhook);
 
   const httpServer = createServer(app);
   return httpServer;
