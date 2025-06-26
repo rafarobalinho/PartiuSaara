@@ -1,5 +1,5 @@
 // ARQUIVO: client/src/pages/seller/products/add-product.tsx
-// 🚀 CORREÇÃO COMPLETA: Formulário completo + upload em duas etapas
+// ✅ ARQUIVO COMPLETO CORRIGIDO - COM UPLOAD EM DUAS ETAPAS
 
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/context/auth-context';
@@ -28,6 +28,11 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 
+// ✅ INTERFACE PARA REF DO IMAGEUPLOAD
+interface ImageUploadRef {
+  uploadPendingFiles: (newEntityId: string | number) => Promise<{success: boolean, error?: string}>;
+}
+
 // ✅ SCHEMA CORRIGIDO COM TIPOS CORRETOS
 const productSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres"),
@@ -40,6 +45,7 @@ const productSchema = z.object({
   brand: z.string().optional(),
   isActive: z.boolean().default(true),
   images: z.array(z.string()).optional().transform((arr) => {
+    // ✅ FILTRAR PLACEHOLDERS ANTES DE ENVIAR AO BACKEND
     return arr?.filter(img => img !== "__files_selected__") || [];
   }),
 });
@@ -53,14 +59,14 @@ const CATEGORIES = [
 type ProductFormValues = z.infer<typeof productSchema>;
 
 export default function AddProduct() {
-  const { isAuthenticated, isSeller } = useAuth(); // ← REMOVIDO 'user' não utilizado
+  const { isAuthenticated, isSeller } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ✅ REF PARA CONTROLAR O IMAGEUPLOAD
-  const imageUploadRef = useRef<any>(null);
+  const imageUploadRef = useRef<ImageUploadRef>(null);
 
   useEffect(() => {
     if (!isAuthenticated) navigate('/login');
@@ -103,7 +109,7 @@ export default function AddProduct() {
 
   // ✅ MUTAÇÃO PARA CRIAR PRODUTO (PRIMEIRA ETAPA)
   const createProductMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Omit<ProductFormValues, 'images'>) => {
       console.log('📦 ETAPA 1: Criando produto sem imagens...', data);
       const response = await apiRequest('POST', '/api/products', data);
       const result = await response.json();
@@ -115,15 +121,30 @@ export default function AddProduct() {
       return result;
     },
     onSuccess: async (result) => {
-      console.log('✅ ETAPA 1 CONCLUÍDA: Produto criado com ID', result.id);
+      // ✅ CORREÇÃO: Baseado no seu product.controller.ts que retorna { product: result.rows[0] }
+      const productId = result.product?.id;
 
-      // ✅ ETAPA 2: FAZER UPLOAD DAS IMAGENS SE HOUVER ARQUIVOS PENDENTES
+      console.log('✅ ETAPA 1 CONCLUÍDA: Produto criado com ID', productId);
+
+      // ✅ VALIDAÇÃO: Certificar que recebemos o ID
+      if (!productId) {
+        console.error('❌ ERRO: ID do produto não retornado', result);
+        toast({ 
+          title: 'Erro inesperado', 
+          description: 'Produto criado mas ID não foi retornado pelo servidor.',
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // ✅ ETAPA 2: VERIFICAR SE EXISTEM ARQUIVOS PENDENTES PARA UPLOAD
       if (imageUploadRef.current?.uploadPendingFiles) {
         try {
-          setIsSubmitting(true);
-          console.log('📸 ETAPA 2: Fazendo upload das imagens...');
+          console.log('📸 ETAPA 2: Verificando se há imagens pendentes...');
 
-          const uploadResult = await imageUploadRef.current.uploadPendingFiles(result.id);
+          // Manter isSubmitting=true durante o upload das imagens
+          const uploadResult = await imageUploadRef.current.uploadPendingFiles(productId);
 
           if (uploadResult.success) {
             console.log('✅ ETAPA 2 CONCLUÍDA: Imagens enviadas com sucesso');
@@ -132,10 +153,10 @@ export default function AddProduct() {
               description: 'Produto e imagens adicionados com sucesso.' 
             });
           } else {
-            console.warn('⚠️ ETAPA 2 FALHOU: Erro no upload das imagens', uploadResult.error);
+            console.warn('⚠️ ETAPA 2 FALHOU:', uploadResult.error);
             toast({ 
               title: 'Produto criado!', 
-              description: 'Produto criado, mas houve um problema com o upload das imagens.',
+              description: 'Produto criado, mas houve um problema com as imagens: ' + (uploadResult.error || 'Erro desconhecido'),
               variant: "destructive"
             });
           }
@@ -148,35 +169,50 @@ export default function AddProduct() {
           });
         }
       } else {
-        console.log('ℹ️ ETAPA 2 PULADA: Nenhuma imagem selecionada');
-        toast({ title: 'Produto criado com sucesso!' });
+        console.log('ℹ️ ETAPA 2 PULADA: Nenhuma imagem selecionada ou ref não disponível');
+        toast({ 
+          title: 'Produto criado com sucesso!',
+          description: 'Produto adicionado sem imagens.'
+        });
       }
 
       // ✅ FINALIZAR: INVALIDAR CACHE E NAVEGAR
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stores/my-stores'] });
       navigate('/seller/products');
     },
     onError: (error: any) => {
       console.error('❌ ETAPA 1 FALHOU:', error);
       toast({ 
         title: 'Erro ao criar produto', 
-        description: error.message, 
+        description: error.message || 'Ocorreu um erro ao criar o produto.',
         variant: 'destructive' 
       });
     },
     onSettled: () => {
+      // ✅ IMPORTANTE: Sempre resetar o estado de loading no final
       setIsSubmitting(false);
     }
   });
 
+  // ✅ FUNÇÃO DE SUBMIT CORRIGIDA
   async function onSubmit(data: ProductFormValues) {
     try {
       setIsSubmitting(true);
 
-      // ✅ FORMATAÇÃO DOS DADOS PARA O BACKEND
+      // ✅ PREPARAR DADOS PARA O BACKEND (SEM IMAGENS)
       const productData = {
-        ...data,
-        images: [], // ← SEMPRE ARRAY VAZIO NA PRIMEIRA ETAPA
+        name: data.name,
+        description: data.description,
+        price: data.price,
+        discountedPrice: data.discountedPrice,
+        storeId: data.storeId,
+        category: data.category,
+        stock: data.stock,
+        brand: data.brand,
+        isActive: data.isActive,
+        // ✅ IMPORTANTE: Não enviar imagens na primeira etapa
+        // As imagens serão enviadas via uploadPendingFiles() após criação
       };
 
       console.log('🚀 INICIANDO CRIAÇÃO DE PRODUTO EM DUAS ETAPAS...');

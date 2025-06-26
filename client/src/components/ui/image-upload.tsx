@@ -1,5 +1,5 @@
 // ARQUIVO: client/src/components/ui/image-upload.tsx
-// 🚀 CORREÇÃO COMPLETA: SEM URLs BLOB + Upload em Duas Etapas
+// ✅ CORREÇÃO ESPECÍFICA: Separar preview de dados + upload em duas etapas
 
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // ✅ ESTADO PARA ARQUIVOS PENDENTES (para entityId="new")
+  // ✅ ESTADOS SEPARADOS PARA DUAS ETAPAS
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
@@ -44,7 +44,8 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
       }
 
       try {
-        console.log(`📸 Fazendo upload de ${pendingFiles.length} arquivo(s) para ${entityType} ${newEntityId}...`);
+        console.log(`📸 [DUAS-ETAPAS] Fazendo upload de ${pendingFiles.length} arquivo(s) para ${entityType} ${newEntityId}...`);
+        setIsUploading(true);
 
         const formData = new FormData();
         pendingFiles.forEach(file => {
@@ -68,24 +69,27 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
         if (result.success && result.images) {
           const imageUrls = result.images.map((img: any) => img.imageUrl || img.filename);
 
-          // Atualizar as imagens selecionadas com as URLs reais
+          // ✅ SUBSTITUIR PLACEHOLDERS POR URLs REAIS
           onChange(imageUrls);
 
-          // Limpar arquivos pendentes
+          // ✅ LIMPAR ESTADO TEMPORÁRIO
           setPendingFiles([]);
+          previewUrls.forEach(url => URL.revokeObjectURL(url));
           setPreviewUrls([]);
 
-          console.log(`✅ Upload concluído: ${result.images.length} imagem(ns)`);
+          console.log(`✅ [DUAS-ETAPAS] Upload concluído: ${result.images.length} imagem(ns)`);
           return { success: true };
         } else {
           throw new Error(result.message || 'Erro no upload');
         }
       } catch (error) {
-        console.error('❌ Erro no upload de arquivos pendentes:', error);
+        console.error('❌ [DUAS-ETAPAS] Erro no upload de arquivos pendentes:', error);
         return { 
           success: false, 
           error: error instanceof Error ? error.message : 'Erro desconhecido'
         };
+      } finally {
+        setIsUploading(false);
       }
     }
   }));
@@ -131,17 +135,22 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
         return;
       }
 
-      // ✅ CASO ESPECIAL: entityId="new" - ARMAZENAR ARQUIVOS E CRIAR PREVIEWS
+      // ✅ CASO ESPECIAL: entityId="new" - PREPARAR PARA UPLOAD POSTERIOR
       if (entityId === 'new') {
-        console.log(`📁 Preparando ${validFiles.length} arquivo(s) para upload posterior...`);
+        console.log(`📁 [DUAS-ETAPAS] Preparando ${validFiles.length} arquivo(s) para upload posterior...`);
 
-        // Criar previews para visualização
+        // ✅ CRIAR PREVIEWS PARA VISUALIZAÇÃO
         const newPreviewUrls = validFiles.map(file => URL.createObjectURL(file));
 
         if (multiple) {
+          // Adicionar aos arquivos e previews existentes
           setPendingFiles(prev => [...prev, ...validFiles]);
           setPreviewUrls(prev => [...prev, ...newPreviewUrls]);
-          onChange([...(selectedImages || []), ...Array(validFiles.length).fill("__files_selected__")]);
+
+          // ✅ ADICIONAR PLACEHOLDERS NO ARRAY DE DADOS
+          const newPlaceholders = Array(validFiles.length).fill("__files_selected__");
+          const currentImages = (selectedImages || []).filter(img => img !== "__files_selected__");
+          onChange([...currentImages, ...newPlaceholders]);
         } else {
           // Limpar previews anteriores
           previewUrls.forEach(url => URL.revokeObjectURL(url));
@@ -215,25 +224,38 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
 
   const removeImage = (index: number) => {
     if (entityId === 'new') {
-      // Remover arquivo pendente e preview
+      // ✅ REMOVER ARQUIVO PENDENTE E PREVIEW
       const newPendingFiles = [...pendingFiles];
       const newPreviewUrls = [...previewUrls];
 
-      if (newPreviewUrls[index]) {
-        URL.revokeObjectURL(newPreviewUrls[index]);
+      // Verificar se estamos removendo um preview ou uma imagem real
+      const realImagesCount = (selectedImages || []).filter(img => img !== "__files_selected__").length;
+
+      if (index >= realImagesCount) {
+        // Removendo um preview
+        const previewIndex = index - realImagesCount;
+        if (newPreviewUrls[previewIndex]) {
+          URL.revokeObjectURL(newPreviewUrls[previewIndex]);
+        }
+        newPendingFiles.splice(previewIndex, 1);
+        newPreviewUrls.splice(previewIndex, 1);
+
+        setPendingFiles(newPendingFiles);
+        setPreviewUrls(newPreviewUrls);
+
+        // Atualizar placeholders
+        const realImages = (selectedImages || []).filter(img => img !== "__files_selected__");
+        const newPlaceholders = Array(newPendingFiles.length).fill("__files_selected__");
+        onChange([...realImages, ...newPlaceholders]);
+      } else {
+        // Removendo uma imagem real
+        const newImages = (selectedImages || []).filter(img => img !== "__files_selected__");
+        newImages.splice(index, 1);
+        const placeholders = Array(pendingFiles.length).fill("__files_selected__");
+        onChange([...newImages, ...placeholders]);
       }
-
-      newPendingFiles.splice(index, 1);
-      newPreviewUrls.splice(index, 1);
-
-      setPendingFiles(newPendingFiles);
-      setPreviewUrls(newPreviewUrls);
-
-      // Atualizar placeholders
-      const newPlaceholders = Array(newPendingFiles.length).fill("__files_selected__");
-      onChange(newPlaceholders);
     } else {
-      // Remover imagem já uploadada
+      // ✅ REMOVER IMAGEM JÁ UPLOADADA
       const newImages = [...(selectedImages || [])];
       newImages.splice(index, 1);
       onChange(newImages);
@@ -255,10 +277,13 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
   };
 
   // ✅ COMBINAR IMAGENS REAIS + PREVIEWS PARA EXIBIÇÃO
-  const allDisplayImages = [
-    ...(selectedImages || []).filter(img => img !== "__files_selected__"),
-    ...previewUrls
-  ];
+  const getDisplayImages = () => {
+    // ✅ PROTEÇÃO CONTRA UNDEFINED
+    const realImages = (selectedImages || []).filter(img => img !== "__files_selected__");
+    return [...realImages, ...previewUrls];
+  };
+
+  const displayImages = getDisplayImages();
 
   return (
     <div className="space-y-4">
@@ -311,17 +336,17 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
       </Button>
 
       {/* Preview das Imagens */}
-      {(selectedImages || []).length === 0 && (
-        <p>Nenhuma imagem selecionada.</p>
+      {displayImages.length === 0 && (
+        <p className="text-sm text-gray-500 text-center py-4">Nenhuma imagem selecionada.</p>
       )}
 
-      {(selectedImages || []).length > 0 && (
+      {displayImages.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {(selectedImages || []).map((imageUrl, index) => (
+          {displayImages.map((imageUrl, index) => (
             <div key={index} className="relative group">
               <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
                 <img
-                  src={imageUrl}
+                  src={imageUrl} // ✅ AGORA USA URLs VÁLIDAS (reais ou blob)
                   alt={`Preview ${index + 1}`}
                   className="w-full h-full object-cover"
                   onError={(e) => {
@@ -361,7 +386,7 @@ const ImageUpload = forwardRef<ImageUploadRef, ImageUploadProps>(({
       )}
 
       {/* Limite de arquivos */}
-      {!multiple && allDisplayImages.length >= 1 && (
+      {!multiple && displayImages.length >= 1 && (
         <p className="text-sm text-gray-500">
           Máximo de 1 imagem permitida. Remova a atual para adicionar outra.
         </p>
