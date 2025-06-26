@@ -188,12 +188,21 @@ export const insertCouponRedemptionSchema = createInsertSchema(couponRedemptions
   createdAt: true
 });
 
-export const insertCouponSchema = createInsertSchema(coupons).omit({
+export const insertCouponSchema = createInsertSchema(coupons, {
+  // ✅ z.coerce converte automaticamente string → number e number → number
+  storeId: z.coerce.number().int().positive(),
+  discountPercentage: z.coerce.number().int().min(0).max(100).nullable().optional(),
+  discountAmount: z.coerce.number().positive().nullable().optional(),
+  maxUsageCount: z.coerce.number().int().positive().nullable().optional(),
+  minimumPurchase: z.coerce.number().positive().nullable().optional(),
+}).omit({
   id: true,
   usageCount: true,
   createdAt: true,
   updatedAt: true
 });
+
+console.log("✅ Schema de cupom corrigido com z.coerce carregado");
 
 // Wishlists schema
 export const wishlists = pgTable("wishlists", {
