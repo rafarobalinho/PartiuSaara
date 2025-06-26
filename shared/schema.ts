@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, numeric, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 
 // Definindo interfaces para estruturas complexas
 export interface StoreAddress {
@@ -59,7 +60,7 @@ export const stores = pgTable("stores", {
   name: text("name").notNull(),
   description: text("description"),
   category: text("category").notNull(),
-  tags: text("tags", { mode: 'array' }),
+  tags: text("tags").array(),
   rating: doublePrecision("rating").default(0),
   reviewCount: integer("review_count").default(0),
   isOpen: boolean("is_open").default(true),
@@ -188,19 +189,30 @@ export const insertCouponRedemptionSchema = createInsertSchema(couponRedemptions
   createdAt: true
 });
 
-export const insertCouponSchema = createInsertSchema(coupons, {
-  // ✅ z.coerce converte automaticamente string → number e number → number
-  storeId: z.coerce.number().int().positive(),
-  discountPercentage: z.coerce.number().int().min(0).max(100).nullable().optional(),
-  discountAmount: z.coerce.number().positive().nullable().optional(),
-  maxUsageCount: z.coerce.number().int().positive().nullable().optional(),
-  minimumPurchase: z.coerce.number().positive().nullable().optional(),
-}).omit({
-  id: true,
-  usageCount: true,
-  createdAt: true,
-  updatedAt: true
-});
+export const insertCouponSchema = z.object({
+  storeId: z.coerce.number().int().positive("Store ID deve ser um número positivo"),
+  code: z.string().min(1, "Código é obrigatório").max(50, "Código deve ter no máximo 50 caracteres"),
+  description: z.string().optional().nullable(),
+  discountAmount: z.coerce.number().positive().optional().nullable(),
+  discountPercentage: z.coerce.number().min(0).max(100).optional().nullable(),
+  minimumPurchase: z.coerce.number().min(0).optional().nullable(),
+  maxUsageCount: z.coerce.number().int().positive().optional().nullable(),
+  isActive: z.coerce.boolean().default(true),
+  startTime: z.coerce.date(),
+  endTime: z.coerce.date(),
+}).refine(
+  (data) => data.discountAmount !== null || data.discountPercentage !== null,
+  {
+    message: "Deve ser fornecido discountAmount ou discountPercentage",
+    path: ["discountPercentage"],
+  }
+).refine(
+  (data) => new Date(data.endTime) > new Date(data.startTime),
+  {
+    message: "Data de término deve ser posterior à data de início",
+    path: ["endTime"],
+  }
+);
 
 console.log("✅ Schema de cupom corrigido com z.coerce carregado");
 
@@ -255,12 +267,14 @@ export const categories = pgTable("categories", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   icon: text("icon").notNull(),
-  parentId: integer("parent_id").references(() => categories.id),
+  parentId: integer("parent_id"), // Remove .references por enquanto
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 
-export const insertCategorySchema = createInsertSchema(categories).omit({
+export const insertCategorySchema = createInsertSchema(categories, {
+  parentId: z.coerce.number().int().positive().optional().nullable(),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true
@@ -317,7 +331,10 @@ export const highlightImpressions = pgTable("highlight_impressions", {
   };
 });
 
-export const insertHighlightImpressionSchema = createInsertSchema(highlightImpressions).omit({
+export const insertHighlightImpressionSchema = createInsertSchema(highlightImpressions, {
+  storeId: z.coerce.number().int().positive(),
+  productId: z.coerce.number().int().positive().optional().nullable(),
+}).omit({
   id: true,
   timestamp: true
 });
@@ -328,7 +345,7 @@ export const highlightConfigurations = pgTable("highlight_configurations", {
   planType: text("plan_type").notNull().unique(), // "freemium", "start", "pro", "premium", "trial"
   weight: integer("weight").default(0), // Peso no algoritmo
   impressionPercentage: integer("impression_percentage").default(0), // % das impressões totais
-  sections: text("sections", { mode: 'array' }).default([]), // Seções onde pode aparecer
+  sections: text("sections").array().default(sql`'{}'::text[]`), // Seções onde pode aparecer
   rotationIntervalHours: integer("rotation_interval_hours").default(6), // Intervalo de rotação
   maxDailyImpressions: integer("max_daily_impressions").default(-1), // -1 = ilimitado
   isActive: boolean("is_active").default(true),
@@ -359,9 +376,12 @@ export const productImages = pgTable("product_images", {
   };
 });
 
-export const insertProductImageSchema = createInsertSchema(productImages).omit({
+export const insertProductImageSchema = createInsertSchema(productImages, {
+  productId: z.coerce.number().int().positive(),
+}).omit({
   id: true,
-  createdAt: true
+  createdAt: true,
+  updatedAt: true
 });
 
 // ✅ CORRIGIDO: Store Images schema - ESTRUTURA REAL DO BANCO
@@ -381,9 +401,12 @@ export const storeImages = pgTable("store_images", {
   };
 });
 
-export const insertStoreImageSchema = createInsertSchema(storeImages).omit({
+export const insertStoreImageSchema = createInsertSchema(storeImages, {
+  storeId: z.coerce.number().int().positive(),
+}).omit({
   id: true,
-  createdAt: true
+  createdAt: true,
+  updatedAt: true
 });
 
 export const passwordResetTokens = pgTable("password_reset_tokens", {

@@ -87,47 +87,55 @@ export async function getSellerCoupons(req: Request, res: Response) {
 
 // Create a new coupon (sellers only)
 export async function createCoupon(req: Request, res: Response) {
-  try {
-    sellerMiddleware(req, res, async () => {
-      const user = req.user!;
+ try {
+   sellerMiddleware(req, res, async () => {
+     const user = req.user!;
 
-      console.log("======= DADOS RECEBIDOS PARA CRIAÇÃO DE CUPOM =======");
-      console.log(JSON.stringify(req.body, null, 2));
-      console.log("===================================================");
+     console.log("======= DADOS RECEBIDOS PARA CRIAÇÃO DE CUPOM =======");
+     console.log(JSON.stringify(req.body, null, 2));
+     console.log("===================================================");
 
-      // 🔧 CORREÇÃO: Converter datas de string para Date ANTES da validação
-      const requestData = {
-        ...req.body,
-        userId: user.id, // 🛡️ SEGURANÇA: Adicionar user_id automaticamente
-        startTime: new Date(req.body.startTime),
-        endTime: new Date(req.body.endTime)
-      };
+     // 🔍 TESTE DEFINITIVO DO SCHEMA
+     console.log("🔍 TESTE SCHEMA:", insertCouponSchema);
+     console.log("🔍 SCHEMA SHAPE:", insertCouponSchema.shape);
+     console.log("🔍 DISCOUNT PERCENTAGE FIELD:", insertCouponSchema.shape?.discountPercentage);
 
-      console.log("======= DADOS APÓS CONVERSÃO DE DATA =======");
-      console.log('startTime convertido:', requestData.startTime);
-      console.log('endTime convertido:', requestData.endTime);
-      console.log("==========================================");
+     // 🔧 CORREÇÃO: Converter datas de string para Date ANTES da validação
+     const requestData = {
+       ...req.body,
+       userId: user.id, // 🛡️ SEGURANÇA: Adicionar user_id automaticamente
+       startTime: new Date(req.body.startTime),
+       endTime: new Date(req.body.endTime)
+     };
 
-      // Validate coupon data
-      const validationResult = insertCouponSchema.safeParse(requestData);
-      if (!validationResult.success) {
-        console.log("======= ERROS DE VALIDAÇÃO =======");
-        console.log(JSON.stringify(validationResult.error.errors, null, 2));
-        console.log("==================================");
+     console.log("======= DADOS APÓS CONVERSÃO DE DATA =======");
+     console.log('startTime convertido:', requestData.startTime);
+     console.log('endTime convertido:', requestData.endTime);
+     console.log("==========================================");
+     console.log("🔍 SCHEMA DEBUG:", typeof insertCouponSchema);
+     console.log("🔍 DADOS RECEBIDOS:", JSON.stringify(req.body, null, 2));
+     console.log("🔍 TIPO discountPercentage:", typeof req.body.discountPercentage);
 
-        return res.status(400).json({ 
-          message: 'Validation error', 
-          errors: validationResult.error.errors 
-        });
-      }
+     // Validate coupon data
+     const validationResult = insertCouponSchema.safeParse(requestData);
+     if (!validationResult.success) {
+       console.log("======= ERROS DE VALIDAÇÃO =======");
+       console.log(JSON.stringify(validationResult.error.errors, null, 2));
+       console.log("==================================");
 
-      const couponData = validationResult.data;
+       return res.status(400).json({ 
+         message: 'Validation error', 
+         errors: validationResult.error.errors 
+       });
+     }
 
-      // Verify the store belongs to the user
-      const store = await storage.getStore(couponData.storeId);
-      if (!store || store.userId !== user.id) {
-        return res.status(403).json({ message: 'Not authorized to create coupons for this store' });
-      }
+     const couponData = validationResult.data;
+
+     // Verify the store belongs to the user
+     const store = await storage.getStore(couponData.storeId);
+     if (!store || store.userId !== user.id) {
+       return res.status(403).json({ message: 'Not authorized to create coupons for this store' });
+     }
 
       // Check subscription plan limits
       const limitCheck = await checkCouponLimits(user.id, store);
