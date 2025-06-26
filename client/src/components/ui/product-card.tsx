@@ -38,7 +38,6 @@ interface Product {
   store?: {
     id: number;
     name: string;
-    id: number;
   };
   imageUrl?: string; // Adicionado imageUrl para a URL direta
 }
