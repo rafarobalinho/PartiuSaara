@@ -137,6 +137,9 @@ export default function AddCoupon() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // ARQUIVO: client/src/pages/seller/coupons/add-coupon.tsx
+  // ✅ CORREÇÃO na linha ~172 - handleSubmit
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -163,11 +166,14 @@ export default function AddCoupon() {
         discountPercentage: discountType === 'percentage' ? parseFloat(formData.discountPercentage) : null,
         discountAmount: discountType === 'amount' ? parseFloat(formData.discountAmount) : null,
         minimumPurchase: formData.minimumPurchase ? parseFloat(formData.minimumPurchase) : null,
-        maxUsage: formData.maxUsage ? parseInt(formData.maxUsage) : null,
+        // ✅ CORREÇÃO: maxUsage → maxUsageCount
+        maxUsageCount: formData.maxUsage ? parseInt(formData.maxUsage) : null,
         startTime: formData.startTime,
         endTime: formData.endTime,
         isActive: formData.isActive
       };
+
+      console.log('📤 Dados enviados para o servidor:', couponData);
 
       const response = await fetch('/api/seller/coupons', {
         method: 'POST',
@@ -187,6 +193,7 @@ export default function AddCoupon() {
         });
         navigate('/seller/coupons');
       } else {
+        console.error('❌ Erro do servidor:', result);
         toast({
           title: "Erro ao criar cupom",
           description: result.message || 'Erro desconhecido',
