@@ -1,4 +1,5 @@
 import { Switch, Route } from "wouter";
+import EditCoupon from '@/pages/seller/coupons/edit-coupon';
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
@@ -105,6 +106,7 @@ function Router() {
           {/* Coupon routes */}
           <Route path="/seller/coupons" component={SellerCoupons} />
           <Route path="/seller/coupons/add" component={AddCoupon} />
+          <Route path="/seller/coupons/:id/edit" component={EditCoupon} />
           <Route path="/seller/stores" component={SellerStores} />
           <Route path="/seller/stores/add-store" component={AddStore} />
           <Route path="/seller/stores/:id" component={StoreDetail} />

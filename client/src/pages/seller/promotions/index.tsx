@@ -20,6 +20,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+const getProductImageUrl = (product: Promotion['product']): string => {
+  if (product.imageUrl) return product.imageUrl;
+
+  if (product.images?.length > 0) {
+    const primaryImage = product.images.find(img => img.is_primary);
+    return primaryImage?.image_url || product.images[0]?.image_url || '/placeholder-product.png';
+  }
+
+  return '/placeholder-product.png';
+};
+
 interface Promotion {
   id: number;
   type: 'normal' | 'flash';
@@ -34,7 +45,17 @@ interface Promotion {
     name: string;
     price: number;
     discountedPrice?: number;
-    images: string[];
+    // ✅ CORRIGIDO: images agora é array de objetos, não strings
+    images: Array<{
+      id: number;
+      filename: string;
+      thumbnail_filename: string;
+      image_url: string;
+      thumbnail_url: string;
+      is_primary: boolean;
+    }>;
+    // ✅ ADICIONADO: imageUrl para compatibilidade
+    imageUrl?: string;
   };
 }
 
@@ -351,9 +372,13 @@ export default function SellerPromotions() {
                       <div className="flex items-center mb-2">
                         <div className="w-12 h-12 rounded-md overflow-hidden mr-3">
                           <img 
-                            src={promotion.product.images[0]} 
+                            src={getProductImageUrl(promotion.product)} 
                             alt={promotion.product.name} 
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = '/placeholder-product.png';
+                            }}
                           />
                         </div>
                         <div>

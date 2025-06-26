@@ -224,15 +224,43 @@ app.use((req, res, next) => {
     app.use(express.static(path.join(__dirname, 'public')));
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
+  // Function to try starting server on available port
+  async function startServer() {
+    const ports = [5000, 5001, 5002, 5003];
+    
+    for (const port of ports) {
+      try {
+        await new Promise((resolve, reject) => {
+          const serverInstance = server.listen({
+            port,
+            host: "0.0.0.0",
+            reusePort: true,
+          }, () => {
+            log(`🚀 Server running on port ${port}`);
+            resolve(serverInstance);
+          });
+          
+          serverInstance.on('error', (err: any) => {
+            if (err.code === 'EADDRINUSE') {
+              console.log(`⚠️ Port ${port} is busy, trying next port...`);
+              reject(err);
+            } else {
+              reject(err);
+            }
+          });
+        });
+        break; // Success, break the loop
+      } catch (error: any) {
+        if (error.code === 'EADDRINUSE' && port !== ports[ports.length - 1]) {
+          continue; // Try next port
+        } else {
+          console.error(`❌ Failed to start server: ${error.message}`);
+          console.log('💡 Try running: npm run kill-port');
+          process.exit(1);
+        }
+      }
+    }
+  }
+  
+  startServer();
 })();

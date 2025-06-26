@@ -3,6 +3,7 @@ import { storage } from '../storage';
 import { z } from 'zod';
 import { insertPromotionSchema } from '@shared/schema';
 import { sellerMiddleware, authMiddleware } from '../middleware/auth';
+import { pool } from '../db';
 
 // Get flash promotions
 export async function getFlashPromotions(req: Request, res: Response) {
@@ -127,95 +128,153 @@ export async function createPromotion(req: Request, res: Response) {
   }
 }
 
-// Get seller's promotions
+// Interface para tipagem das imagens
+interface ProductImage {
+  id: number;
+  filename: string;
+  thumbnail_filename: string;
+  image_url: string;
+  thumbnail_url: string;
+  is_primary: boolean;
+}
+
+// Get seller's promotions - VERSÃO CORRIGIDA E ROBUSTA
 export async function getSellerPromotions(req: Request, res: Response) {
   try {
     // Ensure user is authenticated and is a seller
     sellerMiddleware(req, res, async () => {
       const user = req.user!;
 
-      // Log para debug
       console.log(`[GET SELLER PROMOTIONS] Buscando promoções do vendedor ${user.id}`);
 
-      // Obter todas as lojas do vendedor
-      const stores = await storage.getUserStores(user.id);
+      // Usar consulta unificada similar aos outros controllers para consistência
+      const query = `
+        SELECT 
+          prom.id as promotion_id,
+          prom.type as promotion_type,
+          prom.discount_percentage,
+          prom.start_time,
+          prom.end_time,
+          prom.created_at as promotion_created_at,
+          prom.updated_at as promotion_updated_at,
+          p.id AS p_id,
+          p.name AS p_name,
+          p.description AS p_description,
+          p.category AS p_category,
+          p.price AS p_price,
+          p.discounted_price AS p_discounted_price,
+          p.stock AS p_stock,
+          p.store_id AS p_store_id,
+          s.name AS store_name,
+          pi.id AS pi_id,
+          pi.filename AS pi_filename,
+          pi.thumbnail_filename AS pi_thumbnail_filename,
+          pi.is_primary AS pi_is_primary
+        FROM 
+          promotions prom
+        INNER JOIN 
+          products p ON prom.product_id = p.id
+        INNER JOIN 
+          stores s ON p.store_id = s.id
+        LEFT JOIN 
+          product_images pi ON p.id = pi.product_id
+        WHERE 
+          s.user_id = $1
+        ORDER BY 
+          prom.created_at DESC, 
+          pi.is_primary DESC
+      `;
 
-      if (!stores || stores.length === 0) {
-        return res.json([]);
-      }
+      const result = await pool.query(query, [user.id]);
 
-      const storeIds = stores.map(store => store.id);
-      console.log(`[GET SELLER PROMOTIONS] IDs de lojas encontradas: ${storeIds.join(', ')}`);
+      console.log(`[GET SELLER PROMOTIONS] Encontradas ${result.rows.length} linhas de resultados`);
 
-      // Obter todos os produtos dessas lojas
-      const products = await storage.getStoresProducts(storeIds);
+      // Processar resultados usando Map para agrupar por promoção
+      const promotionsMap = new Map();
 
-      if (!products || products.length === 0) {
-        return res.json([]);
-      }
+      result.rows.forEach(row => {
+        const promotionId = row.promotion_id;
 
-      const productIds = products.map(product => product.id);
-      console.log(`[GET SELLER PROMOTIONS] IDs de produtos encontrados: ${productIds.join(', ')}`);
-
-      // Obter promoções para esses produtos
-      const promotions = await storage.getProductsPromotions(productIds);
-      console.log(`[GET SELLER PROMOTIONS] ${promotions.length} promoções encontradas`);
-
-      // Para cada promoção, obter os detalhes do produto e calcular preço com desconto
-      const promotionsWithProducts = await Promise.all(
-        promotions.map(async (promotion) => {
-          const product = await storage.getProduct(promotion.productId);
-
-          if (!product) {
-            return null;
-          }
-
+        // Se esta promoção ainda não foi processada, inicialize-a
+        if (!promotionsMap.has(promotionId)) {
           // Calcular preço com desconto
-          let discountedPrice = product.price;
-          if (promotion.discountPercentage) {
-            discountedPrice = product.price * (1 - (promotion.discountPercentage / 100));
-            // Arredondar para duas casas decimais
+          let discountedPrice = row.p_price;
+          if (row.discount_percentage) {
+            discountedPrice = row.p_price * (1 - (row.discount_percentage / 100));
             discountedPrice = Math.round(discountedPrice * 100) / 100;
           }
 
-          // Buscar a URL da imagem principal do produto
-          let imageUrl = null;
-          if (product.images && product.images.length > 0) {
-            imageUrl = product.images[0];
-          } else {
-            // Tentar buscar imagem diretamente do banco
-            const { pool } = await import('../db');
+          const promotion = {
+            id: promotionId,
+            productId: row.p_id,
+            type: row.promotion_type,
+            discountPercentage: row.discount_percentage,
+            startTime: row.start_time,
+            endTime: row.end_time,
+            createdAt: row.promotion_created_at,
+            updatedAt: row.promotion_updated_at,
+            promotionEndsAt: row.end_time,
+            product: {
+              id: row.p_id,
+              name: row.p_name,
+              description: row.p_description,
+              category: row.p_category,
+              price: row.p_price,
+              discountedPrice: discountedPrice,
+              stock: row.p_stock,
+              storeId: row.p_store_id,
+              images: [],
+              imageUrl: null
+            }
+          };
 
-            const imageQuery = `
-              SELECT pi.image_url
-              FROM product_images pi
-              WHERE pi.product_id = $1
-              ORDER BY pi.is_primary DESC, pi.display_order ASC, pi.id ASC
-              LIMIT 1
-            `;
+          promotionsMap.set(promotionId, promotion);
+        }
 
-            const imageResult = await pool.query(imageQuery, [product.id]);
-            if (imageResult.rows.length > 0) {
-              imageUrl = imageResult.rows[0].image_url;
+        // Adicionar imagem se existir
+        if (row.pi_id && row.pi_filename) {
+          const promotion = promotionsMap.get(promotionId);
+
+          // Verificar se esta imagem já foi adicionada
+          const imageExists = promotion.product.images.some(
+            (img: ProductImage) => img.id === row.pi_id
+          );
+
+          if (!imageExists) {
+            // Construir URLs seguras usando filename
+            const imageUrl = `/api/products/${row.p_id}/image/${row.pi_filename}`;
+            const thumbnailUrl = `/api/products/${row.p_id}/thumbnail/${row.pi_thumbnail_filename}`;
+
+            promotion.product.images.push({
+              id: row.pi_id,
+              filename: row.pi_filename,
+              thumbnail_filename: row.pi_thumbnail_filename,
+              image_url: imageUrl,
+              thumbnail_url: thumbnailUrl,
+              is_primary: row.pi_is_primary
+            });
+
+            // Definir imageUrl se for imagem principal
+            if (row.pi_is_primary) {
+              promotion.product.imageUrl = imageUrl;
             }
           }
+        }
+      });
 
-          // Adicionar o preço com desconto ao produto
-          const productWithDiscount = {
-            ...product,
-            discountedPrice: discountedPrice,
-            imageUrl: imageUrl // Adicionar URL da imagem
-          };
+      // Converter Map para array e garantir imageUrl para compatibilidade
+      const promotionsWithProducts = Array.from(promotionsMap.values()).map(promotion => {
+        // Se não tem imageUrl definida mas tem imagens, usar a primeira
+        if (!promotion.product.imageUrl && promotion.product.images.length > 0) {
+          promotion.product.imageUrl = promotion.product.images[0].image_url;
+        }
 
-          return { 
-            ...promotion, 
-            product: productWithDiscount,
-            promotionEndsAt: promotion.endTime
-          };
-        })
-      );
+        return promotion;
+      });
 
-      res.json(promotionsWithProducts.filter(Boolean));
+      console.log(`[GET SELLER PROMOTIONS] Retornando ${promotionsWithProducts.length} promoções processadas`);
+
+      res.json(promotionsWithProducts);
     });
   } catch (error) {
     console.error('Error getting seller promotions:', error);
@@ -401,8 +460,6 @@ export async function simpleUpdatePromotion(req: Request, res: Response) {
       let formattedEndTime = endTime ? new Date(endTime).toISOString() : promotion.endTime;
 
       // Using direct database query with snake_case column names
-      const { pool } = await import('../db');
-
       const query = `
         UPDATE promotions 
         SET 
@@ -494,7 +551,7 @@ export async function deletePromotion(req: Request, res: Response) {
       const now = new Date();
       const endDate = new Date(promotion.endTime);
       const isExpired = now > endDate;
-      
+
       if (isExpired) {
         console.log(`Excluindo promoção expirada ${id} (expirou em: ${endDate})`);
       } else {
