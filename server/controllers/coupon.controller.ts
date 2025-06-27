@@ -219,13 +219,41 @@ export async function updateCoupon(req: Request, res: Response) {
         return res.status(403).json({ message: 'Not authorized to update this coupon' });
       }
 
-      // 🔧 CORREÇÃO: Converter datas se fornecidas
+      // 🔧 CORREÇÃO: Converter datas se fornecidas e garantir que são objetos Date válidos no horário de Brasília
       const requestData = { ...req.body };
+
+      // Função para converter data para horário de Brasília
+      const convertToBrazilTime = (dateString: string): Date => {
+        const date = new Date(dateString);
+
+        // Se a data não tem timezone especificado, assumir que é horário de Brasília
+        if (!dateString.includes('Z') && !dateString.includes('+') && !dateString.includes('-')) {
+          // Adicionar 3 horas para compensar o fuso horário de Brasília (UTC-3)
+          return new Date(date.getTime() + (3 * 60 * 60 * 1000));
+        }
+
+        return date;
+      };
+
+      // Só adicionar datas se elas foram fornecidas e são válidas
       if (req.body.startTime) {
-        requestData.startTime = new Date(req.body.startTime);
+        const startDate = convertToBrazilTime(req.body.startTime);
+        if (!isNaN(startDate.getTime())) {
+          requestData.startTime = startDate;
+          console.log(`[Controller] Start time converted: ${req.body.startTime} -> ${startDate.toISOString()}`);
+        } else {
+          return res.status(400).json({ message: 'Data de início inválida' });
+        }
       }
+
       if (req.body.endTime) {
-        requestData.endTime = new Date(req.body.endTime);
+        const endDate = convertToBrazilTime(req.body.endTime);
+        if (!isNaN(endDate.getTime())) {
+          requestData.endTime = endDate;
+          console.log(`[Controller] End time converted: ${req.body.endTime} -> ${endDate.toISOString()}`);
+        } else {
+          return res.status(400).json({ message: 'Data de fim inválida' });
+        }
       }
 
       // Validate update data (partial validation)
