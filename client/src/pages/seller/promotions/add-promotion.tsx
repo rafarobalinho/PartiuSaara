@@ -673,7 +673,8 @@ export default function AddPromotion() {
                     <img 
                       src={`/api/products/${selectedProduct.id}/primary-image`} 
                       alt={selectedProduct.name}
-                      className="w-full h-40 object-cover"
+                      className="w-full h-full object-cover opacity-100 transition-opacity duration-300"
+                      loading="lazy"
                     />
                   </div>
 
