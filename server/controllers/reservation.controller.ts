@@ -27,9 +27,9 @@ interface Promotion {
 export async function clearCancelledReservations(req: Request, res: Response) {
   try {
     const user = req.user!;
-    
+
     console.log(`Limpando reservas canceladas para o usuário ${user.id}`);
-    
+
     // Executar query para excluir todas as reservas canceladas do usuário
     const result = await pool.query(
       `DELETE FROM reservations 
@@ -37,10 +37,10 @@ export async function clearCancelledReservations(req: Request, res: Response) {
        RETURNING id`,
       [user.id]
     );
-    
+
     const deletedCount = result.rowCount;
     console.log(`${deletedCount} reservas canceladas foram removidas`);
-    
+
     return res.status(200).json({
       success: true,
       message: `${deletedCount} reservas canceladas foram removidas`,
@@ -76,8 +76,8 @@ export async function getReservations(req: Request, res: Response) {
         p.store_id AS p_store_id,
         s.name AS store_name,
         pi.id AS pi_id,
-        pi.image_url AS pi_image_url,
-        pi.thumbnail_url AS pi_thumbnail_url,
+        pi.filename AS pi_filename,
+        pi.thumbnail_filename AS pi_thumbnail_filename,
         pi.is_primary AS pi_is_primary,
         pi.product_id AS pi_product_id,
         -- Dados de promoção para preservar o formato
@@ -114,12 +114,12 @@ export async function getReservations(req: Request, res: Response) {
     // Processe cada linha retornada do banco
     result.rows.forEach(row => {
       const reservationId = row.id;
-      
+
       // Se esta reserva ainda não foi processada, inicialize-a
       if (!reservationsMap.has(reservationId)) {
         // Verificar se o produto tem uma promoção ativa
         const hasPromotion = row.promotion_id ? true : false;
-        
+
         // Crie o objeto base da reserva
         const reservation = {
           id: row.id,
@@ -134,7 +134,7 @@ export async function getReservations(req: Request, res: Response) {
           product_id: row.p_id,
           product_name: row.p_name,
           product_price: row.p_price,
-          product_image: row.pi_is_primary ? row.pi_image_url : null,
+          product_image: row.pi_is_primary ? row.pi_filename : null,
           // Informações sobre promoção para formatação visual correta
           promotion: hasPromotion ? {
             id: row.promotion_id,
@@ -163,27 +163,27 @@ export async function getReservations(req: Request, res: Response) {
             images: []
           }
         };
-        
+
         reservationsMap.set(reservationId, reservation);
       }
-      
+
       // Adicione a imagem ao array de imagens do produto (se existir)
       if (row.pi_id) {
         const reservation = reservationsMap.get(reservationId);
-        
+
         // Verificar se a imagem pertence ao produto correto
         if (row.pi_product_id === row.p_id) {
           console.log(`Validando imagem: product_id=${row.p_id}, image.product_id=${row.pi_product_id}, store_id=${row.p_store_id}`);
-          
+
           // Verifique se esta imagem já foi adicionada
           const imageExists = reservation.product.images.some((img: ProductImage) => img.id === row.pi_id);
-          
+
           if (!imageExists) {
             // Usar caminho da API para imagens
             const secureImagePath = `/api/products/${row.p_id}/primary-image`;
-              
+
             const secureThumbnailPath = `/api/products/${row.p_id}/thumbnail`;
-              
+
             // Adicionar imagem ao produto com caminhos seguros
             reservation.product.images.push({
               id: row.pi_id,
@@ -193,7 +193,7 @@ export async function getReservations(req: Request, res: Response) {
               store_id: row.p_store_id,
               product_id: row.p_id
             });
-            
+
             // Ordene as imagens para que a imagem principal apareça primeiro
             reservation.product.images.sort((a: ProductImage, b: ProductImage) => {
               if (a.is_primary && !b.is_primary) return -1;
@@ -247,13 +247,13 @@ export async function getReservations(req: Request, res: Response) {
 export async function createReservation(req: Request, res: Response) {
   try {
     const user = req.user!;
-    
+
     // Validate request body
     const reservationSchema = z.object({
       productId: z.number(),
       quantity: z.number().optional()
     });
-    
+
     const validationResult = reservationSchema.safeParse(req.body);
     if (!validationResult.success) {
       return res.status(400).json({ 
@@ -261,26 +261,26 @@ export async function createReservation(req: Request, res: Response) {
         errors: validationResult.error.errors 
       });
     }
-    
+
     const { productId, quantity } = validationResult.data;
-    
+
     // Verify the product exists
     const product = await storage.getProduct(productId);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
-    
+
     // Check if product is in stock
     const productStock = product.stock || 0;
-    
+
     if (productStock <= 0) {
       return res.status(400).json({ message: 'Product is out of stock' });
     }
-    
+
     if (quantity && quantity > productStock) {
       return res.status(400).json({ message: 'Not enough stock available' });
     }
-    
+
     // Create the reservation
     const reservation = await storage.createReservation(user.id, productId, quantity);
 
@@ -297,8 +297,8 @@ export async function createReservation(req: Request, res: Response) {
         p.store_id AS p_store_id,
         s.name AS store_name,
         pi.id AS pi_id,
-        pi.image_url AS pi_image_url,
-        pi.thumbnail_url AS pi_thumbnail_url,
+        pi.filename AS pi_filename,
+        pi.thumbnail_filename AS pi_thumbnail_filename,
         pi.is_primary AS pi_is_primary,
         pi.product_id AS pi_product_id
       FROM 
@@ -314,7 +314,7 @@ export async function createReservation(req: Request, res: Response) {
     `;
 
     const result = await pool.query(query, [productId]);
-    
+
     // Se não temos resultados, retorne apenas a reserva
     if (result.rows.length === 0) {
       return res.status(201).json(reservation);
@@ -323,28 +323,30 @@ export async function createReservation(req: Request, res: Response) {
     // Prepare o objeto de reserva enriquecido
     const productInfo = result.rows[0];
     const store_id = productInfo.p_store_id;
-    
+
     // Filtrar imagens por produto correto e construir caminhos seguros
     const images = result.rows
       .filter(row => row.pi_id && row.pi_product_id === row.p_id)
       .map(row => {
         // Construir caminho de imagem seguro com isolamento de loja
-        const secureImagePath = `/api/products/${row.p_id}/primary-image`;
-          
-        const secureThumbnailPath = `/api/products/${row.p_id}/thumbnail`;
-          
+        const secureImagePath = `/api/products/${row.p_id}/image/${row.pi_filename}`;
+
+        const secureThumbnailPath = `/api/products/${row.p_id}/thumbnail/${row.pi_filename}`;
+
         console.log(`Criando reserva: imagem segura: ${secureImagePath} para produto ${row.p_id}`);
-        
+
         return {
           id: row.pi_id,
-          image_url: secureImagePath,
-          thumbnail_url: secureThumbnailPath,
+          filename: row.pi_filename,
+          thumbnail_filename: row.pi_thumbnail_filename,
+          image_url: `/api/products/${productId}/image/${row.pi_filename}`,
+          thumbnail_url: `/api/products/${productId}/thumbnail/${row.pi_filename}`,
           is_primary: row.pi_is_primary,
           store_id: store_id,
           product_id: row.p_id
         };
       });
-      
+
     // Ordene as imagens para que a principal venha primeiro
     images.sort((a, b) => {
       if (a.is_primary && !b.is_primary) return -1;
@@ -378,7 +380,7 @@ export async function createReservation(req: Request, res: Response) {
         images: images
       }
     };
-    
+
     res.status(201).json(enrichedReservation);
   } catch (error) {
     console.error('Error creating reservation:', error);
@@ -391,12 +393,12 @@ export async function updateReservationStatus(req: Request, res: Response) {
   try {
     const user = req.user!;
     const { id } = req.params;
-    
+
     // Validate request body
     const updateSchema = z.object({
       status: z.enum(['pending', 'completed', 'expired', 'cancelled'])
     });
-    
+
     const validationResult = updateSchema.safeParse(req.body);
     if (!validationResult.success) {
       return res.status(400).json({ 
@@ -404,15 +406,15 @@ export async function updateReservationStatus(req: Request, res: Response) {
         errors: validationResult.error.errors 
       });
     }
-    
+
     const { status } = validationResult.data;
-    
+
     // Get the reservation
     const reservation = await storage.getReservation(Number(id));
     if (!reservation) {
       return res.status(404).json({ message: 'Reservation not found' });
     }
-    
+
     // Check if this is the user's reservation
     if (reservation.userId !== user.id) {
       // If the user is a seller, check if they own the store with the product
@@ -421,7 +423,7 @@ export async function updateReservationStatus(req: Request, res: Response) {
         if (!product) {
           return res.status(404).json({ message: 'Product not found' });
         }
-        
+
         const store = await storage.getStore(product.storeId);
         if (!store || store.userId !== user.id) {
           return res.status(403).json({ message: 'Not authorized to modify this reservation' });
@@ -430,10 +432,10 @@ export async function updateReservationStatus(req: Request, res: Response) {
         return res.status(403).json({ message: 'Not authorized to modify this reservation' });
       }
     }
-    
+
     // Update the reservation status
     const updatedReservation = await storage.updateReservationStatus(Number(id), status);
-    
+
     // Se não conseguimos atualizar a reserva, retorna erro
     if (!updatedReservation) {
       return res.status(404).json({
@@ -441,7 +443,7 @@ export async function updateReservationStatus(req: Request, res: Response) {
         message: 'Reserva não encontrada ou não atualizada'
       });
     }
-    
+
     // Obter informações do produto para enriquecer a resposta com melhoria de segurança
     const query = `
       SELECT 
@@ -455,8 +457,8 @@ export async function updateReservationStatus(req: Request, res: Response) {
         p.store_id AS p_store_id,
         s.name AS store_name,
         pi.id AS pi_id,
-        pi.image_url AS pi_image_url,
-        pi.thumbnail_url AS pi_thumbnail_url,
+        pi.filename AS pi_filename,
+        pi.thumbnail_filename AS pi_thumbnail_filename,
         pi.is_primary AS pi_is_primary,
         pi.product_id AS pi_product_id
       FROM 
@@ -473,7 +475,7 @@ export async function updateReservationStatus(req: Request, res: Response) {
 
     const productId = updatedReservation?.productId || Number(req.params.id);
     const result = await pool.query(query, [productId]);
-    
+
     // Se não temos resultados, retorne apenas a reserva
     if (result.rows.length === 0) {
       return res.json(updatedReservation);
@@ -482,20 +484,22 @@ export async function updateReservationStatus(req: Request, res: Response) {
     // Prepare o objeto de reserva enriquecido
     const productInfo = result.rows[0];
     const store_id = productInfo.p_store_id;
-    
+
     // Filtrar imagens por produto correto e construir caminhos seguros
     const images = result.rows
       .filter(row => row.pi_id && row.pi_product_id === row.p_id)
       .map(row => {
         // Construir caminho de imagem seguro com isolamento de loja
-        const secureImagePath = `/api/products/${row.p_id}/primary-image`;
-          
-        const secureThumbnailPath = `/api/products/${row.p_id}/thumbnail`;
-          
-        console.log(`Atualizando reserva: imagem segura: ${secureImagePath} para produto ${row.p_id}`);
-        
+        const secureImagePath = `/api/products/${productInfo.p_id}/image/${row.pi_filename}`;
+
+        const secureThumbnailPath = `/api/products/${productInfo.p_id}/thumbnail/${row.pi_filename}`;
+
+        console.log(`Atualizando reserva: imagem segura: ${secureImagePath} para produto ${productInfo.p_id}`);
+
         return {
           id: row.pi_id,
+          filename: row.pi_filename,
+          thumbnail_filename: row.pi_thumbnail_filename,
           image_url: secureImagePath,
           thumbnail_url: secureThumbnailPath,
           is_primary: row.pi_is_primary,
@@ -503,7 +507,7 @@ export async function updateReservationStatus(req: Request, res: Response) {
           product_id: row.p_id
         };
       });
-      
+
     // Ordene as imagens para que a principal venha primeiro
     images.sort((a, b) => {
       if (a.is_primary && !b.is_primary) return -1;
@@ -514,7 +518,7 @@ export async function updateReservationStatus(req: Request, res: Response) {
     // Selecione a imagem principal de forma segura
     const primaryImage = images.length > 0 && images[0].is_primary ? images[0].image_url : 
                         (images.length > 0 ? images[0].image_url : null);
-                        
+
     // Crie o objeto enriquecido com verificação de nulo
     const baseReservation = updatedReservation || {
       id: Number(id),
@@ -526,7 +530,7 @@ export async function updateReservationStatus(req: Request, res: Response) {
       createdAt: new Date(),
       updatedAt: new Date()
     };
-    
+
     const enrichedReservation = {
       ...baseReservation,
       // Campos planos
@@ -548,7 +552,7 @@ export async function updateReservationStatus(req: Request, res: Response) {
         images: images
       }
     };
-    
+
     res.json(enrichedReservation);
   } catch (error) {
     console.error('Error updating reservation status:', error);

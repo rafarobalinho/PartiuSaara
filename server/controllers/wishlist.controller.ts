@@ -5,6 +5,8 @@ import { pool } from '../db';
 // Interfaces para ajudar com tipagem
 interface ProductImage {
   id: number;
+  filename: string;
+  thumbnail_filename: string;
   image_url: string;
   thumbnail_url: string;
   is_primary: boolean;
@@ -42,8 +44,8 @@ export async function getWishlistItems(req: Request, res: Response) {
         s.name AS s_name,
         s.description AS s_description,
         pi.id AS pi_id,
-        pi.image_url AS pi_image_url,
-        pi.thumbnail_url AS pi_thumbnail_url,
+        pi.filename AS pi_filename,
+        pi.thumbnail_filename AS pi_thumbnail_filename,
         pi.is_primary AS pi_is_primary,
         -- Dados de promoção para preservar o formato
         prom.id as promotion_id,
@@ -144,8 +146,10 @@ export async function getWishlistItems(req: Request, res: Response) {
         if (!imageExists) {
           wishlistItem.product.images.push({
             id: row.pi_id,
-            image_url: row.pi_image_url,
-            thumbnail_url: row.pi_thumbnail_url,
+            filename: row.pi_filename,
+            thumbnail_filename: row.pi_thumbnail_filename,
+            image_url: `/api/products/${row.product_id}/image/${row.pi_filename}`,
+            thumbnail_url: `/api/products/${row.product_id}/thumbnail/${row.pi_filename}`,
             is_primary: row.pi_is_primary
           });
         }
@@ -166,6 +170,8 @@ export async function getWishlistItems(req: Request, res: Response) {
       if (item.product.images.length === 0) {
         item.product.images.push({
           id: 0,
+          filename: 'placeholder-image.jpg',
+          thumbnail_filename: 'placeholder-image.jpg',
           image_url: '/placeholder-image.jpg',
           thumbnail_url: '/placeholder-image.jpg',
           is_primary: true
@@ -219,8 +225,8 @@ export async function addToWishlist(req: Request, res: Response) {
         s.name AS s_name,
         s.description AS s_description,
         pi.id AS pi_id,
-        pi.image_url AS pi_image_url,
-        pi.thumbnail_url AS pi_thumbnail_url,
+        pi.filename AS pi_filename,
+        pi.thumbnail_filename AS pi_thumbnail_filename,
         pi.is_primary AS pi_is_primary
       FROM 
         products p
@@ -247,8 +253,10 @@ export async function addToWishlist(req: Request, res: Response) {
       .filter(row => row.pi_id)
       .map(row => ({
         id: row.pi_id,
-        image_url: row.pi_image_url,
-        thumbnail_url: row.pi_thumbnail_url,
+        filename: row.pi_filename,
+        thumbnail_filename: row.pi_thumbnail_filename,
+        image_url: `/api/products/${productId}/image/${row.pi_filename}`,
+        thumbnail_url: `/api/products/${productId}/thumbnail/${row.pi_filename}`,
         is_primary: row.pi_is_primary
       }));
       
