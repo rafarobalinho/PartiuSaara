@@ -1,8 +1,16 @@
+import pkg from 'pg';
+const { Pool } = pkg;
+import fs from 'fs';
+import path from 'path';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 
-const { Pool } = require('pg');
-const fs = require('fs');
-const path = require('path');
-require('dotenv').config();
+// Configurar dotenv
+dotenv.config();
+
+// Obter __dirname equivalente em ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -63,15 +71,15 @@ function createProductDirectories(storeId, productId) {
 
 async function fixMissingFolders() {
   const client = await pool.connect();
-  
+
   try {
     console.log('🔧 CORREÇÃO DE ESTRUTURA DE PASTAS');
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
 
     // 1. Buscar todas as lojas
     console.log('\n📊 1. VERIFICANDO LOJAS...');
     const storesResult = await client.query('SELECT id FROM stores ORDER BY id');
-    
+
     let totalStoresFolders = 0;
     for (const store of storesResult.rows) {
       const created = createStoreDirectories(store.id);
@@ -84,7 +92,7 @@ async function fixMissingFolders() {
     // 2. Buscar todos os produtos
     console.log('\n📦 2. VERIFICANDO PRODUTOS...');
     const productsResult = await client.query('SELECT id, store_id FROM products ORDER BY store_id, id');
-    
+
     let totalProductsFolders = 0;
     for (const product of productsResult.rows) {
       const created = createProductDirectories(product.store_id, product.id);
@@ -116,9 +124,9 @@ async function fixMissingFolders() {
   }
 }
 
-// Executar apenas se chamado diretamente
-if (require.main === module) {
+// Verificar se é o módulo principal (equivalente ao require.main === module)
+if (import.meta.url === `file://${process.argv[1]}`) {
   fixMissingFolders();
 }
 
-module.exports = { fixMissingFolders, createStoreDirectories, createProductDirectories };
+export { fixMissingFolders, createStoreDirectories, createProductDirectories };
