@@ -4,6 +4,8 @@ import { storage } from '../storage';
 import { z } from 'zod';
 import { insertStoreSchema } from '@shared/schema';
 import { sellerMiddleware } from '../middleware/auth';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * @route GET /api/stores
@@ -242,6 +244,39 @@ export async function getStoreCoupons(req: Request, res: Response) {
 }
 
 /**
+ * Cria estrutura de pastas para uma loja
+ */
+function createStoreDirectories(storeId: number) {
+  try {
+    const baseUploadPath = path.join(process.cwd(), 'public', 'uploads');
+    const storeDir = path.join(baseUploadPath, 'stores', storeId.toString());
+    const productsDir = path.join(storeDir, 'products');
+    const thumbnailsDir = path.join(storeDir, 'thumbnails');
+
+    // Criar estrutura de pastas
+    if (!fs.existsSync(storeDir)) {
+      fs.mkdirSync(storeDir, { recursive: true });
+      console.log(`📁 [STORE-CREATE] Criada pasta: stores/${storeId}/`);
+    }
+
+    if (!fs.existsSync(productsDir)) {
+      fs.mkdirSync(productsDir, { recursive: true });
+      console.log(`📁 [STORE-CREATE] Criada pasta: stores/${storeId}/products/`);
+    }
+
+    if (!fs.existsSync(thumbnailsDir)) {
+      fs.mkdirSync(thumbnailsDir, { recursive: true });
+      console.log(`📁 [STORE-CREATE] Criada pasta: stores/${storeId}/thumbnails/`);
+    }
+
+    return true;
+  } catch (error) {
+    console.error(`❌ [STORE-CREATE] Erro ao criar pastas para loja ${storeId}:`, error);
+    return false;
+  }
+}
+
+/**
  * @route POST /api/stores
  * @desc Cria uma nova loja.
  */
@@ -254,7 +289,18 @@ export async function createStore(req: Request, res: Response) {
       if (!validationResult.success) {
         return res.status(400).json({ message: 'Validation error', errors: validationResult.error.errors });
       }
+      
+      // Criar loja no banco
       const store = await storage.createStore(validationResult.data);
+      
+      // Criar estrutura de pastas automaticamente
+      console.log(`🏪 [STORE-CREATE] Criando estrutura de pastas para loja ${store.id}...`);
+      const foldersCreated = createStoreDirectories(store.id);
+      
+      if (!foldersCreated) {
+        console.warn(`⚠️ [STORE-CREATE] Falha ao criar pastas para loja ${store.id}, mas loja foi criada com sucesso`);
+      }
+      
       res.status(201).json(store);
     });
   } catch (error) {

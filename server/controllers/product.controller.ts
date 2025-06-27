@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { pool } from '../db';
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
 // Se você usa o sellerMiddleware e storage, mantenha os imports
 // import { sellerMiddleware } from '../middleware/auth';
 // import { storage } from '../storage';
@@ -200,6 +202,33 @@ export async function getRelatedProducts(req: Request, res: Response) {
 }
 
 /**
+ * Cria estrutura de pastas para um produto
+ */
+function createProductDirectories(storeId: number, productId: number) {
+  try {
+    const baseUploadPath = path.join(process.cwd(), 'public', 'uploads');
+    const productDir = path.join(baseUploadPath, 'stores', storeId.toString(), 'products', productId.toString());
+    const thumbnailsDir = path.join(productDir, 'thumbnails');
+
+    // Criar estrutura de pastas
+    if (!fs.existsSync(productDir)) {
+      fs.mkdirSync(productDir, { recursive: true });
+      console.log(`📁 [PRODUCT-CREATE] Criada pasta: stores/${storeId}/products/${productId}/`);
+    }
+
+    if (!fs.existsSync(thumbnailsDir)) {
+      fs.mkdirSync(thumbnailsDir, { recursive: true });
+      console.log(`📁 [PRODUCT-CREATE] Criada pasta: stores/${storeId}/products/${productId}/thumbnails/`);
+    }
+
+    return true;
+  } catch (error) {
+    console.error(`❌ [PRODUCT-CREATE] Erro ao criar pastas para produto ${productId}:`, error);
+    return false;
+  }
+}
+
+/**
  * @route POST /api/products
  * @desc Cria um novo produto.
  */
@@ -213,7 +242,18 @@ export async function createProduct(req: Request, res: Response) {
         `;
         const params = [name, description, price, storeId, category, stock];
         const result = await pool.query(query, params);
-        return res.status(201).json({ product: result.rows[0] });
+        
+        const product = result.rows[0];
+        
+        // Criar estrutura de pastas automaticamente
+        console.log(`📦 [PRODUCT-CREATE] Criando estrutura de pastas para produto ${product.id} (loja ${storeId})...`);
+        const foldersCreated = createProductDirectories(storeId, product.id);
+        
+        if (!foldersCreated) {
+          console.warn(`⚠️ [PRODUCT-CREATE] Falha ao criar pastas para produto ${product.id}, mas produto foi criado com sucesso`);
+        }
+        
+        return res.status(201).json({ product });
     } catch (error) {
         console.error('Erro ao criar produto:', error);
         return res.status(500).json({ error: 'Erro ao criar produto' });
