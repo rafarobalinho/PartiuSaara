@@ -304,7 +304,7 @@ export async function getMyStores(req: Request, res: Response) {
 }
 
 // Get products for a specific store (with security validation)
-export async function getStoreProducts(req: Request, res: Response) {
+export async function getMyStoreProducts(req: Request, res: Response) {
   try {
     const { storeId } = req.params;
     const user = req.user!;
