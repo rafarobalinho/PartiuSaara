@@ -53,7 +53,7 @@ const getProductPrimaryImage = async (req: Request, res: Response) => {
     const { filename, store_id } = result.rows[0];
     const secureFilePath = buildProductImagePath(store_id, productId, filename);
 
-    if (fs.existsSync(secureFilePath)) return res.sendFile(secureFilePath);
+    if (fs.existsSync(secureFilePath)) return res.sendFile(path.resolve(secureFilePath));
 
     console.warn(`[INCONSISTÊNCIA] Arquivo não encontrado: ${secureFilePath}`);
     return sendPlaceholder(res);
@@ -83,7 +83,7 @@ const getProductThumbnail = async (req: Request, res: Response) => {
         const { thumbnail_filename, store_id } = result.rows[0];
         const secureFilePath = buildProductThumbnailPath(store_id, productId, thumbnail_filename);
 
-        if (fs.existsSync(secureFilePath)) return res.sendFile(secureFilePath);
+        if (fs.existsSync(secureFilePath)) return res.sendFile(path.resolve(secureFilePath));
 
         console.warn(`[INCONSISTÊNCIA] Thumbnail não encontrada: ${secureFilePath}`);
         return sendPlaceholder(res);
@@ -164,7 +164,7 @@ const getProductImage = async (req: Request, res: Response) => {
         const { filename, store_id } = result.rows[0];
         const secureFilePath = buildProductImagePath(store_id, productId, filename);
 
-        if (fs.existsSync(secureFilePath)) return res.sendFile(secureFilePath);
+        if (fs.existsSync(secureFilePath)) return res.sendFile(path.resolve(secureFilePath));
 
         console.warn(`[INCONSISTÊNCIA] Arquivo não encontrado: ${secureFilePath}`);
         return sendPlaceholder(res);
@@ -189,7 +189,7 @@ const getStorePrimaryImage = async (req: Request, res: Response) => {
         const { filename } = result.rows[0];
         const secureFilePath = buildStoreImagePath(storeId, filename);
 
-        if (fs.existsSync(secureFilePath)) return res.sendFile(secureFilePath);
+        if (fs.existsSync(secureFilePath)) return res.sendFile(path.resolve(secureFilePath));
 
         console.warn(`[INCONSISTÊNCIA] Arquivo de loja não encontrado: ${secureFilePath}`);
         return sendPlaceholder(res);
