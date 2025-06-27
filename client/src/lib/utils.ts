@@ -80,43 +80,40 @@ export function getTimeDifference(date: string | Date): string {
 // Função para converter UTC para horário de Brasília na exibição
 export function formatBrazilDateTime(date: string | Date): string {
   const utcDate = new Date(date);
-  // Adicionar 3 horas para exibir no horário de Brasília (UTC-3)
-  const brazilDate = new Date(utcDate.getTime() + (3 * 60 * 60 * 1000));
   
-  return brazilDate.toLocaleString('pt-BR', {
+  // Usar diretamente o timezone do Brasil para formatação
+  return utcDate.toLocaleString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'UTC' // Usar UTC porque já ajustamos manualmente
+    timeZone: 'America/Sao_Paulo' // Usar timezone do Brasil diretamente
   });
 }
 
 // Função para formatar apenas data no horário de Brasília
 export function formatBrazilDate(date: string | Date): string {
   const utcDate = new Date(date);
-  // Adicionar 3 horas para exibir no horário de Brasília (UTC-3)
-  const brazilDate = new Date(utcDate.getTime() + (3 * 60 * 60 * 1000));
   
-  return brazilDate.toLocaleDateString('pt-BR', {
+  // Usar diretamente o timezone do Brasil para formatação
+  return utcDate.toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-    timeZone: 'UTC' // Usar UTC porque já ajustamos manualmente
+    timeZone: 'America/Sao_Paulo' // Usar timezone do Brasil diretamente
   });
 }
 
 // Função para formatar apenas hora no horário de Brasília
 export function formatBrazilTime(date: string | Date): string {
   const utcDate = new Date(date);
-  // Adicionar 3 horas para exibir no horário de Brasília (UTC-3)
-  const brazilDate = new Date(utcDate.getTime() + (3 * 60 * 60 * 1000));
   
-  return brazilDate.toLocaleTimeString('pt-BR', {
+  // Usar diretamente o timezone do Brasil para formatação
+  return utcDate.toLocaleTimeString('pt-BR', {
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'UTC' // Usar UTC porque já ajustamos manualmente
+    timeZone: 'America/Sao_Paulo' // Usar timezone do Brasil diretamente
   });
 }
 

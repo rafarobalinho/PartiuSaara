@@ -678,32 +678,26 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`[Storage] Updating coupon ${id} with data:`, data);
 
-      // Filtrar dados undefined e garantir que datas sejam objetos Date válidos no horário de Brasília
+      // Filtrar dados undefined e garantir que datas sejam objetos Date válidos
       const updateData: any = {};
 
       Object.keys(data).forEach(key => {
         const value = (data as any)[key];
         if (value !== undefined) {
-          // Se for um campo de data, garantir que é um objeto Date válido no horário de Brasília
+          // Se for um campo de data, garantir que é um objeto Date válido
           if ((key === 'startTime' || key === 'endTime') && value) {
             let dateValue: Date;
 
             if (value instanceof Date) {
               dateValue = value;
             } else {
-              // Converter string para Date, assumindo horário de Brasília (UTC-3)
+              // Converter string para Date diretamente
               dateValue = new Date(value);
-
-              // Se a data não tem timezone especificado, assumir que é horário de Brasília
-              if (typeof value === 'string' && !value.includes('Z') && !value.includes('+') && !value.includes('-')) {
-                // Como o horário de Brasília é UTC-3, precisamos subtrair 3 horas para armazenar corretamente em UTC
-                dateValue = new Date(dateValue.getTime() - (3 * 60 * 60 * 1000));
-              }
             }
 
             if (!isNaN(dateValue.getTime())) {
               updateData[key] = dateValue;
-              console.log(`[Storage] Converted ${key}: ${value} -> ${dateValue.toISOString()}`);
+              console.log(`[Storage] Date ${key}: ${value} -> ${dateValue.toISOString()}`);
             } else {
               console.warn(`[Storage] Invalid date for ${key}: ${value}`);
             }
