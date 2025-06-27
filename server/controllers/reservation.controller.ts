@@ -84,8 +84,8 @@ export async function getReservations(req: Request, res: Response) {
         prom.id as promotion_id,
         prom.type as promotion_type,
         prom.discount_percentage,
-        CAST(NULL AS INTEGER) as discount_amount,
-        CAST(NULL AS INTEGER) as price_override,
+        prom.discount_amount,
+        prom.price_override,
         prom.start_time as promotion_starts_at,
         prom.end_time as promotion_ends_at
       FROM 
