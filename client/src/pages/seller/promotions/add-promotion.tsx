@@ -673,8 +673,11 @@ export default function AddPromotion() {
                     <img 
                       src={`/api/products/${selectedProduct.id}/primary-image`} 
                       alt={selectedProduct.name}
-                      className="w-full h-full object-cover opacity-100 transition-opacity duration-300"
-                      loading="lazy"
+                      className="w-full h-40 object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/placeholder-image.jpg';
+                      }}
                     />
                   </div>
 
