@@ -61,6 +61,12 @@ export default function ProductCard({
   showCategory = false,
   showFullWidthButton = false
 }: ProductCardProps) {
+  // Safety check for undefined product
+  if (!product) {
+    console.warn('ProductCard: product prop is undefined');
+    return null;
+  }
+
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   const { 
