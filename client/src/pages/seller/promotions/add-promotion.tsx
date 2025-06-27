@@ -671,9 +671,13 @@ export default function AddPromotion() {
                 <div>
                   <div className="rounded-md overflow-hidden mb-4">
                     <img 
-                      src={selectedProduct.images && selectedProduct.images.length > 0 ? selectedProduct.images[0] : '/placeholder-image.jpg'} 
+                      src={`/api/products/${selectedProduct.id}/primary-image`} 
                       alt={selectedProduct.name}
                       className="w-full h-40 object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/placeholder-image.jpg';
+                      }}
                     />
                   </div>
 
