@@ -118,9 +118,35 @@ export default function PromotionsPage() {
                   endTime={new Date(promotion.endTime)}
                   startTime={new Date(promotion.startTime)}
                 />
-                <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded-md">
-                  <i className="fas fa-clock mr-1"></i>
-                  <span>Termina em: {new Date(promotion.endTime).toLocaleDateString('pt-BR')}</span>
+                
+                {/* Nome da Loja */}
+                <div className="mt-2 px-2">
+                  <div className="text-xs text-gray-500 mb-1">
+                    <i className="fas fa-store mr-1"></i>
+                    <span className="font-medium">{promotion.product.store.name}</span>
+                  </div>
+                </div>
+
+                {/* Contagem Regressiva */}
+                <div className="mt-1 px-2 pb-2">
+                  <div className="bg-gray-50 p-2 rounded-md border border-gray-100">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-gray-600">
+                        {promotion.type === 'flash' ? 'Relâmpago' : 'Promoção'}
+                      </span>
+                      <Badge variant="secondary" className="text-xs px-1 py-0">
+                        {promotion.discountPercentage}% OFF
+                      </Badge>
+                    </div>
+                    <CountdownTimer 
+                      endTime={new Date(promotion.endTime)}
+                      startTime={new Date(promotion.startTime)}
+                      styleClass="text-xs text-primary font-medium"
+                      onComplete={() => {
+                        console.log(`Promoção ${promotion.id} finalizada`);
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
