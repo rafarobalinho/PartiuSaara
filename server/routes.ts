@@ -679,7 +679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Loja não pertence ao usuário' });
       }
 
-      const coupon = await storage.createCoupon(couponData);
+      const coupon = await await storage.createCoupon(couponData);
       res.json(coupon);
     } catch (error: any) {
       console.error('Error creating coupon:', error);
@@ -1036,7 +1036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Cupons/promoções dos produtos da loja
             const couponsResult = await db.select()
               .from(promotions)
-              .where(sql`${promotions.productId} = ANY(${JSON.stringify(productIds)})`); // Corrigido: parêntese faltando
+              .where(sql`${promotions.productId} = ANY(${JSON.stringify(productIds)})`);
             totalCoupons += couponsResult.length;
           }
         }
