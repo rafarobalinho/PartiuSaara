@@ -165,7 +165,9 @@ export default function AddPromotion() {
       
       const data = await response.json();
       console.log('[AddPromotionPage] 📦 Produtos da loja encontrados:', data);
-      return data.products || [];
+      
+      // O backend retorna um array diretamente, não um objeto com propriedade products
+      return Array.isArray(data) ? data : (data.products || []);
     },
     enabled: !!selectedStoreId, // Só executa se uma loja estiver selecionada
   });
