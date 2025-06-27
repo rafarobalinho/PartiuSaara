@@ -77,6 +77,49 @@ export function getTimeDifference(date: string | Date): string {
   }
 }
 
+// Função para converter UTC para horário de Brasília na exibição
+export function formatBrazilDateTime(date: string | Date): string {
+  const utcDate = new Date(date);
+  // Adicionar 3 horas para exibir no horário de Brasília (UTC-3)
+  const brazilDate = new Date(utcDate.getTime() + (3 * 60 * 60 * 1000));
+  
+  return brazilDate.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC' // Usar UTC porque já ajustamos manualmente
+  });
+}
+
+// Função para formatar apenas data no horário de Brasília
+export function formatBrazilDate(date: string | Date): string {
+  const utcDate = new Date(date);
+  // Adicionar 3 horas para exibir no horário de Brasília (UTC-3)
+  const brazilDate = new Date(utcDate.getTime() + (3 * 60 * 60 * 1000));
+  
+  return brazilDate.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC' // Usar UTC porque já ajustamos manualmente
+  });
+}
+
+// Função para formatar apenas hora no horário de Brasília
+export function formatBrazilTime(date: string | Date): string {
+  const utcDate = new Date(date);
+  // Adicionar 3 horas para exibir no horário de Brasília (UTC-3)
+  const brazilDate = new Date(utcDate.getTime() + (3 * 60 * 60 * 1000));
+  
+  return brazilDate.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC' // Usar UTC porque já ajustamos manualmente
+  });
+}
+
 // Função para calcular a porcentagem de progresso
 export function getProgressPercentage(startTime: string, endTime: string): number {
   const start = new Date(startTime).getTime();

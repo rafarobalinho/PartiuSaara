@@ -228,8 +228,8 @@ export async function updateCoupon(req: Request, res: Response) {
 
         // Se a data não tem timezone especificado, assumir que é horário de Brasília
         if (!dateString.includes('Z') && !dateString.includes('+') && !dateString.includes('-')) {
-          // Adicionar 3 horas para compensar o fuso horário de Brasília (UTC-3)
-          return new Date(date.getTime() + (3 * 60 * 60 * 1000));
+          // Como o horário de Brasília é UTC-3, precisamos subtrair 3 horas para armazenar corretamente em UTC
+          return new Date(date.getTime() - (3 * 60 * 60 * 1000));
         }
 
         return date;
