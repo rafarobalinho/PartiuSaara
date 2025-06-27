@@ -567,6 +567,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return null;
           }
 
+          // Buscar dados da loja
+          const store = await storage.getStore(product.storeId);
+
           // Calcular preço com desconto
           let discountedPrice = product.price;
           if (promotion.discountPercentage) {
@@ -575,10 +578,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             discountedPrice = Math.round(discountedPrice * 100) / 100;
           }
 
-          // Adicionar o preço com desconto ao produto
+          // Adicionar o preço com desconto ao produto e dados da loja
           const productWithDiscount = {
             ...product,
-            discountedPrice: discountedPrice
+            discountedPrice: discountedPrice,
+            store: store ? { id: store.id, name: store.name } : null
           };
 
           return { 
@@ -941,7 +945,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Stripe routes for payment processing
   app.post('/api/stripe/checkout', authMiddleware, StripeController.createCheckoutSession);
-  app.get('/api/stripe/checkout', (_req, res) => res.json({ message: 'Stripe checkout endpoint is working' })); // Corrigido: _req
+  app.get('/api/stripe/checkout', (_req, res) => res.json({ message: 'Stripe checkout endpoint is working' }); // Corrigido: _req
   app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), StripeController.handleWebhook);
   app.get('/api/stripe/subscription', authMiddleware, StripeController.getSubscriptionDetails);
   app.post('/api/stripe/cancel', authMiddleware, StripeController.cancelSubscription);
