@@ -1,10 +1,9 @@
-import { Switch, Route } from "wouter";
-import EditCoupon from '@/pages/seller/coupons/edit-coupon';
+import { Route, Switch, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/context/auth-context";
+import { AuthProvider, useAuth } from "@/context/auth-context";
 import { UiProvider } from "@/context/ui-context";
 import StripeMode from "@/components/ui/stripe-mode";
 
@@ -58,68 +57,102 @@ import SellerLanding from "@/pages/seller-landing";
 import SellerCoupons from "@/pages/seller/coupons/index";
 import AddCoupon from "@/pages/seller/coupons/add-coupon";
 
-// Componente especial para a página de apresentação sem autenticação
-function PresentationRoute() {
-  return (
-    <div className="flex flex-col min-h-screen">
-      <div className="flex-grow">
-        <Presentation />
+// Component de redirecionamento para rotas não encontradas
+function NotFoundRedirect() {
+  return <Redirect to="/not-found" />;
+}
+
+// Componente para rotas protegidas que requerem autenticação
+function ProtectedRoute({ component: Component, ...props }: any) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Carregando...</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (!user) {
+    return <Redirect to="/login" />;
+  }
+
+  return <Route {...props} component={Component} />;
 }
 
 function Router() {
+  const { user, isLoading } = useAuth();
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <div className="flex-grow">
         <Switch>
-          <Route path="/landing" component={Landing} />
-          <Route path="/presentation" component={PresentationRoute} />
+          {/* Public routes - sempre acessíveis */}
           <Route path="/" component={Home} />
-          <Route path="/payment/callback" component={PaymentCallback} />
+          <Route path="/presentation" component={Presentation} />
+          <Route path="/landing" component={Landing} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
+          <Route path="/forgot-password" component={ForgotPassword} />
+          <Route path="/reset-password/:token" component={ResetPassword} />
+
+          {/* Categories */}
           <Route path="/categories" component={Categories} />
           <Route path="/categories/:category" component={Category} />
+
+          {/* Products */}
           <Route path="/products" component={Products} />
           <Route path="/products/:id" component={ProductDetail} />
-          <Route path="/promotions" component={Promotions} />
+
+          {/* Stores */}
           <Route path="/stores" component={Stores} />
-          <Route path="/stores/map" component={StoresMapPage} />
           <Route path="/stores/:id" component={ClientStoreDetail} />
-          <Route path="/account" component={Account} />
-          <Route path="/account/wishlist" component={Wishlist} />
-          <Route path="/account/reservations" component={Reservations} />
-          <Route path="/seller/dashboard" component={SellerDashboard} />
-          <Route path="/seller/products" component={SellerProducts} />
-          <Route path="/seller/products/add" component={AddProduct} />
-          <Route path="/seller/products/:id/edit" component={EditProduct} />
-          <Route path="/seller/promotions" component={SellerPromotions} />
-          <Route path="/seller/promotions/add" component={AddPromotion} />
-          <Route path="/seller/promotions/:id/edit" component={EditPromotion} />
+          <Route path="/stores/map" component={StoresMapPage} />
+
+          {/* Promotions */}
+          <Route path="/promotions" component={Promotions} />
+
+          {/* Protected routes - requerem autenticação */}
+          <ProtectedRoute path="/account" component={Account} />
+          <ProtectedRoute path="/account/wishlist" component={Wishlist} />
+          <ProtectedRoute path="/account/reservations" component={Reservations} />
+          <ProtectedRoute path="/payment/callback" component={PaymentCallback} />
+
+          {/* Seller routes */}
+          <ProtectedRoute path="/seller/dashboard" component={SellerDashboard} />
+          <ProtectedRoute path="/seller/products" component={SellerProducts} />
+          <ProtectedRoute path="/seller/products/add" component={AddProduct} />
+          <ProtectedRoute path="/seller/products/:id/edit" component={EditProduct} />
+          <ProtectedRoute path="/seller/promotions" component={SellerPromotions} />
+          <ProtectedRoute path="/seller/promotions/add" component={AddPromotion} />
+          <ProtectedRoute path="/seller/promotions/:id/edit" component={EditPromotion} />
           {/* Redirect from the old path structure to the new one */}
-          <Route path="/seller/promotions/edit/:id" component={RedirectEditPromotion} />
+          <ProtectedRoute path="/seller/promotions/edit/:id" component={RedirectEditPromotion} />
           {/* Alternative simple edit page that doesn't use dynamic routing */}
-          <Route path="/seller/edit-promotion" component={SimpleEditPromotion} />
+          <ProtectedRoute path="/seller/edit-promotion" component={SimpleEditPromotion} />
           {/* Coupon routes */}
-          <Route path="/seller/coupons" component={SellerCoupons} />
-          <Route path="/seller/coupons/add" component={AddCoupon} />
-          <Route path="/seller/coupons/:id/edit" component={EditCoupon} />
-          <Route path="/seller/stores" component={SellerStores} />
-          <Route path="/seller/stores/add-store" component={AddStore} />
-          <Route path="/seller/stores/:id" component={StoreDetail} />
-          <Route path="/seller/stores/:id/edit" component={StoreDetail} />
-          <Route path="/seller/stores/:id/products" component={StoreProducts} />
-          <Route path="/seller/stores/:storeId/analytics" component={StoreAnalyticsPage} />
-          <Route path="/seller/analytics" component={SellerAnalytics} />
-          <Route path="/seller/subscription" component={SellerSubscription} />
-          <Route path="/seller/stores/:storeId/subscription" component={SellerSubscription} />
-          <Route path="/seller/settings/location" component={LocationSettingsPage} />
+          <ProtectedRoute path="/seller/coupons" component={SellerCoupons} />
+          <ProtectedRoute path="/seller/coupons/add" component={AddCoupon} />
+          <ProtectedRoute path="/seller/coupons/:id/edit" component={EditCoupon} />
+          <ProtectedRoute path="/seller/stores" component={SellerStores} />
+          <ProtectedRoute path="/seller/stores/add-store" component={AddStore} />
+          <ProtectedRoute path="/seller/stores/:id" component={StoreDetail} />
+          <ProtectedRoute path="/seller/stores/:id/edit" component={StoreDetail} />
+          <ProtectedRoute path="/seller/stores/:id/products" component={StoreProducts} />
+          <ProtectedRoute path="/seller/stores/:storeId/analytics" component={StoreAnalyticsPage} />
+          <ProtectedRoute path="/seller/analytics" component={SellerAnalytics} />
+          <ProtectedRoute path="/seller/subscription" component={SellerSubscription} />
+          <ProtectedRoute path="/seller/stores/:storeId/subscription" component={SellerSubscription} />
+          <ProtectedRoute path="/seller/settings/location" component={LocationSettingsPage} />
+          {/* Admin routes */}
           <Route path="/admin/login" component={AdminLogin} />
           <Route path="/admin/setup" component={AdminSetup} />
-          <Route path="/admin/geocoding">
+          <ProtectedRoute path="/admin/geocoding">
             {() => (
               <div className="flex-grow">
                 <AdminLayout>
@@ -127,8 +160,8 @@ function Router() {
                 </AdminLayout>
               </div>
             )}
-          </Route>
-          <Route path="/admin/place-details/:id">
+          </ProtectedRoute>
+          <ProtectedRoute path="/admin/place-details/:id">
             {() => (
               <div className="flex-grow">
                 <AdminLayout>
@@ -136,8 +169,8 @@ function Router() {
                 </AdminLayout>
               </div>
             )}
-          </Route>
-          <Route path="/seller-landing" component={SellerLanding} />
+          </ProtectedRoute>
+          <ProtectedRoute path="/seller-landing" component={SellerLanding} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
           <Route path="/forgot-password" component={ForgotPassword} />
@@ -153,21 +186,6 @@ function Router() {
 
 function App() {
   console.log('🚀 [APP] Inicializando aplicação');
-
-  // Verifica se é a página de apresentação
-  const isPresentation = window.location.pathname === '/presentation';
-
-  if (isPresentation) {
-    // Rota pública sem autenticação para a página de apresentação
-    return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <PresentationRoute />
-        </TooltipProvider>
-      </QueryClientProvider>
-    );
-  }
 
   return (
     <QueryClientProvider client={queryClient}>
