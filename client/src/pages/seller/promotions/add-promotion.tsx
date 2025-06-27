@@ -674,10 +674,6 @@ export default function AddPromotion() {
                       src={`/api/products/${selectedProduct.id}/primary-image`} 
                       alt={selectedProduct.name}
                       className="w-full h-40 object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = '/assets/default-product-image.jpg';
-                      }}
                     />
                   </div>
 
