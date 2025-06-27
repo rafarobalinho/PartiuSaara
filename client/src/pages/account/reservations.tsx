@@ -87,13 +87,13 @@ export default function Reservations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/reservations'] });
-      
+
       // Se for cancelamento ou finalização, atualizar contadores
       if (status === 'cancelled' || status === 'completed') {
         decrementReservationsCount();
         syncCounters();
       }
-      
+
       toast({
         title: 'Status atualizado',
         description: 'O status da reserva foi atualizado com sucesso.',
@@ -119,7 +119,7 @@ export default function Reservations() {
   const handleCompleteReservation = (id: number) => {
     updateStatusMutation.mutate({ id, status: 'completed' });
   };
-  
+
   // Mutation para limpar todas as reservas canceladas
   const clearCancelledMutation = useMutation({
     mutationFn: async () => {
@@ -128,7 +128,7 @@ export default function Reservations() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/reservations'] });
-      
+
       toast({
         title: 'Reservas canceladas removidas',
         description: data.message || 'Todas as reservas canceladas foram removidas com sucesso.',
@@ -144,7 +144,7 @@ export default function Reservations() {
       console.error('Error clearing cancelled reservations:', error);
     }
   });
-  
+
   // Função para limpar todas as reservas canceladas
   const handleClearCancelledReservations = () => {
     if (confirm('Tem certeza que deseja remover todas as reservas canceladas? Esta ação não pode ser desfeita.')) {
@@ -189,12 +189,12 @@ export default function Reservations() {
     const now = new Date();
     const expiration = new Date(expiresAt);
     const diffMs = expiration.getTime() - now.getTime();
-    
+
     if (diffMs <= 0) return 'Expirado';
-    
+
     const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
     const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     return `${diffHrs}h ${diffMins}m restantes`;
   };
 
@@ -292,12 +292,11 @@ export default function Reservations() {
                       <div key={reservation.id} className="bg-white rounded-lg shadow-sm p-4 border flex flex-col sm:flex-row">
                         <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 sm:mr-4">
                           <SafeImage 
-                            src={`/api/products/${reservation.productId}/primary-image`}
-                            alt={reservation.product_name || 'Produto'} 
+                            entityType="product"
+                            entityId={reservation.productId}
+                            imageType="primary-image"
+                            alt={reservation.product?.name || 'Product'}
                             className="w-full h-full object-cover"
-                            fallbackSrc="/placeholder-image.jpg"
-                            productId={reservation.productId}
-                            type="product"
                           />
                         </div>
                         <div className="flex-1">
@@ -310,9 +309,9 @@ export default function Reservations() {
                               {formatStatus(reservation.status)}
                             </Badge>
                           </div>
-                          
+
                           {/* Link para a loja foi removido porque não temos campos planos para ele */}
-                          
+
                           <div className="flex items-center mb-1">
                             <span className="text-lg font-bold text-primary">
                               {formatCurrency(reservation.product_price || 0)}
@@ -321,7 +320,7 @@ export default function Reservations() {
                               <span className="text-sm text-gray-500 ml-2">x{reservation.quantity}</span>
                             )}
                           </div>
-                          
+
                           <div className="text-sm text-gray-500 mb-4">
                             <span>Reservado em: {new Date(reservation.createdAt).toLocaleDateString('pt-BR')}</span>
                             {reservation.status === 'pending' && (
@@ -331,7 +330,7 @@ export default function Reservations() {
                               </>
                             )}
                           </div>
-                          
+
                           {reservation.status === 'pending' && (
                             <div className="flex flex-wrap gap-2">
                               <Button

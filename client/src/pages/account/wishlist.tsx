@@ -212,13 +212,11 @@ export default function Wishlist() {
                 <div key={item.id} className="bg-white rounded-lg shadow-sm p-4 flex flex-col sm:flex-row">
                   <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 sm:mr-4">
                     <SafeImage 
-                      src={item.imageUrl || (item.product && item.product.images && item.product.images.length > 0 
-                        ? item.product.images[0].image_url 
-                        : '/placeholder-image.jpg')}
-                      alt={item.product ? item.product.name : 'Produto'} 
+                      entityType="product"
+                      entityId={item.productId}
+                      imageType="primary-image"
+                      alt={item.product?.name || 'Product'}
                       className="w-full h-full object-cover"
-                      fallbackSrc="/placeholder-image.jpg"
-                      productId={item.productId}
                     />
                   </div>
                   <div className="flex-1">
