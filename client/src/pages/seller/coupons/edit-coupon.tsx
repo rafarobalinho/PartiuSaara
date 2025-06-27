@@ -114,12 +114,19 @@ export default function EditCoupon() {
   };
 
   const formatDateTimeLocal = (dateString: string) => {
+    // Criar data interpretando como UTC e converter para horário local de Brasília
     const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    // Ajustar para fuso horário de Brasília (UTC-3)
+    const brasiliaOffset = -3 * 60; // -3 horas em minutos
+    const localOffset = date.getTimezoneOffset(); // offset local em minutos
+    const adjustedDate = new Date(date.getTime() + (brasiliaOffset - localOffset) * 60000);
+    
+    const year = adjustedDate.getFullYear();
+    const month = String(adjustedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(adjustedDate.getDate()).padStart(2, '0');
+    const hours = String(adjustedDate.getHours()).padStart(2, '0');
+    const minutes = String(adjustedDate.getMinutes()).padStart(2, '0');
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
@@ -179,8 +186,8 @@ export default function EditCoupon() {
         discountAmount: discountType === 'amount' ? parseFloat(formData.discountAmount) : null,
         minimumPurchase: formData.minimumPurchase ? parseFloat(formData.minimumPurchase) : null,
         maxUsageCount: formData.maxUsageCount ? parseInt(formData.maxUsageCount) : null,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
+        startTime: formData.startTime, // Backend irá tratar o fuso horário
+        endTime: formData.endTime,     // Backend irá tratar o fuso horário
         isActive: formData.isActive
       };
 
@@ -204,6 +211,9 @@ export default function EditCoupon() {
           title: "Sucesso",
           description: "Cupom atualizado com sucesso!",
         });
+
+        // Redirecionar para a lista de cupons após salvar
+        navigate('/seller/coupons');
       } else {
         const result = await response.json();
         toast({
