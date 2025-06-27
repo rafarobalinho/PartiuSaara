@@ -187,29 +187,43 @@ export default function Reservations() {
   // Calculate time remaining for pending reservations
   const getTimeRemaining = (reservation: Reservation) => {
     const now = new Date();
+    const expiration = new Date(reservation.expiresAt);
+    const reservationTimeMs = expiration.getTime() - now.getTime();
     
-    // Se o produto tem promoção ativa, usar o tempo da promoção
+    // Tempo padrão de 72 horas em milissegundos
+    const SEVENTY_TWO_HOURS_MS = 72 * 60 * 60 * 1000;
+    
+    // Se o produto tem promoção ativa
     if (reservation.promotion && reservation.promotion.endsAt) {
       const promotionEnd = new Date(reservation.promotion.endsAt);
-      const diffMs = promotionEnd.getTime() - now.getTime();
+      const promotionTimeMs = promotionEnd.getTime() - now.getTime();
       
-      if (diffMs <= 0) return 'Promoção expirada';
+      if (promotionTimeMs <= 0) return 'Promoção expirada';
       
-      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-      
-      const promotionType = reservation.promotion.type === 'flash' ? 'relâmpago' : 'regular';
-      return `${diffHrs}h ${diffMins}m restantes (promoção ${promotionType})`;
+      // Se o tempo da promoção é menor que 72 horas, usar tempo da promoção
+      if (promotionTimeMs < SEVENTY_TWO_HOURS_MS) {
+        const diffHrs = Math.floor(promotionTimeMs / (1000 * 60 * 60));
+        const diffMins = Math.floor((promotionTimeMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        const promotionType = reservation.promotion.type === 'flash' ? 'relâmpago' : 'regular';
+        return `${diffHrs}h ${diffMins}m restantes (promoção ${promotionType})`;
+      }
+      // Se o tempo da promoção é maior que 72 horas, usar 72 horas padrão
+      else {
+        if (reservationTimeMs <= 0) return 'Expirado';
+        
+        const diffHrs = Math.floor(reservationTimeMs / (1000 * 60 * 60));
+        const diffMins = Math.floor((reservationTimeMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        return `${diffHrs}h ${diffMins}m restantes`;
+      }
     }
     
-    // Caso contrário, usar tempo padrão de 72h da reserva
-    const expiration = new Date(reservation.expiresAt);
-    const diffMs = expiration.getTime() - now.getTime();
+    // Produto normal (sem promoção) - usar tempo padrão de 72h da reserva
+    if (reservationTimeMs <= 0) return 'Expirado';
 
-    if (diffMs <= 0) return 'Expirado';
-
-    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const diffHrs = Math.floor(reservationTimeMs / (1000 * 60 * 60));
+    const diffMins = Math.floor((reservationTimeMs % (1000 * 60 * 60)) / (1000 * 60));
 
     return `${diffHrs}h ${diffMins}m restantes`;
   };
