@@ -250,8 +250,8 @@ export async function createReservation(req: Request, res: Response) {
 
     // Validate request body
     const reservationSchema = z.object({
-      productId: z.number(),
-      quantity: z.number().optional()
+      productId: z.coerce.number(),
+      quantity: z.coerce.number().optional()
     });
 
     const validationResult = reservationSchema.safeParse(req.body);
