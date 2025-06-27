@@ -187,8 +187,7 @@ export default function Reservations() {
   // Calculate time remaining for pending reservations
   const getTimeRemaining = (reservation: Reservation) => {
     const now = new Date();
-    const expiration = new Date(reservation.expiresAt);
-    const reservationTimeMs = expiration.getTime() - now.getTime();
+    const createdAt = new Date(reservation.createdAt);
     
     // Tempo padrão de 72 horas em milissegundos
     const SEVENTY_TWO_HOURS_MS = 72 * 60 * 60 * 1000;
@@ -208,8 +207,11 @@ export default function Reservations() {
         const promotionType = reservation.promotion.type === 'flash' ? 'relâmpago' : 'regular';
         return `${diffHrs}h ${diffMins}m restantes (promoção ${promotionType})`;
       }
-      // Se o tempo da promoção é maior que 72 horas, usar 72 horas padrão
+      // Se o tempo da promoção é maior que 72 horas, usar 72 horas padrão a partir da criação da reserva
       else {
+        const reservationExpiration = createdAt.getTime() + SEVENTY_TWO_HOURS_MS;
+        const reservationTimeMs = reservationExpiration - now.getTime();
+        
         if (reservationTimeMs <= 0) return 'Expirado';
         
         const diffHrs = Math.floor(reservationTimeMs / (1000 * 60 * 60));
@@ -219,7 +221,10 @@ export default function Reservations() {
       }
     }
     
-    // Produto normal (sem promoção) - usar tempo padrão de 72h da reserva
+    // Produto normal (sem promoção) - usar tempo padrão de 72h a partir da criação da reserva
+    const reservationExpiration = createdAt.getTime() + SEVENTY_TWO_HOURS_MS;
+    const reservationTimeMs = reservationExpiration - now.getTime();
+    
     if (reservationTimeMs <= 0) return 'Expirado';
 
     const diffHrs = Math.floor(reservationTimeMs / (1000 * 60 * 60));
