@@ -33,6 +33,25 @@ export default function Presentation() {
   const [selectedSolution, setSelectedSolution] = useState<string | null>(null);
   const [, navigate] = useLocation();
   
+  const handlePartnershipClick = () => {
+    console.log('🔗 [PRESENTATION] Botão Fazer Parceria clicado');
+    try {
+      console.log('🔗 [PRESENTATION] Tentando navegar para /register com wouter');
+      navigate('/register');
+      
+      // Fallback usando window.location após um pequeno delay
+      setTimeout(() => {
+        if (window.location.pathname !== '/register') {
+          console.log('🔗 [PRESENTATION] Wouter falhou, usando window.location.href');
+          window.location.href = '/register';
+        }
+      }, 100);
+    } catch (error) {
+      console.error('🔗 [PRESENTATION] Erro na navegação:', error);
+      window.location.href = '/register';
+    }
+  };
+  
   const primaryColor = '#EB690A';
   const secondaryColor = '#F28B50';
   const lightColor = '#F2B591';
@@ -516,7 +535,7 @@ export default function Presentation() {
               size="lg" 
               className="text-white text-lg px-8 py-4"
               style={{ backgroundColor: primaryColor }}
-              onClick={() => navigate('/register')}
+              onClick={handlePartnershipClick}
             >
               Fazer Parceria Conosco
               <ArrowRight className="h-5 w-5 ml-2" />
