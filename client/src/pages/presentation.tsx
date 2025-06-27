@@ -3,7 +3,6 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Link } from 'wouter';
 import { useState } from 'react';
-import { useLocation } from 'wouter';
 import logoImage from '@assets/3_1750014654855.png';
 import storeImage from '@assets/photo-1441986300917-64674bd600d8_1750014608110.jpg';
 import paymentImage from '@assets/photo-1556740738-b6a63e27c4df_1750014608110.jpg';
@@ -31,26 +30,6 @@ import {
 
 export default function Presentation() {
   const [selectedSolution, setSelectedSolution] = useState<string | null>(null);
-  const [, navigate] = useLocation();
-  
-  const handlePartnershipClick = () => {
-    console.log('🔗 [PRESENTATION] Botão Fazer Parceria clicado');
-    try {
-      console.log('🔗 [PRESENTATION] Tentando navegar para /register com wouter');
-      navigate('/register');
-      
-      // Fallback usando window.location após um pequeno delay
-      setTimeout(() => {
-        if (window.location.pathname !== '/register') {
-          console.log('🔗 [PRESENTATION] Wouter falhou, usando window.location.href');
-          window.location.href = '/register';
-        }
-      }, 100);
-    } catch (error) {
-      console.error('🔗 [PRESENTATION] Erro na navegação:', error);
-      window.location.href = '/register';
-    }
-  };
   
   const primaryColor = '#EB690A';
   const secondaryColor = '#F28B50';
@@ -531,15 +510,16 @@ export default function Presentation() {
             <p className="text-xl font-medium mb-6" style={{ color: blackColor }}>
               Vamos juntos nessa jornada.
             </p>
-            <Button 
-              size="lg" 
-              className="text-white text-lg px-8 py-4"
-              style={{ backgroundColor: primaryColor }}
-              onClick={handlePartnershipClick}
-            >
-              Fazer Parceria Conosco
-              <ArrowRight className="h-5 w-5 ml-2" />
-            </Button>
+            <Link href="/register">
+              <Button 
+                size="lg" 
+                className="text-white text-lg px-8 py-4"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Fazer Parceria Conosco
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
