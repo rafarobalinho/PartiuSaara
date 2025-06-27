@@ -762,6 +762,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/seller/coupons/:id', authMiddleware, CouponController.deleteCoupon);
   app.post('/api/seller/coupons/use', authMiddleware, CouponController.useCoupon);
 
+  // Rota pública para resgate de cupons
+  app.post('/api/coupons/:id/redeem', async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { customerName, customerPhone } = req.body;
+      
+      const result = await storage.redeemCoupon(Number(id), {
+        name: customerName,
+        phone: customerPhone
+      });
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error('Erro ao resgatar cupom:', error);
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   // Rota para validar código de cupom (seller)
   app.post('/api/seller/coupons/validate', authMiddleware, async (req: Request, res: Response) => {
     try {
