@@ -399,6 +399,9 @@ export default function AddPromotion() {
                             )}
                           </SelectContent>
                         </Select>
+                        <FormDescription>
+                          Escolha a loja onde esta promoção será aplicada
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
