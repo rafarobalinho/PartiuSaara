@@ -193,8 +193,6 @@ export default function EditCoupon() {
         body: JSON.stringify(updateData)
       });
 
-      const result = await response.json();
-
       if (response.ok) {
         const updatedCoupon = await response.json();
         setCoupon(updatedCoupon);
@@ -207,6 +205,7 @@ export default function EditCoupon() {
           description: "Cupom atualizado com sucesso!",
         });
       } else {
+        const result = await response.json();
         toast({
           title: "Erro ao atualizar cupom",
           description: result.message || 'Erro desconhecido',
