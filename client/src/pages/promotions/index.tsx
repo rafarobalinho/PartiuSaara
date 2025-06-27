@@ -123,7 +123,7 @@ export default function PromotionsPage() {
                 <div className="mt-2 px-2">
                   <div className="text-xs text-gray-500 mb-1">
                     <i className="fas fa-store mr-1"></i>
-                    <span className="font-medium">{promotion.product.store.name}</span>
+                    <span className="font-medium">{promotion.product.store?.name || 'Loja não identificada'}</span>
                   </div>
                 </div>
 
