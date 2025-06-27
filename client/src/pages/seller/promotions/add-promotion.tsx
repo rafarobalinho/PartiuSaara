@@ -364,243 +364,289 @@ export default function AddPromotion() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Detalhes da Promoção</CardTitle>
-              <CardDescription>Primeiro selecione a loja, depois defina o tipo, duração e desconto da promoção</CardDescription>
+              <CardTitle>Informações da Promoção</CardTitle>
+              <CardDescription>Preencha todos os detalhes para criar uma promoção atrativa para seus produtos</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="storeId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Loja*</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger disabled={isStoresLoading}>
-                              <SelectValue placeholder={isStoresLoading ? "Carregando lojas..." : "Selecione uma loja"} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {isStoresLoading ? (
-                              <div className="p-2 text-center text-sm text-gray-500">Carregando lojas...</div>
-                            ) : stores.length === 0 ? (
-                              <div className="p-2 text-center text-sm text-gray-500">Nenhuma loja encontrada</div>
-                            ) : (
-                              stores.map((store: Store) => (
-                                <SelectItem key={store.id} value={store.id.toString()}>
-                                  {store.name}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Escolha a loja onde esta promoção será aplicada
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  
+                  {/* Seção: Loja */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Loja</h3>
 
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel>Tipo de Promoção*</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            className="flex flex-col space-y-1"
-                            disabled={!selectedStoreId}
-                          >
-                            <FormItem className="flex items-center space-x-3 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="normal" />
-                              </FormControl>
-                              <FormLabel className="font-normal">
-                                Promoção Regular
-                              </FormLabel>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-3 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem 
-                                  value="flash" 
-                                  disabled={subscriptionPlan === 'freemium' || !selectedStoreId}
-                                />
-                              </FormControl>
-                              <div>
-                                <FormLabel className="font-normal flex items-center">
-                                  Promoção Relâmpago
-                                  {subscriptionPlan === 'freemium' && (
-                                    <Badge className="ml-2 bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">
-                                      Plano Superior Necessário
-                                    </Badge>
-                                  )}
-                                </FormLabel>
-                                <FormDescription>
-                                  Promove seu produto na seção de destaque "Promoções Relâmpago"
-                                </FormDescription>
-                              </div>
-                            </FormItem>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                        {!selectedStoreId && (
-                          <p className="text-sm text-gray-500">Selecione uma loja primeiro</p>
-                        )}
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="productId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Produto*</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                          disabled={!selectedStoreId}
-                        >
-                          <FormControl>
-                            <SelectTrigger disabled={isProductsLoading || !selectedStoreId}>
-                              <SelectValue placeholder={
-                                !selectedStoreId ? "Selecione uma loja primeiro" :
-                                isProductsLoading ? "Carregando produtos..." : 
-                                "Selecione um produto"
-                              } />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {!selectedStoreId ? (
-                              <div className="p-2 text-center text-sm text-gray-500">Selecione uma loja primeiro</div>
-                            ) : isProductsLoading ? (
-                              <div className="p-2 text-center text-sm text-gray-500">Carregando produtos...</div>
-                            ) : productsData.length === 0 ? (
-                              <div className="p-2 text-center text-sm text-gray-500">Nenhum produto encontrado nesta loja</div>
-                            ) : (
-                              productsData.map((product: Product) => (
-                                <SelectItem key={product.id} value={product.id.toString()}>
-                                  {product.name} - R$ {product.price.toFixed(2)}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="discountType"
+                      name="storeId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Tipo de Desconto*</FormLabel>
+                          <FormLabel>Nome da Loja *</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger disabled={isStoresLoading}>
+                                <SelectValue placeholder={isStoresLoading ? "Carregando lojas..." : "Selecione uma loja"} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {isStoresLoading ? (
+                                <div className="p-2 text-center text-sm text-gray-500">Carregando lojas...</div>
+                              ) : stores.length === 0 ? (
+                                <div className="p-2 text-center text-sm text-gray-500">Nenhuma loja encontrada</div>
+                              ) : (
+                                stores.map((store: Store) => (
+                                  <SelectItem key={store.id} value={store.id.toString()}>
+                                    {store.name}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Escolha a loja onde esta promoção será aplicada
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Seção: Detalhes da Promoção */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Detalhes da Promoção</h3>
+
+                    <FormField
+                      control={form.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>Tipo de Promoção*</FormLabel>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="flex flex-col space-y-1"
+                              disabled={!selectedStoreId}
+                            >
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="normal" />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  Promoção Regular
+                                </FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem 
+                                    value="flash" 
+                                    disabled={subscriptionPlan === 'freemium' || !selectedStoreId}
+                                  />
+                                </FormControl>
+                                <div>
+                                  <FormLabel className="font-normal flex items-center">
+                                    Promoção Relâmpago
+                                    {subscriptionPlan === 'freemium' && (
+                                      <Badge className="ml-2 bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100">
+                                        Plano Superior Necessário
+                                      </Badge>
+                                    )}
+                                  </FormLabel>
+                                  <FormDescription>
+                                    Promove seu produto na seção de destaque "Promoções Relâmpago"
+                                  </FormDescription>
+                                </div>
+                              </FormItem>
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                          {!selectedStoreId && (
+                            <p className="text-sm text-gray-500">Selecione uma loja primeiro</p>
+                          )}
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Seção: Produto e Desconto */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Produto e Desconto</h3>
+
+                  <FormField
+                      control={form.control}
+                      name="productId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Produto*</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
                             defaultValue={field.value}
                             disabled={!selectedStoreId}
                           >
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione o tipo" />
+                              <SelectTrigger disabled={isProductsLoading || !selectedStoreId}>
+                                <SelectValue placeholder={
+                                  !selectedStoreId ? "Selecione uma loja primeiro" :
+                                  isProductsLoading ? "Carregando produtos..." : 
+                                  "Selecione um produto"
+                                } />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="percentage">Porcentagem (%)</SelectItem>
-                              <SelectItem value="amount">Valor (R$)</SelectItem>
+                              {!selectedStoreId ? (
+                                <div className="p-2 text-center text-sm text-gray-500">Selecione uma loja primeiro</div>
+                              ) : isProductsLoading ? (
+                                <div className="p-2 text-center text-sm text-gray-500">Carregando produtos...</div>
+                              ) : productsData.length === 0 ? (
+                                <div className="p-2 text-center text-sm text-gray-500">Nenhum produto encontrado nesta loja</div>
+                              ) : (
+                                productsData.map((product: Product) => (
+                                  <SelectItem key={product.id} value={product.id.toString()}>
+                                    {product.name} - R$ {product.price.toFixed(2)}
+                                  </SelectItem>
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
+                          <FormDescription>
+                            Escolha o produto que terá a promoção aplicada
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
 
-                    <FormField
-                      control={form.control}
-                      name="discountValue"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Valor do Desconto*</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              placeholder={form.watch('discountType') === 'percentage' ? "20" : "50.00"}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="discountType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tipo de Desconto*</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value}
                               disabled={!selectedStoreId}
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione o tipo" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="percentage">Porcentagem (%)</SelectItem>
+                                <SelectItem value="amount">Valor (R$)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="discountValue"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Valor do Desconto*</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder={form.watch('discountType') === 'percentage' ? "20" : "50.00"}
+                                disabled={!selectedStoreId}
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="startTime"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Data e Hora de Início*</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="datetime-local" 
-                              disabled={!selectedStoreId}
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  {/* Seção: Período da Promoção */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Período da Promoção</h3>
 
-                    <FormField
-                      control={form.control}
-                      name="endTime"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Data e Hora de Término*</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="datetime-local" 
-                              disabled={!selectedStoreId}
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="startTime"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Data e Hora de Início*</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="datetime-local" 
+                                disabled={!selectedStoreId}
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="endTime"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Data e Hora de Término*</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="datetime-local" 
+                                disabled={!selectedStoreId}
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
 
-                  <div className="flex justify-end space-x-2 pt-4">
-                    <Button 
-                      type="button" 
+                  {/* Botões de Ação */}
+                  <div className="flex gap-4 pt-4">
+                    <Button
+                      type="button"
                       variant="outline"
                       onClick={() => navigate('/seller/promotions')}
+                      disabled={createPromotionMutation.isPending}
                     >
                       Cancelar
                     </Button>
                     <Button 
                       type="submit" 
-                      className="bg-primary text-white hover:bg-primary/90"
-                      disabled={createPromotionMutation.isPending || !selectedStoreId}
+                      disabled={createPromotionMutation.isPending || !selectedStoreId || stores.length === 0}
+                      className="flex items-center gap-2"
                     >
-                      {createPromotionMutation.isPending ? 'Criando...' : 'Criar Promoção'}
+                      {createPromotionMutation.isPending ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          Criando Promoção...
+                        </>
+                      ) : (
+                        'Criar Promoção'
+                      )}
                     </Button>
                   </div>
+
+                  {stores.length === 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                      <p className="text-sm text-yellow-800">
+                        <strong>Atenção:</strong> Você precisa ter pelo menos uma loja cadastrada para criar promoções.{' '}
+                        <Link href="/seller/stores/add-store">
+                          <Button variant="link" className="p-0 h-auto">
+                            Criar loja agora
+                          </Button>
+                        </Link>
+                      </p>
+                    </div>
+                  )}
                 </form>
               </Form>
             </CardContent>
