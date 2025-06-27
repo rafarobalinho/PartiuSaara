@@ -1,7 +1,12 @@
+import pkg from 'pg';
+const { Pool } = pkg;
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const { Pool } = require('pg');
-const fs = require('fs');
-const path = require('path');
+// Obter __dirname equivalente em ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -16,7 +21,7 @@ async function syncImageStructure() {
 
   try {
     console.log('🔄 SINCRONIZAÇÃO DE ESTRUTURA DE IMAGENS');
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
 
     const baseUploadPath = path.join(process.cwd(), 'public', 'uploads');
     let movedFiles = 0;
@@ -34,17 +39,17 @@ async function syncImageStructure() {
 
     for (const product of productsResult.rows) {
       const { id, store_id, name, filename } = product;
-      
+
       // Criar estrutura de pastas se não existir
       const productDir = path.join(baseUploadPath, 'stores', store_id.toString(), 'products', id.toString());
       const thumbnailDir = path.join(productDir, 'thumbnails');
-      
+
       if (!fs.existsSync(productDir)) {
         fs.mkdirSync(productDir, { recursive: true });
         console.log(`📁 Criado: stores/${store_id}/products/${id}/`);
         createdFolders++;
       }
-      
+
       if (!fs.existsSync(thumbnailDir)) {
         fs.mkdirSync(thumbnailDir, { recursive: true });
         console.log(`📁 Criado: stores/${store_id}/products/${id}/thumbnails/`);
@@ -53,7 +58,7 @@ async function syncImageStructure() {
 
       // Verificar se arquivo existe no local correto
       const expectedPath = path.join(productDir, filename);
-      
+
       if (!fs.existsSync(expectedPath)) {
         // Procurar arquivo em outros locais
         const possiblePaths = [
@@ -89,17 +94,17 @@ async function syncImageStructure() {
 
     for (const store of storesResult.rows) {
       const { id, name, filename } = store;
-      
+
       // Criar estrutura de pastas se não existir
       const storeDir = path.join(baseUploadPath, 'stores', id.toString());
       const thumbnailDir = path.join(storeDir, 'thumbnails');
-      
+
       if (!fs.existsSync(storeDir)) {
         fs.mkdirSync(storeDir, { recursive: true });
         console.log(`📁 Criado: stores/${id}/`);
         createdFolders++;
       }
-      
+
       if (!fs.existsSync(thumbnailDir)) {
         fs.mkdirSync(thumbnailDir, { recursive: true });
         console.log(`📁 Criado: stores/${id}/thumbnails/`);
@@ -108,7 +113,7 @@ async function syncImageStructure() {
 
       // Verificar se arquivo existe no local correto
       const expectedPath = path.join(storeDir, filename);
-      
+
       if (!fs.existsSync(expectedPath)) {
         // Procurar arquivo em outros locais
         const possiblePaths = [
@@ -152,9 +157,9 @@ async function syncImageStructure() {
   }
 }
 
-// Executar se for o módulo principal
-if (require.main === module) {
+// Verificar se é o módulo principal
+if (import.meta.url === `file://${process.argv[1]}`) {
   syncImageStructure();
 }
 
-module.exports = { syncImageStructure };
+export { syncImageStructure };

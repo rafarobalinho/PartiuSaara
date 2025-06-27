@@ -1,7 +1,12 @@
+import pkg from 'pg';
+const { Pool } = pkg;
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const { Pool } = require('pg');
-const fs = require('fs');
-const path = require('path');
+// Obter __dirname equivalente em ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -13,10 +18,10 @@ async function diagnoseMissingImages() {
 
   try {
     console.log('🔍 DIAGNÓSTICO DE IMAGENS EM FALTA');
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
 
     const baseUploadPath = path.join(process.cwd(), 'public', 'uploads');
-    
+
     // Verificar produtos específicos com problema
     const problemProducts = [19, 20, 21];
     const problemStores = [9, 10, 11];
@@ -35,19 +40,19 @@ async function diagnoseMissingImages() {
         console.log(`\n📦 Produto ${product.id} (${product.name}):`);
         console.log(`   Loja: ${product.store_id}`);
         console.log(`   Arquivo: ${product.filename || 'SEM IMAGEM'}`);
-        
+
         if (product.filename) {
           const expectedPath = path.join(baseUploadPath, 'stores', product.store_id.toString(), 'products', product.id.toString(), product.filename);
           console.log(`   Caminho esperado: ${expectedPath}`);
           console.log(`   Existe: ${fs.existsSync(expectedPath) ? '✅' : '❌'}`);
-          
+
           // Procurar em outros locais
           const altPaths = [
             path.join(baseUploadPath, product.filename),
             path.join(baseUploadPath, 'originals', product.filename),
             path.join(baseUploadPath, 'thumbnails', product.filename)
           ];
-          
+
           console.log('   Procurando em locais alternativos:');
           for (const altPath of altPaths) {
             if (fs.existsSync(altPath)) {
@@ -71,19 +76,19 @@ async function diagnoseMissingImages() {
         const store = result.rows[0];
         console.log(`\n🏪 Loja ${store.id} (${store.name}):`);
         console.log(`   Arquivo: ${store.filename || 'SEM IMAGEM'}`);
-        
+
         if (store.filename) {
           const expectedPath = path.join(baseUploadPath, 'stores', store.id.toString(), store.filename);
           console.log(`   Caminho esperado: ${expectedPath}`);
           console.log(`   Existe: ${fs.existsSync(expectedPath) ? '✅' : '❌'}`);
-          
+
           // Procurar em outros locais
           const altPaths = [
             path.join(baseUploadPath, store.filename),
             path.join(baseUploadPath, 'originals', store.filename),
             path.join(baseUploadPath, 'thumbnails', store.filename)
           ];
-          
+
           console.log('   Procurando em locais alternativos:');
           for (const altPath of altPaths) {
             if (fs.existsSync(altPath)) {
@@ -102,9 +107,9 @@ async function diagnoseMissingImages() {
   }
 }
 
-// Executar se for o módulo principal
-if (require.main === module) {
+// Verificar se é o módulo principal
+if (import.meta.url === `file://${process.argv[1]}`) {
   diagnoseMissingImages();
 }
 
-module.exports = { diagnoseMissingImages };
+export { diagnoseMissingImages };
