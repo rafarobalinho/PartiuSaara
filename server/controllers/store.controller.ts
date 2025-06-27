@@ -284,3 +284,53 @@ export async function updateStore(req: Request, res: Response) {
     res.status(500).json({ message: 'Internal server error' });
   }
 }
+
+// Get user's stores
+export async function getMyStores(req: Request, res: Response) {
+  try {
+    const user = req.user!;
+
+    console.log(`🔍 [SECURITY] Buscando lojas apenas do usuário: ${user.id}`);
+
+    const stores = await storage.getStoresByUserId(user.id);
+
+    console.log(`🔍 [SECURITY] Lojas encontradas: ${stores.length}`);
+
+    res.json(stores);
+  } catch (error) {
+    console.error('Error getting user stores:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+// Get products for a specific store (with security validation)
+export async function getStoreProducts(req: Request, res: Response) {
+  try {
+    const { storeId } = req.params;
+    const user = req.user!;
+
+    console.log(`🔍 [SECURITY] Verificando acesso aos produtos da loja ${storeId} pelo usuário ${user.id}`);
+
+    // First verify that the store belongs to the authenticated user
+    const store = await storage.getStore(Number(storeId));
+    if (!store) {
+      console.log(`❌ [SECURITY] Loja ${storeId} não encontrada`);
+      return res.status(404).json({ message: 'Store not found' });
+    }
+
+    if (store.userId !== user.id) {
+      console.log(`❌ [SECURITY] Usuário ${user.id} tentou acessar produtos da loja ${storeId} que pertence ao usuário ${store.userId}`);
+      return res.status(403).json({ message: 'Access denied: Store does not belong to you' });
+    }
+
+    // Get products for this specific store
+    const products = await storage.getProductsByStore(Number(storeId));
+
+    console.log(`✅ [SECURITY] Retornando ${products.length} produtos da loja ${storeId} para o usuário ${user.id}`);
+
+    res.json({ products });
+  } catch (error) {
+    console.error('Error getting store products:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
