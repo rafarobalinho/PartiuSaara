@@ -50,11 +50,7 @@ const productSchema = z.object({
   }),
 });
 
-const CATEGORIES = [
-  "Moda Feminina", "Moda Masculina", "Calçados", "Acessórios", 
-  "Beleza e Cuidados", "Casa e Decoração", "Esportes e Lazer", 
-  "Eletrônicos", "Livros e Papelaria", "Alimentação", "Outros"
-];
+
 
 type ProductFormValues = z.infer<typeof productSchema>;
 
@@ -89,6 +85,21 @@ export default function AddProduct() {
       }
     },
     enabled: isAuthenticated && isSeller
+  });
+
+  // ✅ BUSCAR CATEGORIAS DO BANCO DE DADOS
+  const { data: categories = [] } = useQuery({
+    queryKey: ['/api/categories'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (!response.ok) throw new Error('Failed to fetch categories');
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        return [];
+      }
+    }
   });
 
   const form = useForm<ProductFormValues>({
@@ -317,9 +328,9 @@ export default function AddProduct() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {CATEGORIES.map((category) => (
-                              <SelectItem key={category} value={category}>
-                                {category}
+                            {categories.map((category: any) => (
+                              <SelectItem key={category.id} value={category.name}>
+                                {category.name}
                               </SelectItem>
                             ))}
                           </SelectContent>

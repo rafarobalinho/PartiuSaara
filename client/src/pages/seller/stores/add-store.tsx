@@ -46,11 +46,7 @@ const storeSchema = z.object({
   }),
 });
 
-const CATEGORIES = [
-  "Moda Feminina", "Moda Masculina", "Calçados", "Acessórios", 
-  "Beleza e Cuidados", "Casa e Decoração", "Esportes e Lazer", 
-  "Eletrônicos", "Livros e Papelaria", "Alimentação", "Outros"
-];
+
 
 type StoreFormValues = z.infer<typeof storeSchema>;
 
@@ -62,6 +58,21 @@ export default function AddStore() {
 
   // ✅ REF PARA CONTROLAR O IMAGEUPLOAD
   const imageUploadRef = useRef<any>(null);
+
+  // Buscar categorias do banco de dados
+  const { data: categories = [] } = useQuery({
+    queryKey: ['/api/categories'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (!response.ok) throw new Error('Failed to fetch categories');
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        return [];
+      }
+    }
+  });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -240,9 +251,9 @@ export default function AddStore() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {CATEGORIES.map((category) => (
-                              <SelectItem key={category} value={category}>
-                                {category}
+                            {categories.map((category: any) => (
+                              <SelectItem key={category.id} value={category.name}>
+                                {category.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
