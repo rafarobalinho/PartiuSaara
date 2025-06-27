@@ -56,6 +56,10 @@ interface Promotion {
     }>;
     // ✅ ADICIONADO: imageUrl para compatibilidade
     imageUrl?: string;
+    store: {
+      id: number;
+      name: string;
+    }
   };
 }
 
@@ -93,19 +97,19 @@ export default function SellerPromotions() {
             'Content-Type': 'application/json'
           }
         });
-        
+
         // Log para diagnóstico
         console.log('API response status:', response.status);
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           console.log('API error response:', errorText);
           throw new Error(`Failed to fetch promotions: ${response.status} ${errorText}`);
         }
-        
+
         const data = await response.json();
         console.log('Resposta da API (promoções do vendedor):', data);
-        
+
         // Map the API response to our expected format
         // If the API returns 'regular' type, convert it to 'normal' for frontend display
         return (data || []).map((promo: any) => ({
@@ -129,13 +133,13 @@ export default function SellerPromotions() {
     const now = new Date();
     const endDate = new Date(promotion.endTime);
     const startDate = new Date(promotion.startTime);
-    
+
     if (activeTab === 'all') return true;
     if (activeTab === 'active' && now <= endDate && now >= startDate) return true;
     if (activeTab === 'upcoming' && now < startDate) return true;
     if (activeTab === 'ended' && now > endDate) return true;
     if (activeTab === 'flash' && promotion.type === 'flash') return true;
-    
+
     return false;
   });
 
@@ -167,18 +171,18 @@ export default function SellerPromotions() {
     }
     return '';
   };
-  
+
   // Calculate promotional price based on discount
   const calculatePromotionalPrice = (product: any, promotion: Promotion) => {
     if (!product || !promotion) return 'N/A';
-    
+
     const originalPrice = product.price;
-    
+
     if (promotion.discountPercentage) {
       const discountedPrice = originalPrice * (1 - (promotion.discountPercentage / 100));
       return formatCurrency(discountedPrice);
     }
-    
+
     return product.discountedPrice ? formatCurrency(product.discountedPrice) : 'N/A';
   };
 
@@ -187,12 +191,12 @@ export default function SellerPromotions() {
     mutationFn: async (id: number) => {
       try {
         console.log(`Iniciando exclusão da promoção ${id}`);
-        
+
         // Check if id is valid
         if (!id || isNaN(id)) {
           throw new Error('ID da promoção inválido');
         }
-        
+
         const response = await fetch(`/api/promotions/${id}`, {
           method: 'DELETE',
           credentials: 'include',
@@ -200,10 +204,10 @@ export default function SellerPromotions() {
             'Content-Type': 'application/json'
           }
         });
-        
+
         // Log for debugging
         console.log(`Resposta da exclusão: status ${response.status}`);
-        
+
         if (!response.ok) {
           let errorText = '';
           try {
@@ -214,7 +218,7 @@ export default function SellerPromotions() {
           }
           throw new Error(`Failed to delete promotion: ${response.status} ${errorText}`);
         }
-        
+
         const result = await response.json();
         console.log('Resultado da exclusão:', result);
         return result;
@@ -263,14 +267,14 @@ export default function SellerPromotions() {
           <h1 className="text-2xl font-bold mb-2">Promoções</h1>
           <p className="text-gray-600">Gerencie as promoções e ofertas dos seus produtos</p>
         </div>
-        
+
         <Button asChild className="mt-4 md:mt-0 bg-primary text-white hover:bg-primary/90">
           <Link href="/seller/promotions/add">
             <span className="flex items-center"><i className="fas fa-plus mr-2"></i> Criar Promoção</span>
           </Link>
         </Button>
       </div>
-      
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!promotionToDelete} onOpenChange={(open) => !open && setPromotionToDelete(null)}>
         <AlertDialogContent>
@@ -355,7 +359,7 @@ export default function SellerPromotions() {
             const isActive = isPromotionActive(promotion.startTime, promotion.endTime);
             const isUpcoming = new Date() < new Date(promotion.startTime);
             const isEnded = new Date() > new Date(promotion.endTime);
-            
+
             return (
               <Card key={promotion.id} className="overflow-hidden">
                 <div className="flex flex-col md:flex-row">
@@ -366,7 +370,7 @@ export default function SellerPromotions() {
                       </Badge>
                     </div>
                   )}
-                  
+
                   <div className="md:w-1/4 p-4 bg-gray-50 flex items-center">
                     <div className="w-full">
                       <div className="flex items-center mb-2">
@@ -388,7 +392,7 @@ export default function SellerPromotions() {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="text-sm mb-1">
                         <span className="font-medium text-gray-600">Preço original:</span> {formatCurrency(promotion.product.price)}
                       </div>
@@ -400,7 +404,7 @@ export default function SellerPromotions() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="md:w-3/4 p-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between">
                       <div>
@@ -421,7 +425,7 @@ export default function SellerPromotions() {
                           {formatPromotionDate(promotion.startTime)} até {formatPromotionDate(promotion.endTime)}
                         </div>
                       </div>
-                      
+
                       <div className="mt-4 md:mt-0 flex space-x-2">
                         <Button 
                           size="sm" 
@@ -442,7 +446,7 @@ export default function SellerPromotions() {
                         </Button>
                       </div>
                     </div>
-                    
+
                     {promotion.type === 'flash' && isActive && (
                       <div className="mt-4 p-2 bg-yellow-50 rounded-md border border-yellow-200 text-sm text-yellow-800">
                         <i className="fas fa-clock mr-1"></i> Promoção relâmpago ativa! Termina em breve.

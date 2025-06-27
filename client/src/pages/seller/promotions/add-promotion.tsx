@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { useLocation, Link } from 'wouter';
@@ -24,6 +25,9 @@ import {
 } from '@/components/ui/form';
 
 const promotionSchema = z.object({
+  storeId: z.string().min(1, {
+    message: 'Selecione uma loja',
+  }),
   type: z.enum(['normal', 'flash']),
   discountType: z.enum(['percentage', 'amount']),
   discountValue: z.string().min(1, {
@@ -65,6 +69,12 @@ interface Product {
   };
 }
 
+interface Store {
+  id: number;
+  name: string;
+  subscriptionPlan: string;
+}
+
 export default function AddPromotion() {
   const { isAuthenticated, isSeller } = useAuth();
   const [, navigate] = useLocation();
@@ -85,53 +95,21 @@ export default function AddPromotion() {
     return null;
   }
 
-  // Fetch subscription plan
-  useEffect(() => {
-    // This would be an actual API call in a real app
-    setSubscriptionPlan('freemium');
-  }, []);
-
-  // Query para buscar produtos disponíveis (apenas do vendedor autenticado)
-  const { data: productsData = [], isLoading: isProductsLoading } = useQuery({
-    queryKey: ['/api/seller/products'],
+  // Query para buscar lojas do vendedor
+  const { data: stores = [], isLoading: isStoresLoading } = useQuery({
+    queryKey: ['/api/stores/my-stores'],
     queryFn: async () => {
-      console.log('[AddPromotionPage] 🔍 Iniciando busca de produtos...');
-      const response = await fetch('/api/seller/products');
-      
-      console.log('[AddPromotionPage] 📡 Response status:', response.status);
-      console.log('[AddPromotionPage] 📡 Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('[AddPromotionPage] 🏪 Buscando lojas do vendedor...');
+      const response = await fetch('/api/stores/my-stores');
       
       if (!response.ok) {
-        console.error('[AddPromotionPage] ❌ Erro na resposta:', response.status, response.statusText);
-        if (response.status === 401) {
-          throw new Error('Usuário não autenticado');
-        }
-        throw new Error('Failed to fetch products');
+        console.error('[AddPromotionPage] ❌ Erro ao buscar lojas:', response.status);
+        throw new Error('Failed to fetch stores');
       }
       
       const data = await response.json();
-      console.log('[AddPromotionPage] 📦 Dados brutos de /api/seller/products:', data);
-      console.log('[AddPromotionPage] 📦 Estrutura completa:', JSON.stringify(data, null, 2));
-      console.log('[AddPromotionPage] 📦 Array de produtos:', data.products);
-      console.log('[AddPromotionPage] 📦 Quantidade de produtos:', data.products?.length || 0);
-      
-      if (data.products && Array.isArray(data.products)) {
-        console.log('[AddPromotionPage] 📦 Primeiro produto (exemplo):', data.products[0]);
-        data.products.forEach((product, index) => {
-          console.log(`[AddPromotionPage] 📦 Produto ${index}:`, {
-            id: product.id,
-            name: product.name,
-            price: product.price,
-            store_id: product.store_id,
-            store: product.store
-          });
-        });
-      }
-      
-      const finalProducts = data.products || [];
-      console.log('[AddPromotionPage] ✅ Produtos finais para dropdown:', finalProducts);
-      console.log('✅ Produtos do vendedor carregados:', finalProducts.length);
-      return finalProducts;
+      console.log('[AddPromotionPage] 🏪 Lojas encontradas:', data);
+      return data as Store[];
     }
   });
 
@@ -148,6 +126,7 @@ export default function AddPromotion() {
   const form = useForm<PromotionFormValues>({
     resolver: zodResolver(promotionSchema),
     defaultValues: {
+      storeId: '',
       type: 'normal',
       discountType: 'percentage',
       discountValue: '',
@@ -160,14 +139,58 @@ export default function AddPromotion() {
   // Watch form values for conditional rendering
   const promotionType = form.watch('type');
   const productId = form.watch('productId');
+  const selectedStoreId = form.watch('storeId');
   
   console.log('[AddPromotionPage] 🎯 Estado atual do form:');
   console.log('[AddPromotionPage] 🎯 - promotionType:', promotionType);
   console.log('[AddPromotionPage] 🎯 - productId:', productId);
-  console.log('[AddPromotionPage] 🎯 - productsData disponível:', productsData.length, 'produtos');
-  
+  console.log('[AddPromotionPage] 🎯 - selectedStoreId:', selectedStoreId);
+
+  // Query para buscar produtos da loja selecionada APENAS
+  const { data: productsData = [], isLoading: isProductsLoading } = useQuery({
+    queryKey: ['/api/stores', selectedStoreId, 'products'],
+    queryFn: async () => {
+      if (!selectedStoreId) {
+        console.log('[AddPromotionPage] 📦 Nenhuma loja selecionada, retornando array vazio');
+        return [];
+      }
+
+      console.log('[AddPromotionPage] 📦 Buscando produtos da loja:', selectedStoreId);
+      const response = await fetch(`/api/stores/${selectedStoreId}/products`);
+      
+      if (!response.ok) {
+        console.error('[AddPromotionPage] ❌ Erro ao buscar produtos da loja:', response.status);
+        throw new Error('Failed to fetch store products');
+      }
+      
+      const data = await response.json();
+      console.log('[AddPromotionPage] 📦 Produtos da loja encontrados:', data);
+      return data.products || [];
+    },
+    enabled: !!selectedStoreId, // Só executa se uma loja estiver selecionada
+  });
+
   const selectedProduct = productsData.find((p: Product) => p.id.toString() === productId);
   console.log('[AddPromotionPage] 🎯 - selectedProduct:', selectedProduct);
+
+  // Update subscription plan based on selected store
+  useEffect(() => {
+    if (selectedStoreId && stores.length > 0) {
+      const selectedStore = stores.find(store => store.id.toString() === selectedStoreId);
+      if (selectedStore) {
+        setSubscriptionPlan(selectedStore.subscriptionPlan || 'freemium');
+        console.log('[AddPromotionPage] 📋 Plano da loja selecionada:', selectedStore.subscriptionPlan);
+      }
+    }
+  }, [selectedStoreId, stores]);
+
+  // Reset product selection when store changes
+  useEffect(() => {
+    if (selectedStoreId) {
+      form.setValue('productId', '');
+      console.log('[AddPromotionPage] 🔄 Loja alterada, resetando seleção de produto');
+    }
+  }, [selectedStoreId, form]);
 
   // Create promotion mutation
   const createPromotionMutation = useMutation({
@@ -342,11 +365,45 @@ export default function AddPromotion() {
           <Card>
             <CardHeader>
               <CardTitle>Detalhes da Promoção</CardTitle>
-              <CardDescription>Defina o tipo, duração e desconto da promoção</CardDescription>
+              <CardDescription>Primeiro selecione a loja, depois defina o tipo, duração e desconto da promoção</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="storeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Loja*</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger disabled={isStoresLoading}>
+                              <SelectValue placeholder={isStoresLoading ? "Carregando lojas..." : "Selecione uma loja"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {isStoresLoading ? (
+                              <div className="p-2 text-center text-sm text-gray-500">Carregando lojas...</div>
+                            ) : stores.length === 0 ? (
+                              <div className="p-2 text-center text-sm text-gray-500">Nenhuma loja encontrada</div>
+                            ) : (
+                              stores.map((store: Store) => (
+                                <SelectItem key={store.id} value={store.id.toString()}>
+                                  {store.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="type"
@@ -358,6 +415,7 @@ export default function AddPromotion() {
                             onValueChange={field.onChange}
                             defaultValue={field.value}
                             className="flex flex-col space-y-1"
+                            disabled={!selectedStoreId}
                           >
                             <FormItem className="flex items-center space-x-3 space-y-0">
                               <FormControl>
@@ -371,7 +429,7 @@ export default function AddPromotion() {
                               <FormControl>
                                 <RadioGroupItem 
                                   value="flash" 
-                                  disabled={subscriptionPlan === 'freemium'}
+                                  disabled={subscriptionPlan === 'freemium' || !selectedStoreId}
                                 />
                               </FormControl>
                               <div>
@@ -391,6 +449,9 @@ export default function AddPromotion() {
                           </RadioGroup>
                         </FormControl>
                         <FormMessage />
+                        {!selectedStoreId && (
+                          <p className="text-sm text-gray-500">Selecione uma loja primeiro</p>
+                        )}
                       </FormItem>
                     )}
                   />
@@ -404,48 +465,31 @@ export default function AddPromotion() {
                         <Select 
                           onValueChange={field.onChange} 
                           defaultValue={field.value}
+                          disabled={!selectedStoreId}
                         >
                           <FormControl>
-                            <SelectTrigger disabled={isProductsLoading}>
-                              <SelectValue placeholder={isProductsLoading ? "Carregando produtos..." : "Selecione um produto"} />
+                            <SelectTrigger disabled={isProductsLoading || !selectedStoreId}>
+                              <SelectValue placeholder={
+                                !selectedStoreId ? "Selecione uma loja primeiro" :
+                                isProductsLoading ? "Carregando produtos..." : 
+                                "Selecione um produto"
+                              } />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {(() => {
-                              console.log('[AddPromotionPage] 🎯 Renderizando SelectContent...');
-                              console.log('[AddPromotionPage] 🎯 isProductsLoading:', isProductsLoading);
-                              console.log('[AddPromotionPage] 🎯 productsData:', productsData);
-                              console.log('[AddPromotionPage] 🎯 productsData.length:', productsData.length);
-                              console.log('[AddPromotionPage] 🎯 Array.isArray(productsData):', Array.isArray(productsData));
-                              
-                              if (isProductsLoading) {
-                                console.log('[AddPromotionPage] 🎯 Exibindo loading...');
-                                return <div className="p-2 text-center text-sm text-gray-500">Carregando produtos...</div>;
-                              }
-                              
-                              if (productsData.length === 0) {
-                                console.log('[AddPromotionPage] 🎯 Nenhum produto encontrado...');
-                                return <div className="p-2 text-center text-sm text-gray-500">Nenhum produto encontrado</div>;
-                              }
-                              
-                              console.log('[AddPromotionPage] 🎯 Mapeando produtos para SelectItems...');
-                              const selectItems = productsData.map((product: Product) => {
-                                console.log('[AddPromotionPage] 🎯 Criando SelectItem para produto:', {
-                                  id: product.id,
-                                  name: product.name,
-                                  price: product.price
-                                });
-                                
-                                return (
-                                  <SelectItem key={product.id} value={product.id.toString()}>
-                                    {product.name} - R$ {product.price.toFixed(2)}
-                                  </SelectItem>
-                                );
-                              });
-                              
-                              console.log('[AddPromotionPage] 🎯 SelectItems criados:', selectItems.length);
-                              return selectItems;
-                            })()}
+                            {!selectedStoreId ? (
+                              <div className="p-2 text-center text-sm text-gray-500">Selecione uma loja primeiro</div>
+                            ) : isProductsLoading ? (
+                              <div className="p-2 text-center text-sm text-gray-500">Carregando produtos...</div>
+                            ) : productsData.length === 0 ? (
+                              <div className="p-2 text-center text-sm text-gray-500">Nenhum produto encontrado nesta loja</div>
+                            ) : (
+                              productsData.map((product: Product) => (
+                                <SelectItem key={product.id} value={product.id.toString()}>
+                                  {product.name} - R$ {product.price.toFixed(2)}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -463,6 +507,7 @@ export default function AddPromotion() {
                           <Select 
                             onValueChange={field.onChange} 
                             defaultValue={field.value}
+                            disabled={!selectedStoreId}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -489,6 +534,7 @@ export default function AddPromotion() {
                             <Input 
                               type="number" 
                               placeholder={form.watch('discountType') === 'percentage' ? "20" : "50.00"}
+                              disabled={!selectedStoreId}
                               {...field} 
                             />
                           </FormControl>
@@ -508,6 +554,7 @@ export default function AddPromotion() {
                           <FormControl>
                             <Input 
                               type="datetime-local" 
+                              disabled={!selectedStoreId}
                               {...field} 
                             />
                           </FormControl>
@@ -525,6 +572,7 @@ export default function AddPromotion() {
                           <FormControl>
                             <Input 
                               type="datetime-local" 
+                              disabled={!selectedStoreId}
                               {...field} 
                             />
                           </FormControl>
@@ -545,7 +593,7 @@ export default function AddPromotion() {
                     <Button 
                       type="submit" 
                       className="bg-primary text-white hover:bg-primary/90"
-                      disabled={createPromotionMutation.isPending}
+                      disabled={createPromotionMutation.isPending || !selectedStoreId}
                     >
                       {createPromotionMutation.isPending ? 'Criando...' : 'Criar Promoção'}
                     </Button>
@@ -563,7 +611,12 @@ export default function AddPromotion() {
               <CardDescription>Como ficará após a aplicação</CardDescription>
             </CardHeader>
             <CardContent>
-              {selectedProduct ? (
+              {!selectedStoreId ? (
+                <div className="text-center py-6 text-gray-500">
+                  <i className="fas fa-store text-gray-300 text-4xl mb-2"></i>
+                  <p>Selecione uma loja para começar</p>
+                </div>
+              ) : selectedProduct ? (
                 <div>
                   <div className="rounded-md overflow-hidden mb-4">
                     <img 
@@ -610,7 +663,7 @@ export default function AddPromotion() {
                 <ul className="text-sm text-blue-800 space-y-1">
                   <li>• Descontos entre 10% e 30% são os mais efetivos</li>
                   <li>• Promoções relâmpago funcionam melhor por 24-48h</li>
-                  <li>• Adicione um item promocional de alto valor</li>
+                  <li>• Cada promoção é específica de uma loja</li>
                 </ul>
               </div>
             </CardContent>

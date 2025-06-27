@@ -223,6 +223,10 @@ export async function getSellerPromotions(req: Request, res: Response) {
               discountedPrice: discountedPrice,
               stock: row.p_stock,
               storeId: row.p_store_id,
+              store: {
+                id: row.p_store_id,
+                name: row.store_name
+              },
               images: [],
               imageUrl: null
             }
