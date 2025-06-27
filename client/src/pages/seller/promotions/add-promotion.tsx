@@ -676,7 +676,7 @@ export default function AddPromotion() {
                       className="w-full h-40 object-cover"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
-                        target.src = '/placeholder-image.jpg';
+                        target.src = '/assets/default-product-image.jpg';
                       }}
                     />
                   </div>
