@@ -674,16 +674,61 @@ export class DatabaseStorage implements IStorage {
     return coupon;
   }
 
-  async updateCoupon(id: number, couponData: Partial<Coupon>): Promise<Coupon | undefined> {
+  async updateCoupon(id: number, data: Partial<InsertCoupon>): Promise<Coupon | null> {
     try {
-      const [updatedCoupon] = await db
-        .update(coupons)
-        .set(couponData)
+      console.log(`[Storage] Updating coupon ${id} with data:`, data);
+
+      // Filtrar dados undefined e garantir que datas sejam objetos Date válidos no horário de Brasília
+      const updateData: any = {};
+
+      Object.keys(data).forEach(key => {
+        const value = (data as any)[key];
+        if (value !== undefined) {
+          // Se for um campo de data, garantir que é um objeto Date válido no horário de Brasília
+          if ((key === 'startTime' || key === 'endTime') && value) {
+            let dateValue: Date;
+
+            if (value instanceof Date) {
+              dateValue = value;
+            } else {
+              // Converter string para Date, assumindo horário de Brasília (UTC-3)
+              dateValue = new Date(value);
+
+              // Se a data não tem timezone especificado, assumir que é horário de Brasília
+              if (typeof value === 'string' && !value.includes('Z') && !value.includes('+') && !value.includes('-')) {
+                // Adicionar 3 horas para compensar o fuso horário de Brasília (UTC-3)
+                dateValue = new Date(dateValue.getTime() + (3 * 60 * 60 * 1000));
+              }
+            }
+
+            if (!isNaN(dateValue.getTime())) {
+              updateData[key] = dateValue;
+              console.log(`[Storage] Converted ${key}: ${value} -> ${dateValue.toISOString()}`);
+            } else {
+              console.warn(`[Storage] Invalid date for ${key}: ${value}`);
+            }
+          } else {
+            updateData[key] = value;
+          }
+        }
+      });
+
+      console.log(`[Storage] Processed update data:`, updateData);
+
+      const [updatedCoupon] = await db.update(coupons)
+        .set(updateData)
         .where(eq(coupons.id, id))
         .returning();
+
+      if (!updatedCoupon) {
+        console.log(`[Storage] Coupon ${id} not found for update`);
+        return null;
+      }
+
+      console.log(`[Storage] Successfully updated coupon ${id}`);
       return updatedCoupon;
     } catch (error) {
-      console.log(`[Storage] Error updating coupon ${id}:`, error);
+      console.error(`[Storage] Error updating coupon ${id}:`, error);
       throw error;
     }
   }
