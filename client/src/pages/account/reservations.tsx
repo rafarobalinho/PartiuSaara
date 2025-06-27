@@ -185,9 +185,25 @@ export default function Reservations() {
   };
 
   // Calculate time remaining for pending reservations
-  const getTimeRemaining = (expiresAt: string) => {
+  const getTimeRemaining = (reservation: Reservation) => {
     const now = new Date();
-    const expiration = new Date(expiresAt);
+    
+    // Se o produto tem promoção ativa, usar o tempo da promoção
+    if (reservation.promotion && reservation.promotion.endsAt) {
+      const promotionEnd = new Date(reservation.promotion.endsAt);
+      const diffMs = promotionEnd.getTime() - now.getTime();
+      
+      if (diffMs <= 0) return 'Promoção expirada';
+      
+      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      
+      const promotionType = reservation.promotion.type === 'flash' ? 'relâmpago' : 'regular';
+      return `${diffHrs}h ${diffMins}m restantes (promoção ${promotionType})`;
+    }
+    
+    // Caso contrário, usar tempo padrão de 72h da reserva
+    const expiration = new Date(reservation.expiresAt);
     const diffMs = expiration.getTime() - now.getTime();
 
     if (diffMs <= 0) return 'Expirado';
@@ -326,7 +342,7 @@ export default function Reservations() {
                             {reservation.status === 'pending' && (
                               <>
                                 <span className="mx-2">•</span>
-                                <span className="text-yellow-600">{getTimeRemaining(reservation.expiresAt)}</span>
+                                <span className="text-yellow-600">{getTimeRemaining(reservation)}</span>
                               </>
                             )}
                           </div>
