@@ -679,7 +679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Loja não pertence ao usuário' });
       }
 
-      const coupon = await await storage.createCoupon(couponData);
+      const coupon = await storage.createCoupon(couponData);
       res.json(coupon);
     } catch (error: any) {
       console.error('Error creating coupon:', error);
@@ -945,7 +945,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Stripe routes for payment processing
   app.post('/api/stripe/checkout', authMiddleware, StripeController.createCheckoutSession);
-  app.get('/api/stripe/checkout', (_req, res) => res.json({ message: 'Stripe checkout endpoint is working' }); // Corrigido: _req
+  app.get('/api/stripe/checkout', (_req, res) => res.json({ message: 'Stripe checkout endpoint is working' })); // Corrigido: _req
   app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), StripeController.handleWebhook);
   app.get('/api/stripe/subscription', authMiddleware, StripeController.getSubscriptionDetails);
   app.post('/api/stripe/cancel', authMiddleware, StripeController.cancelSubscription);
