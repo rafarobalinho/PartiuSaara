@@ -110,45 +110,13 @@ export default function PromotionsPage() {
                   </Badge>
                 </div>
               )}
-              <div className="flex flex-col h-full">
-                <ProductCard
-                  product={promotion.product}
-                  isFlashPromotion={promotion.type === 'flash'}
-                  discountPercentage={promotion.discountPercentage}
-                  endTime={new Date(promotion.endTime)}
-                  startTime={new Date(promotion.startTime)}
-                />
-                
-                {/* Nome da Loja */}
-                <div className="mt-2 px-2">
-                  <div className="text-xs text-gray-500 mb-1">
-                    <i className="fas fa-store mr-1"></i>
-                    <span className="font-medium">{promotion.product.store?.name || 'Loja não identificada'}</span>
-                  </div>
-                </div>
-
-                {/* Contagem Regressiva */}
-                <div className="mt-1 px-2 pb-2">
-                  <div className="bg-gray-50 p-2 rounded-md border border-gray-100">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-600">
-                        {promotion.type === 'flash' ? 'Relâmpago' : 'Promoção'}
-                      </span>
-                      <Badge variant="secondary" className="text-xs px-1 py-0">
-                        {promotion.discountPercentage}% OFF
-                      </Badge>
-                    </div>
-                    <CountdownTimer 
-                      endTime={new Date(promotion.endTime)}
-                      startTime={new Date(promotion.startTime)}
-                      styleClass="text-xs text-primary font-medium"
-                      onComplete={() => {
-                        console.log(`Promoção ${promotion.id} finalizada`);
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
+              <ProductCard
+                product={promotion.product}
+                isFlashPromotion={promotion.type === 'flash'}
+                discountPercentage={promotion.discountPercentage}
+                endTime={new Date(promotion.endTime)}
+                startTime={new Date(promotion.startTime)}
+              />
             </div>
           ))}
         </div>
