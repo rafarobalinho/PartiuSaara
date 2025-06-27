@@ -767,12 +767,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { customerName, customerPhone } = req.body;
-      
+
       const result = await storage.redeemCoupon(Number(id), {
         name: customerName,
         phone: customerPhone
       });
-      
+
       res.json(result);
     } catch (error: any) {
       console.error('Erro ao resgatar cupom:', error);
