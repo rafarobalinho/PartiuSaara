@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
+import { SafeImage } from '@/components/ui/safe-image';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,16 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-const getProductImageUrl = (product: Promotion['product']): string => {
-  if (product.imageUrl) return product.imageUrl;
 
-  if (product.images?.length > 0) {
-    const primaryImage = product.images.find(img => img.is_primary);
-    return primaryImage?.image_url || product.images[0]?.image_url || '/placeholder-product.png';
-  }
-
-  return '/placeholder-product.png';
-};
 
 interface Promotion {
   id: number;
@@ -375,14 +367,11 @@ export default function SellerPromotions() {
                     <div className="w-full">
                       <div className="flex items-center mb-2">
                         <div className="w-12 h-12 rounded-md overflow-hidden mr-3">
-                          <img 
-                            src={getProductImageUrl(promotion.product)} 
-                            alt={promotion.product.name} 
+                          <SafeImage
+                            entityType="product"
+                            entityId={promotion.product.id}
+                            alt={promotion.product.name}
                             className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = '/placeholder-product.png';
-                            }}
                           />
                         </div>
                         <div>
