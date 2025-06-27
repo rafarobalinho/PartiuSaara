@@ -671,7 +671,7 @@ export default function AddPromotion() {
                 <div>
                   <div className="rounded-md overflow-hidden mb-4">
                     <img 
-                      src={selectedProduct.images[0]} 
+                      src={selectedProduct.images && selectedProduct.images.length > 0 ? selectedProduct.images[0] : '/placeholder-image.jpg'} 
                       alt={selectedProduct.name}
                       className="w-full h-40 object-cover"
                     />
