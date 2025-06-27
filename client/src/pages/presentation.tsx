@@ -516,7 +516,7 @@ export default function Presentation() {
                 className="text-white text-lg px-8 py-4"
                 style={{ backgroundColor: primaryColor }}
               >
-                Fazer Parceria Conosco
+                Cadastrar Agora
                 <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
             </Link>
