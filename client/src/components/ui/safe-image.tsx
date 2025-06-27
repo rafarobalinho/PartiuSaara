@@ -36,15 +36,23 @@ export const SafeImage: React.FC<SafeImageProps> = ({
       return;
     }
 
-    // Constrói a URL da API dinamicamente
+    // Constrói a URL da API dinamicamente - SEMPRE usar API para produtos
     let apiUrl = '';
     if (entityType === 'product') {
+      // ✅ CAMINHO OBRIGATÓRIO: /api/products/{id}/{imageType}
       apiUrl = `/api/products/${entityId}/${imageType}`;
     } else if (entityType === 'store') {
       apiUrl = `/api/stores/${entityId}/${imageType}`;
     }
-    // Adicione mais tipos conforme necessário
+    
+    if (!apiUrl) {
+      console.warn(`[SAFE-IMAGE] Tipo de entidade não suportado: ${entityType}`);
+      setImageSrc(fallbackSrc);
+      setIsLoading(false);
+      return;
+    }
 
+    console.log(`[SAFE-IMAGE] Carregando imagem: ${apiUrl}`);
     setImageSrc(apiUrl);
 
   }, [entityId, entityType, imageType]); // Roda sempre que uma dessas props mudar

@@ -53,9 +53,14 @@ const getProductPrimaryImage = async (req: Request, res: Response) => {
     const { filename, store_id } = result.rows[0];
     const secureFilePath = buildProductImagePath(store_id, productId, filename);
 
-    if (fs.existsSync(secureFilePath)) return res.sendFile(path.resolve(secureFilePath));
+    console.log(`[DEBUG] Verificando arquivo: ${secureFilePath}`);
+    if (fs.existsSync(secureFilePath)) {
+      console.log(`[DEBUG] ✅ Arquivo encontrado: ${secureFilePath}`);
+      return res.sendFile(path.resolve(secureFilePath));
+    }
 
-    console.warn(`[INCONSISTÊNCIA] Arquivo não encontrado: ${secureFilePath}`);
+    console.warn(`[INCONSISTÊNCIA] ❌ Arquivo não encontrado: ${secureFilePath}`);
+    console.warn(`[DEBUG] Store ID: ${store_id}, Product ID: ${productId}, Filename: ${filename}`);
     return sendPlaceholder(res);
   } catch (error) {
     console.error(`[ERRO] getProductPrimaryImage (ID: ${req.params.id}):`, error);
@@ -83,9 +88,14 @@ const getProductThumbnail = async (req: Request, res: Response) => {
         const { thumbnail_filename, store_id } = result.rows[0];
         const secureFilePath = buildProductThumbnailPath(store_id, productId, thumbnail_filename);
 
-        if (fs.existsSync(secureFilePath)) return res.sendFile(path.resolve(secureFilePath));
+        console.log(`[DEBUG] Verificando thumbnail: ${secureFilePath}`);
+        if (fs.existsSync(secureFilePath)) {
+          console.log(`[DEBUG] ✅ Thumbnail encontrada: ${secureFilePath}`);
+          return res.sendFile(path.resolve(secureFilePath));
+        }
 
-        console.warn(`[INCONSISTÊNCIA] Thumbnail não encontrada: ${secureFilePath}`);
+        console.warn(`[INCONSISTÊNCIA] ❌ Thumbnail não encontrada: ${secureFilePath}`);
+        console.warn(`[DEBUG] Store ID: ${store_id}, Product ID: ${productId}, Thumbnail: ${thumbnail_filename}`);
         return sendPlaceholder(res);
     } catch (error) {
         console.error(`[ERRO] getProductThumbnail (ID: ${req.params.id}):`, error);
@@ -164,9 +174,14 @@ const getProductImage = async (req: Request, res: Response) => {
         const { filename, store_id } = result.rows[0];
         const secureFilePath = buildProductImagePath(store_id, productId, filename);
 
-        if (fs.existsSync(secureFilePath)) return res.sendFile(path.resolve(secureFilePath));
+        console.log(`[DEBUG] Verificando imagem específica: ${secureFilePath}`);
+        if (fs.existsSync(secureFilePath)) {
+          console.log(`[DEBUG] ✅ Imagem específica encontrada: ${secureFilePath}`);
+          return res.sendFile(path.resolve(secureFilePath));
+        }
 
-        console.warn(`[INCONSISTÊNCIA] Arquivo não encontrado: ${secureFilePath}`);
+        console.warn(`[INCONSISTÊNCIA] ❌ Imagem específica não encontrada: ${secureFilePath}`);
+        console.warn(`[DEBUG] Store ID: ${store_id}, Product ID: ${productId}, Filename: ${filename}, ImageParam: ${imageParam}`);
         return sendPlaceholder(res);
     } catch (error) {
         console.error(`[ERRO] getProductImage (Param: ${req.params.imageId}):`, error);
