@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
+import { formatCurrency, formatDate, formatBrazilDateTime } from '@/lib/utils';
 
 interface Coupon {
   id: number;
@@ -547,10 +548,10 @@ export default function SellerCoupons() {
                         </TableCell>
 
                         <TableCell>
-                          <div className="text-xs text-gray-600">
-                            <div>{formatDate(coupon.startTime)}</div>
-                            <div>até</div>
-                            <div>{formatDate(coupon.endTime)}</div>
+                          <div className="text-xs text-gray-500">
+                            {formatBrazilDateTime(coupon.startTime)}
+                            <br />
+                            até {formatBrazilDateTime(coupon.endTime)}
                           </div>
                         </TableCell>
 

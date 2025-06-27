@@ -196,11 +196,16 @@ export default function EditCoupon() {
       const result = await response.json();
 
       if (response.ok) {
+        const updatedCoupon = await response.json();
+        setCoupon(updatedCoupon);
+
+        // Recarregar os dados para garantir que estão atualizados
+        await loadCoupon();
+
         toast({
-          title: "Cupom atualizado!",
-          description: "As alterações foram salvas com sucesso.",
+          title: "Sucesso",
+          description: "Cupom atualizado com sucesso!",
         });
-        navigate('/seller/coupons');
       } else {
         toast({
           title: "Erro ao atualizar cupom",
