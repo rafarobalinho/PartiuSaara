@@ -325,7 +325,13 @@ export default function Reservations() {
                   <div className="space-y-4">
                     {filteredReservations.map((reservation) => (
                       <div key={reservation.id} className="bg-white rounded-lg shadow-sm p-4 border flex flex-col sm:flex-row">
-                        <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 sm:mr-4">
+                        <div className="sm:w-24 h-24 rounded-md overflow-hidden mb-4 sm:mb-0 sm:mr-4 relative">
+                          {/* Etiqueta de desconto se tiver promoção */}
+                          {reservation.promotion && reservation.promotion.discountPercentage && (
+                            <div className="bg-primary text-white text-xs font-bold absolute top-1 left-0 py-0.5 px-1 rounded-r-lg z-10">
+                              -{reservation.promotion.discountPercentage}%
+                            </div>
+                          )}
                           <SafeImage 
                             entityType="product"
                             entityId={reservation.productId}
@@ -348,9 +354,21 @@ export default function Reservations() {
                           {/* Link para a loja foi removido porque não temos campos planos para ele */}
 
                           <div className="flex items-center mb-1">
-                            <span className="text-lg font-bold text-primary">
-                              {formatCurrency(reservation.product_price || 0)}
-                            </span>
+                            {/* Preço com formato de desconto se houver promoção */}
+                            {reservation.promotion && reservation.promotion.discountPercentage ? (
+                              <>
+                                <span className="text-sm line-through text-gray-400 mr-2">
+                                  {formatCurrency(reservation.product_price || 0)}
+                                </span>
+                                <span className="text-lg font-bold text-primary">
+                                  {formatCurrency(Math.round((reservation.product_price || 0) * (1 - (reservation.promotion.discountPercentage / 100)) * 100) / 100)}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-lg font-bold text-primary">
+                                {formatCurrency(reservation.product_price || 0)}
+                              </span>
+                            )}
                             {reservation.quantity > 1 && (
                               <span className="text-sm text-gray-500 ml-2">x{reservation.quantity}</span>
                             )}
@@ -358,6 +376,15 @@ export default function Reservations() {
 
                           <div className="text-sm text-gray-500 mb-4">
                             <span>Reservado em: {new Date(reservation.createdAt).toLocaleDateString('pt-BR')}</span>
+                            {/* Indicador de promoção */}
+                            {reservation.promotion && (
+                              <>
+                                <span className="mx-2">•</span>
+                                <span className="text-primary font-medium">
+                                  {reservation.promotion.type === 'flash' ? 'Promoção Relâmpago' : 'Promoção'}
+                                </span>
+                              </>
+                            )}
                             {reservation.status === 'pending' && (
                               <>
                                 <span className="mx-2">•</span>

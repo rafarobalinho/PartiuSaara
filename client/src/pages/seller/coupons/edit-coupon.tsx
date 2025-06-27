@@ -341,6 +341,17 @@ export default function EditCoupon() {
     );
   }
 
+  // Verificação adicional para dados da loja
+  if (!coupon.store) {
+    return (
+      <div className="container mx-auto p-6 max-w-2xl">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
   const status = getCouponStatus();
 
   return (
@@ -420,7 +431,7 @@ export default function EditCoupon() {
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">{coupon.store.name}</p>
+                  <p className="font-medium">{coupon.store?.name || 'Loja não encontrada'}</p>
                   <p className="text-sm text-gray-600">Loja</p>
                 </div>
                 <Button

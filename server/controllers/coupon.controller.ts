@@ -47,6 +47,17 @@ export async function getCoupon(req: Request, res: Response) {
       return res.status(404).json({ message: 'Coupon not found' });
     }
 
+    // Garantir que os dados da loja estejam incluídos
+    if (coupon && !coupon.store) {
+      const store = await storage.getStore(coupon.storeId);
+      if (store) {
+        coupon.store = {
+          id: store.id,
+          name: store.name
+        };
+      }
+    }
+
     res.json(coupon);
   } catch (error) {
     console.error('Error getting coupon:', error);

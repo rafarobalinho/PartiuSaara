@@ -6,6 +6,7 @@ import ProductCard from '@/components/ui/product-card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CouponRedeemModal } from '@/components/coupon-redeem-modal';
 
 interface Product {
   id: number;
@@ -43,7 +44,7 @@ export default function Products() {
   const [currentTab, setCurrentTab] = useState(initialType);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('popularity');
-  
+
   // Estado para armazenar os produtos após processamento
   //const [processedProducts, setProcessedProducts] = useState([]);//
 
@@ -57,17 +58,17 @@ export default function Products() {
           search: searchTerm,
           sortBy
         });
-        
+
         console.log('Buscando produtos com filtros:', Object.fromEntries(params));
         const response = await fetch(`/api/products?${params}`);
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch products');
         }
-        
+
         const data = await response.json();
         console.log('API response products:', data.products?.length || 0, "message:", data.message || "");
-        
+
         // Garantir que o retorno esteja correto mesmo se a API não retornar no formato esperado
         return {
           products: data.products || [],
@@ -128,6 +129,10 @@ export default function Products() {
     // The query will automatically refetch due to the searchTerm dependency
   };
 
+  const [selectedCoupon, setSelectedCoupon] = useState(null);
+  const [isRedeemModalOpen, setIsRedeemModalOpen] = useState(false);
+
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
@@ -154,7 +159,7 @@ export default function Products() {
               <i className="fas fa-search"></i>
             </Button>
           </div>
-          
+
           {currentTab !== 'coupons' && (
             <div className="hidden md:block w-48">
               <Select
@@ -299,8 +304,14 @@ export default function Products() {
                       </div>
                     </div>
                     <p className="text-sm text-gray-600 mb-3">{coupon.description}</p>
-                    <Button className="w-full bg-primary text-white hover:bg-primary/90">
-                      Copiar Cupom
+                    <Button 
+                      className="w-full bg-primary text-white hover:bg-primary/90"
+                      onClick={() => {
+                        setSelectedCoupon(coupon);
+                        setIsRedeemModalOpen(true);
+                      }}
+                    >
+                      Resgatar Cupom
                     </Button>
                   </div>
                 </div>
@@ -315,6 +326,17 @@ export default function Products() {
           )}
         </TabsContent>
       </Tabs>
+
+      {selectedCoupon && (
+        <CouponRedeemModal
+          coupon={selectedCoupon}
+          isOpen={isRedeemModalOpen}
+          onClose={() => {
+            setIsRedeemModalOpen(false);
+            setSelectedCoupon(null);
+          }}
+        />
+      )}
     </div>
   );
 }
