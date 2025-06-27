@@ -289,6 +289,27 @@ export default function ProductCard({
             )}
           </div>
 
+          {/* Contagem regressiva para promoções */}
+          {(isFlashPromotion || discountPercentage) && endTime && (
+            <div className="mt-2 bg-gray-50 p-2 rounded-md border border-gray-100">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-gray-600">
+                  {isFlashPromotion ? 'Relâmpago' : 'Promoção'}
+                </span>
+                <div className="text-xs text-primary font-medium px-1 py-0 bg-primary/10 rounded">
+                  {discount}% OFF
+                </div>
+              </div>
+              <div className="flex items-center text-xs text-primary font-medium">
+                <i className="fas fa-clock mr-1"></i>
+                <span>
+                  Acaba em {timeRemaining.days > 0 ? `${timeRemaining.days}d ` : ''}
+                  {timeRemaining.hours}h {timeRemaining.minutes}m
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Botão de reserva - varia conforme propriedade showFullWidthButton */}
           {showFullWidthButton ? (
             <Button
@@ -298,19 +319,10 @@ export default function ProductCard({
               Reservar
             </Button>
           ) : (
-            <div className="flex justify-between items-center mt-2">
-              {isFlashPromotion && (
-                <div className="text-xs text-gray-500">
-                  <i className="fas fa-clock"></i> 
-                  {timeRemaining.days > 0 ? 
-                    `${timeRemaining.days}d ${timeRemaining.hours}h` : 
-                    `${timeRemaining.hours}h ${timeRemaining.minutes}m`}
-                </div>
-              )}
-
+            <div className="flex justify-end items-center mt-2">
               <Button
                 size="sm"
-                className="bg-primary text-white text-xs px-3 py-1 rounded-full hover:bg-primary/90 ml-auto"
+                className="bg-primary text-white text-xs px-3 py-1 rounded-full hover:bg-primary/90"
                 onClick={handleReserve}
               >
                 Reservar
