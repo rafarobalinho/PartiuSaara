@@ -58,17 +58,6 @@ import SellerLanding from "@/pages/seller-landing";
 import SellerCoupons from "@/pages/seller/coupons/index";
 import AddCoupon from "@/pages/seller/coupons/add-coupon";
 
-// Componente especial para a página de apresentação sem autenticação
-function PresentationRoute() {
-  return (
-    <div className="flex flex-col min-h-screen">
-      <div className="flex-grow">
-        <Presentation />
-      </div>
-    </div>
-  );
-}
-
 function Router() {
   return (
     <div className="flex flex-col min-h-screen">
@@ -76,7 +65,7 @@ function Router() {
       <div className="flex-grow">
         <Switch>
           <Route path="/landing" component={Landing} />
-          <Route path="/presentation" component={PresentationRoute} />
+          <Route path="/presentation" component={Presentation} />
           <Route path="/" component={Home} />
           <Route path="/payment/callback" component={PaymentCallback} />
           <Route path="/login" component={Login} />
@@ -153,21 +142,6 @@ function Router() {
 
 function App() {
   console.log('🚀 [APP] Inicializando aplicação');
-
-  // Verifica se é a página de apresentação
-  const isPresentation = window.location.pathname === '/presentation';
-
-  if (isPresentation) {
-    // Rota pública sem autenticação para a página de apresentação
-    return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <PresentationRoute />
-        </TooltipProvider>
-      </QueryClientProvider>
-    );
-  }
 
   return (
     <QueryClientProvider client={queryClient}>
