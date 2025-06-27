@@ -510,14 +510,16 @@ export default function Presentation() {
             <p className="text-xl font-medium mb-6" style={{ color: blackColor }}>
               Vamos juntos nessa jornada.
             </p>
-            <Button 
-              size="lg" 
-              className="text-white text-lg px-8 py-4"
-              style={{ backgroundColor: primaryColor }}
-            >
-              Fazer Parceria Conosco
-              <ArrowRight className="h-5 w-5 ml-2" />
-            </Button>
+            <Link href="/register">
+              <Button 
+                size="lg" 
+                className="text-white text-lg px-8 py-4"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Fazer Parceria Conosco
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

@@ -2,7 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'wouter';
-import { SafeImage } from '@/components/ui/safe-image';
+
 import { 
   ShoppingBag,
   Smartphone,
@@ -38,7 +38,7 @@ export default function SellerLanding() {
                   Entrar
                 </Button>
               </Link>
-              <Link href="/auth/register">
+              <Link href="/register">
                 <Button className="bg-orange-500 hover:bg-orange-600 text-white">
                   Cadastrar Loja
                 </Button>
@@ -73,7 +73,7 @@ export default function SellerLanding() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/auth/register">
+                <Link href="/register">
                   <Button 
                     size="lg" 
                     className="bg-orange-500 hover:bg-orange-600 text-white text-lg px-8 py-4 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 group"
@@ -115,11 +115,10 @@ export default function SellerLanding() {
             {/* Hero Image */}
             <div className="relative">
               <div className="relative">
-                <SafeImage 
-                  src="/uploads/photo-1556740738-b6a63e27c4df.jpg" 
+                <img 
+                  src="/assets/default-store-image.jpg" 
                   alt="Loja no Saara"
                   className="w-full h-96 object-cover rounded-2xl shadow-2xl"
-                  fallbackSrc="/uploads/placeholder-unavailable.jpg"
                 />
 
                 {/* Floating Cards */}
@@ -266,11 +265,10 @@ export default function SellerLanding() {
             {/* Image Section */}
             <div className="relative">
               <div className="relative">
-                <SafeImage 
-                  src="/uploads/photo-1441986300917-64674bd600d8.jpg" 
+                <img 
+                  src="/assets/default-product-image.jpg" 
                   alt="Lojista usando sistema"
                   className="w-full h-96 object-cover rounded-2xl shadow-2xl"
-                  fallbackSrc="/uploads/placeholder-unavailable.jpg"
                 />
 
                 {/* Success Metrics */}
@@ -303,7 +301,7 @@ export default function SellerLanding() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Link href="/auth/register">
+              <Link href="/register">
                 <Button 
                   size="lg" 
                   className="bg-white text-orange-600 hover:bg-gray-100 text-lg px-10 py-4 font-bold rounded-lg shadow-xl hover:shadow-2xl transition-all duration-300"

@@ -219,53 +219,52 @@ export async function updateCoupon(req: Request, res: Response) {
         return res.status(403).json({ message: 'Not authorized to update this coupon' });
       }
 
-      // 🔧 CORREÇÃO: Converter datas considerando fuso horário de Brasília
+      // 🔧 CORREÇÃO: Melhor tratamento de fuso horário para Brasília
       const requestData = { ...req.body };
 
-      // Só adicionar datas se elas foram fornecidas e são válidas
-      if (req.body.startTime) {
-        // Interpretar como horário local de Brasília (UTC-3)
-        let startDate: Date;
-        if (typeof req.body.startTime === 'string') {
-          // Se não tem timezone, interpretar como horário de Brasília
-          if (!req.body.startTime.includes('Z') && !req.body.startTime.includes('+') && !req.body.startTime.includes('-')) {
-            // Adicionar timezone de Brasília
-            startDate = new Date(req.body.startTime + '-03:00');
+      // Função auxiliar para converter horário local para Brasília
+      const convertToBrasiliaTime = (timeString: string): Date => {
+        if (typeof timeString === 'string') {
+          // Se não tem timezone, interpretar como horário local e ajustar para Brasília
+          if (!timeString.includes('Z') && !timeString.includes('+') && !timeString.includes('-')) {
+            // Criar data local e ajustar para Brasília (UTC-3)
+            const localDate = new Date(timeString);
+            // Assumir que o usuário está inserindo em horário de Brasília
+            return new Date(timeString + ':00.000-03:00');
           } else {
-            startDate = new Date(req.body.startTime);
+            return new Date(timeString);
           }
-        } else {
-          startDate = new Date(req.body.startTime);
         }
-        
-        if (!isNaN(startDate.getTime())) {
-          requestData.startTime = startDate;
-          console.log(`[Controller] Start time: ${req.body.startTime} -> ${startDate.toISOString()} (Brasília: ${startDate.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })})`);
-        } else {
-          return res.status(400).json({ message: 'Data de início inválida' });
+        return new Date(timeString);
+      };
+
+      // Processar startTime
+      if (req.body.startTime) {
+        try {
+          const startDate = convertToBrasiliaTime(req.body.startTime);
+          if (!isNaN(startDate.getTime())) {
+            requestData.startTime = startDate;
+            console.log(`[Controller] Start time: ${req.body.startTime} -> ${startDate.toISOString()}`);
+          } else {
+            return res.status(400).json({ message: 'Data de início inválida' });
+          }
+        } catch (error) {
+          return res.status(400).json({ message: 'Formato de data de início inválido' });
         }
       }
 
+      // Processar endTime
       if (req.body.endTime) {
-        // Interpretar como horário local de Brasília (UTC-3)
-        let endDate: Date;
-        if (typeof req.body.endTime === 'string') {
-          // Se não tem timezone, interpretar como horário de Brasília
-          if (!req.body.endTime.includes('Z') && !req.body.endTime.includes('+') && !req.body.endTime.includes('-')) {
-            // Adicionar timezone de Brasília
-            endDate = new Date(req.body.endTime + '-03:00');
+        try {
+          const endDate = convertToBrasiliaTime(req.body.endTime);
+          if (!isNaN(endDate.getTime())) {
+            requestData.endTime = endDate;
+            console.log(`[Controller] End time: ${req.body.endTime} -> ${endDate.toISOString()}`);
           } else {
-            endDate = new Date(req.body.endTime);
+            return res.status(400).json({ message: 'Data de fim inválida' });
           }
-        } else {
-          endDate = new Date(req.body.endTime);
-        }
-        
-        if (!isNaN(endDate.getTime())) {
-          requestData.endTime = endDate;
-          console.log(`[Controller] End time: ${req.body.endTime} -> ${endDate.toISOString()} (Brasília: ${endDate.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })})`);
-        } else {
-          return res.status(400).json({ message: 'Data de fim inválida' });
+        } catch (error) {
+          return res.status(400).json({ message: 'Formato de data de fim inválido' });
         }
       }
 
