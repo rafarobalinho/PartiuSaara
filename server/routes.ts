@@ -1391,6 +1391,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  const insertPlaceDetails = async (store: any) => {
+    if (!store) {
+      console.log("❗ Loja não encontrada. Abortando.");
+      return;
+    }
+
+    if (!store.latitude || !store.longitude) {
+      console.log(`❗ Loja ${store.id} sem latitude/longitude. Abortando.`);
+      return;
+    }
+
+    console.log(`📍 Buscando detalhes do lugar para a loja ${store.id}: ${store.name}...`);
+
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      console.error("❌ Chave da API do Google Maps não configurada!");
+      return;
+    }
+
+    const placeSearchURL = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${store.latitude},${store.longitude}&radius=50&type=store&key=${apiKey}`;
+
+    try {
+      const placeSearchResponse = await fetch(placeSearchURL);
+      const placeSearchData = await placeSearchResponse.json();
+
+      if (!placeSearchData.results || placeSearchData.results.length === 0) {
+        console.log(`Nenhum lugar encontrado para a loja ${store.id}.`);
+        return;
+      }
+
+      // Pegar o primeiro resultado
+      const place = placeSearchData.results[0];
+      const placeId = place.place_id;
+
+      // Buscar mais detalhes usando o placeId
+      const placeDetailsURL = `https://maps.googleapis.com/maps/api/place/details/json?placeid=${placeId}&key=${apiKey}`;
+      const placeDetailsResponse = await fetch(placeDetailsURL);
+      const placeDetailsData = await placeDetailsResponse.json();
+
+      if (!placeDetailsData.result) {
+        console.log(`Detalhes não encontrados para o lugar ${placeId}.`);
+        return;
+      }
+
+      // Extrair informações relevantes
+      const placeResult = placeDetailsData.result;
+      const placeVicinity = placeResult.vicinity;
+      const placePhone = placeResult.formatted_phone_number;
+      const placeWebsite = placeResult.website;
+      const placeRating = placeResult.rating;
+      const placeTotalRatings = placeResult.user_ratings_total;
+      const placeOpeningHours = placeResult.opening_hours?.weekday_text;
+      const placeBusinessStatus = placeResult.business_status;
+      const placeTypes = placeResult.types;
+
+      console.log(`📞 Telefone: ${placePhone}`);
+      console.log(`🌐 Website: ${placeWebsite}`);
+      console.log(`⭐ Avaliação: ${placeRating} (${placeTotalRatings} votos)`);
+      console.log(`🏢 Horário: ${placeOpeningHours}`);
+      console.log(`✅ Status: ${placeBusinessStatus}`);
+      console.log(`🏷️ Tipos: ${placeTypes}`);
+
+      // Preparar para inserir/atualizar no banco de dados
+      const values = [
+          store.id,
+          placeId,
+          store.name, // Mantemos o nome original da loja
+          placeVicinity || null,
+          placePhone,
+          placeWebsite,
+          placeRating,
+          placeTotalRatings,
+          placeOpeningHours,
+          placeBusinessStatus,
+          placeTypes
+      ];
+
+      const query = `
+        INSERT INTO google_place_details (
+          store_id,
+          place_id,
+          place_name,
+          place_vicinity,
+          place_phone,
+          place_website,
+          place_rating,
+          place_total_ratings,
+          place_opening_hours,
+          place_business_status,
+          place_types
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (store_id) DO UPDATE SET
+          place_id = $2,
+          place_name = $3,
+          place_vicinity = $4,
+          place_phone = $5,
+          place_website = $6,
+          place_rating = $7,
+          place_total_ratings = $8,
+          place_opening_hours = $9,
+          place_business_status = $10,
+          place_types = $11;
+      `;
+
+      try {
+        await pool.query(query, values);
+        console.log(`✅ Detalhes do Google Place inseridos/atualizados para a loja ${store.id}.`);
+      } catch (dbError) {
+        console.error("❌ Erro ao inserir/atualizar detalhes do Google Place:", dbError);
+      }
+
+    } catch (networkError) {
+      console.error("❌ Erro ao buscar detalhes do Google Places:", networkError);
+    }
+  };
+
+  const updateAllStoreDetails = async () => {
+    console.log("🔄 Iniciando atualização em lote dos detalhes do Google Places para todas as lojas...");
+
+    try {
+      const allStores = await storage.getStores();
+
+      if (!allStores || allStores.length === 0) {
+        console.warn("❗ Nenhuma loja encontrada no banco de dados.");
+        return;
+      }
+
+      console.log(`🔍 Encontradas ${allStores.length} lojas. Iniciando o processamento...`);
+
+      for (const store of allStores) {
+        await insertPlaceDetails(store); // Processar cada loja individualmente
+      }
+
+      console.log("✅ Processo de atualização em lote concluído.");
+    } catch (error) {
+      console.error("❌ Erro durante a atualização em lote:", error);
+    }
+  };
+
+  // Chamar a função para atualizar todas as lojas
+  // updateAllStoreDetails();
+
   const httpServer = createServer(app);
   return httpServer;
 }
