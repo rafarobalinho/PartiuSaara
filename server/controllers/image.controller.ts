@@ -18,16 +18,22 @@ const sendPlaceholder = (res: Response) => {
 
 // --- FUNÇÕES HELPER DE CONSTRUÇÃO DE CAMINHO ---
 
+/**
+ * Constrói caminho para imagem de produto
+ */
 const buildProductImagePath = (storeId: number | string, productId: number | string, filename: string): string => {
-  return path.join(process.cwd(), 'public', 'uploads', 'stores', String(storeId), 'products', String(productId), filename);
+    return path.join('public', 'uploads', 'stores', String(storeId), 'products', String(productId), filename);
 };
 
 const buildProductThumbnailPath = (storeId: number | string, productId: number | string, thumbnailFilename: string): string => {
   return path.join(process.cwd(), 'public', 'uploads', 'stores', String(storeId), 'products', String(productId), 'thumbnails', thumbnailFilename);
 };
 
+/**
+ * Constrói caminho para imagem de loja
+ */
 const buildStoreImagePath = (storeId: number | string, filename: string): string => {
-  return path.join(process.cwd(), 'public', 'uploads', 'stores', String(storeId), filename);
+    return path.join('public', 'uploads', 'stores', String(storeId), filename);
 };
 
 

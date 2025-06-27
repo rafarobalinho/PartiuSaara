@@ -248,7 +248,7 @@ export async function getStoreCoupons(req: Request, res: Response) {
  */
 function createStoreDirectories(storeId: number) {
   try {
-    const baseUploadPath = path.join(process.cwd(), 'public', 'uploads');
+    const baseUploadPath = path.join('public', 'uploads');
     const storeDir = path.join(baseUploadPath, 'stores', storeId.toString());
     const productsDir = path.join(storeDir, 'products');
     const thumbnailsDir = path.join(storeDir, 'thumbnails');

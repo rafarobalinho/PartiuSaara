@@ -13,7 +13,7 @@ export const secureImageMiddleware = (req: Request, res: Response, next: NextFun
   }
 
   const requestPath = req.path;
-  const publicDir = path.join(process.cwd(), 'public');
+  const publicDir = 'public';
   const requestedFilePath = path.join(publicDir, requestPath);
   
   // Se o caminho parece ser uma imagem (por extensão)
@@ -64,7 +64,7 @@ export const secureImageMiddleware = (req: Request, res: Response, next: NextFun
           console.warn(`⚠️ Era esperado um caminho contendo: ${expectedSecurePath}`);
           
           // Buscar em todas as pastas de lojas
-          const storesDir = path.join(publicDir, 'uploads', 'stores');
+          const storesDir = path.join('public', 'uploads', 'stores');
           if (fs.existsSync(storesDir)) {
             try {
               // Listar diretórios de lojas
@@ -103,7 +103,7 @@ export const secureImageMiddleware = (req: Request, res: Response, next: NextFun
           console.warn(`⚠️ Era esperado um caminho contendo: ${expectedSecurePath}`);
           
           // Caminho esperado
-          const storeDir = path.join(publicDir, 'uploads', 'stores', entityId);
+          const storeDir = path.join('public', 'uploads', 'stores', entityId);
           if (fs.existsSync(storeDir)) {
             // Buscar por nome de arquivo específico
             const secureFilePath = path.join(storeDir, `${imageName}.jpg`);
