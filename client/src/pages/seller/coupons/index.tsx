@@ -227,18 +227,18 @@ export default function SellerCoupons() {
   };
 
   const markAsUsed = async (couponId: number, code: string) => {
-    if (!confirm(`Confirma o uso do cupom ${code}?`)) {
+    const validationCode = prompt(`Digite o código de validação do cupom ${code}:`); if (!validationCode?.trim()) {
       return;
     }
 
     try {
-      const response = await fetch('/api/seller/coupons/use', {
+      const response = await fetch('/api/seller/coupons/validate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify({ couponId })
+        body: JSON.stringify({ validationCode: validationCode.trim().toUpperCase() })
       });
 
       if (response.ok) {
