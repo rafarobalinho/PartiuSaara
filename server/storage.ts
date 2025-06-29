@@ -1073,99 +1073,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async redeemCoupon(couponId: number, customerData: { name?: string, phone?: string }) {
-    try {
-      // Verificar se cupom existe e está ativo
-      const coupon = await this.getCoupon(couponId);
-      if (!coupon || !coupon.isActive) {
-        throw new Error('Cupom não encontrado ou inativo');
-      }
 
-      // Verificar datas
-      const now = new Date();
-      const startTime = new Date(coupon.startTime);
-      const endTime = new Date(coupon.endTime);
-
-      if (now < startTime) {
-        throw new Error('Cupom ainda não está válido');
-      }
-
-      if (now > endTime) {
-        throw new Error('Cupom expirado');
-      }
-
-      // Verificar limites de uso
-      if (coupon.maxUsageCount && coupon.usageCount >= coupon.maxUsageCount) {
-        throw new Error('Cupom esgotado');
-      }
-
-      // Gerar código de validação único
-      const validationCode = 'VAL-' + Math.random().toString(36).substr(2, 8).toUpperCase();
-
-      // Criar resgate
-      const result = await pool.query(`
-        INSERT INTO coupon_redemptions (coupon_id, validation_code, customer_name, customer_phone)
-        VALUES ($1, $2, $3, $4)
-        RETURNING *
-      `, [couponId, validationCode, customerData.name, customerData.phone]);
-
-      return { validationCode, redemption: result.rows[0] };
-    } catch (error: any) {
-      console.error('[Storage] Error redeeming coupon:', error);
-      throw error;
-    }
-  }
-
-  async validateRedemptionCode(validationCode: string, storeUserId: number) {
-    try {
-      // Buscar resgate com join das tabelas necessárias
-      const result = await pool.query(`
-        SELECT 
-          cr.*,
-          c.*,
-          s.user_id as store_user_id
-        FROM coupon_redemptions cr
-        INNER JOIN coupons c ON cr.coupon_id = c.id
-        INNER JOIN stores s ON c.store_id = s.id
-        WHERE cr.validation_code = $1 AND cr.used_at IS NULL AND s.user_id = $2
-      `, [validationCode, storeUserId]);
-
-      if (result.rows.length === 0) {
-        return { success: false, message: 'Código inválido, já utilizado ou não pertence a suas lojas' };
-      }
-
-      const redemption = result.rows[0];
-
-      // Marcar como usado
-      await pool.query(`
-        UPDATE coupon_redemptions 
-        SET used_at = NOW(), used_by_store_user_id = $1 
-        WHERE id = $2
-      `, [storeUserId, redemption.id]);
-
-      // Incrementar contador do cupom
-      await pool.query(`
-        UPDATE coupons 
-        SET usage_count = usage_count + 1 
-        WHERE id = $1
-      `, [redemption.coupon_id]);
-
-      return { 
-        success: true, 
-        coupon: {
-          id: redemption.id,
-          code: redemption.code,
-          description: redemption.description,
-          discountPercentage: redemption.discount_percentage,
-          discountAmount: redemption.discount_amount
-        },
-        message: 'Cupom validado com sucesso!' 
-      };
-    } catch (error: any) {
-      console.error('[Storage] Error validating coupon:', error);
-      return { success: false, message: 'Erro interno ao validar cupom' };
-    }
-  }
 
   async getRedemptionHistory(storeId: number): Promise<CouponRedemption[]> {
     try {
@@ -1599,7 +1507,7 @@ export class MemStorage implements IStorage {
     throw new Error('Coupon redemption not implemented in memory storage - use DatabaseStorage for production');
   }
 
-  async validateRedemptionCode(validationCode: string, storeUserId: number) {
+  async validateRedemptionCode(validationCode: string, storeUserId: number): Promise<{ success: boolean; coupon?: any; message: string }> {
     throw new Error('Coupon validation not implemented in memory storage - use DatabaseStorage for production');
   }
 

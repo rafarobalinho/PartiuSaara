@@ -8,7 +8,6 @@ import { checkCouponLimits, getCouponLimitsInfo } from '../middleware/plan-limit
 // Validation schema for coupon usage
 const useCouponSchema = z.object({
   couponId: z.number(),
-  storeId: z.number()
 });
 
 // Get coupons by store (public)
@@ -346,24 +345,21 @@ export async function useCoupon(req: Request, res: Response) {
         });
       }
 
-      const { couponId, storeId } = validationResult.data;
+      const { couponId } = validationResult.data;
 
-      // Verify the store belongs to the user
-      const store = await storage.getStore(storeId);
-      if (!store || store.userId !== user.id) {
-        return res.status(403).json({ message: 'Not authorized to validate coupons for this store' });
-      }
-
-      // Get the coupon
+      // First get the coupon
       const coupon = await storage.getCoupon(couponId);
       if (!coupon) {
         return res.status(404).json({ message: 'Coupon not found' });
-      }
 
-      // Verify coupon belongs to the store
-      if (coupon.storeId !== storeId) {
-        return res.status(400).json({ message: 'Coupon does not belong to this store' });
       }
+      
+      // Verify the store belongs to the user
+      const store = await storage.getStore(coupon.storeId);
+      if (!store || store.userId !== user.id) {
+        return res.status(403).json({ message: 'Not authorized to validate coupons for this store' });
+      }
+      // Verify coupon belongs to the store
 
       // Check if coupon is active
       if (!coupon.isActive) {
