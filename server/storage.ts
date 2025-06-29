@@ -87,7 +87,7 @@ export interface IStorage {
 
   // Coupon redemption operations
   redeemCoupon(couponId: number, customerData: { name?: string, phone?: string }): Promise<{ validationCode: string; redemption: CouponRedemption }>;
-  validateCouponCode(validationCode: string, storeUserId: number): Promise<{ success: boolean; coupon?: any; message: string }>;
+  validateRedemptionCode(validationCode: string, storeUserId: number): Promise<{ success: boolean; coupon?: any; message: string }>;
   getPendingRedemptions(storeId: number): Promise<CouponRedemption[]>;
   getRedemptionHistory(storeId: number): Promise<CouponRedemption[]>;
 
@@ -939,7 +939,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async validateCouponCode(validationCode: string, storeUserId: number): Promise<{ success: boolean; coupon?: any; message: string }> {
+  async validateRedemptionCode(validationCode: string, storeUserId: number): Promise<{ success: boolean; coupon?: any; message: string }> {
     try {
       // Buscar resgate com JOIN para obter dados completos
       const result = await pool.query(`
@@ -1116,7 +1116,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async validateCouponCode(validationCode: string, storeUserId: number) {
+  async validateRedemptionCode(validationCode: string, storeUserId: number) {
     try {
       // Buscar resgate com join das tabelas necessárias
       const result = await pool.query(`
@@ -1599,7 +1599,7 @@ export class MemStorage implements IStorage {
     throw new Error('Coupon redemption not implemented in memory storage - use DatabaseStorage for production');
   }
 
-  async validateCouponCode(validationCode: string, storeUserId: number) {
+  async validateRedemptionCode(validationCode: string, storeUserId: number) {
     throw new Error('Coupon validation not implemented in memory storage - use DatabaseStorage for production');
   }
 
