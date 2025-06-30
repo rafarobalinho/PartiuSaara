@@ -73,7 +73,7 @@ export default function PromoSection() {
             </div>
           ))
         ) : promotions.length > 0 ? (
-          promotions.map((promotion: FlashPromotion) => (
+          promotions.filter(promotion => promotion.product && promotion.product.id).map((promotion: FlashPromotion) => (
             <ProductCard
               key={promotion.id}
               product={promotion.product}
