@@ -241,7 +241,8 @@ export default function SellerCoupons() {
         body: JSON.stringify({ validationCode: validationCode.trim().toUpperCase() })
       });
 
-      if (response.ok) {
+      const result = await response.json();
+      if (result.success) {
         setCoupons(prev => prev.map(c => 
           c.id === couponId ? { ...c, usageCount: c.usageCount + 1 } : c
         ));
@@ -250,7 +251,7 @@ export default function SellerCoupons() {
           description: `Cupom ${code} marcado como usado`,
                   variant: "success"
         });
-      } else {
+            } else {
         const error = await response.json();
         toast({
           title: "Erro",

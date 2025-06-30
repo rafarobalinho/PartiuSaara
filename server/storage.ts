@@ -973,7 +973,7 @@ export class DatabaseStorage implements IStorage {
       if (result.rows.length === 0) {
         return { 
           success: false, 
-          message: 'Código inválido, já utilizado ou não pertence à sua loja' 
+          message: 'Código de validação inválido.' 
         };
       }
 
