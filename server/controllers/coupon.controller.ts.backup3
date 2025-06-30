@@ -351,14 +351,20 @@ export async function useCoupon(req: Request, res: Response) {
       const coupon = await storage.getCoupon(couponId);
       if (!coupon) {
         return res.status(404).json({ message: 'Coupon not found' });
-
       }
-      
+
       // Verify the store belongs to the user
       const store = await storage.getStore(coupon.storeId);
       if (!store || store.userId !== user.id) {
         return res.status(403).json({ message: 'Not authorized to validate coupons for this store' });
       }
+
+      // Get the coupon
+      const coupon = await storage.getCoupon(couponId);
+      if (!coupon) {
+        return res.status(404).json({ message: 'Coupon not found' });
+      }
+
       // Verify coupon belongs to the store
 
       // Check if coupon is active
