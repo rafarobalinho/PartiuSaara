@@ -248,6 +248,7 @@ export default function SellerCoupons() {
         toast({
           title: "Cupom utilizado",
           description: `Cupom ${code} marcado como usado`,
+                  variant: "success"
         });
       } else {
         const error = await response.json();
