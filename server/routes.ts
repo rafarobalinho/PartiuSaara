@@ -793,7 +793,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const result = await storage.validateCouponCode(validationCode.trim().toUpperCase(), user.id);
+      const result = await storage.validateRedemptionCode(validationCode.trim().toUpperCase(), user.id);
       res.json(result);
     } catch (error: any) {
       console.error('Erro ao validar cupom:', error);
