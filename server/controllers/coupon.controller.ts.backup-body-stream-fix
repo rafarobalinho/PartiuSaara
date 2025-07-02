@@ -66,8 +66,8 @@ export async function getCoupon(req: Request, res: Response) {
 
 // Get seller's coupons (sellers only)
 export async function getSellerCoupons(req: Request, res: Response) {
-  sellerMiddleware(req, res, async () => {
-    try {
+  try {
+    sellerMiddleware(req, res, async () => {
       const user = req.user!;
 
       // Get user's stores
@@ -88,64 +88,64 @@ export async function getSellerCoupons(req: Request, res: Response) {
       allCoupons.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       res.json(allCoupons);
-    } catch (error) {
-      console.error('Error getting seller coupons:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
+    });
+  } catch (error) {
+    console.error('Error getting seller coupons:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 }
 
 // Create a new coupon (sellers only)
 export async function createCoupon(req: Request, res: Response) {
-  sellerMiddleware(req, res, async () => {
-    try {
-      const user = req.user!;
+ try {
+   sellerMiddleware(req, res, async () => {
+     const user = req.user!;
 
-      console.log("======= DADOS RECEBIDOS PARA CRIAÇÃO DE CUPOM =======");
-      console.log(JSON.stringify(req.body, null, 2));
-      console.log("===================================================");
+     console.log("======= DADOS RECEBIDOS PARA CRIAÇÃO DE CUPOM =======");
+     console.log(JSON.stringify(req.body, null, 2));
+     console.log("===================================================");
 
-      // 🔍 TESTE DEFINITIVO DO SCHEMA
-      console.log("🔍 TESTE SCHEMA:", insertCouponSchema);
-      console.log("🔍 SCHEMA SHAPE:", insertCouponSchema.shape);
-      console.log("🔍 DISCOUNT PERCENTAGE FIELD:", insertCouponSchema.shape?.discountPercentage);
+     // 🔍 TESTE DEFINITIVO DO SCHEMA
+     console.log("🔍 TESTE SCHEMA:", insertCouponSchema);
+     console.log("🔍 SCHEMA SHAPE:", insertCouponSchema.shape);
+     console.log("🔍 DISCOUNT PERCENTAGE FIELD:", insertCouponSchema.shape?.discountPercentage);
 
-      // 🔧 CORREÇÃO: Converter datas de string para Date ANTES da validação
-      const requestData = {
-        ...req.body,
-        userId: user.id, // 🛡️ SEGURANÇA: Adicionar user_id automaticamente
-        startTime: new Date(req.body.startTime),
-        endTime: new Date(req.body.endTime)
-      };
+     // 🔧 CORREÇÃO: Converter datas de string para Date ANTES da validação
+     const requestData = {
+       ...req.body,
+       userId: user.id, // 🛡️ SEGURANÇA: Adicionar user_id automaticamente
+       startTime: new Date(req.body.startTime),
+       endTime: new Date(req.body.endTime)
+     };
 
-      console.log("======= DADOS APÓS CONVERSÃO DE DATA =======");
-      console.log('startTime convertido:', requestData.startTime);
-      console.log('endTime convertido:', requestData.endTime);
-      console.log("==========================================");
-      console.log("🔍 SCHEMA DEBUG:", typeof insertCouponSchema);
-      console.log("🔍 DADOS RECEBIDOS:", JSON.stringify(req.body, null, 2));
-      console.log("🔍 TIPO discountPercentage:", typeof req.body.discountPercentage);
+     console.log("======= DADOS APÓS CONVERSÃO DE DATA =======");
+     console.log('startTime convertido:', requestData.startTime);
+     console.log('endTime convertido:', requestData.endTime);
+     console.log("==========================================");
+     console.log("🔍 SCHEMA DEBUG:", typeof insertCouponSchema);
+     console.log("🔍 DADOS RECEBIDOS:", JSON.stringify(req.body, null, 2));
+     console.log("🔍 TIPO discountPercentage:", typeof req.body.discountPercentage);
 
-      // Validate coupon data
-      const validationResult = insertCouponSchema.safeParse(requestData);
-      if (!validationResult.success) {
-        console.log("======= ERROS DE VALIDAÇÃO =======");
-        console.log(JSON.stringify(validationResult.error.errors, null, 2));
-        console.log("==================================");
+     // Validate coupon data
+     const validationResult = insertCouponSchema.safeParse(requestData);
+     if (!validationResult.success) {
+       console.log("======= ERROS DE VALIDAÇÃO =======");
+       console.log(JSON.stringify(validationResult.error.errors, null, 2));
+       console.log("==================================");
 
-        return res.status(400).json({ 
-          message: 'Validation error', 
-          errors: validationResult.error.errors 
-        });
-      }
+       return res.status(400).json({ 
+         message: 'Validation error', 
+         errors: validationResult.error.errors 
+       });
+     }
 
-      const couponData = validationResult.data;
+     const couponData = validationResult.data;
 
-      // Verify the store belongs to the user
-      const store = await storage.getStore(couponData.storeId);
-      if (!store || store.userId !== user.id) {
-        return res.status(403).json({ message: 'Not authorized to create coupons for this store' });
-      }
+     // Verify the store belongs to the user
+     const store = await storage.getStore(couponData.storeId);
+     if (!store || store.userId !== user.id) {
+       return res.status(403).json({ message: 'Not authorized to create coupons for this store' });
+     }
 
       // Check subscription plan limits
       const limitCheck = await checkCouponLimits(user.id, store);
@@ -188,17 +188,17 @@ export async function createCoupon(req: Request, res: Response) {
       console.log("=======================================");
 
       res.status(201).json(coupon);
-    } catch (error) {
-      console.error('Error creating coupon:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
+    });
+  } catch (error) {
+    console.error('Error creating coupon:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 }
 
 // Update a coupon (sellers only)
 export async function updateCoupon(req: Request, res: Response) {
-  sellerMiddleware(req, res, async () => {
-    try {
+  try {
+    sellerMiddleware(req, res, async () => {
       const user = req.user!;
       const { id } = req.params;
 
@@ -319,17 +319,17 @@ export async function updateCoupon(req: Request, res: Response) {
       console.log("==========================================");
 
       res.json(updatedCoupon);
-    } catch (error) {
-      console.error('Error updating coupon:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
+    });
+  } catch (error) {
+    console.error('Error updating coupon:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 }
 
-// ✅ FUNÇÃO CORRIGIDA: Mark coupon as used (for physical store validation)
+// Mark coupon as used (for physical store validation)
 export async function useCoupon(req: Request, res: Response) {
-  sellerMiddleware(req, res, async () => {
-    try {
+  try {
+    sellerMiddleware(req, res, async () => {
       const user = req.user!;
 
       console.log("======= VALIDAÇÃO DE USO DE CUPOM =======");
@@ -351,13 +351,15 @@ export async function useCoupon(req: Request, res: Response) {
       const coupon = await storage.getCoupon(couponId);
       if (!coupon) {
         return res.status(404).json({ message: 'Coupon not found' });
-      }
 
+      }
+      
       // Verify the store belongs to the user
       const store = await storage.getStore(coupon.storeId);
       if (!store || store.userId !== user.id) {
         return res.status(403).json({ message: 'Not authorized to validate coupons for this store' });
       }
+      // Verify coupon belongs to the store
 
       // Check if coupon is active
       if (!coupon.isActive) {
@@ -401,12 +403,11 @@ export async function useCoupon(req: Request, res: Response) {
         usageCount: updatedCoupon.usageCount,
         remainingUses: updatedCoupon.maxUsageCount ? updatedCoupon.maxUsageCount - updatedCoupon.usageCount : null
       });
-
-    } catch (error) {
-      console.error('Error using coupon:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
+    });
+  } catch (error) {
+    console.error('Error using coupon:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 }
 
 // Validate coupon code (for customers to check before visiting store)
@@ -498,8 +499,8 @@ export async function validateCouponCode(req: Request, res: Response) {
 
 // Delete/deactivate a coupon (sellers only)
 export async function deleteCoupon(req: Request, res: Response) {
-  sellerMiddleware(req, res, async () => {
-    try {
+  try {
+    sellerMiddleware(req, res, async () => {
       const user = req.user!;
       const { id } = req.params;
 
@@ -532,17 +533,17 @@ export async function deleteCoupon(req: Request, res: Response) {
         message: 'Coupon deactivated successfully',
         coupon: deactivatedCoupon 
       });
-    } catch (error) {
-      console.error('Error deleting coupon:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
+    });
+  } catch (error) {
+    console.error('Error deleting coupon:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 }
 
 // Get coupon limits information for the current seller
 export async function getCouponLimits(req: Request, res: Response) {
-  sellerMiddleware(req, res, async () => {
-    try {
+  try {
+    sellerMiddleware(req, res, async () => {
       const user = req.user!;
 
       console.log("======= OBTENDO LIMITES DE CUPONS =======");
@@ -563,9 +564,9 @@ export async function getCouponLimits(req: Request, res: Response) {
       console.log("==========================================");
 
       res.json(limitsInfo);
-    } catch (error) {
-      console.error('Error getting coupon limits:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
+    });
+  } catch (error) {
+    console.error('Error getting coupon limits:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 }
