@@ -35,6 +35,8 @@ import { setupAuthMiddleware } from "./setup-auth";
 import { initCustomTables } from "./db";
 import { setupCSP } from "./middleware/csp";
 import { checkUploadDirectories } from "./scripts/check-uploads-dir";
+// ✅ ADICIONAR esta linha após os outros imports
+import { initializeCleanupJobs } from "./utils/cleanup-expired-promotions";
 
 // Configuração para obter __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url);
@@ -190,6 +192,11 @@ app.use((req, res, next) => {
   try {
     await initCustomTables();
     log('✅ Tabelas personalizadas inicializadas com sucesso');
+
+    // ✅ NOVO: Inicializar sistema de limpeza de promoções expiradas
+    initializeCleanupJobs();
+    log('✅ Job de limpeza de promoções inicializado');
+
   } catch (error) {
     console.error('❌ Erro ao inicializar tabelas personalizadas:', error);
   }
