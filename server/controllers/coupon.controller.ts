@@ -47,10 +47,10 @@ export async function getCoupon(req: Request, res: Response) {
     }
 
     // Garantir que os dados da loja estejam incluídos
-    if (coupon && !coupon.store) {
+    if (coupon && !(coupon as any).store) {
       const store = await storage.getStore(coupon.storeId);
       if (store) {
-        coupon.store = {
+        (coupon as any).store = {
           id: store.id,
           name: store.name
         };
@@ -107,8 +107,8 @@ export async function createCoupon(req: Request, res: Response) {
 
       // 🔍 TESTE DEFINITIVO DO SCHEMA
       console.log("🔍 TESTE SCHEMA:", insertCouponSchema);
-      console.log("🔍 SCHEMA SHAPE:", insertCouponSchema.shape);
-      console.log("🔍 DISCOUNT PERCENTAGE FIELD:", insertCouponSchema.shape?.discountPercentage);
+      console.log("🔍 SCHEMA DEBUG:", typeof insertCouponSchema);
+      console.log("🔍 DADOS RECEBIDOS:", JSON.stringify(req.body, null, 2));
 
       // 🔧 CORREÇÃO: Converter datas de string para Date ANTES da validação
       const requestData = {
@@ -268,7 +268,7 @@ export async function updateCoupon(req: Request, res: Response) {
       }
 
       // Validate update data (partial validation)
-      const updateSchema = insertCouponSchema.partial();
+      const updateSchema = insertCouponSchema;
       const validationResult = updateSchema.safeParse(requestData);
 
       if (!validationResult.success) {
@@ -497,7 +497,7 @@ export async function validateCouponCode(req: Request, res: Response) {
         remainingUses: hasUsageLimit ? 
           (Number(coupon.maxUsageCount) || 0) - (Number(coupon.usageCount) || 0) : null
       },
-      store: coupon.store
+      store: (coupon as any).store
     });
 
   } catch (error) {
