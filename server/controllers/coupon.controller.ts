@@ -378,14 +378,20 @@ export async function useCoupon(req: Request, res: Response) {
       }
 
       // Check usage limits
-      if (coupon.maxUsageCount && coupon.usageCount >= coupon.maxUsageCount) {
-        return res.status(400).json({ message: 'Coupon usage limit reached' });
+      if (coupon.maxUsageCount) {
+        const currentUsage = Number(coupon.usageCount) || 0;
+        const maxUsage = Number(coupon.maxUsageCount) || 0;
+
+        if (currentUsage >= maxUsage) {
+          return res.status(400).json({ message: 'Coupon usage limit reached' });
+        }
       }
 
       // Mark coupon as used (increment usage count)
+      const currentUsage = Number(coupon.usageCount) || 0;
       const updatedCoupon = await storage.updateCoupon(couponId, {
-        usageCount: coupon.usageCount + 1
-      });
+        usageCount: currentUsage + 1
+      } as any);
 
       if (!updatedCoupon) {
         return res.status(500).json({ message: 'Failed to update coupon usage' });
@@ -399,7 +405,8 @@ export async function useCoupon(req: Request, res: Response) {
         message: 'Coupon used successfully',
         coupon: updatedCoupon,
         usageCount: updatedCoupon.usageCount,
-        remainingUses: updatedCoupon.maxUsageCount ? updatedCoupon.maxUsageCount - updatedCoupon.usageCount : null
+        remainingUses: updatedCoupon.maxUsageCount ? 
+          (Number(updatedCoupon.maxUsageCount) || 0) - (Number(updatedCoupon.usageCount) || 0) : null
       });
 
     } catch (error) {
@@ -462,7 +469,9 @@ export async function validateCouponCode(req: Request, res: Response) {
 
     // Check usage limits
     const hasUsageLimit = coupon.maxUsageCount && coupon.maxUsageCount > 0;
-    const usageLimitReached = hasUsageLimit && coupon.usageCount >= coupon.maxUsageCount;
+    const currentUsage = Number(coupon.usageCount) || 0;
+    const maxUsage = Number(coupon.maxUsageCount) || 0;
+    const usageLimitReached = hasUsageLimit && currentUsage >= maxUsage;
 
     if (usageLimitReached) {
       return res.status(400).json({ 
@@ -485,7 +494,8 @@ export async function validateCouponCode(req: Request, res: Response) {
         endTime: coupon.endTime,
         usageCount: coupon.usageCount,
         maxUsageCount: coupon.maxUsageCount,
-        remainingUses: hasUsageLimit ? coupon.maxUsageCount - coupon.usageCount : null
+        remainingUses: hasUsageLimit ? 
+          (Number(coupon.maxUsageCount) || 0) - (Number(coupon.usageCount) || 0) : null
       },
       store: coupon.store
     });
