@@ -144,13 +144,13 @@ import { db, pool } from "./db";
 const PostgresSessionStore = connectPg(session);
 
 export class DatabaseStorage implements IStorage {
-  sessionStore: session.SessionStore;
+  sessionStore: any;
 
   constructor() {
     this.sessionStore = new PostgresSessionStore({ 
       pool, 
       createTableIfMissing: true 
-    });
+    }) as any;
   }
 
   // ===== USER OPERATIONS =====
@@ -165,7 +165,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(userData: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(userData).returning();
+    const [user] = await db.insert(users).values(userData as any).returning();
     return user;
   }
 
@@ -237,13 +237,14 @@ export class DatabaseStorage implements IStorage {
 
   async getStores(options: { category?: string, search?: string, limit?: number } = {}): Promise<Store[]> {
     let query = db.select().from(stores);
+    const conditions = [];
 
     if (options.category) {
-      query = query.where(like(stores.category, `%${options.category}%`));
+      conditions.push(like(stores.category, `%${options.category}%`));
     }
 
     if (options.search) {
-      query = query.where(
+      conditions.push(
         or(
           like(stores.name, `%${options.search}%`),
           like(stores.description, `%${options.search}%`)
@@ -251,8 +252,12 @@ export class DatabaseStorage implements IStorage {
       );
     }
 
+    if (conditions.length > 0) {
+      query = (query as any).where(and(...conditions));
+    }
+
     if (options.limit) {
-      query = query.limit(options.limit);
+      query = (query as any).limit(options.limit);
     }
 
     return await query;
@@ -277,7 +282,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createStore(storeData: InsertStore): Promise<Store> {
-    const [store] = await db.insert(stores).values(storeData).returning();
+    const [store] = await db.insert(stores).values(storeData as any).returning();
     return store;
   }
 
@@ -308,11 +313,11 @@ export class DatabaseStorage implements IStorage {
     let query = db.select().from(products);
 
     if (options.category) {
-      query = query.where(eq(products.category, options.category));
+      query = (query as any).where(eq(products.category, options.category));
     }
 
     if (options.search) {
-      query = query.where(
+      query = (query as any).where(
         or(
           like(products.name, `%${options.search}%`),
           like(products.description, `%${options.search}%`)
@@ -322,7 +327,7 @@ export class DatabaseStorage implements IStorage {
 
     if (options.minPrice !== undefined && options.minPrice !== null) {
       const minPrice = Number(options.minPrice);
-      query = query.where(
+      query = (query as any).where(
         or(
           and(
             sql`${products.discountedPrice} IS NOT NULL`,
@@ -341,7 +346,7 @@ export class DatabaseStorage implements IStorage {
 
     if (options.maxPrice !== undefined && options.maxPrice !== null) {
       const maxPrice = Number(options.maxPrice);
-      query = query.where(
+      query = (query as any).where(
         or(
           and(
             sql`${products.discountedPrice} IS NOT NULL`,
@@ -360,16 +365,16 @@ export class DatabaseStorage implements IStorage {
 
     if (options.sortBy) {
       if (options.sortBy === 'price_asc') {
-        query = query.orderBy(products.price);
+        query = (query as any).orderBy(products.price);
       } else if (options.sortBy === 'price_desc') {
-        query = query.orderBy(desc(products.price));
+        query = (query as any).orderBy(desc(products.price));
       } else if (options.sortBy === 'newest') {
-        query = query.orderBy(desc(products.createdAt));
+        query = (query as any).orderBy(desc(products.createdAt));
       }
     }
 
     if (options.limit) {
-      query = query.limit(options.limit);
+      query = (query as any).limit(options.limit);
     }
 
     return await query;
@@ -399,7 +404,7 @@ export class DatabaseStorage implements IStorage {
 
     if (options.minPrice !== undefined && options.minPrice !== null) {
       const minPrice = Number(options.minPrice);
-      query = query.where(
+      query = (query as any).where(
         or(
           and(
             sql`${products.discountedPrice} IS NOT NULL`,
@@ -418,7 +423,7 @@ export class DatabaseStorage implements IStorage {
 
     if (options.maxPrice !== undefined && options.maxPrice !== null) {
       const maxPrice = Number(options.maxPrice);
-      query = query.where(
+      query = (query as any).where(
         or(
           and(
             sql`${products.discountedPrice} IS NOT NULL`,
@@ -437,20 +442,20 @@ export class DatabaseStorage implements IStorage {
 
     if (options.sortBy) {
       if (options.sortBy === 'price_asc') {
-        query = query.orderBy(products.price);
+        query = (query as any).orderBy(products.price);
       } else if (options.sortBy === 'price_desc') {
-        query = query.orderBy(desc(products.price));
+        query = (query as any).orderBy(desc(products.price));
       } else if (options.sortBy === 'newest') {
-        query = query.orderBy(desc(products.createdAt));
+        query = (query as any).orderBy(desc(products.createdAt));
       } else {
-        query = query.orderBy(desc(products.id));
+        query = (query as any).orderBy(desc(products.id));
       }
     } else {
-      query = query.orderBy(desc(products.createdAt));
+      query = (query as any).orderBy(desc(products.createdAt));
     }
 
     if (options.limit) {
-      query = query.limit(options.limit);
+      query = (query as any).limit(options.limit);
     }
 
     return await query;
@@ -523,11 +528,11 @@ export class DatabaseStorage implements IStorage {
     let query = db.select().from(promotions);
 
     if (type) {
-      query = query.where(eq(promotions.type, type));
+      query = (query as any).where(eq(promotions.type, type as any));
     }
 
     if (limit) {
-      query = query.limit(limit);
+      query = (query as any).limit(limit);
     }
 
     return await query;
@@ -560,7 +565,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPromotion(promotionData: InsertPromotion): Promise<Promotion> {
-    const [promotion] = await db.insert(promotions).values(promotionData).returning();
+    const [promotion] = await db.insert(promotions).values(promotionData as any).returning();
     return promotion;
   }
 
@@ -575,9 +580,9 @@ export class DatabaseStorage implements IStorage {
       let discountPercentage = promotionData.discountPercentage !== undefined 
         ? promotionData.discountPercentage 
         : existingPromotion.discountPercentage;
-      let discountAmount = promotionData.discountAmount !== undefined 
-        ? promotionData.discountAmount 
-        : existingPromotion.discountAmount;
+      let discountAmount = (promotionData as any).discountAmount !== undefined
+      ? (promotionData as any).discountAmount
+      : (existingPromotion as any).discountAmount;
 
       let startTime = promotionData.startTime 
         ? typeof promotionData.startTime === 'string' 
@@ -632,7 +637,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(coupons.isActive, true));
 
       if (search) {
-        query = query.where(
+        query = (query as any).where(
           and(
             eq(coupons.isActive, true),
             or(
@@ -644,10 +649,10 @@ export class DatabaseStorage implements IStorage {
       }
 
       if (limit) {
-        query = query.limit(limit);
+        query = (query as any).limit(limit);
       }
 
-      query = query.orderBy(desc(coupons.createdAt));
+      query = (query as any).orderBy(desc(coupons.createdAt));
       const results = await query;
 
       return results.map(result => ({
@@ -655,7 +660,7 @@ export class DatabaseStorage implements IStorage {
         store: {
           id: result.stores.id,
           name: result.stores.name,
-          images: result.stores.images || []
+          images: (result.stores as any).images || []
         }
       }));
 
@@ -670,7 +675,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCoupon(couponData: InsertCoupon): Promise<Coupon> {
-    const [coupon] = await db.insert(coupons).values(couponData).returning();
+    const [coupon] = await db.insert(coupons).values(couponData as any).returning();
     return coupon;
   }
 
@@ -751,17 +756,20 @@ export class DatabaseStorage implements IStorage {
         return null;
       }
 
-      if (result.coupons.maxUsageCount && 
-          result.coupons.usageCount >= result.coupons.maxUsageCount) {
-        return null;
+      if (result.coupons.maxUsageCount) {
+        const currentUsage = Number(result.coupons.usageCount) || 0;
+        const maxUsage = Number(result.coupons.maxUsageCount) || 0;
+        if (currentUsage >= maxUsage) {
+          return null;
+        }
       }
 
       return {
-        ...result.coupons,
+        ...(result.coupons as any),
         store: {
           id: result.stores.id,
           name: result.stores.name,
-          images: result.stores.images
+          images: (result.stores as any).images
         }
       };
 
@@ -784,7 +792,7 @@ export class DatabaseStorage implements IStorage {
         store: {
           id: result.stores.id,
           name: result.stores.name,
-          images: result.stores.images
+          images: (result.stores as any).images
         }
       }));
 
@@ -813,7 +821,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(coupons.storeId, storeId));
 
       if (startDate) {
-        query = query.where(
+        query = (query as any).where(
           and(
             eq(coupons.storeId, storeId),
             gte(coupons.createdAt, startDate)
@@ -822,7 +830,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       if (endDate) {
-        query = query.where(
+        query = (query as any).where(
           and(
             eq(coupons.storeId, storeId),
             lte(coupons.createdAt, endDate)
@@ -887,8 +895,12 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Verificar limites de uso
-      if (coupon.maxUsageCount && coupon.usageCount >= coupon.maxUsageCount) {
-        throw new Error('Cupom esgotado');
+      if (coupon.maxUsageCount) {
+        const currentUsage = Number(coupon.usageCount) || 0;
+        const maxUsage = Number(coupon.maxUsageCount) || 0;
+        if (currentUsage >= maxUsage) {
+          throw new Error('Cupom esgotado');
+        }
       }
 
       // Gerar código de validação único (com retry para evitar duplicatas)
@@ -1181,7 +1193,8 @@ export class DatabaseStorage implements IStorage {
     let query = db.select().from(reservations).where(eq(reservations.userId, userId));
 
     if (limit) {
-      query = query.limit(limit);
+      query = (query as any).limit(limit);
+
     }
 
     return await query;
@@ -1271,11 +1284,11 @@ export class DatabaseStorage implements IStorage {
     let query = db.select().from(storeImpressions).where(eq(storeImpressions.storeId, storeId));
 
     if (startDate) {
-      query = query.where(gte(storeImpressions.date, startDate));
+      query = (query as any).where(gte(storeImpressions.date, startDate));
     }
 
     if (endDate) {
-      query = query.where(lte(storeImpressions.date, endDate));
+      query = (query as any).where(lte(storeImpressions.date, endDate));
     }
 
     return await query;
@@ -1324,7 +1337,7 @@ export class DatabaseStorage implements IStorage {
     return {
       userId: resetToken.userId,
       expiresAt: resetToken.expiresAt,
-      used: resetToken.used
+      used: resetToken.used || false
     };
   }
 
@@ -1501,7 +1514,7 @@ export class MemStorage implements IStorage {
   }
 
   // Coupon redemption operations (not implemented in MemStorage)
-  async redeemCoupon(couponId: number, customerData: { name?: string, phone?: string }) {
+    async redeemCoupon(couponId: number, customerData: { name?: string, phone?: string }): Promise<{ validationCode: string; redemption: CouponRedemption }> {
     throw new Error('Coupon redemption not implemented in memory storage - use DatabaseStorage for production');
   }
 
