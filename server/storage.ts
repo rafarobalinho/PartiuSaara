@@ -74,7 +74,7 @@ export interface IStorage {
   getCoupons(search?: string, limit?: number): Promise<Coupon[]>;
   getCouponsByStore(storeId: number): Promise<Coupon[]>;
   createCoupon(coupon: InsertCoupon): Promise<Coupon>;
-  updateCoupon(id: number, coupon: Partial<Coupon>): Promise<Coupon | undefined>;
+  updateCoupon(id: number, data: Partial<InsertCoupon>): Promise<Coupon | null>;
   validateCouponCode(storeId: number, code: string): Promise<Coupon | null>;
   getSellerCoupons(userId: number): Promise<Coupon[]>;
   getCouponMetrics(storeId: number, startDate?: Date, endDate?: Date): Promise<{
@@ -1486,7 +1486,7 @@ export class MemStorage implements IStorage {
     throw new Error('MemStorage - use DatabaseStorage for production'); 
   }
 
-  async updateCoupon(id: number, coupon: Partial<Coupon>): Promise<Coupon | undefined> { 
+    async updateCoupon(id: number, data: Partial<InsertCoupon>): Promise<Coupon | null> { 
     throw new Error('MemStorage - use DatabaseStorage for production'); 
   }
 
