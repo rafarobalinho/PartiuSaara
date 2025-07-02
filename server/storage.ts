@@ -831,22 +831,20 @@ export class DatabaseStorage implements IStorage {
       }
 
       const results = await query;
-
-      let totalCoupons = results.length;
-      let activeCoupons = 0;
-      let usedCoupons = 0;
-      let totalUsage = 0;
-
-      results.forEach(coupon => {
-        if (coupon.isActive) {
-          activeCoupons++;
-        }
-
-        if (coupon.usageCount > 0) {
-          usedCoupons++;
-          totalUsage += coupon.usageCount;
-        }
-      });
+       let totalCoupons = results.length;
+       let activeCoupons = 0;
+       let usedCoupons = 0;
+       let totalUsage = 0;
+       results.forEach(coupon => {
+         if (coupon.isActive) {
+           activeCoupons++;
+         }
+         const usageCount = Number(coupon.usageCount) || 0;
+         if (usageCount > 0) {
+           usedCoupons++;
+           totalUsage += usageCount;
+         }
+       });
 
       const conversionRate = totalCoupons > 0 ? (usedCoupons / totalCoupons) * 100 : 0;
 
