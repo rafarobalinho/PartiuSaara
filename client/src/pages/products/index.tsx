@@ -159,9 +159,9 @@ export default function Products() {
       discountedPrice: product.discounted_price,
       category: product.category,
       images: product.images || [],
-      store: {
-        id: product.store?.id,
-        name: product.store?.name || 'Loja'
+        store: {
+          id: product.store_id,
+          name: product.store_name || 'Loja'
       },
       isActive: product.is_active
     }));

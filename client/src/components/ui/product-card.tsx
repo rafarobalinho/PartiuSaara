@@ -226,7 +226,14 @@ export default function ProductCard({
 
     reserveMutation.mutate();
   };
-
+  
+  console.log('🔍 DEBUG Product data:', {
+    productId: product.id,
+    productName: product.name,
+    storeData: product.store,
+    storeName: product.store?.name
+  });
+  
   return (
     <Link href={`/products/${product.id}`}>
       <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 relative group block cursor-pointer h-full flex flex-col">

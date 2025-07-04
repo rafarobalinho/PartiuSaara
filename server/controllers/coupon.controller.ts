@@ -47,10 +47,10 @@ export async function getCoupon(req: Request, res: Response) {
     }
 
     // Garantir que os dados da loja estejam incluídos
-    if (coupon && !coupon.store) {
+    if (coupon && !(coupon as any).store) {
       const store = await storage.getStore(coupon.storeId);
       if (store) {
-        coupon.store = {
+        (coupon as any).store = {
           id: store.id,
           name: store.name
         };
@@ -107,8 +107,8 @@ export async function createCoupon(req: Request, res: Response) {
 
       // 🔍 TESTE DEFINITIVO DO SCHEMA
       console.log("🔍 TESTE SCHEMA:", insertCouponSchema);
-      console.log("🔍 SCHEMA SHAPE:", insertCouponSchema.shape);
-      console.log("🔍 DISCOUNT PERCENTAGE FIELD:", insertCouponSchema.shape?.discountPercentage);
+      console.log("🔍 SCHEMA DEBUG:", typeof insertCouponSchema);
+      console.log("🔍 DADOS RECEBIDOS:", JSON.stringify(req.body, null, 2));
 
       // 🔧 CORREÇÃO: Converter datas de string para Date ANTES da validação
       const requestData = {
@@ -268,7 +268,7 @@ export async function updateCoupon(req: Request, res: Response) {
       }
 
       // Validate update data (partial validation)
-      const updateSchema = insertCouponSchema.partial();
+      const updateSchema = insertCouponSchema;
       const validationResult = updateSchema.safeParse(requestData);
 
       if (!validationResult.success) {
@@ -378,14 +378,20 @@ export async function useCoupon(req: Request, res: Response) {
       }
 
       // Check usage limits
-      if (coupon.maxUsageCount && coupon.usageCount >= coupon.maxUsageCount) {
-        return res.status(400).json({ message: 'Coupon usage limit reached' });
+      if (coupon.maxUsageCount) {
+        const currentUsage = Number(coupon.usageCount) || 0;
+        const maxUsage = Number(coupon.maxUsageCount) || 0;
+
+        if (currentUsage >= maxUsage) {
+          return res.status(400).json({ message: 'Coupon usage limit reached' });
+        }
       }
 
       // Mark coupon as used (increment usage count)
+      const currentUsage = Number(coupon.usageCount) || 0;
       const updatedCoupon = await storage.updateCoupon(couponId, {
-        usageCount: coupon.usageCount + 1
-      });
+        usageCount: currentUsage + 1
+      } as any);
 
       if (!updatedCoupon) {
         return res.status(500).json({ message: 'Failed to update coupon usage' });
@@ -399,7 +405,8 @@ export async function useCoupon(req: Request, res: Response) {
         message: 'Coupon used successfully',
         coupon: updatedCoupon,
         usageCount: updatedCoupon.usageCount,
-        remainingUses: updatedCoupon.maxUsageCount ? updatedCoupon.maxUsageCount - updatedCoupon.usageCount : null
+        remainingUses: updatedCoupon.maxUsageCount ? 
+          (Number(updatedCoupon.maxUsageCount) || 0) - (Number(updatedCoupon.usageCount) || 0) : null
       });
 
     } catch (error) {
@@ -462,7 +469,9 @@ export async function validateCouponCode(req: Request, res: Response) {
 
     // Check usage limits
     const hasUsageLimit = coupon.maxUsageCount && coupon.maxUsageCount > 0;
-    const usageLimitReached = hasUsageLimit && coupon.usageCount >= coupon.maxUsageCount;
+    const currentUsage = Number(coupon.usageCount) || 0;
+    const maxUsage = Number(coupon.maxUsageCount) || 0;
+    const usageLimitReached = hasUsageLimit && currentUsage >= maxUsage;
 
     if (usageLimitReached) {
       return res.status(400).json({ 
@@ -485,9 +494,10 @@ export async function validateCouponCode(req: Request, res: Response) {
         endTime: coupon.endTime,
         usageCount: coupon.usageCount,
         maxUsageCount: coupon.maxUsageCount,
-        remainingUses: hasUsageLimit ? coupon.maxUsageCount - coupon.usageCount : null
+        remainingUses: hasUsageLimit ? 
+          (Number(coupon.maxUsageCount) || 0) - (Number(coupon.usageCount) || 0) : null
       },
-      store: coupon.store
+      store: (coupon as any).store
     });
 
   } catch (error) {
