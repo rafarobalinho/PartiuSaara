@@ -162,7 +162,6 @@ export async function geocodeStoreById(req: Request, res: Response) {
           longitude,
           place_id: place_id || undefined
         },
-        updatedAt: new Date()
       })
       .where(eq(stores.id, storeId));
 
@@ -252,7 +251,6 @@ export async function updateStoreCoordinates(req: Request, res: Response) {
           latitude: lat,
           longitude: lng
         },
-        updatedAt: new Date()
       })
       .where(eq(stores.id, storeId));
 
@@ -343,7 +341,6 @@ export async function geocodeAllStores(req: Request, res: Response) {
             longitude: geocodeResult.longitude,
             place_id: geocodeResult.place_id
           },
-          updatedAt: new Date()
         })
         .where(eq(stores.id, store.id));
         

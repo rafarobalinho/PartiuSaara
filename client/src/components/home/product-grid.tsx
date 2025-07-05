@@ -81,10 +81,8 @@ export default function ProductGrid() {
     <div className="mb-8">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold">Destaques da semana</h2>
-        <Link href="/products">
-          <a className="text-primary text-sm font-medium">
-            Ver todos <i className="fas fa-chevron-right text-xs ml-1"></i>
-          </a>
+        <Link href="/products" className="text-primary text-sm font-medium hover:underline">
+          Ver todos <i className="fas fa-chevron-right text-xs ml-1"></i>
         </Link>
       </div>
 
