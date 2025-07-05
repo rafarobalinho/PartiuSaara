@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
@@ -69,6 +69,7 @@ export default function ProductCard({
 
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const { 
     incrementWishlistCount, 
     decrementWishlistCount, 
@@ -226,125 +227,131 @@ export default function ProductCard({
 
     reserveMutation.mutate();
   };
-  
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Navegar para a página do produto
+    setLocation(`/products/${product.id}`);
+  };
+
   console.log('🔍 DEBUG Product data:', {
     productId: product.id,
     productName: product.name,
     storeData: product.store,
     storeName: product.store?.name
   });
-  
+
   return (
-    <Link href={`/products/${product.id}`}>
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 relative group block cursor-pointer h-full flex flex-col">
-        {/* Etiqueta de desconto */}
-        {discount > 0 && (
-          <div className="bg-primary text-white text-xs font-bold absolute top-2 left-0 py-1 px-2 rounded-r-lg z-10">
-            -{discount}%
+    <div 
+      className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 relative group block cursor-pointer h-full flex flex-col"
+      onClick={handleCardClick}
+    >
+      {/* Etiqueta de desconto */}
+      {discount > 0 && (
+        <div className="bg-primary text-white text-xs font-bold absolute top-2 left-0 py-1 px-2 rounded-r-lg z-10">
+          -{discount}%
+        </div>
+      )}
+
+      {/* Botão de favorito */}
+      <div className="absolute top-2 right-2 z-10">
+        <button 
+          className={`${isProductFavorite(product.id) ? 'text-primary' : 'text-gray-400 hover:text-primary'} bg-white rounded-full p-1.5 shadow-sm h-8 w-8 flex items-center justify-center`}
+          onClick={handleWishlistToggle}
+        >
+          <i className={`${isProductFavorite(product.id) ? 'fas fa-heart' : 'far fa-heart'} text-sm text-center`}></i>
+        </button>
+      </div>
+
+      {/* Container de imagem - Mais destacado */}
+      <div className="relative overflow-hidden bg-white pb-[100%] w-full">
+        {isFlashPromotion && (
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-10">
+            <div 
+              className="h-full bg-primary" 
+              style={{ width: `${100 - progressWidth}%` }}
+            ></div>
           </div>
         )}
 
-        {/* Botão de favorito */}
-        <div className="absolute top-2 right-2 z-10">
-          <button 
-            className={`${isProductFavorite(product.id) ? 'text-primary' : 'text-gray-400 hover:text-primary'} bg-white rounded-full p-1.5 shadow-sm h-8 w-8 flex items-center justify-center`}
-            onClick={handleWishlistToggle}
-          >
-            <i className={`${isProductFavorite(product.id) ? 'fas fa-heart' : 'far fa-heart'} text-sm text-center`}></i>
-          </button>
+        <div className="absolute inset-0 w-full h-full">
+          <SafeImage
+            entityType="product"
+            entityId={product.id}
+            imageType="primary-image"
+            alt={product.name}
+            className="w-full h-48 object-cover"
+          />
         </div>
+      </div>
 
-        {/* Container de imagem - Mais destacado */}
-        <div className="relative overflow-hidden bg-white pb-[100%] w-full">
-          {isFlashPromotion && (
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-10">
-              <div 
-                className="h-full bg-primary" 
-                style={{ width: `${100 - progressWidth}%` }}
-              ></div>
-            </div>
-          )}
-
-          <div className="absolute inset-0 w-full h-full">
-            <SafeImage
-              entityType="product"
-              entityId={product.id}
-              imageType="primary-image"
-              alt={product.name}
-              className="w-full h-48 object-cover"
-            />
+      {/* Conteúdo do card - textos e botões */}
+      <div className="p-3 flex-grow flex flex-col">
+        {/* Categoria ou loja */}
+        {showCategory ? (
+          <div className="text-xs text-gray-500 mb-1">{product.category}</div>
+        ) : (
+          <div className="text-xs text-gray-500 mb-1 flex items-center">
+            <i className="fas fa-store mr-1"></i> 
+            <span className="truncate">{product.store?.name || 'Loja'}</span>
           </div>
-        </div>
+        )}
 
-        {/* Conteúdo do card - textos e botões */}
-        <div className="p-3 flex-grow flex flex-col">
-          {/* Categoria ou loja */}
-          {showCategory ? (
-            <div className="text-xs text-gray-500 mb-1">{product.category}</div>
+        {/* Nome do produto - limitado a 2 linhas */}
+        <h3 className="text-sm font-medium line-clamp-2 mb-auto">{product.name}</h3>
+
+        {/* Preço com formatação para desconto */}
+        <div className="mt-2 flex items-baseline">
+          {product.discountedPrice ? (
+            <>
+              <span className="text-xs line-through text-gray-400">{formatCurrency(product.price)}</span>
+              <span className="text-primary font-bold text-base ml-2">{formatCurrency(product.discountedPrice)}</span>
+            </>
           ) : (
-            <div className="text-xs text-gray-500 mb-1 flex items-center">
-              <i className="fas fa-store mr-1"></i> 
-              <span className="truncate">{product.store?.name || 'Loja'}</span>
-            </div>
+            <span className="text-primary font-bold text-base">{formatCurrency(product.price)}</span>
           )}
+        </div>
 
-          {/* Nome do produto - limitado a 2 linhas */}
-          <h3 className="text-sm font-medium line-clamp-2 mb-auto">{product.name}</h3>
-
-          {/* Preço com formatação para desconto */}
-          <div className="mt-2 flex items-baseline">
-            {product.discountedPrice ? (
-              <>
-                <span className="text-xs line-through text-gray-400">{formatCurrency(product.price)}</span>
-                <span className="text-primary font-bold text-base ml-2">{formatCurrency(product.discountedPrice)}</span>
-              </>
-            ) : (
-              <span className="text-primary font-bold text-base">{formatCurrency(product.price)}</span>
-            )}
+        {/* Contagem regressiva para promoções */}
+        {(isFlashPromotion || discountPercentage) && endTime && (
+          <div className="mt-2 bg-gray-50 p-2 rounded-md border border-gray-100">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-gray-600">
+                {isFlashPromotion ? 'Relâmpago' : 'Promoção'}
+              </span>
+              <div className="text-xs text-primary font-medium px-1 py-0 bg-primary/10 rounded">
+                {discount}% OFF
+              </div>
+            </div>
+            <div className="flex items-center text-xs text-primary font-medium">
+              <i className="fas fa-clock mr-1"></i>
+              <span>
+                Acaba em {timeRemaining.days > 0 ? `${timeRemaining.days}d ` : ''}
+                {timeRemaining.hours}h {timeRemaining.minutes}m
+              </span>
+            </div>
           </div>
+        )}
 
-          {/* Contagem regressiva para promoções */}
-          {(isFlashPromotion || discountPercentage) && endTime && (
-            <div className="mt-2 bg-gray-50 p-2 rounded-md border border-gray-100">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-gray-600">
-                  {isFlashPromotion ? 'Relâmpago' : 'Promoção'}
-                </span>
-                <div className="text-xs text-primary font-medium px-1 py-0 bg-primary/10 rounded">
-                  {discount}% OFF
-                </div>
-              </div>
-              <div className="flex items-center text-xs text-primary font-medium">
-                <i className="fas fa-clock mr-1"></i>
-                <span>
-                  Acaba em {timeRemaining.days > 0 ? `${timeRemaining.days}d ` : ''}
-                  {timeRemaining.hours}h {timeRemaining.minutes}m
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Botão de reserva - varia conforme propriedade showFullWidthButton */}
-          {showFullWidthButton ? (
+        {/* Botão de reserva - varia conforme propriedade showFullWidthButton */}
+        {showFullWidthButton ? (
+          <Button
+            className="w-full mt-3 bg-primary text-white py-1.5 rounded-lg text-sm hover:bg-primary/90"
+            onClick={handleReserve}
+          >
+            Reservar
+          </Button>
+        ) : (
+          <div className="flex justify-end items-center mt-2">
             <Button
-              className="w-full mt-3 bg-primary text-white py-1.5 rounded-lg text-sm hover:bg-primary/90"
+              size="sm"
+              className="bg-primary text-white text-xs px-3 py-1 rounded-full hover:bg-primary/90"
               onClick={handleReserve}
             >
               Reservar
             </Button>
-          ) : (
-            <div className="flex justify-end items-center mt-2">
-              <Button
-                size="sm"
-                className="bg-primary text-white text-xs px-3 py-1 rounded-full hover:bg-primary/90"
-                onClick={handleReserve}
-              >
-                Reservar
-              </Button>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </Link>
+    </div>
   );
 }
