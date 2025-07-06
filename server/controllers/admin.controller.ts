@@ -319,7 +319,7 @@ export async function geocodeAllStores(req: Request, res: Response) {
 
     // Função para processar cada loja após geocodificação
     const processStoreCallback = async (
-      store: Pick<Store, 'id' | 'name'>, 
+      storeId: number,
       geocodeResult: { 
         success: boolean; 
         latitude?: number; 
@@ -328,7 +328,7 @@ export async function geocodeAllStores(req: Request, res: Response) {
         error?: string;
       }
     ): Promise<void> => {
-      if (!store.id || !geocodeResult.success || !geocodeResult.latitude || !geocodeResult.longitude) {
+      if (!storeId || !geocodeResult.success || !geocodeResult.latitude || !geocodeResult.longitude) {
         return;
       }
       
@@ -342,16 +342,16 @@ export async function geocodeAllStores(req: Request, res: Response) {
             place_id: geocodeResult.place_id
           },
         })
-        .where(eq(stores.id, store.id));
+        .where(eq(stores.id, storeId));
         
-      console.log(`Loja ID ${store.id} geocodificada com sucesso: ${geocodeResult.latitude}, ${geocodeResult.longitude}`);
+      console.log(`Loja ID ${storeId} geocodificada com sucesso: ${geocodeResult.latitude}, ${geocodeResult.longitude}`);
     };
 
     // Executar geocodificação em lote usando a função utilitária
     const batchResults = await batchGeocodeStores(eligibleStores, processStoreCallback);
     
     // Definir interface para resultado
-    interface GeocodeResult {
+    interface BatchGeocodeResult {
       id: number | undefined;
       name: string | undefined;
       success: boolean;
@@ -366,7 +366,7 @@ export async function geocodeAllStores(req: Request, res: Response) {
       total: eligibleStores.length,
       geocoded: batchResults.success,
       failed: batchResults.failed,
-      results: batchResults.results.map((result: GeocodeResult) => ({
+      results: batchResults.results.map((result: BatchGeocodeResult) => ({
         id: result.id,
         name: result.name,
         success: result.success,
