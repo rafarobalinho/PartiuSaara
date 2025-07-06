@@ -319,7 +319,19 @@ export async function geocodeAllStores(req: Request, res: Response) {
 
     // Função para processar cada loja após geocodificação
     const processStoreCallback = async (
-      store: Pick<Store, 'id' | 'name'>, 
+      store: Partial<{ 
+        id: number; 
+        name: string; 
+        createdAt: string; 
+        updatedAt: string; 
+        userId: number; 
+        description: string | null; 
+        category: string; 
+        tags: string[] | null; 
+        rating: number | null; 
+        reviewCount: number | null; 
+        [key: string]: any;
+      }>,
       geocodeResult: { 
         success: boolean; 
         latitude?: number; 
@@ -351,7 +363,7 @@ export async function geocodeAllStores(req: Request, res: Response) {
     const batchResults = await batchGeocodeStores(eligibleStores, processStoreCallback);
     
     // Definir interface para resultado
-    interface GeocodeResult {
+    interface BatchGeocodeResult {
       id: number | undefined;
       name: string | undefined;
       success: boolean;
@@ -366,7 +378,7 @@ export async function geocodeAllStores(req: Request, res: Response) {
       total: eligibleStores.length,
       geocoded: batchResults.success,
       failed: batchResults.failed,
-      results: batchResults.results.map((result: GeocodeResult) => ({
+      results: batchResults.results.map((result: BatchGeocodeResult) => ({
         id: result.id,
         name: result.name,
         success: result.success,
