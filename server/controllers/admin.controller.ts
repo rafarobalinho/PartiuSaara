@@ -5,7 +5,7 @@
 
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { stores } from '@shared/schema';
+import { stores, Store } from '@shared/schema';
 import { eq, and, isNull, isNotNull } from 'drizzle-orm';
 import { geocodeAddress, batchGeocodeStores } from '../utils/geocoding';
 
@@ -319,7 +319,7 @@ export async function geocodeAllStores(req: Request, res: Response) {
 
     // Função para processar cada loja após geocodificação
     const processStoreCallback = async (
-      store: Partial<Store>, 
+      store: Pick<Store, 'id' | 'name'>, 
       geocodeResult: { 
         success: boolean; 
         latitude?: number; 
@@ -327,7 +327,7 @@ export async function geocodeAllStores(req: Request, res: Response) {
         place_id?: string;
         error?: string;
       }
-    ) => {
+    ): Promise<void> => {
       if (!store.id || !geocodeResult.success || !geocodeResult.latitude || !geocodeResult.longitude) {
         return;
       }
@@ -350,6 +350,15 @@ export async function geocodeAllStores(req: Request, res: Response) {
     // Executar geocodificação em lote usando a função utilitária
     const batchResults = await batchGeocodeStores(eligibleStores, processStoreCallback);
     
+    // Definir interface para resultado
+    interface GeocodeResult {
+      id: number | undefined;
+      name: string | undefined;
+      success: boolean;
+      error?: string;
+      coords?: { latitude: number; longitude: number; };
+    }
+
     // Formatar resultados para a resposta
     const response = {
       success: true,
@@ -357,13 +366,7 @@ export async function geocodeAllStores(req: Request, res: Response) {
       total: eligibleStores.length,
       geocoded: batchResults.success,
       failed: batchResults.failed,
-      results: batchResults.results.map((result: {
-        id: number | undefined;
-        name: string | undefined;
-        success: boolean;
-        error?: string;
-        coords?: { latitude: number; longitude: number; }
-      }) => ({
+      results: batchResults.results.map((result: GeocodeResult) => ({
         id: result.id,
         name: result.name,
         success: result.success,
