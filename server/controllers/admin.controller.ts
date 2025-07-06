@@ -319,7 +319,19 @@ export async function geocodeAllStores(req: Request, res: Response) {
 
     // Função para processar cada loja após geocodificação
     const processStoreCallback = async (
-      storeId: number,
+      store: Partial<{ 
+        id: number; 
+        name: string; 
+        createdAt: string; 
+        updatedAt: string; 
+        userId: number; 
+        description: string | null; 
+        category: string; 
+        tags: string[] | null; 
+        rating: number | null; 
+        reviewCount: number | null; 
+        [key: string]: any;
+      }>,
       geocodeResult: { 
         success: boolean; 
         latitude?: number; 
@@ -328,7 +340,7 @@ export async function geocodeAllStores(req: Request, res: Response) {
         error?: string;
       }
     ): Promise<void> => {
-      if (!storeId || !geocodeResult.success || !geocodeResult.latitude || !geocodeResult.longitude) {
+      if (!store.id || !geocodeResult.success || !geocodeResult.latitude || !geocodeResult.longitude) {
         return;
       }
       
@@ -342,9 +354,9 @@ export async function geocodeAllStores(req: Request, res: Response) {
             place_id: geocodeResult.place_id
           },
         })
-        .where(eq(stores.id, storeId));
+        .where(eq(stores.id, store.id));
         
-      console.log(`Loja ID ${storeId} geocodificada com sucesso: ${geocodeResult.latitude}, ${geocodeResult.longitude}`);
+      console.log(`Loja ID ${store.id} geocodificada com sucesso: ${geocodeResult.latitude}, ${geocodeResult.longitude}`);
     };
 
     // Executar geocodificação em lote usando a função utilitária
