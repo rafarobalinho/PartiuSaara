@@ -1,0 +1,95 @@
+📋 RELATÓRIO DE ERROS E PROBLEMAS IDENTIFICADOS
+🔴 ERROS CRÍTICOS ATIVOS
+1. Sistema de Cupons - Erro de Tipo de Dados
+Storage Error updating coupon 3: TypeError: value.toISOString is not a function
+at PgTimestamp.mapFromDriverValue
+Problema: O campo expires_at está sendo tratado como Date quando deveria ser timestamp
+Localização: server/storage.ts - função de atualização de cupons
+Impacto: Impossibilita edição de cupons existentes
+
+2. Inconsistência no Schema de Cupons
+Problema: Diferença entre schema Drizzle e estrutura real do banco
+Evidência: Erro z.coerce sendo aplicado incorretamente
+Impacto: Falhas de validação e sincronização
+
+3. Arquivos Órfãos no Sistema
+Problema: 42 arquivos de imagem órfãos identificados no backup
+Localização: backups/orphan-backup-1751672945838/
+Impacto: Desperdício de espaço em disco e potencial confusão
+
+🟡 PROBLEMAS DE PERFORMANCE
+4. Browserslist Desatualizado
+Browserslist: browsers data (caniuse-lite) is 9 months old
+Solução: Executar npx update-browserslist-db@latest
+
+5. Múltiplas Requisições Desnecessárias
+Problema: Logs mostram requisições duplicadas para as mesmas imagens
+Exemplo:
+
+/api/stores/7/primary-image chamado múltiplas vezes
+/api/products/*/primary-image com chamadas redundantes
+🟠 PROBLEMAS DE ESTRUTURA
+6. Inconsistência de Modo Stripe
+STRIPE_MODE no carregamento inicial: live
+NODE_ENV: development
+Modo que será usado: PRODUÇÃO
+[DEBUG] Forçando test mode em development
+Problema: Conflito entre configurações de ambiente
+
+7. Estrutura de Imagens Complexa
+Problema: Sistema de imagens com múltiplas camadas de verificação
+Evidência: Scripts de debug e verificação excessivos
+Impacto: Complexidade desnecessária na manutenção
+
+🔵 PROBLEMAS MENORES
+8. Logs Excessivos
+Problema: Muitos logs de debug em produção
+Exemplos:
+
+[DEBUG] Verificando arquivo: ...
+[DEBUG] ✅ Arquivo encontrado: ...
+[SERVER] Request: GET ... Body: PRESENTE
+9. Arquivos de Backup Desnecessários
+Problema: Múltiplos arquivos .backup no projeto
+Localização: Diversos diretórios com arquivos .backup-*
+
+🛠️ SOLUÇÕES RECOMENDADAS
+Prioridade Alta:
+Corrigir Schema de Cupons
+
+Alinhar schema Drizzle com estrutura real
+Corrigir tratamento de timestamps
+Limpar Arquivos Órfãos
+
+Executar limpeza dos arquivos backup
+Remover arquivos desnecessários
+Otimizar Sistema de Imagens
+
+Simplificar lógica de verificação
+Reduzir logs desnecessários
+Prioridade Média:
+Corrigir Configuração Stripe
+
+Padronizar modo de desenvolvimento
+Evitar conflitos de ambiente
+Atualizar Dependências
+
+Executar update do browserslist
+Verificar outras dependências
+Prioridade Baixa:
+Limpar Logs
+
+Remover logs excessivos
+Manter apenas logs essenciais
+Organizar Arquivos
+
+Remover arquivos .backup
+Organizar estrutura de pastas
+📊 RESUMO EXECUTIVO
+Erros Críticos: 3 (Sistema de Cupons, Schema, Arquivos Órfãos)
+Problemas Performance: 2 (Browserslist, Requisições Duplicadas)
+Problemas Estrutura: 2 (Stripe, Imagens)
+Problemas Menores: 2 (Logs, Backups)
+Status Geral: 🟡 MODERADO - Sistema funcional com problemas que precisam ser corrigidos
+
+O projeto está operacional mas apresenta problemas que podem afetar a experiência do usuário e a manutenibilidade do código. O foco deve ser na correção do sistema de cupons e limpeza da estrutura de arquivos.
